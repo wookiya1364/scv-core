@@ -58,6 +58,11 @@ directories. Source-checkout metadata links are materialized as regular files;
 all remaining links and special files fail export. Dependency directories,
 caches, build output, and temporary files are never released.
 
+DeckUI runtime state is also never part of a release. At execution time Core
+initializes a payload-keyed user cache atomically. Wrapper updates may migrate
+the narrow legacy runtime inventory into that cache before replacing an old
+payload.
+
 ## Wrapper dispatch
 
 When configured, the repository secret `SCV_WRAPPER_SYNC_TOKEN` sends an
