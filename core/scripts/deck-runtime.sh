@@ -54,6 +54,8 @@ python3 - \
 from __future__ import annotations
 
 import contextlib
+import ctypes
+import errno
 import hashlib
 import json
 import os
@@ -83,6 +85,75 @@ MANAGED_DECKS = {"demo-prd", "refund"}
 
 def fail(message: str) -> "NoReturn":
     raise SystemExit(f"ERROR: {message}")
+
+
+def rename_noreplace(
+    source_path: Path,
+    destination_parent_fd: int,
+    destination_name: str,
+) -> None:
+    """Atomically move source without replacing an existing destination."""
+    libc = ctypes.CDLL(None, use_errno=True)
+    source = os.fsencode(source_path)
+    destination = os.fsencode(destination_name)
+
+    if sys.platform.startswith("linux"):
+        at_fdcwd = -100
+        operation = getattr(libc, "renameat2", None)
+        if operation is None:
+            fail("this Linux runtime does not provide atomic no-replace rename")
+        operation.argtypes = [
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        ]
+        operation.restype = ctypes.c_int
+        result = operation(
+            at_fdcwd,
+            source,
+            destination_parent_fd,
+            destination,
+            1,  # RENAME_NOREPLACE
+        )
+    elif sys.platform == "darwin":
+        at_fdcwd = -2
+        operation = getattr(libc, "renameatx_np", None)
+        if operation is None:
+            fail("this macOS runtime does not provide atomic no-replace rename")
+        operation.argtypes = [
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        ]
+        operation.restype = ctypes.c_int
+        result = operation(
+            at_fdcwd,
+            source,
+            destination_parent_fd,
+            destination,
+            0x00000004,  # RENAME_EXCL
+        )
+    else:
+        fail("atomic no-replace cache installation requires Linux or macOS")
+
+    if result == 0:
+        return
+    error_number = ctypes.get_errno()
+    if error_number in {errno.EEXIST, errno.ENOTEMPTY}:
+        raise FileExistsError(
+            error_number,
+            os.strerror(error_number),
+            destination_name,
+        )
+    raise OSError(
+        error_number,
+        os.strerror(error_number),
+        f"{source_path} -> {destination_name}",
+    )
 
 
 def is_relative_to(path: Path, parent: Path) -> bool:
@@ -182,6 +253,92 @@ marker_name = ".scv-deck-runtime.json"
 marker = target / marker_name
 
 
+def open_ordinary_directory(path: Path) -> int:
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as error:
+        fail(f"cannot open ordinary cache directory {path}: {error}")
+    metadata = os.fstat(descriptor)
+    if not stat.S_ISDIR(metadata.st_mode):
+        os.close(descriptor)
+        fail(f"cache path is not an ordinary directory: {path}")
+    return descriptor
+
+
+def validate_destination_ancestors(destination: Path) -> None:
+    try:
+        relative = destination.relative_to(target)
+    except ValueError:
+        fail(f"cache destination escapes the runtime target: {destination}")
+    current = target
+    for component in relative.parts[:-1]:
+        current = current / component
+        if not current.exists() and not current.is_symlink():
+            return
+        try:
+            metadata = current.lstat()
+        except OSError as error:
+            fail(f"cannot inspect cache destination ancestor {current}: {error}")
+        if not stat.S_ISDIR(metadata.st_mode):
+            fail(
+                "cache destination ancestor is a link or non-directory: "
+                f"{current}"
+            )
+
+
+def open_destination_parent(destination: Path) -> int:
+    try:
+        relative = destination.relative_to(target)
+    except ValueError:
+        fail(f"cache destination escapes the runtime target: {destination}")
+    descriptor = open_ordinary_directory(target)
+    try:
+        for component in relative.parts[:-1]:
+            try:
+                before = os.stat(
+                    component,
+                    dir_fd=descriptor,
+                    follow_symlinks=False,
+                )
+            except FileNotFoundError:
+                try:
+                    os.mkdir(component, mode=0o755, dir_fd=descriptor)
+                except FileExistsError:
+                    pass
+                before = os.stat(
+                    component,
+                    dir_fd=descriptor,
+                    follow_symlinks=False,
+                )
+            if not stat.S_ISDIR(before.st_mode):
+                fail(
+                    "cache destination ancestor is a link or non-directory: "
+                    f"{destination.parent}"
+                )
+            flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+            flags |= getattr(os, "O_NOFOLLOW", 0)
+            child = os.open(component, flags, dir_fd=descriptor)
+            opened = os.fstat(child)
+            if (
+                before.st_dev != opened.st_dev
+                or before.st_ino != opened.st_ino
+                or not stat.S_ISDIR(opened.st_mode)
+            ):
+                os.close(child)
+                fail(
+                    "cache destination ancestor changed while opening: "
+                    f"{destination.parent}"
+                )
+            os.close(descriptor)
+            descriptor = child
+        return descriptor
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
 def validate_target() -> bool:
     if target.is_symlink():
         fail(f"SCV Deck runtime target must not be a symlink: {target}")
@@ -239,22 +396,49 @@ def runtime_lock():
             try:
                 data = json.loads(owner.read_text(encoding="utf-8"))
                 pid = int(data["pid"])
+                owner_token = data["token"]
+                if (
+                    pid <= 0
+                    or not isinstance(owner_token, str)
+                    or len(owner_token) != 32
+                    or any(
+                        character not in "0123456789abcdef"
+                        for character in owner_token
+                    )
+                ):
+                    raise ValueError("invalid lock owner")
             except (OSError, ValueError, KeyError, json.JSONDecodeError):
                 # A creator may be between mkdir and owner write.
                 if time.time() - lock.stat().st_mtime < 5:
                     time.sleep(0.05)
                     continue
-                pid = -1
-            if pid > 0 and process_is_alive(pid):
+                fail(f"SCV Deck runtime lock metadata is malformed: {lock}")
+            if process_is_alive(pid):
                 time.sleep(0.05)
                 continue
-            quarantine = base / f".{key}.stale-{uuid.uuid4().hex}"
             try:
-                os.rename(lock, quarantine)
-            except (FileNotFoundError, OSError):
+                lock_entries = list(lock.iterdir())
+            except OSError as error:
+                fail(f"cannot inspect stale SCV Deck runtime lock: {error}")
+            if (
+                len(lock_entries) != 1
+                or lock_entries[0].name != "owner.json"
+                or lock_entries[0].is_symlink()
+                or not lock_entries[0].is_file()
+            ):
+                fail(f"stale SCV Deck runtime lock has unexpected data: {lock}")
+            quarantine = base / f".{key}.stale-{uuid.uuid4().hex}"
+            base_fd = open_ordinary_directory(base)
+            try:
+                rename_noreplace(lock, base_fd, quarantine.name)
+            except (FileNotFoundError, FileExistsError, OSError):
+                os.close(base_fd)
                 time.sleep(0.05)
                 continue
-            shutil.rmtree(quarantine)
+            os.close(base_fd)
+            quarantine_owner = quarantine / "owner.json"
+            quarantine_owner.unlink()
+            quarantine.rmdir()
     if not acquired:
         fail("timed out waiting for the SCV Deck runtime lock")
 
@@ -268,6 +452,14 @@ def runtime_lock():
             data = {}
         if data.get("token") != token:
             fail(f"SCV Deck runtime lock ownership changed: {lock}")
+        entries = list(lock.iterdir())
+        if (
+            len(entries) != 1
+            or entries[0].name != "owner.json"
+            or entries[0].is_symlink()
+            or not entries[0].is_file()
+        ):
+            fail(f"SCV Deck runtime lock has unexpected data: {lock}")
         owner.unlink()
         lock.rmdir()
 
@@ -320,7 +512,18 @@ def ensure_locked() -> None:
             if not validate_target():
                 fail(f"SCV Deck runtime target appeared during initialization: {target}")
         else:
-            os.rename(staged, target)
+            namespace_fd = open_ordinary_directory(namespace)
+            try:
+                try:
+                    rename_noreplace(staged, namespace_fd, target.name)
+                except FileExistsError:
+                    if not validate_target():
+                        fail(
+                            "SCV Deck runtime target appeared during "
+                            f"initialization: {target}"
+                        )
+            finally:
+                os.close(namespace_fd)
     finally:
         if staged_parent.exists():
             shutil.rmtree(staged_parent)
@@ -375,47 +578,87 @@ def entry_digest(path: Path) -> str:
 
 
 def copy_runtime_entry(source_entry: Path, destination: Path) -> None:
+    validate_destination_ancestors(destination)
     if destination.exists() or destination.is_symlink():
         if entry_digest(source_entry) != entry_digest(destination):
             fail(f"Deck runtime migration collision: {destination}")
         return
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    if source_entry.is_dir() and not source_entry.is_symlink():
-        staged_parent = Path(
-            tempfile.mkdtemp(prefix=f".{destination.name}.stage-", dir=destination.parent)
-        )
-        staged = staged_parent / destination.name
-        try:
-            shutil.copytree(source_entry, staged, symlinks=True, copy_function=shutil.copy2)
-            os.rename(staged, destination)
-        finally:
-            if staged_parent.exists():
-                shutil.rmtree(staged_parent)
-    elif source_entry.is_file() or source_entry.is_symlink():
-        descriptor, staged_name = tempfile.mkstemp(
-            prefix=f".{destination.name}.stage-", dir=destination.parent
-        )
-        os.close(descriptor)
-        staged = Path(staged_name)
-        staged.unlink()
-        try:
-            if source_entry.is_symlink():
-                staged.symlink_to(os.readlink(source_entry))
-            else:
-                shutil.copy2(source_entry, staged)
-            os.rename(staged, destination)
-        finally:
-            if staged.exists() or staged.is_symlink():
-                staged.unlink()
-    else:
-        fail(f"legacy Deck runtime contains a special file: {source_entry}")
+    destination_parent_fd = open_destination_parent(destination)
+    try:
+        if source_entry.is_dir() and not source_entry.is_symlink():
+            staged_parent = Path(
+                tempfile.mkdtemp(
+                    prefix=f".{destination.name}.stage-",
+                    dir=namespace,
+                )
+            )
+            staged = staged_parent / destination.name
+            try:
+                shutil.copytree(
+                    source_entry,
+                    staged,
+                    symlinks=True,
+                    copy_function=shutil.copy2,
+                )
+                try:
+                    rename_noreplace(
+                        staged,
+                        destination_parent_fd,
+                        destination.name,
+                    )
+                except FileExistsError:
+                    if entry_digest(source_entry) != entry_digest(destination):
+                        fail(f"Deck runtime migration collision: {destination}")
+            finally:
+                if staged_parent.exists():
+                    shutil.rmtree(staged_parent)
+        elif source_entry.is_file() or source_entry.is_symlink():
+            descriptor, staged_name = tempfile.mkstemp(
+                prefix=f".{destination.name}.stage-",
+                dir=namespace,
+            )
+            os.close(descriptor)
+            staged = Path(staged_name)
+            staged.unlink()
+            try:
+                if source_entry.is_symlink():
+                    staged.symlink_to(os.readlink(source_entry))
+                else:
+                    shutil.copy2(source_entry, staged)
+                try:
+                    rename_noreplace(
+                        staged,
+                        destination_parent_fd,
+                        destination.name,
+                    )
+                except FileExistsError:
+                    if entry_digest(source_entry) != entry_digest(destination):
+                        fail(f"Deck runtime migration collision: {destination}")
+            finally:
+                if staged.exists() or staged.is_symlink():
+                    staged.unlink()
+        else:
+            fail(f"legacy Deck runtime contains a special file: {source_entry}")
+    finally:
+        os.close(destination_parent_fd)
 
 
-def migrate_locked(legacy_arg: str) -> None:
+def resolve_legacy_root(legacy_arg: str) -> Path:
     legacy_raw = Path(legacy_arg).expanduser()
     if legacy_raw.is_symlink() or not legacy_raw.is_dir():
         fail(f"legacy DeckUI path is missing or unsafe: {legacy_raw}")
     legacy = legacy_raw.resolve()
+    resolved_target = target.resolve(strict=False)
+    if legacy == resolved_target:
+        return legacy
+    if is_relative_to(resolved_target, legacy) or is_relative_to(
+        legacy, resolved_target
+    ):
+        fail("legacy DeckUI and the selected runtime cache must not overlap")
+    return legacy
+
+
+def migrate_locked(legacy: Path) -> None:
     if legacy == target.resolve():
         return
 
@@ -450,6 +693,7 @@ def migrate_locked(legacy_arg: str) -> None:
 
     # Compare every collision before copying anything.
     for source_entry, destination in entries:
+        validate_destination_ancestors(destination)
         if destination.exists() or destination.is_symlink():
             if entry_digest(source_entry) != entry_digest(destination):
                 fail(f"Deck runtime migration collision: {destination}")
@@ -464,8 +708,9 @@ elif command == "ensure":
         ensure_locked()
     print(target)
 else:
+    legacy = resolve_legacy_root(legacy_arg)
     with runtime_lock():
         ensure_locked()
-        migrate_locked(legacy_arg)
+        migrate_locked(legacy)
     print(target)
 PY
