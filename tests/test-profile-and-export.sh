@@ -64,8 +64,8 @@ fi
 [[ -f "$TMP/source-repo/core/DeckUI/src/deck/decks/refund/deck.json" ]]
 [[ ! -e "$TMP/source-repo/core/DeckUI/src/deck/decks/ai-tm-center-deck/deck.json" ]]
 [[ ! -e "$TMP/source-repo/core/DeckUI/src/deck/decks/fidelity-probe/deck.json" ]]
-if find "$TMP/source-repo" -type l -exec test -d {} \; -print -quit | grep -q .; then
-  echo "export contains a directory symlink" >&2
+if find "$TMP/source-repo" ! -type f ! -type d -print -quit | grep -q .; then
+  echo "export contains a link or special file" >&2
   exit 1
 fi
 git -C "$TMP/source-repo" init -q -b main
@@ -100,8 +100,8 @@ if find "$TMP/from-worktree/scv-core" -type d \
   exit 1
 fi
 [[ ! -e "$TMP/from-worktree/scv-core/core/DeckUI/src/deck/decks/generated-fixture/deck.json" ]]
-if find "$TMP/from-worktree/scv-core" -type l -exec test -d {} \; -print -quit | grep -q .; then
-  echo "vendored payload contains a directory symlink" >&2
+if find "$TMP/from-worktree/scv-core" ! -type f ! -type d -print -quit | grep -q .; then
+  echo "vendored payload contains a link or special file" >&2
   exit 1
 fi
 git -C "$TMP/source-repo" worktree remove --force "$TMP/worktree" >/dev/null

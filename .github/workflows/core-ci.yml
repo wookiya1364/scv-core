@@ -108,7 +108,7 @@ jobs:
             echo "generated DeckUI deck leaked into release: $generated_decks" >&2
             exit 1
           }
-          if find "$RUNNER_TEMP/unpacked" -type l -exec test -d {} \; -print -quit | grep -q .; then
-            echo "directory symlink leaked into release" >&2
+          if find "$RUNNER_TEMP/unpacked" ! -type f ! -type d -print -quit | grep -q .; then
+            echo "link or special file leaked into release" >&2
             exit 1
           fi

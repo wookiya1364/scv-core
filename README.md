@@ -12,7 +12,7 @@ Current versions:
 
 | Contract | Version | Meaning |
 |---|---:|---|
-| SCV Core | `0.20.0` | Shared behavior and release payload |
+| SCV Core | `0.20.1` | Shared behavior and release payload |
 | Core API | `1` | Wrapper/core integration contract |
 | Template | `1.0.0` | Hydrated project-template schema |
 
@@ -79,7 +79,7 @@ tools/vendor-core.sh \
 ```
 
 Vendoring records source and materialized hashes in `core.lock.json`.
-Development dependencies, build output, caches, and directory symlinks are
+Development dependencies, build output, caches, links, and special files are
 excluded from exports.
 
 ## Release
