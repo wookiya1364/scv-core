@@ -12,7 +12,7 @@ DeckUI、アセット、共通回帰テストをこのリポジトリで管理�
 
 | 契約 | バージョン | 意味 |
 |---|---:|---|
-| SCV Core | `0.20.1` | 共通動作とリリースペイロード |
+| SCV Core | `0.20.2` | 共通動作とリリースペイロード |
 | Core API | `1` | ラッパーと Core の統合契約 |
 | Template | `1.0.0` | hydrate されるプロジェクトテンプレートのスキーマ |
 
@@ -41,6 +41,11 @@ scv-core リリース（変更不能な tarball + SHA-256）
 `SCV.md` がない場合に限り `CLAUDE.md` または `CODEX.md` を読みます。独立した
 状態ファイルが異なる場合、変更を伴う sync は何も変更せず停止します。
 
+インストール済みラッパーの DeckUI 原本は変更しません。依存関係、生成 deck、
+ビルド出力は Core ペイロードハッシュ別の外部キャッシュに保存されるため、
+Claude Code と Codex は同じランタイムを再利用しながら、どちらのプラグインにも
+書き込みません。既定のユーザーキャッシュは `SCV_DECK_CACHE_DIR` で変更できます。
+
 詳細は [Architecture](docs/architecture.md) と
 [Wrapper integration](docs/wrapper-integration.md) を参照してください。
 
@@ -52,7 +57,7 @@ bash core/tests/run-dry.sh
 for test_file in core/tests/test-*.sh; do bash "$test_file"; done
 ```
 
-DeckUI の検証には Node.js と pnpm も必要です。
+DeckUI のソースチェックアウト開発には Node.js と pnpm も必要です。
 
 ```bash
 pnpm -C core/DeckUI install --frozen-lockfile
