@@ -55,7 +55,7 @@ trap 'rm -f "$SUMS_TMP" "$MANIFEST_TMP"' EXIT
       \( -type d \( -name node_modules -o -name dist -o -name dist-deck -o -name coverage -o -name .vite -o -name .cache \) -prune \) \
       -o \( -type f -o -type l \) -print
   } | awk '
-    /^core\/DeckUI\/src\/deck\/decks\/[^/]+\/deck\.json$/ &&
+    /^core\/DeckUI\/src\/deck\/decks\/[^\/]+\/deck\.json$/ &&
       $0 != "core/DeckUI/src/deck/decks/demo-prd/deck.json" &&
       $0 != "core/DeckUI/src/deck/decks/refund/deck.json" { next }
     NF
