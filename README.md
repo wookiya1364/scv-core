@@ -12,7 +12,7 @@ Current versions:
 
 | Contract | Version | Meaning |
 |---|---:|---|
-| SCV Core | `0.20.2` | Shared behavior and release payload |
+| SCV Core | `0.20.3` | Shared behavior and release payload |
 | Core API | `1` | Wrapper/core integration contract |
 | Template | `1.0.0` | Hydrated project-template schema |
 
@@ -46,6 +46,9 @@ DeckUI source is immutable in installed wrappers. Dependencies, generated
 decks, and build output live in a cache keyed by the canonical Core payload
 hash, so Claude Code and Codex reuse the same runtime without writing into
 either plugin. `SCV_DECK_CACHE_DIR` may override the default user cache.
+Cache initialization and legacy migration never replace a destination that
+appears concurrently, never follow destination-ancestor links, and reject
+cache/legacy overlap before writing.
 
 See [Architecture](docs/architecture.md) and
 [Wrapper integration](docs/wrapper-integration.md) for the complete boundary.
