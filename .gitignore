@@ -3,3 +3,5 @@ node_modules/
 dist/
 coverage/
 *.tmp
+/SHA256SUMS
+/core-manifest.json
