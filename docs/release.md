@@ -53,9 +53,10 @@ The sidecar protects the downloaded archive. Inside the export:
 - `SOURCE_COMMIT`, `SOURCE_DATE`, and `SOURCE_INFO` identify provenance;
 - wrapper `core.lock.json` records both canonical and materialized hashes.
 
-Export validation rejects absolute, escaping, broken, and directory symlinks.
-Only safe metadata-file symlinks inside the export are permitted. Dependency
-directories, caches, build output, and temporary files are never released.
+Published exports and release archives contain only regular files and
+directories. Source-checkout metadata links are materialized as regular files;
+all remaining links and special files fail export. Dependency directories,
+caches, build output, and temporary files are never released.
 
 ## Wrapper dispatch
 

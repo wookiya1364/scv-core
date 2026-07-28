@@ -66,6 +66,18 @@ else
   cp -R -p "$REPO_ROOT/tools" "$TMP/tools"
 fi
 
+# Source checkout metadata uses links to the canonical root files. Published
+# exports must contain only regular files/directories so every wrapper can apply
+# one strict archive policy without following links during extraction.
+for file in VERSION CORE_API TEMPLATE_VERSION; do
+  rm -f "$TMP/core/$file"
+  cp "$TMP/$file" "$TMP/core/$file"
+done
+if non_regular="$(find "$TMP" ! -type f ! -type d -print -quit)" && [[ -n "$non_regular" ]]; then
+  echo "export contains a link or special file: ${non_regular#"$TMP/"}" >&2
+  exit 1
+fi
+
 SOURCE_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || printf 'unknown')"
 SOURCE_DATE="$(git -C "$REPO_ROOT" show -s --format=%cI HEAD 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)"
 SOURCE_REPOSITORY="$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null || printf 'https://github.com/wookiya1364/scv-core.git')"
