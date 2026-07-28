@@ -1,0 +1,90 @@
+name: Release SCV Core
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SCV_WRAPPER_SYNC_TOKEN: ${{ secrets.SCV_WRAPPER_SYNC_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            core/DeckUI/pnpm-lock.yaml
+            core/DeckUI/scripts/deckdoc/pnpm-lock.yaml
+
+      - name: Validate tag
+        run: |
+          version=$(tr -d '[:space:]' < VERSION)
+          test "$GITHUB_REF_NAME" = "v$version"
+
+      - name: Verify Core
+        run: |
+          bash tests/run.sh
+          bash core/tests/run-dry.sh
+          for test_file in core/tests/test-*.sh; do
+            bash "$test_file"
+          done
+
+      - name: Verify DeckUI
+        run: |
+          pnpm -C core/DeckUI install --frozen-lockfile
+          pnpm -C core/DeckUI/scripts/deckdoc install --frozen-lockfile
+          pnpm -C core/DeckUI typecheck
+          pnpm -C core/DeckUI build:deck
+          bash core/tests/test-deck-doc.sh
+
+      - name: Build deterministic artifacts
+        run: tools/release-artifact.sh --output-dir dist
+
+      - name: Publish GitHub release
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --verify-tag \
+              --title "SCV Core $GITHUB_REF_NAME" \
+              --generate-notes
+          fi
+
+      - name: Note scheduled-polling fallback
+        if: env.SCV_WRAPPER_SYNC_TOKEN == ''
+        run: |
+          echo "::notice::SCV_WRAPPER_SYNC_TOKEN is not configured; wrappers will discover this release through scheduled polling"
+
+      - name: Dispatch wrapper update workflows
+        if: env.SCV_WRAPPER_SYNC_TOKEN != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ env.SCV_WRAPPER_SYNC_TOKEN }}
+        run: |
+          version=$(tr -d '[:space:]' < VERSION)
+          asset_url="https://github.com/wookiya1364/scv-core/releases/download/v${version}/scv-core-v${version}.tar.gz"
+          checksum_url="${asset_url}.sha256"
+          for repository in scv-claude-code scv-codex; do
+            gh api --method POST "repos/wookiya1364/${repository}/dispatches" \
+              -f event_type=scv-core-released \
+              -F "client_payload[version]=$version" \
+              -f "client_payload[tag]=v$version" \
+              -f "client_payload[asset_url]=$asset_url" \
+              -f "client_payload[checksum_url]=$checksum_url"
+          done
