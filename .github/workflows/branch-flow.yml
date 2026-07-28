@@ -1,0 +1,19 @@
+name: branch-flow
+
+on:
+  pull_request:
+    branches: [main, stage, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Enforce branch flow
+        env:
+          TARGET_BRANCH: ${{ github.base_ref }}
+          SOURCE_BRANCH: ${{ github.head_ref }}
+        run: sh core/scripts/check-branch-flow.sh

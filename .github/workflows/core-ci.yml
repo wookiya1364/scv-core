@@ -1,0 +1,114 @@
+name: SCV Core CI
+
+on:
+  pull_request:
+    branches: [main, stage, develop]
+  push:
+    branches: [main, stage, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Contracts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install modern Bash on macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew list bash >/dev/null 2>&1 || brew install bash
+          modern_bash="$(brew --prefix)/bin/bash"
+          "$modern_bash" -c 'test "${BASH_VERSINFO[0]}" -ge 4'
+          echo "$(brew --prefix)/bin" >> "$GITHUB_PATH"
+
+      - name: Shell syntax
+        run: |
+          find core/scripts core/tests tests tools -type f -name '*.sh' \
+            -exec bash -n {} +
+
+      - name: Core contracts and transition transcript
+        run: bash tests/run.sh
+
+      - name: Shared regression
+        run: bash core/tests/run-dry.sh
+
+      - name: Focused suites
+        run: |
+          for test_file in core/tests/test-*.sh; do
+            bash "$test_file"
+          done
+
+  deckui:
+    name: DeckUI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            core/DeckUI/pnpm-lock.yaml
+            core/DeckUI/scripts/deckdoc/pnpm-lock.yaml
+
+      - name: Install DeckUI dependencies
+        run: |
+          pnpm -C core/DeckUI install --frozen-lockfile
+          pnpm -C core/DeckUI/scripts/deckdoc install --frozen-lockfile
+
+      - name: Typecheck and build
+        run: |
+          pnpm -C core/DeckUI typecheck
+          pnpm -C core/DeckUI build:deck
+
+      - name: Deck document regression
+        run: bash core/tests/test-deck-doc.sh
+
+  artifact:
+    name: Deterministic release artifact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Build twice and compare
+        run: |
+          tools/release-artifact.sh --output-dir "$RUNNER_TEMP/one"
+          tools/release-artifact.sh --output-dir "$RUNNER_TEMP/two"
+          cmp "$RUNNER_TEMP"/one/*.tar.gz "$RUNNER_TEMP"/two/*.tar.gz
+          diff -u "$RUNNER_TEMP"/one/*.sha256 "$RUNNER_TEMP"/two/*.sha256
+
+      - name: Inspect payload hygiene
+        run: |
+          mkdir "$RUNNER_TEMP/unpacked"
+          tar -xzf "$RUNNER_TEMP"/one/*.tar.gz -C "$RUNNER_TEMP/unpacked"
+          if find "$RUNNER_TEMP/unpacked" -type d \
+            \( -name node_modules -o -name dist -o -name dist-deck -o -name coverage -o -name .vite -o -name .cache \) \
+            -print -quit | grep -q .; then
+            echo "development directory leaked into release" >&2
+            exit 1
+          fi
+          generated_decks=$(find "$RUNNER_TEMP/unpacked" \
+            -path '*/DeckUI/src/deck/decks/*/deck.json' \
+            ! -path '*/DeckUI/src/deck/decks/demo-prd/deck.json' \
+            ! -path '*/DeckUI/src/deck/decks/refund/deck.json' -print)
+          test -z "$generated_decks" || {
+            echo "generated DeckUI deck leaked into release: $generated_decks" >&2
+            exit 1
+          }
+          if find "$RUNNER_TEMP/unpacked" -type l -exec test -d {} \; -print -quit | grep -q .; then
+            echo "directory symlink leaked into release" >&2
+            exit 1
+          fi
