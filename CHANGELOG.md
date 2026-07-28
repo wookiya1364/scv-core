@@ -2,6 +2,18 @@
 
 All notable changes to SCV Core are documented here.
 
+## [0.20.3] - 2026-07-28
+
+### Fixed
+
+- Made first-use and migration installs in the shared DeckUI cache use
+  platform-native atomic no-replace renames on Linux and macOS.
+- Rejected cache/legacy overlap before initialization and opened every
+  migration destination ancestor without following links.
+- Limited stale lock reclamation to a valid dead-owner record with no
+  unexpected lock data; malformed or surprising state is preserved and fails
+  closed.
+
 ## [0.20.2] - 2026-07-28
 
 ### Fixed
