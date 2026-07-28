@@ -54,6 +54,23 @@ The wrapper validates its line-oriented profile and materializes those tokens
 while vendoring a pinned release. The installed plugin runs entirely from the
 vendored payload; it does not fetch Core at runtime.
 
+## Immutable source, external Deck runtime
+
+The vendored `core/DeckUI` tree is immutable source. `deck-runtime.sh` copies
+that source into a user cache namespaced by `source_payload_sha256` before Deck
+execution. Both wrappers therefore resolve the same Core release to the same
+cache while their plugin trees remain verifiable and replaceable.
+
+Only mutable runtime entries are migrated from a legacy in-plugin DeckUI:
+
+- root and deckdoc `node_modules`;
+- `dist-deck`;
+- non-sample generated `src/deck/decks/<slug>/deck.json`.
+
+Migration is additive and collision-safe. It never deletes the legacy source,
+never follows generated-deck links, and never replaces a different cached
+value.
+
 ## State-index transition
 
 `scv/SCV.md` is the only canonical state index. A profile may declare
