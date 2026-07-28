@@ -112,6 +112,58 @@ if SCV_DECK_CACHE_DIR="$cache_base" \
 fi
 grep -q '"different":true' "$runtime/src/deck/decks/generated/deck.json"
 
+# A destination created after collision preflight is never replaced.
+race_base="$TMP/race-cache"
+race_runtime="$(
+  SCV_DECK_CACHE_DIR="$race_base" bash "$HELPER" ensure
+)"
+race_legacy="$TMP/race-legacy"
+mkdir -p "$race_legacy/dist-deck"
+python3 - "$race_legacy/dist-deck" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+payload = b"x" * 1024
+for index in range(4000):
+    (root / f"{index:04d}.bin").write_bytes(payload)
+PY
+SCV_DECK_CACHE_DIR="$race_base" \
+  bash "$HELPER" migrate --from "$race_legacy" \
+  >"$TMP/race.out" 2>"$TMP/race.err" &
+race_pid=$!
+race_stage=
+for _ in $(seq 1 1000); do
+  race_stage="$(
+    find "$(dirname "$race_runtime")" -maxdepth 1 \
+      -type d -name '.dist-deck.stage-*' -print -quit
+  )"
+  [[ -n "$race_stage" ]] && break
+done
+[[ -n "$race_stage" ]]
+mkdir "$race_runtime/dist-deck"
+race_inode_before="$(
+  python3 - "$race_runtime/dist-deck" <<'PY'
+import os
+import sys
+print(os.lstat(sys.argv[1]).st_ino)
+PY
+)"
+if wait "$race_pid"; then
+  echo "concurrent cache destination was replaced" >&2
+  exit 1
+fi
+race_inode_after="$(
+  python3 - "$race_runtime/dist-deck" <<'PY'
+import os
+import sys
+print(os.lstat(sys.argv[1]).st_ino)
+PY
+)"
+[[ "$race_inode_before" == "$race_inode_after" ]]
+[[ -z "$(find "$race_runtime/dist-deck" -mindepth 1 -print -quit)" ]]
+grep -q 'migration collision' "$TMP/race.err"
+
 # Generated Deck links are never followed out of the legacy runtime.
 unsafe_legacy="$TMP/unsafe-legacy"
 mkdir -p "$unsafe_legacy/src/deck/decks"
@@ -142,6 +194,108 @@ if SCV_DECK_CACHE_DIR="$symlink_base" \
   exit 1
 fi
 [[ -z "$(find "$TMP/outside" -mindepth 1 -print -quit)" ]]
+
+# Cache destination ancestors are opened without following links.
+ancestor_legacy="$TMP/ancestor-legacy"
+ancestor_outside="$TMP/ancestor-outside"
+mkdir -p \
+  "$ancestor_legacy/src/deck/decks/escaped" \
+  "$ancestor_outside"
+printf '{"escaped":true}\n' \
+  >"$ancestor_legacy/src/deck/decks/escaped/deck.json"
+ln -s "$ancestor_outside" "$runtime/src/deck/decks/escaped"
+if SCV_DECK_CACHE_DIR="$cache_base" \
+    bash "$HELPER" migrate --from "$ancestor_legacy" >/dev/null 2>&1; then
+  echo "cache destination ancestor symlink was followed" >&2
+  exit 1
+fi
+[[ -z "$(find "$ancestor_outside" -mindepth 1 -print -quit)" ]]
+
+# Cache and legacy roots may not overlap, and rejection happens before cache
+# initialization mutates the legacy tree.
+overlap_legacy="$TMP/overlap-legacy"
+mkdir -p "$overlap_legacy/node_modules"
+printf 'legacy\n' >"$overlap_legacy/node_modules/sentinel"
+if SCV_DECK_CACHE_DIR="$overlap_legacy/cache" \
+    bash "$HELPER" migrate --from "$overlap_legacy" >/dev/null 2>&1; then
+  echo "cache nested under the legacy DeckUI was accepted" >&2
+  exit 1
+fi
+[[ ! -e "$overlap_legacy/cache" ]]
+mkdir -p "$runtime/legacy-inside-cache"
+if SCV_DECK_CACHE_DIR="$cache_base" \
+    bash "$HELPER" migrate \
+      --from "$runtime/legacy-inside-cache" >/dev/null 2>&1; then
+  echo "legacy DeckUI nested under the cache was accepted" >&2
+  exit 1
+fi
+
+# Malformed or surprising lock state is preserved and fails closed. A valid
+# lock whose owner has exited is the only state eligible for stale reclaim.
+make_dead_pid() {
+  sleep 30 &
+  local child=$!
+  kill "$child"
+  wait "$child" 2>/dev/null || true
+  printf '%s\n' "$child"
+}
+
+malformed_base="$TMP/malformed-lock-cache"
+malformed_runtime="$(
+  SCV_DECK_CACHE_DIR="$malformed_base" bash "$HELPER" path
+)"
+malformed_key="$(basename "$(dirname "$malformed_runtime")")"
+malformed_lock="$malformed_base/.$malformed_key.lock"
+mkdir -p "$malformed_lock"
+printf '{broken\n' >"$malformed_lock/owner.json"
+python3 - "$malformed_lock" <<'PY'
+import os
+import sys
+import time
+
+old = time.time() - 10
+os.utime(sys.argv[1], (old, old))
+PY
+if SCV_DECK_CACHE_DIR="$malformed_base" \
+    bash "$HELPER" ensure >/dev/null 2>&1; then
+  echo "malformed runtime lock was reclaimed" >&2
+  exit 1
+fi
+grep -qF '{broken' "$malformed_lock/owner.json"
+
+extra_base="$TMP/extra-lock-cache"
+extra_runtime="$(
+  SCV_DECK_CACHE_DIR="$extra_base" bash "$HELPER" path
+)"
+extra_key="$(basename "$(dirname "$extra_runtime")")"
+extra_lock="$extra_base/.$extra_key.lock"
+mkdir -p "$extra_lock"
+dead_pid="$(make_dead_pid)"
+printf '{"pid":%s,"token":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}\n' \
+  "$dead_pid" >"$extra_lock/owner.json"
+printf 'preserve\n' >"$extra_lock/unexpected"
+if SCV_DECK_CACHE_DIR="$extra_base" \
+    bash "$HELPER" ensure >/dev/null 2>&1; then
+  echo "stale runtime lock with unexpected data was reclaimed" >&2
+  exit 1
+fi
+grep -qF preserve "$extra_lock/unexpected"
+
+stale_base="$TMP/stale-lock-cache"
+stale_runtime="$(
+  SCV_DECK_CACHE_DIR="$stale_base" bash "$HELPER" path
+)"
+stale_key="$(basename "$(dirname "$stale_runtime")")"
+stale_lock="$stale_base/.$stale_key.lock"
+mkdir -p "$stale_lock"
+dead_pid="$(make_dead_pid)"
+printf '{"pid":%s,"token":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}\n' \
+  "$dead_pid" >"$stale_lock/owner.json"
+reclaimed="$(
+  SCV_DECK_CACHE_DIR="$stale_base" bash "$HELPER" ensure
+)"
+[[ "$reclaimed" == "$stale_runtime" ]]
+[[ ! -e "$stale_lock" ]]
 
 # A source checkout with a non-runtime link is rejected rather than copied.
 unsafe_core="$TMP/unsafe-core"
