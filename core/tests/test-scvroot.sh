@@ -51,7 +51,9 @@ ck "no scv anywhere → default scv"       "scv"           "$(cd "$BASE/empty"; 
 ck "init: target FE → RAW_DIR"           "FE/scv/raw"        "$(cd "$BASE/mono"; source "$LIB"; scv_init_paths FE; echo "$RAW_DIR")"
 ck "init: target FE → STATE_FILE"        "FE/scv/readpath.json" "$(cd "$BASE/mono"; source "$LIB"; scv_init_paths FE; echo "$STATE_FILE")"
 ck "init: no-arg standalone byte-ident"  "scv/raw"           "$(cd "$BASE/single"; source "$LIB"; scv_init_paths; echo "$RAW_DIR")"
-ck "init: env RAW_DIR override wins"      "/custom"           "$(cd "$BASE/single"; source "$LIB"; RAW_DIR=/custom scv_init_paths; echo "$RAW_DIR")"
+# Use a normal shell assignment so the assertion does not depend on whether a
+# Bash version restores temporary `NAME=value function` assignments on return.
+ck "init: env RAW_DIR override wins"      "/custom"           "$(cd "$BASE/single"; source "$LIB"; RAW_DIR=/custom; scv_init_paths; echo "$RAW_DIR")"
 
 # ---- multi-scv model: macro (root) vs micro (FE), addressed by context/arg ----
 mkdir -p "$BASE/full/scv/raw" "$BASE/full/FE/scv/raw" "$BASE/full/BE/scv/raw"
