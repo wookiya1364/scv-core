@@ -51,6 +51,9 @@ grep -qF "\"artifact_sha256\": \"$ARTIFACT_HASH\"" \
 # committed source repo from the current export so this test does not depend on
 # whether the developer's working branch has already been committed.
 "$ROOT/tools/export-core.sh" --output "$TMP/source-repo" >/dev/null
+ln -s "$TMP/source-repo" "$TMP/source-repo-alias"
+"$TMP/source-repo/tools/verify-core.sh" \
+  --root "$TMP/source-repo-alias" >/dev/null
 if find "$TMP/source-repo" -type d \
   \( -name node_modules -o -name dist -o -name dist-deck -o -name coverage -o -name .vite -o -name .cache \) \
   -print -quit | grep -q .; then

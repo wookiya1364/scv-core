@@ -13,7 +13,7 @@ while [[ $# -gt 0 ]]; do
     *) usage; exit 2 ;;
   esac
 done
-ROOT="$(cd "$ROOT" && pwd)"
+ROOT="$(cd "$ROOT" && pwd -P)"
 
 for path in VERSION CORE_API TEMPLATE_VERSION core/manifest.json core/actions.json \
   core/contracts/host-profile.md core/protocols core/scripts core/template \
