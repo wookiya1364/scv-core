@@ -2,6 +2,16 @@
 
 All notable changes to SCV Core are documented here.
 
+## [0.20.1] - 2026-07-28
+
+### Fixed
+
+- Materialized source-checkout metadata links as regular files in exported and
+  released payloads so strict wrapper archive validation can reject every link
+  and special-file entry consistently.
+- Added export, vendoring, and release hygiene checks that fail if any
+  non-regular entry is present.
+
 ## [0.20.0] - 2026-07-28
 
 ### Added
