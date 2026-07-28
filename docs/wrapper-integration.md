@@ -65,7 +65,23 @@ The adapter must implement the `update` and `set-models` entrypoints, runtime
 plugin metadata, and any host pointer/migration presentation. Keep those files
 outside `vendor/scv-core`.
 
-## 4. Validate the wrapper
+## 4. Migrate legacy Deck runtime
+
+Before replacing a pre-0.20.2 Core payload, invoke the verified candidate
+helper against the old DeckUI path:
+
+```bash
+SCV_DECK_CACHE_DIR=/optional/absolute/cache \
+  /candidate/core/scripts/deck-runtime.sh migrate \
+  --from /installed/legacy/DeckUI
+```
+
+Run this before the live Core swap. The operation is idempotent, leaves the
+legacy tree intact, and fails on a destination collision. A failed wrapper
+transaction may leave only the additive external cache; it must leave the
+installed plugin unchanged.
+
+## 5. Validate the wrapper
 
 At minimum, wrapper CI should:
 
@@ -76,17 +92,17 @@ At minimum, wrapper CI should:
 5. test adapter-owned update and model-policy behavior;
 6. ensure installed runtime execution performs no Core network fetch.
 
-## 5. Automated updates
+## 6. Automated updates
 
 Core releases send a `repository_dispatch` event named
 `scv-core-released` with this payload:
 
 ```json
 {
-  "version": "0.20.1",
-  "tag": "v0.20.1",
-  "asset_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.20.1/scv-core-v0.20.1.tar.gz",
-  "checksum_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.20.1/scv-core-v0.20.1.tar.gz.sha256"
+  "version": "0.20.2",
+  "tag": "v0.20.2",
+  "asset_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.20.2/scv-core-v0.20.2.tar.gz",
+  "checksum_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.20.2/scv-core-v0.20.2.tar.gz.sha256"
 }
 ```
 
