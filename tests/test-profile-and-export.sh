@@ -64,6 +64,11 @@ fi
 [[ -f "$TMP/source-repo/core/DeckUI/src/deck/decks/refund/deck.json" ]]
 [[ ! -e "$TMP/source-repo/core/DeckUI/src/deck/decks/ai-tm-center-deck/deck.json" ]]
 [[ ! -e "$TMP/source-repo/core/DeckUI/src/deck/decks/fidelity-probe/deck.json" ]]
+if find "$TMP/source-repo/core/DeckUI/src/deck/decks" \
+  -mindepth 1 -type d -empty -print -quit | grep -q .; then
+  echo "export retained an empty generated Deck directory" >&2
+  exit 1
+fi
 if find "$TMP/source-repo" ! -type f ! -type d -print -quit | grep -q .; then
   echo "export contains a link or special file" >&2
   exit 1
