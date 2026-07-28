@@ -66,6 +66,7 @@ mode_from() { # <cwd> <scv_dir>
 }
 
 REPO_ABS="$( cd "$REPO" && pwd )"
+REPO_PHYS="$( cd "$REPO" && pwd -P )"
 
 # 1. macro/micro detection by CWD (already expected to work)
 eq "cd REPO → ROOT (macro umbrella)"  "ROOT"  "$(mode_from "$REPO" "scv")"
@@ -77,12 +78,11 @@ eq "cd fe: relative root .. → REPO" "$REPO_ABS" "$(resolve_root_from "$REPO/fe
 
 # 3. relative root resolves to REPO via the MODULE-ARG form (cwd = repo root,
 #    SCV_DIR = fe/scv). This is the gap: `..` must anchor to the module dir, not CWD.
-eq "module-arg: fe/scv root .. → REPO (not CWD parent)" "$REPO_ABS" "$(resolve_root_from "$REPO" "fe/scv")"
+eq "module-arg: fe/scv root .. → REPO (not CWD parent)" "$REPO_PHYS" "$(resolve_root_from "$REPO" "fe/scv")"
 
 # 3b. module reached via a symlink whose LOGICAL parent differs from the real
 #     module's parent: the relative root must dereference the symlink (physical)
 #     so arg-form resolves to the REAL umbrella, not the symlink's logical parent.
-REPO_PHYS="$( cd "$REPO" && pwd -P )"
 mkdir -p "$REPO/other"
 ln -s "$REPO/fe" "$REPO/other/felink"
 eq "symlinked module (arg-form) → real umbrella (physical, not symlink logical parent)" \
