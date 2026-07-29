@@ -106,16 +106,20 @@ mid-operation, Core fails closed and does not follow the replacement.
 
 1. Use `SCV.md` when it exists.
 2. Otherwise, read a single non-pointer legacy index.
-3. Treat the exact `SCV:HOST-POINTER` marker as an adapter pointer, not a second
-   state copy.
+3. Treat the exact `SCV:HOST-POINTER target=SCV.md` marker as a Core
+   compatibility pointer, not a second state copy.
 4. If two independent indexes exist and differ byte-for-byte, report a
    conflict. Read-only help remains diagnostic; mutating sync exits before
    changing files.
-5. Explicit migration creates `SCV.md` without deleting the legacy file and
-   preserves lifecycle status, `PROJECT:LOCAL`, and workspace metadata.
+5. Explicit migration seeds `SCV.md` with no-replace semantics, preserves each
+   legacy file in a recoverable backup, then replaces only existing legacy
+   files with the same host-neutral pointer.
+6. A conflict remains hydrated when readable state and `INTAKE.md` exist, but
+   every mutating operation still fails closed.
 
 Help never triggers sync or migration. Dry-run sync reports the pending
-migration without modifying the working tree.
+migration without modifying the working tree. Both wrappers delegate this
+entire contract to `core/scripts/state-index.sh`.
 
 ## Version axes
 
