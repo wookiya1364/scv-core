@@ -61,7 +61,10 @@ caches, build output, and temporary files are never released.
 DeckUI runtime state is also never part of a release. At execution time Core
 initializes a payload-keyed user cache atomically. Wrapper updates may migrate
 the narrow legacy runtime inventory into that cache before replacing an old
-payload.
+payload. Cache mutation is anchored to verified open directory descriptors, so
+replacing a visible cache ancestor, namespace, target, or lock during an
+operation cannot redirect staging, installation, cleanup, or lock-owner
+removal to an external path.
 
 ## Wrapper dispatch
 
