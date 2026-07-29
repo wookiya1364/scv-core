@@ -71,6 +71,14 @@ Migration is additive and collision-safe. It never deletes the legacy source,
 never follows generated-deck links, and never replaces a different cached
 value.
 
+Every mutating cache operation is descriptor-relative. Core opens the cache
+base from the filesystem root one component at a time with no-follow
+semantics, then pins the payload namespace and runtime target by device,
+inode, and type. Lock candidates, stale quarantine, staging, migration,
+installation, and cleanup use only those descriptors and atomic no-replace
+renames. If any visible ancestor, namespace, target, lock, or owner is replaced
+mid-operation, Core fails closed and does not follow the replacement.
+
 ## State-index transition
 
 `scv/SCV.md` is the only canonical state index. A profile may declare

@@ -99,10 +99,10 @@ Core releases send a `repository_dispatch` event named
 
 ```json
 {
-  "version": "0.20.2",
-  "tag": "v0.20.2",
-  "asset_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.20.2/scv-core-v0.20.2.tar.gz",
-  "checksum_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.20.2/scv-core-v0.20.2.tar.gz.sha256"
+  "version": "0.20.4",
+  "tag": "v0.20.4",
+  "asset_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.20.4/scv-core-v0.20.4.tar.gz",
+  "checksum_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.20.4/scv-core-v0.20.4.tar.gz.sha256"
 }
 ```
 

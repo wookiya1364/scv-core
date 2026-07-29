@@ -2,6 +2,19 @@
 
 All notable changes to SCV Core are documented here.
 
+## [0.20.4] - 2026-07-28
+
+### Security
+
+- Anchored the Deck runtime cache base, payload namespace, target, staging,
+  migration destinations, installation, and cleanup to verified directory
+  descriptors opened with no-follow semantics.
+- Made lock acquisition install a complete owner record through an atomic
+  no-replace rename, and bound stale quarantine and release to the original
+  lock inode and owner token.
+- Added deterministic late-symlink, ancestor-replacement, quarantine-collision,
+  and release-race regressions that assert external sentinels remain unchanged.
+
 ## [0.20.3] - 2026-07-28
 
 ### Fixed
