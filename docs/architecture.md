@@ -71,6 +71,26 @@ Migration is additive and collision-safe. It never deletes the legacy source,
 never follows generated-deck links, and never replaces a different cached
 value.
 
+Strict migration is the default. Before copying, Core preflights every eligible
+legacy entry and its destination. A different pre-existing destination is a
+collision; Core copies no legacy runtime entry, never overwrites the
+destination, and leaves the source unchanged.
+
+For a persistent legacy source, callers may explicitly select
+`migrate --from LEGACY_DECKUI --reuse-existing`. If preflight finds even one
+different pre-existing destination, the current cache becomes authoritative
+for the whole migration and Core copies nothing from that legacy source,
+including entries whose destinations are equal or missing. If preflight finds
+no mismatch, the operation keeps the normal additive behavior. A collision
+that appears after preflight always fails closed; it never switches a running
+transaction into reuse mode.
+
+This opt-in is safe only while the legacy source remains available after the
+operation. Persistent Claude live DeckUI and Codex plugin-root legacy snapshots
+may use it. Recovery from an existing vendor that a wrapper will remove after
+a successful swap is ephemeral and must remain strict, otherwise an
+authoritative-reuse decision could discard its only runtime data.
+
 Every mutating cache operation is descriptor-relative. Core opens the cache
 base from the filesystem root one component at a time with no-follow
 semantics, then pins the payload namespace and runtime target by device,
