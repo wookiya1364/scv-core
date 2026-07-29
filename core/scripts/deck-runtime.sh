@@ -7,13 +7,14 @@ CORE_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 SOURCE_DECKUI="$CORE_DIR/DeckUI"
 COMMAND="${1:-}"
 LEGACY_ROOT=
+REUSE_EXISTING=0
 
 usage() {
   cat <<'EOF' >&2
 Usage:
   deck-runtime.sh path
   deck-runtime.sh ensure
-  deck-runtime.sh migrate --from LEGACY_DECKUI
+  deck-runtime.sh migrate --from LEGACY_DECKUI [--reuse-existing]
 
 SCV_DECK_CACHE_DIR overrides the cache base. The selected cache is always
 namespaced by the canonical Core source-payload SHA-256.
@@ -25,7 +26,18 @@ case "$COMMAND" in
     [[ $# -eq 1 ]] || { usage; exit 2; }
     ;;
   migrate)
-    [[ $# -eq 3 && "$2" == "--from" ]] || { usage; exit 2; }
+    if [[ $# -eq 3 && "$2" == "--from" ]]; then
+      :
+    elif [[
+      $# -eq 4 &&
+      "$2" == "--from" &&
+      "$4" == "--reuse-existing"
+    ]]; then
+      REUSE_EXISTING=1
+    else
+      usage
+      exit 2
+    fi
     LEGACY_ROOT="$3"
     ;;
   -h|--help)
@@ -50,7 +62,8 @@ else
 fi
 
 exec python3 - \
-  "$COMMAND" "$SOURCE_DECKUI" "$CORE_DIR" "$CACHE_BASE" "$LEGACY_ROOT" <<'PY'
+  "$COMMAND" "$SOURCE_DECKUI" "$CORE_DIR" "$CACHE_BASE" "$LEGACY_ROOT" \
+  "$REUSE_EXISTING" <<'PY'
 from __future__ import annotations
 
 import contextlib
@@ -67,10 +80,18 @@ import uuid
 from pathlib import Path
 from typing import NoReturn
 
-command, source_arg, core_arg, base_arg, legacy_arg = sys.argv[1:]
+(
+    command,
+    source_arg,
+    core_arg,
+    base_arg,
+    legacy_arg,
+    reuse_existing_arg,
+) = sys.argv[1:]
 source = Path(source_arg)
 core = Path(core_arg)
 raw_base = Path(base_arg).expanduser()
+reuse_existing = reuse_existing_arg == "1"
 
 RUNTIME_DIR_NAMES = {
     "node_modules",
@@ -81,6 +102,10 @@ RUNTIME_DIR_NAMES = {
     "coverage",
 }
 MANAGED_DECKS = {"demo-prd", "refund"}
+REUSE_EXISTING_NOTICE = (
+    "NOTICE: existing Deck runtime cache differs; reusing it as "
+    "authoritative and skipping this legacy migration"
+)
 
 
 def fail(message: str) -> NoReturn:
@@ -280,6 +305,10 @@ def same_entry(first: os.stat_result, second: os.stat_result) -> bool:
     )
 
 
+def same_mode(first: os.stat_result, second: os.stat_result) -> bool:
+    return stat.S_IMODE(first.st_mode) == stat.S_IMODE(second.st_mode)
+
+
 def entry_at(parent_fd: int, name: str) -> os.stat_result | None:
     try:
         return os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
@@ -473,7 +502,7 @@ def read_regular_at(
         fail(f"cannot open cache file {label}: {error}")
     try:
         opened = os.fstat(descriptor)
-        if not same_entry(before, opened):
+        if not same_entry(before, opened) or not same_mode(before, opened):
             fail(f"cache file changed while opening: {label}")
         chunks: list[bytes] = []
         total = 0
@@ -491,6 +520,8 @@ def read_regular_at(
             after_path is None
             or not same_entry(before, after_fd)
             or not same_entry(before, after_path)
+            or not same_mode(before, after_fd)
+            or not same_mode(before, after_path)
             or before.st_size != after_fd.st_size
             or before.st_mtime_ns != after_fd.st_mtime_ns
         ):
@@ -549,28 +580,52 @@ def read_link_at(parent_fd: int, name: str, label: Path | str) -> str:
     return value
 
 
+def update_digest_record(
+    digest,
+    kind: bytes,
+    *fields: bytes,
+) -> None:
+    if len(kind) != 1 or len(fields) > 255:
+        fail("invalid Deck runtime digest record")
+    digest.update(kind)
+    digest.update(len(fields).to_bytes(1, "big"))
+    for field in fields:
+        digest.update(len(field).to_bytes(8, "big"))
+        digest.update(field)
+
+
 def entry_digest_at(parent_fd: int, name: str, label: Path | str) -> str:
     root = entry_at(parent_fd, name)
     if root is None:
         fail(f"runtime entry is missing: {label}")
     digest = hashlib.sha256()
     if stat.S_ISLNK(root.st_mode):
-        digest.update(
-            b"L\0" + os.fsencode(read_link_at(parent_fd, name, label))
+        update_digest_record(
+            digest,
+            b"L",
+            os.fsencode(read_link_at(parent_fd, name, label)),
         )
         return digest.hexdigest()
     if stat.S_ISREG(root.st_mode):
         payload, metadata = read_regular_at(parent_fd, name, label)
-        digest.update(
-            b"F\0"
-            + str(stat.S_IMODE(metadata.st_mode)).encode()
-            + b"\0"
-            + payload
+        update_digest_record(
+            digest,
+            b"F",
+            str(stat.S_IMODE(metadata.st_mode)).encode(),
+            payload,
         )
         return digest.hexdigest()
     if not stat.S_ISDIR(root.st_mode):
         fail(f"runtime contains a special file: {label}")
-    root_fd, _root_entry = open_directory_at(parent_fd, name, label)
+    update_digest_record(
+        digest,
+        b"D",
+        str(stat.S_IMODE(root.st_mode)).encode(),
+    )
+    root_fd, opened_root = open_directory_at(parent_fd, name, label)
+    if not same_mode(root, opened_root):
+        os.close(root_fd)
+        fail(f"runtime directory mode changed while opening: {label}")
 
     def visit(directory_fd: int, prefix: Path) -> None:
         for child_name in sorted(os.listdir(directory_fd)):
@@ -580,27 +635,50 @@ def entry_digest_at(parent_fd: int, name: str, label: Path | str) -> str:
             relative = prefix / child_name
             encoded = relative.as_posix().encode()
             if stat.S_ISLNK(child.st_mode):
-                digest.update(
-                    b"L\0"
-                    + encoded
-                    + b"\0"
-                    + os.fsencode(
+                update_digest_record(
+                    digest,
+                    b"L",
+                    encoded,
+                    os.fsencode(
                         read_link_at(
                             directory_fd,
                             child_name,
                             f"{label}/{relative}",
                         )
-                    )
+                    ),
                 )
             elif stat.S_ISDIR(child.st_mode):
-                digest.update(b"D\0" + encoded + b"\0")
-                child_fd, _opened = open_directory_at(
+                update_digest_record(
+                    digest,
+                    b"D",
+                    encoded,
+                    str(stat.S_IMODE(child.st_mode)).encode(),
+                )
+                child_fd, opened_child = open_directory_at(
                     directory_fd,
                     child_name,
                     f"{label}/{relative}",
                 )
                 try:
+                    if not same_mode(child, opened_child):
+                        fail(
+                            "runtime directory mode changed while opening: "
+                            f"{label}/{relative}"
+                        )
                     visit(child_fd, relative)
+                    after_fd = os.fstat(child_fd)
+                    after_path = entry_at(directory_fd, child_name)
+                    if (
+                        after_path is None
+                        or not same_entry(child, after_fd)
+                        or not same_entry(child, after_path)
+                        or not same_mode(child, after_fd)
+                        or not same_mode(child, after_path)
+                    ):
+                        fail(
+                            "runtime directory changed while reading: "
+                            f"{label}/{relative}"
+                        )
                 finally:
                     os.close(child_fd)
             elif stat.S_ISREG(child.st_mode):
@@ -609,19 +687,28 @@ def entry_digest_at(parent_fd: int, name: str, label: Path | str) -> str:
                     child_name,
                     f"{label}/{relative}",
                 )
-                digest.update(
-                    b"F\0"
-                    + encoded
-                    + b"\0"
-                    + str(stat.S_IMODE(metadata.st_mode)).encode()
-                    + b"\0"
-                    + payload
+                update_digest_record(
+                    digest,
+                    b"F",
+                    encoded,
+                    str(stat.S_IMODE(metadata.st_mode)).encode(),
+                    payload,
                 )
             else:
                 fail(f"runtime contains a special file: {label}/{relative}")
 
     try:
         visit(root_fd, Path())
+        after_root_fd = os.fstat(root_fd)
+        after_root_path = entry_at(parent_fd, name)
+        if (
+            after_root_path is None
+            or not same_entry(root, after_root_fd)
+            or not same_entry(root, after_root_path)
+            or not same_mode(root, after_root_fd)
+            or not same_mode(root, after_root_path)
+        ):
+            fail(f"runtime directory changed while reading: {label}")
     finally:
         os.close(root_fd)
     return digest.hexdigest()
@@ -1623,9 +1710,21 @@ def copy_runtime_entry(
     target_fd: int,
     source_entry: Path,
     destination: Path,
+    expected_source_digest: str,
+    expected_destination_digest: str | None,
 ) -> None:
     source_digest = path_entry_digest(source_entry)
+    if source_digest != expected_source_digest:
+        fail(
+            "legacy Deck runtime changed after migration preflight: "
+            f"{source_entry}"
+        )
     existing_digest = relative_entry_digest(target_fd, destination)
+    if existing_digest != expected_destination_digest:
+        fail(
+            "Deck runtime cache changed after migration preflight: "
+            f"{target / destination}"
+        )
     if existing_digest is not None:
         if source_digest != existing_digest:
             fail(f"Deck runtime migration collision: {target / destination}")
@@ -1741,16 +1840,10 @@ def copy_runtime_entry(
             keep_created_directories = True
         except FileExistsError:
             keep_created_directories = True
-            destination_digest = entry_digest_at(
-                destination_parent_fd,
-                destination.name,
-                target / destination,
+            fail(
+                "Deck runtime cache changed after migration preflight: "
+                f"{target / destination}"
             )
-            if destination_digest != source_digest:
-                fail(
-                    "Deck runtime migration collision: "
-                    f"{target / destination}"
-                )
     finally:
         os.close(source_parent_fd)
         try:
@@ -1799,14 +1892,7 @@ def resolve_legacy_root(legacy_arg: str) -> Path:
     return legacy
 
 
-def migrate_locked(
-    context: RuntimeContext,
-    target_fd: int,
-    legacy: Path,
-) -> None:
-    if legacy == target.resolve(strict=False):
-        return
-
+def migration_entries(legacy: Path) -> list[tuple[Path, Path]]:
     entries: list[tuple[Path, Path]] = []
     for relative in (
         Path("node_modules"),
@@ -1837,30 +1923,80 @@ def migrate_locked(
                         / "deck.json",
                     )
                 )
+    return entries
+
+
+def migrate_locked(
+    context: RuntimeContext,
+    target_fd: int,
+    legacy: Path,
+    reuse_existing_cache: bool,
+) -> bool:
+    if legacy == target.resolve(strict=False):
+        return False
 
     # Compare every collision before copying anything.
+    entries = migration_entries(legacy)
     source_digests: dict[Path, str] = {}
+    destination_digests: dict[Path, str | None] = {}
+    collisions: list[Path] = []
     for source_entry, destination in entries:
         source_digest = path_entry_digest(source_entry)
         source_digests[source_entry] = source_digest
         destination_digest = relative_entry_digest(target_fd, destination)
-        if (
-            destination_digest is not None
-            and source_digest != destination_digest
-        ):
+        destination_digests[destination] = destination_digest
+        if destination_digest is not None and source_digest != destination_digest:
+            collisions.append(destination)
+
+    if collisions and not reuse_existing_cache:
+        fail(f"Deck runtime migration collision: {target / collisions[0]}")
+
+    if collisions:
+        runtime_test_pause(
+            "migrate-reuse-before-revalidate",
+            ",".join(destination.as_posix() for destination in collisions),
+        )
+        if migration_entries(legacy) != entries:
             fail(
-                f"Deck runtime migration collision: {target / destination}"
+                "legacy Deck runtime entry set changed during reuse "
+                f"preflight: {legacy}"
             )
+        for source_entry, source_digest in source_digests.items():
+            if path_entry_digest(source_entry) != source_digest:
+                fail(
+                    "legacy Deck runtime changed during reuse preflight: "
+                    f"{source_entry}"
+                )
+        for destination, destination_digest in destination_digests.items():
+            if (
+                relative_entry_digest(target_fd, destination)
+                != destination_digest
+            ):
+                fail(
+                    "Deck runtime cache changed during reuse preflight: "
+                    f"{target / destination}"
+                )
+        if migration_entries(legacy) != entries:
+            fail(
+                "legacy Deck runtime entry set changed during reuse "
+                f"preflight: {legacy}"
+            )
+        return True
+
+    runtime_test_pause("migrate-before-copy", "")
     for source_entry, destination in entries:
         copy_runtime_entry(
             context,
             target_fd,
             source_entry,
             destination,
+            source_digests[source_entry],
+            destination_digests[destination],
         )
     for source_entry, source_digest in source_digests.items():
         if path_entry_digest(source_entry) != source_digest:
             fail(f"legacy Deck runtime changed during migration: {source_entry}")
+    return False
 
 
 if command == "path":
@@ -1874,12 +2010,20 @@ else:
                     os.close(target_fd)
             else:
                 legacy = resolve_legacy_root(legacy_arg)
+                reused_existing_cache = False
                 with runtime_lock() as context:
                     target_fd, _target_entry = ensure_locked(context)
                     try:
-                        migrate_locked(context, target_fd, legacy)
+                        reused_existing_cache = migrate_locked(
+                            context,
+                            target_fd,
+                            legacy,
+                            reuse_existing,
+                        )
                     finally:
                         os.close(target_fd)
+                if reused_existing_cache:
+                    print(REUSE_EXISTING_NOTICE, file=sys.stderr)
         print(target)
     except RuntimeSignal as received:
         raise SystemExit(128 + received.signum) from None

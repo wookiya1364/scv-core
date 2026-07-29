@@ -81,6 +81,31 @@ legacy tree intact, and fails on a destination collision. A failed wrapper
 transaction may leave only the additive external cache; it must leave the
 installed plugin unchanged.
 
+Strict migration above is required when `/installed/legacy/DeckUI` belongs to
+an existing vendor that may be removed after the swap. It verifies every
+source/destination pair and prevents the wrapper from discarding that
+ephemeral source's only runtime data.
+
+Only a persistent legacy source may opt into authoritative cache reuse. The
+accepted argument order is exact:
+
+```bash
+SCV_DECK_CACHE_DIR=/optional/absolute/cache \
+  /candidate/core/scripts/deck-runtime.sh migrate \
+  --from /persistent/legacy/DeckUI \
+  --reuse-existing
+```
+
+Core preflights all eligible runtime entries. If any pre-existing destination
+differs from its source, it treats the existing cache as authoritative and
+skips the entire legacy source: no equal or missing destination is copied.
+With no mismatch, the operation remains additive. Any collision that appears
+after preflight fails closed rather than changing to reuse mode.
+
+Claude's persistent live DeckUI and Codex's persistent plugin-root legacy
+snapshot may use `--reuse-existing`. A Codex existing-vendor recovery snapshot
+that can disappear after replacement must use the strict default.
+
 ## 5. Validate the wrapper
 
 At minimum, wrapper CI should:
@@ -99,10 +124,10 @@ Core releases send a `repository_dispatch` event named
 
 ```json
 {
-  "version": "0.20.4",
-  "tag": "v0.20.4",
-  "asset_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.20.4/scv-core-v0.20.4.tar.gz",
-  "checksum_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.20.4/scv-core-v0.20.4.tar.gz.sha256"
+  "version": "0.20.5",
+  "tag": "v0.20.5",
+  "asset_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.20.5/scv-core-v0.20.5.tar.gz",
+  "checksum_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.20.5/scv-core-v0.20.5.tar.gz.sha256"
 }
 ```
 

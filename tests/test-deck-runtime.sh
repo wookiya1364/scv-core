@@ -67,6 +67,46 @@ expect_paused_failure() {
   fi
 }
 
+expect_usage_without_cache() {
+  local cache_base="$1"
+  shift
+  set +e
+  SCV_DECK_CACHE_DIR="$cache_base" \
+    bash "$HELPER" "$@" >/dev/null 2>&1
+  local usage_rc=$?
+  set -e
+  [[ "$usage_rc" -eq 2 ]]
+  [[ ! -e "$cache_base" ]]
+}
+
+prepare_reuse_collision() {
+  local fixture_base="$1"
+  local authoritative_source="$2"
+  local conflicting_source="$3"
+  mkdir -p \
+    "$authoritative_source/node_modules/pkg" \
+    "$conflicting_source/node_modules/pkg"
+  printf 'authoritative\n' \
+    >"$authoritative_source/node_modules/pkg/index.js"
+  printf 'conflicting\n' \
+    >"$conflicting_source/node_modules/pkg/index.js"
+  SCV_DECK_CACHE_DIR="$fixture_base" \
+    bash "$HELPER" migrate --from "$authoritative_source" >/dev/null
+}
+
+assert_no_runtime_debris() {
+  local fixture_base="$1"
+  [[ -z "$(
+    find "$fixture_base" \
+      \( \
+        -name '.*.lock' -o \
+        -name '.*.lock.new-*' -o \
+        -name '.*.stage-*' -o \
+        -name '.*.install-*' \
+      \) -print -quit
+  )" ]]
+}
+
 before="$(snapshot "$SOURCE")"
 cache_base="$TMP/cache"
 
@@ -79,6 +119,21 @@ path_only="$(
 )"
 [[ "$path_only" == "$TMP/path-cache"/*/DeckUI ]]
 [[ ! -e "$TMP/path-cache" ]]
+
+# The opt-in flag has one strict, final-position grammar and is rejected before
+# any cache directory can be created.
+invalid_flag_legacy="$TMP/invalid-flag-legacy"
+mkdir -p "$invalid_flag_legacy"
+expect_usage_without_cache \
+  "$TMP/invalid-flag-order-cache" \
+  migrate --reuse-existing --from "$invalid_flag_legacy"
+expect_usage_without_cache \
+  "$TMP/invalid-flag-duplicate-cache" \
+  migrate --from "$invalid_flag_legacy" \
+  --reuse-existing --reuse-existing
+expect_usage_without_cache \
+  "$TMP/invalid-flag-command-cache" \
+  ensure --reuse-existing
 
 runtime="$(
   SCV_DECK_CACHE_DIR="$cache_base" bash "$HELPER" ensure
@@ -311,6 +366,486 @@ if SCV_DECK_CACHE_DIR="$cache_base" \
 fi
 grep -q '"different":true' "$runtime/src/deck/decks/generated/deck.json"
 
+# Opt-in reuse treats the first populated cache as authoritative. One differing
+# pre-existing entry skips this legacy source as a whole: equal and missing
+# entries are not mixed into the cache, while stdout remains the target path.
+reuse_notice='NOTICE: existing Deck runtime cache differs; reusing it as authoritative and skipping this legacy migration'
+reuse_base="$TMP/reuse-cache"
+reuse_authoritative="$TMP/reuse-authoritative"
+mkdir -p "$reuse_authoritative/node_modules/pkg"
+printf 'authoritative\n' \
+  >"$reuse_authoritative/node_modules/pkg/index.js"
+chmod 0755 \
+  "$reuse_authoritative/node_modules" \
+  "$reuse_authoritative/node_modules/pkg"
+reuse_runtime="$(
+  SCV_DECK_CACHE_DIR="$reuse_base" \
+    bash "$HELPER" migrate --from "$reuse_authoritative"
+)"
+reuse_legacy="$TMP/reuse-legacy"
+mkdir -p \
+  "$reuse_legacy/node_modules/pkg" \
+  "$reuse_legacy/dist-deck" \
+  "$reuse_legacy/src/deck/decks/unique-host-b"
+printf 'different-host\n' >"$reuse_legacy/node_modules/pkg/index.js"
+printf 'host-b-build\n' >"$reuse_legacy/dist-deck/index.html"
+printf '{"host":"b"}\n' \
+  >"$reuse_legacy/src/deck/decks/unique-host-b/deck.json"
+reuse_source_before="$(snapshot "$reuse_legacy")"
+reuse_cache_before="$(snapshot "$reuse_base")"
+reuse_stdout="$(
+  SCV_DECK_CACHE_DIR="$reuse_base" \
+    bash "$HELPER" migrate --from "$reuse_legacy" --reuse-existing \
+    2>"$TMP/reuse.err"
+)"
+[[ "$reuse_stdout" == "$reuse_runtime" ]]
+[[ "$(cat "$TMP/reuse.err")" == "$reuse_notice" ]]
+[[ "$reuse_cache_before" == "$(snapshot "$reuse_base")" ]]
+[[ "$reuse_source_before" == "$(snapshot "$reuse_legacy")" ]]
+grep -q 'authoritative' "$reuse_runtime/node_modules/pkg/index.js"
+[[ ! -e "$reuse_runtime/dist-deck" ]]
+[[ \
+  ! -e \
+  "$reuse_runtime/src/deck/decks/unique-host-b/deck.json" \
+]]
+[[ -z "$(
+  find "$reuse_base" \
+    \( \
+      -name '.*.lock' -o \
+      -name '.*.lock.new-*' -o \
+      -name '.*.stage-*' -o \
+      -name '.*.install-*' \
+    \) -print -quit
+)" ]]
+
+# Repeating the opt-in decision is idempotent and emits one stable notice.
+reuse_repeat_stdout="$(
+  SCV_DECK_CACHE_DIR="$reuse_base" \
+    bash "$HELPER" migrate --from "$reuse_legacy" --reuse-existing \
+    2>"$TMP/reuse-repeat.err"
+)"
+[[ "$reuse_repeat_stdout" == "$reuse_runtime" ]]
+[[ "$(cat "$TMP/reuse-repeat.err")" == "$reuse_notice" ]]
+[[ "$reuse_cache_before" == "$(snapshot "$reuse_base")" ]]
+[[ "$reuse_source_before" == "$(snapshot "$reuse_legacy")" ]]
+
+# Directory modes participate in collision digests at both the root and nested
+# levels, even when every file byte is equal.
+mode_digest_base="$TMP/mode-digest-cache"
+mode_digest_authoritative="$TMP/mode-digest-authoritative"
+mkdir -p "$mode_digest_authoritative/dist-deck/nested"
+printf 'same\n' >"$mode_digest_authoritative/dist-deck/nested/index.html"
+chmod 0755 \
+  "$mode_digest_authoritative/dist-deck" \
+  "$mode_digest_authoritative/dist-deck/nested"
+mode_digest_runtime="$(
+  SCV_DECK_CACHE_DIR="$mode_digest_base" \
+    bash "$HELPER" migrate --from "$mode_digest_authoritative"
+)"
+mode_digest_legacy="$TMP/mode-digest-legacy"
+mkdir -p "$mode_digest_legacy/dist-deck/nested"
+printf 'same\n' >"$mode_digest_legacy/dist-deck/nested/index.html"
+chmod 0700 "$mode_digest_legacy/dist-deck"
+chmod 0755 "$mode_digest_legacy/dist-deck/nested"
+if SCV_DECK_CACHE_DIR="$mode_digest_base" \
+    bash "$HELPER" migrate --from "$mode_digest_legacy" \
+    >/dev/null 2>"$TMP/mode-root-collision.err"; then
+  echo "root directory mode collision was accepted" >&2
+  exit 1
+fi
+grep -q 'migration collision' "$TMP/mode-root-collision.err"
+chmod 0755 "$mode_digest_legacy/dist-deck"
+chmod 0700 "$mode_digest_legacy/dist-deck/nested"
+if SCV_DECK_CACHE_DIR="$mode_digest_base" \
+    bash "$HELPER" migrate --from "$mode_digest_legacy" \
+    >/dev/null 2>"$TMP/mode-child-collision.err"; then
+  echo "nested directory mode collision was accepted" >&2
+  exit 1
+fi
+grep -q 'migration collision' "$TMP/mode-child-collision.err"
+grep -q 'same' "$mode_digest_runtime/dist-deck/nested/index.html"
+
+# Digest records length-frame arbitrary payload bytes. A single file whose
+# payload reproduces the old serialization of a following file cannot collide
+# with a structurally different two-file tree.
+framing_base="$TMP/digest-framing-cache"
+framing_authoritative="$TMP/digest-framing-authoritative"
+mkdir -p "$framing_authoritative/dist-deck"
+: >"$framing_authoritative/dist-deck/a"
+printf 'x' >"$framing_authoritative/dist-deck/b"
+chmod 0755 "$framing_authoritative/dist-deck"
+chmod 0644 \
+  "$framing_authoritative/dist-deck/a" \
+  "$framing_authoritative/dist-deck/b"
+framing_runtime="$(
+  SCV_DECK_CACHE_DIR="$framing_base" \
+    bash "$HELPER" migrate --from "$framing_authoritative"
+)"
+framing_legacy="$TMP/digest-framing-legacy"
+mkdir -p "$framing_legacy/dist-deck"
+printf 'F\000b\000420\000x' >"$framing_legacy/dist-deck/a"
+chmod 0755 "$framing_legacy/dist-deck"
+chmod 0644 "$framing_legacy/dist-deck/a"
+framing_cache_before="$(snapshot "$framing_base")"
+framing_source_before="$(snapshot "$framing_legacy")"
+if SCV_DECK_CACHE_DIR="$framing_base" \
+    bash "$HELPER" migrate --from "$framing_legacy" \
+    >/dev/null 2>"$TMP/digest-framing-strict.err"; then
+  echo "ambiguous runtime digest records collided" >&2
+  exit 1
+fi
+grep -q 'migration collision' "$TMP/digest-framing-strict.err"
+framing_stdout="$(
+  SCV_DECK_CACHE_DIR="$framing_base" \
+    bash "$HELPER" migrate --from "$framing_legacy" \
+    --reuse-existing \
+    2>"$TMP/digest-framing-reuse.err"
+)"
+[[ "$framing_stdout" == "$framing_runtime" ]]
+[[ "$(cat "$TMP/digest-framing-reuse.err")" == "$reuse_notice" ]]
+[[ "$framing_cache_before" == "$(snapshot "$framing_base")" ]]
+[[ "$framing_source_before" == "$(snapshot "$framing_legacy")" ]]
+
+# With no differing destination, opt-in mode retains normal additive behavior.
+additive_base="$TMP/reuse-additive-cache"
+additive_legacy="$TMP/reuse-additive-legacy"
+mkdir -p "$additive_legacy/dist-deck"
+printf 'additive\n' >"$additive_legacy/dist-deck/index.html"
+additive_source_before="$(snapshot "$additive_legacy")"
+additive_runtime="$(
+  SCV_DECK_CACHE_DIR="$additive_base" \
+    bash "$HELPER" migrate --from "$additive_legacy" --reuse-existing \
+    2>"$TMP/reuse-additive.err"
+)"
+[[ ! -s "$TMP/reuse-additive.err" ]]
+cmp \
+  "$additive_legacy/dist-deck/index.html" \
+  "$additive_runtime/dist-deck/index.html"
+[[ "$additive_source_before" == "$(snapshot "$additive_legacy")" ]]
+
+# An equal existing entry plus a missing entry also remains additive.
+mkdir -p "$additive_legacy/src/deck/decks/additive-host"
+printf '{"additive":true}\n' \
+  >"$additive_legacy/src/deck/decks/additive-host/deck.json"
+equal_missing_before="$(snapshot "$additive_legacy")"
+equal_missing_stdout="$(
+  SCV_DECK_CACHE_DIR="$additive_base" \
+    bash "$HELPER" migrate --from "$additive_legacy" --reuse-existing \
+    2>"$TMP/reuse-equal-missing.err"
+)"
+[[ "$equal_missing_stdout" == "$additive_runtime" ]]
+[[ ! -s "$TMP/reuse-equal-missing.err" ]]
+cmp \
+  "$additive_legacy/src/deck/decks/additive-host/deck.json" \
+  "$additive_runtime/src/deck/decks/additive-host/deck.json"
+[[ "$equal_missing_before" == "$(snapshot "$additive_legacy")" ]]
+
+# A collision never short-circuits validation of a later unsafe source entry.
+reuse_unsafe_legacy="$TMP/reuse-unsafe-legacy"
+mkdir -p \
+  "$reuse_unsafe_legacy/node_modules/pkg" \
+  "$reuse_unsafe_legacy/src/deck/decks"
+printf 'different\n' \
+  >"$reuse_unsafe_legacy/node_modules/pkg/index.js"
+ln -s "$TMP" "$reuse_unsafe_legacy/src/deck/decks/escaped"
+reuse_unsafe_before="$(snapshot "$reuse_unsafe_legacy")"
+if SCV_DECK_CACHE_DIR="$reuse_base" \
+    bash "$HELPER" migrate --from "$reuse_unsafe_legacy" \
+    --reuse-existing \
+    >"$TMP/reuse-unsafe.out" 2>"$TMP/reuse-unsafe.err"; then
+  echo "reuse mode accepted an unsafe later legacy entry" >&2
+  exit 1
+fi
+[[ ! -s "$TMP/reuse-unsafe.out" ]]
+! grep -q '^NOTICE:' "$TMP/reuse-unsafe.err"
+[[ "$reuse_cache_before" == "$(snapshot "$reuse_base")" ]]
+[[ "$reuse_unsafe_before" == "$(snapshot "$reuse_unsafe_legacy")" ]]
+
+# A source content change after conflict preflight fails before NOTICE or cache
+# mutation, while preserving the external writer's source change.
+reuse_source_drift_base="$TMP/reuse-source-drift-cache"
+reuse_source_drift_authoritative="$TMP/reuse-source-drift-authoritative"
+reuse_source_drift_legacy="$TMP/reuse-source-drift-legacy"
+prepare_reuse_collision \
+  "$reuse_source_drift_base" \
+  "$reuse_source_drift_authoritative" \
+  "$reuse_source_drift_legacy"
+reuse_source_drift_cache_before="$(snapshot "$reuse_source_drift_base")"
+reuse_source_drift_ready="$TMP/reuse-source-drift.ready"
+reuse_source_drift_continue="$TMP/reuse-source-drift.continue"
+SCV_DECK_CACHE_DIR="$reuse_source_drift_base" \
+SCV_DECK_RUNTIME_TEST_PAUSE=migrate-reuse-before-revalidate \
+SCV_DECK_RUNTIME_TEST_READY_FILE="$reuse_source_drift_ready" \
+SCV_DECK_RUNTIME_TEST_CONTINUE_FILE="$reuse_source_drift_continue" \
+  bash "$HELPER" migrate --from "$reuse_source_drift_legacy" \
+  --reuse-existing \
+  >"$TMP/reuse-source-drift.out" \
+  2>"$TMP/reuse-source-drift.err" &
+reuse_source_drift_pid=$!
+wait_for_pause \
+  "$reuse_source_drift_ready" \
+  "$reuse_source_drift_pid" \
+  "$TMP/reuse-source-drift.err" \
+  "reuse source-content drift"
+printf 'externally-changed\n' \
+  >"$reuse_source_drift_legacy/node_modules/pkg/index.js"
+reuse_source_changed="$(snapshot "$reuse_source_drift_legacy")"
+expect_paused_failure \
+  "$reuse_source_drift_pid" \
+  "$reuse_source_drift_continue" \
+  "reuse source-content drift"
+[[ ! -s "$TMP/reuse-source-drift.out" ]]
+! grep -q '^NOTICE:' "$TMP/reuse-source-drift.err"
+grep -q 'legacy Deck runtime changed during reuse preflight' \
+  "$TMP/reuse-source-drift.err"
+[[ \
+  "$reuse_source_drift_cache_before" \
+  == "$(snapshot "$reuse_source_drift_base")" \
+]]
+[[ \
+  "$reuse_source_changed" \
+  == "$(snapshot "$reuse_source_drift_legacy")" \
+]]
+assert_no_runtime_debris "$reuse_source_drift_base"
+
+# Adding a newly eligible entry after preflight is also detected by exact
+# source entry-set re-enumeration.
+reuse_entry_drift_base="$TMP/reuse-entry-drift-cache"
+reuse_entry_drift_authoritative="$TMP/reuse-entry-drift-authoritative"
+reuse_entry_drift_legacy="$TMP/reuse-entry-drift-legacy"
+prepare_reuse_collision \
+  "$reuse_entry_drift_base" \
+  "$reuse_entry_drift_authoritative" \
+  "$reuse_entry_drift_legacy"
+reuse_entry_drift_cache_before="$(snapshot "$reuse_entry_drift_base")"
+reuse_entry_drift_ready="$TMP/reuse-entry-drift.ready"
+reuse_entry_drift_continue="$TMP/reuse-entry-drift.continue"
+SCV_DECK_CACHE_DIR="$reuse_entry_drift_base" \
+SCV_DECK_RUNTIME_TEST_PAUSE=migrate-reuse-before-revalidate \
+SCV_DECK_RUNTIME_TEST_READY_FILE="$reuse_entry_drift_ready" \
+SCV_DECK_RUNTIME_TEST_CONTINUE_FILE="$reuse_entry_drift_continue" \
+  bash "$HELPER" migrate --from "$reuse_entry_drift_legacy" \
+  --reuse-existing \
+  >"$TMP/reuse-entry-drift.out" \
+  2>"$TMP/reuse-entry-drift.err" &
+reuse_entry_drift_pid=$!
+wait_for_pause \
+  "$reuse_entry_drift_ready" \
+  "$reuse_entry_drift_pid" \
+  "$TMP/reuse-entry-drift.err" \
+  "reuse source-entry drift"
+mkdir -p "$reuse_entry_drift_legacy/dist-deck"
+printf 'late-entry\n' \
+  >"$reuse_entry_drift_legacy/dist-deck/index.html"
+reuse_entry_changed="$(snapshot "$reuse_entry_drift_legacy")"
+expect_paused_failure \
+  "$reuse_entry_drift_pid" \
+  "$reuse_entry_drift_continue" \
+  "reuse source-entry drift"
+[[ ! -s "$TMP/reuse-entry-drift.out" ]]
+! grep -q '^NOTICE:' "$TMP/reuse-entry-drift.err"
+grep -q 'entry set changed during reuse preflight' \
+  "$TMP/reuse-entry-drift.err"
+[[ \
+  "$reuse_entry_drift_cache_before" \
+  == "$(snapshot "$reuse_entry_drift_base")" \
+]]
+[[ \
+  "$reuse_entry_changed" \
+  == "$(snapshot "$reuse_entry_drift_legacy")" \
+]]
+assert_no_runtime_debris "$reuse_entry_drift_base"
+
+# Every preflight destination, not only the differing one, is revalidated.
+reuse_destination_drift_base="$TMP/reuse-destination-drift-cache"
+reuse_destination_drift_authoritative="$TMP/reuse-destination-drift-authoritative"
+reuse_destination_drift_legacy="$TMP/reuse-destination-drift-legacy"
+prepare_reuse_collision \
+  "$reuse_destination_drift_base" \
+  "$reuse_destination_drift_authoritative" \
+  "$reuse_destination_drift_legacy"
+mkdir -p "$reuse_destination_drift_legacy/dist-deck"
+printf 'legacy-missing-entry\n' \
+  >"$reuse_destination_drift_legacy/dist-deck/index.html"
+reuse_destination_drift_runtime="$(
+  SCV_DECK_CACHE_DIR="$reuse_destination_drift_base" bash "$HELPER" path
+)"
+reuse_destination_drift_source_before="$(
+  snapshot "$reuse_destination_drift_legacy"
+)"
+reuse_destination_drift_ready="$TMP/reuse-destination-drift.ready"
+reuse_destination_drift_continue="$TMP/reuse-destination-drift.continue"
+SCV_DECK_CACHE_DIR="$reuse_destination_drift_base" \
+SCV_DECK_RUNTIME_TEST_PAUSE=migrate-reuse-before-revalidate \
+SCV_DECK_RUNTIME_TEST_READY_FILE="$reuse_destination_drift_ready" \
+SCV_DECK_RUNTIME_TEST_CONTINUE_FILE="$reuse_destination_drift_continue" \
+  bash "$HELPER" migrate --from "$reuse_destination_drift_legacy" \
+  --reuse-existing \
+  >"$TMP/reuse-destination-drift.out" \
+  2>"$TMP/reuse-destination-drift.err" &
+reuse_destination_drift_pid=$!
+wait_for_pause \
+  "$reuse_destination_drift_ready" \
+  "$reuse_destination_drift_pid" \
+  "$TMP/reuse-destination-drift.err" \
+  "reuse destination drift"
+mkdir "$reuse_destination_drift_runtime/dist-deck"
+printf 'externally-created-cache\n' \
+  >"$reuse_destination_drift_runtime/dist-deck/index.html"
+reuse_destination_changed="$(
+  snapshot "$reuse_destination_drift_runtime"
+)"
+expect_paused_failure \
+  "$reuse_destination_drift_pid" \
+  "$reuse_destination_drift_continue" \
+  "reuse destination drift"
+[[ ! -s "$TMP/reuse-destination-drift.out" ]]
+! grep -q '^NOTICE:' "$TMP/reuse-destination-drift.err"
+grep -q 'cache changed during reuse preflight' \
+  "$TMP/reuse-destination-drift.err"
+[[ \
+  "$reuse_destination_drift_source_before" \
+  == "$(snapshot "$reuse_destination_drift_legacy")" \
+]]
+[[ \
+  "$reuse_destination_changed" \
+  == "$(snapshot "$reuse_destination_drift_runtime")" \
+]]
+assert_no_runtime_debris "$reuse_destination_drift_base"
+
+# A signal at the reuse decision boundary exits conventionally and leaves no
+# false success output, NOTICE, or transaction debris.
+reuse_signal_base="$TMP/reuse-signal-cache"
+reuse_signal_authoritative="$TMP/reuse-signal-authoritative"
+reuse_signal_legacy="$TMP/reuse-signal-legacy"
+prepare_reuse_collision \
+  "$reuse_signal_base" \
+  "$reuse_signal_authoritative" \
+  "$reuse_signal_legacy"
+reuse_signal_cache_before="$(snapshot "$reuse_signal_base")"
+reuse_signal_source_before="$(snapshot "$reuse_signal_legacy")"
+reuse_signal_ready="$TMP/reuse-signal.ready"
+reuse_signal_continue="$TMP/reuse-signal.continue"
+SCV_DECK_CACHE_DIR="$reuse_signal_base" \
+SCV_DECK_RUNTIME_TEST_PAUSE=migrate-reuse-before-revalidate \
+SCV_DECK_RUNTIME_TEST_READY_FILE="$reuse_signal_ready" \
+SCV_DECK_RUNTIME_TEST_CONTINUE_FILE="$reuse_signal_continue" \
+  bash "$HELPER" migrate --from "$reuse_signal_legacy" \
+  --reuse-existing \
+  >"$TMP/reuse-signal.out" 2>"$TMP/reuse-signal.err" &
+reuse_signal_pid=$!
+wait_for_pause \
+  "$reuse_signal_ready" "$reuse_signal_pid" "$TMP/reuse-signal.err" \
+  "reuse decision TERM cleanup"
+kill -TERM "$reuse_signal_pid"
+set +e
+wait "$reuse_signal_pid"
+reuse_signal_rc=$?
+set -e
+[[ "$reuse_signal_rc" -eq 143 ]]
+[[ ! -s "$TMP/reuse-signal.out" ]]
+! grep -q '^NOTICE:' "$TMP/reuse-signal.err"
+[[ "$reuse_signal_cache_before" == "$(snapshot "$reuse_signal_base")" ]]
+[[ "$reuse_signal_source_before" == "$(snapshot "$reuse_signal_legacy")" ]]
+assert_no_runtime_debris "$reuse_signal_base"
+
+# NOTICE is emitted only after lock release and visible cache revalidation.
+reuse_release_base="$TMP/reuse-release-cache"
+reuse_release_authoritative="$TMP/reuse-release-authoritative"
+reuse_release_legacy="$TMP/reuse-release-legacy"
+prepare_reuse_collision \
+  "$reuse_release_base" \
+  "$reuse_release_authoritative" \
+  "$reuse_release_legacy"
+reuse_release_runtime="$(
+  SCV_DECK_CACHE_DIR="$reuse_release_base" bash "$HELPER" path
+)"
+reuse_release_key="$(basename "$(dirname "$reuse_release_runtime")")"
+reuse_release_lock="$reuse_release_base/.$reuse_release_key.lock"
+reuse_release_saved="$reuse_release_lock.saved"
+reuse_release_owner="$TMP/reuse-release-owner"
+reuse_release_ready="$TMP/reuse-release.ready"
+reuse_release_continue="$TMP/reuse-release.continue"
+reuse_release_cache_before="$(snapshot "$reuse_release_runtime")"
+reuse_release_source_before="$(snapshot "$reuse_release_legacy")"
+printf 'external-owner\n' >"$reuse_release_owner"
+SCV_DECK_CACHE_DIR="$reuse_release_base" \
+SCV_DECK_RUNTIME_TEST_PAUSE=release-before-delete \
+SCV_DECK_RUNTIME_TEST_READY_FILE="$reuse_release_ready" \
+SCV_DECK_RUNTIME_TEST_CONTINUE_FILE="$reuse_release_continue" \
+  bash "$HELPER" migrate --from "$reuse_release_legacy" \
+  --reuse-existing \
+  >"$TMP/reuse-release.out" 2>"$TMP/reuse-release.err" &
+reuse_release_pid=$!
+wait_for_pause \
+  "$reuse_release_ready" "$reuse_release_pid" \
+  "$TMP/reuse-release.err" \
+  "reuse lock-release replacement"
+mv "$reuse_release_lock" "$reuse_release_saved"
+mkdir "$reuse_release_lock"
+ln -s "$reuse_release_owner" "$reuse_release_lock/owner.json"
+printf 'preserve\n' >"$reuse_release_lock/unexpected"
+expect_paused_failure \
+  "$reuse_release_pid" "$reuse_release_continue" \
+  "reuse lock-release replacement"
+[[ ! -s "$TMP/reuse-release.out" ]]
+! grep -q '^NOTICE:' "$TMP/reuse-release.err"
+[[ -f "$reuse_release_saved/owner.json" ]]
+[[ "$reuse_release_cache_before" == "$(snapshot "$reuse_release_runtime")" ]]
+[[ "$reuse_release_source_before" == "$(snapshot "$reuse_release_legacy")" ]]
+
+# A destination that appears after a clean preflight is a late race even when
+# its bytes and modes equal the source. Reuse mode must fail, not reinterpret it
+# as an authoritative pre-existing cache.
+late_equal_base="$TMP/late-equal-cache"
+late_equal_runtime="$(
+  SCV_DECK_CACHE_DIR="$late_equal_base" bash "$HELPER" ensure
+)"
+late_equal_legacy="$TMP/late-equal-legacy"
+mkdir -p "$late_equal_legacy/dist-deck"
+printf 'same-late-entry\n' >"$late_equal_legacy/dist-deck/index.html"
+late_equal_source_before="$(snapshot "$late_equal_legacy")"
+late_equal_ready="$TMP/late-equal.ready"
+late_equal_continue="$TMP/late-equal.continue"
+SCV_DECK_CACHE_DIR="$late_equal_base" \
+SCV_DECK_RUNTIME_TEST_PAUSE=migrate-before-copy \
+SCV_DECK_RUNTIME_TEST_READY_FILE="$late_equal_ready" \
+SCV_DECK_RUNTIME_TEST_CONTINUE_FILE="$late_equal_continue" \
+  bash "$HELPER" migrate --from "$late_equal_legacy" \
+  --reuse-existing \
+  >"$TMP/late-equal.out" 2>"$TMP/late-equal.err" &
+late_equal_pid=$!
+wait_for_pause \
+  "$late_equal_ready" "$late_equal_pid" "$TMP/late-equal.err" \
+  "late equal destination"
+cp -R -p \
+  "$late_equal_legacy/dist-deck" \
+  "$late_equal_runtime/dist-deck"
+late_equal_inode="$(
+  python3 - "$late_equal_runtime/dist-deck" <<'PY'
+import os
+import sys
+print(os.lstat(sys.argv[1]).st_ino)
+PY
+)"
+expect_paused_failure \
+  "$late_equal_pid" "$late_equal_continue" \
+  "late equal destination"
+late_equal_inode_after="$(
+  python3 - "$late_equal_runtime/dist-deck" <<'PY'
+import os
+import sys
+print(os.lstat(sys.argv[1]).st_ino)
+PY
+)"
+[[ "$late_equal_inode" == "$late_equal_inode_after" ]]
+[[ ! -s "$TMP/late-equal.out" ]]
+! grep -q '^NOTICE:' "$TMP/late-equal.err"
+grep -q 'cache changed after migration preflight' \
+  "$TMP/late-equal.err"
+[[ "$late_equal_source_before" == "$(snapshot "$late_equal_legacy")" ]]
+assert_no_runtime_debris "$late_equal_base"
+
 # A destination created after collision preflight is never replaced.
 race_base="$TMP/race-cache"
 race_runtime="$(
@@ -329,6 +864,7 @@ for index in range(4000):
 PY
 SCV_DECK_CACHE_DIR="$race_base" \
   bash "$HELPER" migrate --from "$race_legacy" \
+  --reuse-existing \
   >"$TMP/race.out" 2>"$TMP/race.err" &
 race_pid=$!
 race_stage=
@@ -361,7 +897,8 @@ PY
 )"
 [[ "$race_inode_before" == "$race_inode_after" ]]
 [[ -z "$(find "$race_runtime/dist-deck" -mindepth 1 -print -quit)" ]]
-grep -q 'migration collision' "$TMP/race.err"
+grep -q 'cache changed after migration preflight' "$TMP/race.err"
+! grep -q '^NOTICE:' "$TMP/race.err"
 
 # A copy failure immediately after top-level stage creation removes only that
 # exact stage inode. No partial target, source mutation, or staging debris
