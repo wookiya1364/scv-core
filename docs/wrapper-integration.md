@@ -61,9 +61,11 @@ The wrapper exposes its runtime's native action-discovery files. Each generated
 action delegates to the materialized Core protocol and entrypoint. Do not edit
 vendored files manually; regenerate them from the pinned Core catalog.
 
-The adapter must implement the `update` and `set-models` entrypoints, runtime
-plugin metadata, and any host pointer/migration presentation. Keep those files
-outside `vendor/scv-core`.
+The adapter must implement the `update` and `set-models` entrypoints and
+runtime plugin metadata. State-index inspection and migration are not
+adapter-owned: a wrapper may expose a thin shim, but it must delegate to the
+materialized `core/scripts/state-index.sh`. Keep adapter-owned files outside
+`vendor/scv-core`.
 
 ## 4. Migrate legacy Deck runtime
 
@@ -124,10 +126,10 @@ Core releases send a `repository_dispatch` event named
 
 ```json
 {
-  "version": "0.20.5",
-  "tag": "v0.20.5",
-  "asset_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.20.5/scv-core-v0.20.5.tar.gz",
-  "checksum_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.20.5/scv-core-v0.20.5.tar.gz.sha256"
+  "version": "0.20.6",
+  "tag": "v0.20.6",
+  "asset_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.20.6/scv-core-v0.20.6.tar.gz",
+  "checksum_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.20.6/scv-core-v0.20.6.tar.gz.sha256"
 }
 ```
 
