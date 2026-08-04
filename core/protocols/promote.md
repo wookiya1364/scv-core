@@ -451,7 +451,7 @@ Build a `flowchart LR` (or `TB` if vertical layout fits better) showing the comp
 5. **Labels follow `LANG_RESOLVED` (Step 0)** — Mermaid node labels (the bracketed text inside `[Name]` / `[(Name)]`), edge labels (text between `|"..."|`), and subgraph names use the resolved language. Component identifiers (the Mermaid node IDs before the bracket, e.g., `OrderService` in `OrderService[주문 서비스]`) stay as code-style English to keep the Mermaid syntax stable. Function names / SQL / HTTP verbs in edge labels stay verbatim (`getOrder(orderId)` is identical in any language); only narrative descriptions translate.
 6. **Always start the mermaid block with the standard dark-theme directive** (v0.7.9+) — first line inside the ` ```mermaid ` fence (one line, no wrapping):
    ```
-   %%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#888','lineColor':'#fff','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#0d1117','edgeLabelBackground':'#1e1e1e'}}}%%
+   %%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
    ```
    Forces dark backgrounds + white text + **white edge arrows**. Yellow-highlighted nodes (`classDef key fill:#FFE082,...,color:#000`) keep black text on yellow for strong visual emphasis. The user explicitly chose strong contrast over context-aware palettes ("큰 배경은 검은색, 화살표는 흰색"). This palette is consistent across GitHub light-mode page, GitHub dark-mode page, and GitHub's fullscreen modal popup.
 
@@ -467,7 +467,7 @@ Build a `flowchart LR` (or `TB` if vertical layout fits better) showing the comp
 
 ````markdown
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#888','lineColor':'#fff','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#0d1117','edgeLabelBackground':'#1e1e1e'}}}%%
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
 flowchart LR
   Caller[Caller] -->|"functionName(arg1, arg2)"| ServiceA
   ServiceA -->|"validate(payload)"| ServiceB
@@ -563,7 +563,7 @@ Mapping algorithm:
 
 ````markdown
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#888','lineColor':'#fff','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#0d1117','edgeLabelBackground':'#1e1e1e'}}}%%
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
 flowchart TB
   subgraph "Layer / Domain A"
     A1[Existing Service 1]
@@ -607,7 +607,7 @@ status: planned
 How this feature's components interact.
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#888','lineColor':'#fff','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#0d1117','edgeLabelBackground':'#1e1e1e'}}}%%
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
 <Step 6.1 output>
 ```
 
@@ -618,7 +618,7 @@ Where this feature sits in the system. New components highlighted in yellow.
 > Source: <one of: `scv/ARCHITECTURE.md` | graphify graph (built <YYYY-MM-DD>) | omitted — first diagram only>
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#888','lineColor':'#fff','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#0d1117','edgeLabelBackground':'#1e1e1e'}}}%%
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
 <Step 6.2 output>
 ```
 ````
