@@ -701,10 +701,15 @@ cmd_outdated() {
     fi
     # Path-looking tokens in the doc, intersected with files changed since
     # ref_commit. Heuristic only — the host agent verifies semantically.
+    # The changed list travels via a temp file (NR==FNR), NOT `awk -v`:
+    # BSD/macOS awk rejects newlines in -v values ("newline in string").
+    local changed_f
+    changed_f=$(mktemp)
+    printf '%s\n' "$changed" > "$changed_f"
     hits=$(grep -IoE '[A-Za-z0-9_@][A-Za-z0-9_.@/-]*\.[A-Za-z0-9_]+' "$p" 2>/dev/null \
       | LC_ALL=C sort -u | head -500 \
-      | awk -v changed="$changed" '
-          BEGIN { n = split(changed, c, "\n") }
+      | awk '
+          NR == FNR { if ($0 != "") c[++n] = $0; next }
           {
             for (i = 1; i <= n; i++) {
               if (c[i] == $0 || substr(c[i], length(c[i]) - length($0)) == "/" $0) {
@@ -712,7 +717,8 @@ cmd_outdated() {
                 break
               }
             }
-          }' | LC_ALL=C sort -u)
+          }' "$changed_f" - | LC_ALL=C sort -u)
+    rm -f "$changed_f"
     if [[ -n "$hits" ]]; then
       any=1
       top=$(printf '%s\n' "$hits" | head -3 | paste -sd, -)
