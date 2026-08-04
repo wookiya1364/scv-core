@@ -6,6 +6,14 @@ All notable changes to SCV Core are documented here.
 
 ### Added
 
+- Offline-ready 기획서 decks: after the doc build, `deck.sh` bakes every
+  mermaid diagram into the HTML as inline SVG via a locally installed headless
+  Chrome (`deckdoc/static-mermaid.mjs` + render.mjs's `?scv-static` build
+  mode), so the deck opens fully rendered with no CDN at view time.
+  Best-effort by contract — without Chrome or network the deck keeps the
+  existing CDN + text-fallback rendering; opt out with `--no-static` or
+  `SCV_DECK_STATIC=0`.
+
 - Raw-doc lifecycle: `action:promote` Step 8 now runs `readpath.sh consume`,
   which moves consumed originals (content unchanged) into `scv/raw/stale/` and
   records which promote slugs used each doc in `scv/readpath.json`'s new
@@ -23,6 +31,15 @@ All notable changes to SCV Core are documented here.
   longer counts consumed docs toward the split heuristic.
 - `action:status` documents a one-time legacy backfill: retro-consuming raw
   docs referenced by `raw_sources:` of existing promote/archive plans.
+
+### Fixed
+
+- Deck mermaid diagrams were near-invisible (white init-palette edges on the
+  renderer's light card). The doc renderer now emits the
+  `scv-mermaid-contrast` overrides (transparent diagram card, theme-variable
+  edges and edge labels) and the promote protocol's `%%{init}%%` template
+  aligns with the deck's own theme tokens (`#9096a8`/`#e7e9f0`/`#171922`), so
+  architecture diagrams stay readable in both light and dark themes.
 
 ### Changed
 
