@@ -2,6 +2,53 @@
 
 All notable changes to SCV Core are documented here.
 
+## [0.21.0] - 2026-08-04
+
+### Added
+
+- Raw-doc lifecycle: `action:promote` Step 8 now runs `readpath.sh consume`,
+  which moves consumed originals (content unchanged) into `scv/raw/stale/` and
+  records which promote slugs used each doc in `scv/readpath.json`'s new
+  `ref_docs` map (schema v2; a doc reused by several features accumulates all
+  their slugs plus `ref_commit`/`consumed_at`). Files still directly under
+  `scv/raw/` are therefore exactly the never-promoted **unused** docs.
+- New `readpath.sh` subcommands: `consume`, `unused`, `refs`,
+  `lifecycle-counts`, and `outdated` — a content-staleness heuristic that flags
+  consumed docs mentioning repo files changed since their `ref_commit`
+  (`OUTDATED-CANDIDATE`), with semantic verification delegated to the host
+  agent in `action:promote` / `action:status`.
+- `action:status` shows the unused/consumed split, per-doc `ref_docs` slugs,
+  and outdated candidates; `action:help`'s banner surfaces the unused count;
+  `promote-helper.sh` emits `RAW_STALE_COUNT` / `RAW_OUTDATED_COUNT` and no
+  longer counts consumed docs toward the split heuristic.
+- `action:status` documents a one-time legacy backfill: retro-consuming raw
+  docs referenced by `raw_sources:` of existing promote/archive plans.
+
+### Changed
+
+- readpath schema is now v2 (`files` + `ref_docs`, each entry also recording
+  its pre-move `origin`). v1 state files remain readable, `update` preserves
+  `ref_docs`, and v1 readers ignore the new block. Caveat: a **v1** `update`
+  rewrites the file without `ref_docs` — mixed-version teams should upgrade
+  wrappers together.
+- `consume` is fail-closed: preflight validates every path (normalization of
+  `//`·`/./` variants, raw-dir prefix, no `..`, no symlinked leaf **or path
+  component**, no duplicate arguments, README excluded, no
+  quote/backslash/control characters) before any file moves. A shared source
+  that an earlier promote folder already moved is remapped via its recorded
+  `origin` (`REMAPPED` output) instead of failing.
+- The ref_docs parser tolerates pretty-printed state files (e.g. after
+  `jq .`) via brace-depth tracking, and empty TSV fields use a `-` placeholder
+  so IFS tab-collapsing can no longer shift columns (previously an empty
+  `ref_commit` silently corrupted the state on the next `update`).
+- `diff`/`status-counts` no longer crash on filenames containing spaces
+  (pre-existing `compute_diff` word-splitting bug); filenames with quotes,
+  backslashes, tabs, or newlines are skipped by `scan`/`diff` with a warning
+  and rejected by `consume` (the narrow no-jq schema cannot represent them).
+- `action:sync` now propagates `scv/raw/README.md` (merge_policy `overwrite`)
+  so existing projects receive the raw lifecycle guide instead of keeping the
+  old "raw files are never moved" text that contradicts Step 8's stale-move.
+
 ## [0.20.6] - 2026-07-29
 
 ### Fixed
