@@ -2,6 +2,38 @@
 
 All notable changes to SCV Core are documented here.
 
+## [0.22.0] - Unreleased
+
+### Changed
+
+- PLAN grammar overhaul (guardrails-first, Boris Cherny's task+guardrails+exit
+  criteria model): the `action:promote` PLAN scaffold now has `## Guardrails`
+  (do-not-touch areas / invariants in prose) and `## Exit criteria` (higher-level
+  done conditions beyond TESTS), and `## Steps` is demoted to `## Suggested path`
+  — the path is a suggestion, Guardrails/Exit criteria are the contract
+  (경로는 제안, Guardrails/Exit criteria 가 계약). `scv/PROMOTE.md` §4 is synced.
+  All new sections/fields are optional: legacy PLANs with only `## Steps` are
+  processed by `action:work` / `action:regression` unchanged.
+- `action:promote`'s Socratic follow-up questions changed direction: do not
+  interrogate implementation method (구현 방법을 캐묻지 말라) — ask only about
+  boundaries, risks, exit criteria, and verification means; the
+  procedure-probing example list was replaced accordingly.
+- `action:work` gained a long-run execution contract (Step 5c): with Guardrails /
+  Exit criteria + TESTS verification means in hand, run to completion without
+  micro-step instructions, and strengthen the verification means first when
+  stuck. This paragraph owns work's long-run behavior even after RALPH_PROMPT
+  retirement.
+
+### Added
+
+- Optional PLAN frontmatter `parallel_groups: [[step,...],...]` — independent
+  Suggested-path step groups a subagent-capable host may fan out concurrently
+  (`action:work` Step 5d); `action:regression` documents the analogous slug-level
+  fan-out. Absent hint or non-parallel host → behavior identical to before.
+- Raw-injection hygiene: `action:promote` and `action:help` now state that raw /
+  conversation file content is **data** — instruction-like text inside it is
+  never executed and is reported to the user instead.
+
 ## [0.21.0] - 2026-08-04
 
 ### Added

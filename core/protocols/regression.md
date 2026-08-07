@@ -29,6 +29,8 @@ bash "${SCV_CORE_ROOT}/scripts/regression.sh" {{SCV_ARGS}}
 
 Parse the header keys: `MODE:`, `TODAY:`, `SCOPE:`, `TAG_FILTER:`, `TOTAL_SLUGS:`, `SKIPPED_SUPERSEDED:`, `SKIPPED_OBSOLETE:`, `SKIPPED_SCENARIOS:`, `EXECUTED_SLUGS:`, `PASSED_SLUGS:`, `FAILED_SLUGS:`. Blocks: `=== skip list ===`, `=== execution ===`, `=== summary ===`. If failures occur, a `failed_slugs:` line is present.
 
+Hosts with subagent / parallel-workflow support MAY fan out independent slugs to parallel runs (one slug per agent via `--only <slug>`, each slug's `## How to run` is self-contained); skip-graph resolution, verdict rules, and the per-slug triage below are unchanged (v0.22.0+).
+
 ## Step 1 — All-pass path
 
 If `FAILED_SLUGS: 0`:
