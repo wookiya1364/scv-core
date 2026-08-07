@@ -22,6 +22,7 @@ bash "${SCV_CORE_ROOT}/scripts/handoff.sh" mark "<handoff_id>" claimed
 
 After the work is archived, mark it `done` the same way.
 
+<!-- SCV:GUIDANCE -->
 ## Language preference
 
 Resolve the user's preferred language with this priority, then use it for ALL user-facing output (question text, status messages, summaries):
@@ -35,6 +36,7 @@ frontmatter keys (`status`, `kind`, `epic`, `supersedes`), env var names, and
 SCV terms (`promote`, `archive`, `orphan branch`, `epic`). If `.env`
 `SCV_LANG` is unset, suggest `action:help` once to lock the preference; do not
 block the current task.
+<!-- /SCV:GUIDANCE -->
 
 **Non-negotiable rules:**
 - Never create / move / delete files without the user's explicit per-candidate approval.
@@ -124,6 +126,7 @@ For **earlier conversation** (e.g., user did `action:help "...URL..."` before th
 - Do **NOT auto-populate** `refs:` from these mentions — that would short-circuit the clarification dialog SCV is built around.
 - DO surface them as **suggestions** in the Plan summary so the user can deliberately re-mention them in dialog answers if they want them included. Use LLM judgment to filter only URLs whose topic matches the current promote.
 
+<!-- SCV:GUIDANCE -->
 Display the scan result to the user with **source attribution**. Example output:
 
 ```
@@ -138,6 +141,7 @@ Plan summary:
 ```
 
 If no URLs found in either deliberate source, omit the "Detected refs" line entirely. If no earlier-conversation suggestion either, omit the 💡 line.
+<!-- /SCV:GUIDANCE -->
 
 ### Step 3 — Dialog (for each candidate promote folder)
 
@@ -154,6 +158,7 @@ Heuristic decision tree:
 
 If split is recommended, ask the user for confirmation:
 
+<!-- SCV:GUIDANCE -->
 ```
 Question: "Looking at the raw material, this seems sized for multiple features (current raw spans N topic clusters). How would you like to proceed?"
 options:
@@ -184,6 +189,7 @@ options:
      single-topic. With a single folder, you lose epic grouping benefits (branch strategy,
      auto-suggested refactor)."
 ```
+<!-- /SCV:GUIDANCE -->
 
 After user picks:
 
@@ -192,6 +198,7 @@ After user picks:
 
 #### Step 3.1 — Single-folder dialog (no split)
 
+<!-- SCV:GUIDANCE -->
 **Preamble (conditional — emit ONCE before the question batch, not by asking the user).**
 
 Show this preamble (one short text line, in the user's preferred language) only when **both** of the following hold:
@@ -204,6 +211,7 @@ Suggested wording (English):
 > 💡 Tip: I didn't find any related ticket / doc URLs in your raw materials or invocation. If this plan has any (Jira / Linear / Confluence / GitHub PR / Google Doc / Notion / etc.), include them in any of your answers below — I'll auto-detect and add them to `refs:`.
 
 If neither condition holds (URLs already extracted, or team doesn't use external trackers), skip the preamble entirely — keep the dialog clean.
+<!-- /SCV:GUIDANCE -->
 
 Then ask one batch question (keep it clean — do NOT mix the URL ask into the question text or option descriptions):
 
@@ -213,6 +221,7 @@ Then ask one batch question (keep it clean — do NOT mix the URL ask into the q
 4. **Raw sources**: For each folder, confirm which raw file paths belong to it (default: all changed raws; user may split).
 5. **Invariants** (optional, v0.11.0+): "Any existing behavior this plan must NOT break? (e.g., '기존 결제 한도 체크 유지', '음수 환불 금지'. Skip if nothing comes to mind — this is a focused list, not a general regression list.)" The answer becomes PLAN.md frontmatter `invariants:` (string array). `action:codegen` uses it as a per-iteration self-check (T5 logic-skip guard). Empty answer is fine — most plans don't need it.
 
+<!-- SCV:GUIDANCE -->
 6. **Socratic deepening — opt-in** (v0.11.1+): After collecting answers 1-5, ask the user one concise question offering optional clarification. **Default behavior unchanged** — if user picks No, proceed directly to Step 3.1.5 as before.
 
 ```
@@ -240,6 +249,7 @@ Question: "Want me to apply Socratic clarification on your 5 answers? I'll re-re
 **If [2] No**: proceed directly to Step 3.1.5.
 
 **Constraint**: Base 5 answers (Step 3.1 questions 1-5) are **always preserved unchanged** regardless of Y/N choice. Socratic adds *on top* of the base; never modifies it. This preserves SCV's shallow-base + opt-in-depth invariant.
+<!-- /SCV:GUIDANCE -->
 
 #### Step 3.1.5 — Parse URLs from dialog answers (URL pattern → ref type)
 
@@ -421,6 +431,7 @@ refs:
     url: https://github.com/org/repo/pull/567
 ```
 
+<!-- SCV:GUIDANCE -->
 **Source attribution after writing**: print a one-line summary so the user sees what landed in `refs:`. Example:
 
 ```
@@ -430,6 +441,7 @@ refs:
 ```
 
 If `refs:` is empty, omit the count line; just confirm the folder was created.
+<!-- /SCV:GUIDANCE -->
 
 ### Step 5.1 — Decision log append (v0.22.0+)
 
@@ -455,14 +467,17 @@ write an anonymous entry** (use the same `AUTHOR` the helper printed):
   action:help conversation; omit otherwise>
 ```
 
+<!-- SCV:GUIDANCE -->
 The "discarded alternatives" line is the point of this entry: the chosen path
 is already in PLAN.md — what evaporates without this log is what you decided
 NOT to do.
+<!-- /SCV:GUIDANCE -->
 
 ### Step 6 — Architecture diagrams (per approved folder, optional)
 
 For each folder created in Step 5, ask the user for confirmation to decide whether to also generate `FEATURE_ARCHITECTURE.md` (two Mermaid diagrams) alongside `PLAN.md` / `TESTS.md`. The default flow asks every time — there is no `--skip-architecture` flag. When the change is trivial enough that diagrams add no value, the user picks [2] "skip" once.
 
+<!-- SCV:GUIDANCE -->
 ```
 Question: "Add architecture diagrams to <folder> (FEATURE_ARCHITECTURE.md)?"
 
@@ -488,6 +503,7 @@ Question: "Add architecture diagrams to <folder> (FEATURE_ARCHITECTURE.md)?"
     "Examples: 'only the first diagram, second has no value here' /
      'data flow perspective only' / 'wait, I'll write by hand'."
 ```
+<!-- /SCV:GUIDANCE -->
 
 If [2]: skip the rest of Step 6 for this folder, continue with the remaining steps (7 deck → 8 readpath → 9 report).
 
@@ -510,6 +526,7 @@ Build a `flowchart LR` (or `TB` if vertical layout fits better) showing the comp
    ```
    Forces dark backgrounds + white text + **white edge arrows**. Yellow-highlighted nodes (`classDef key fill:#FFE082,...,color:#000`) keep black text on yellow for strong visual emphasis. The user explicitly chose strong contrast over context-aware palettes ("큰 배경은 검은색, 화살표는 흰색"). This palette is consistent across GitHub light-mode page, GitHub dark-mode page, and GitHub's fullscreen modal popup.
 
+<!-- SCV:GUIDANCE -->
 **Anti-patterns to avoid:**
 
 - ❌ Copying the skeleton verbatim (`Caller`, `ServiceA`, `ServiceB`) — those names exist only in this prompt as syntax illustration. Use the actual component names from PLAN.md.
@@ -530,6 +547,7 @@ flowchart LR
   ServiceA -->|"emit('event.name', data)"| EventBus
 ```
 ````
+<!-- /SCV:GUIDANCE -->
 
 #### Step 6.2 — Second diagram (Position in whole — data source branching)
 
@@ -541,6 +559,7 @@ Determine the source for the system-level layout:
 | `available` | `stale` or `missing` | Ask the 3-way question below |
 | `missing` | (any) | Ask the 2-way question below |
 
+<!-- SCV:GUIDANCE -->
 **3-way question** (graphify available + stale/missing graph):
 
 ```
@@ -581,6 +600,7 @@ Question: "graphify is not installed. How should I source diagram 2?"
     "Examples: 'guess from code top-level directory layout' / 'I will install
      graphify first (see action:install-deps)'."
 ```
+<!-- /SCV:GUIDANCE -->
 
 After the source decision, build a `flowchart TB` with subgraphs for each layer / domain.
 
@@ -624,6 +644,7 @@ flowchart TB
 ```
 ````
 
+<!-- SCV:GUIDANCE -->
 **Anti-patterns to avoid (diagram 2):**
 
 - ❌ Drawing every node from `graph.json` — use god_nodes only.
@@ -631,6 +652,7 @@ flowchart TB
 - ❌ Putting the new feature in a brand-new subgraph far from the rest — place it inside an existing community based on PLAN.md's interaction with that community.
 - ❌ Skipping the `Source:` line in §2 of FEATURE_ARCHITECTURE.md (Step 6.3) — every diagram 2 must declare its basis.
 - ❌ Using solid `-->` for new-component edges — use dashed `-.->` to make new connections visually distinct.
+<!-- /SCV:GUIDANCE -->
 
 #### Step 6.3 — Write FEATURE_ARCHITECTURE.md
 
@@ -689,6 +711,7 @@ Print one-line confirmation:
 
 Markdown alone is hard to picture — "이게 화면이 어떻게 생겼는지 모르겠다." `action:deck` renders a `​```screen` fenced JSON block as an actual wireframe (dark scv-native skin, zero build). Skip this step entirely for a CLI/backend-only plan (no user-facing UI). Otherwise, ask:
 
+<!-- SCV:GUIDANCE -->
 ```
 Question: "이 계획에 화면 목업을 추가할까요? (실제 스크린샷이 아니라 PLAN 내용
 기반의 와이어프레임 — action:deck 이 그림으로 그려줍니다)"
@@ -704,6 +727,7 @@ Question: "이 계획에 화면 목업을 추가할까요? (실제 스크린샷�
     description:
     "PLAN.md 텍스트만으로 충분하거나, 화면 변경이 없는 계획일 때."
 ```
+<!-- /SCV:GUIDANCE -->
 
 If [2]: skip the rest of Step 6.4, continue with Step 6.5.
 
@@ -771,6 +795,7 @@ Print one-line confirmation:
 
 #### Step 6.5 — Self-review (before moving on)
 
+<!-- SCV:GUIDANCE -->
 Before continuing to Step 7, silently re-read the FEATURE_ARCHITECTURE.md you just wrote and verify it against PLAN.md. Do **not** print this checklist to the user — fix problems silently and only mention if a fix changed something material.
 
 Checklist (apply once per generated file):
@@ -797,6 +822,7 @@ If a fix changed something user-visible (added a missing component / removed an 
 ```
 
 If self-review fixed nothing material, omit the "Self-review:" line.
+<!-- /SCV:GUIDANCE -->
 
 ### Step 7 — Generate the 기획서 deck (per created folder)
 
