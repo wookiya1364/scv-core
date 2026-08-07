@@ -248,25 +248,47 @@ After a successful archive, remind the user:
 
 Read `<PLAN_LANG>` from the archived PLAN.md's `lang:` frontmatter (the same field Step 9d reads — set by `action:promote` Step 0; English fallback if absent) so the deck's UI chrome matches the language the plan's own content is already written in. This rewrites `scv/archive/<slug>/<slug>.deck.html` (combining PLAN + FEATURE_ARCHITECTURE + TESTS into one scrollable document) so it's committed with the archive. In a nested module, use the module's path (`<SCV_DIR>/archive/<slug>`). If Node/pnpm are missing, relay the error and continue — the archive itself is unaffected.
 
+#### Step 9b.0 — Decision log append (v0.22.0+)
+
+Archiving IS a decision — promote the `--reason` into a decision summary
+instead of leaving a one-line "tests passed". After every successful archive,
+append **one** entry to `scv/DECISIONS.md` (append-only — never edit existing
+entries; seed the file via `action:sync` if missing).
+
+The entry reuses the handoff decision format. **author is mandatory — never
+write an anonymous entry** (resolve it the same way as `action:promote`'s
+AUTHOR: `git config user.name` → `GIT_AUTHOR_NAME` → `USER`):
+
+```markdown
+## [<YYYY-MM-DD HH:MM>] <author> — <plan title> archived
+
+- verdict: archived
+- why: <2–4 lines — WHAT this plan decided/changed and what was learned while
+  implementing it. Not "tests passed" — that is the gate, not the decision.>
+- refs: scv/archive/<slug>/PLAN.md
+- conversation: <scv/conversations/<file> when the plan came from a
+  conversation; omit otherwise>
+```
+
 #### Step 9b.1 — Conversation archive (v0.9.0+, optional)
 
-If the just-archived plan's `raw_sources` includes a path under `scv/.conversations/`, the original conversation file is still in `scv/.conversations/` (active). Offer to archive it too:
+If the just-archived plan's `raw_sources` includes a path under `scv/conversations/`, the original conversation file is still in `scv/conversations/` (active). Offer to archive it too:
 
 ```
 Ask: "This plan was started from a action:help conversation (`<filename>`). Archive that conversation too?"
 
-[1] "Yes — move to scv/.conversations/archive/"
-    description: "The conversation file is moved to scv/.conversations/archive/<filename>. action:help's 'unfinished' list won't show it anymore. Both directories are gitignored — the move only affects your local view."
+[1] "Yes — move to scv/conversations/archive/"
+    description: "The conversation file is moved to scv/conversations/archive/<filename>. action:help's 'unfinished' list won't show it anymore. Both directories are committed (v0.22.0+), so the move is visible to the whole team on the next commit."
 
-[2] "No — keep it in scv/.conversations/ for now"
+[2] "No — keep it in scv/conversations/ for now"
     description: "The conversation stays in the active list. You can still reference it, or archive it manually later. Pick this if you might come back to refine the original idea."
 ```
 
-**On [1]**: `mkdir -p scv/.conversations/archive && mv scv/.conversations/<file> scv/.conversations/archive/`. Update the moved file's frontmatter: `status: archived`, `archived_at: <ISO>`. Print one-line confirmation.
+**On [1]**: `mkdir -p scv/conversations/archive && mv scv/conversations/<file> scv/conversations/archive/`. Update the moved file's frontmatter: `status: archived`, `archived_at: <ISO>`. Print one-line confirmation.
 
 **On [2]**: do nothing. Conversation stays active.
 
-If `raw_sources` has no `.conversations/` path (the plan came from `scv/raw/` directly, not a `action:help` conversation), skip Step 9b.1 entirely.
+If `raw_sources` has no `conversations/` path (the plan came from `scv/raw/` directly, not a `action:help` conversation), skip Step 9b.1 entirely.
 
 ### Step 9c — supersede propagation (new · adopts A's `supersedes` declaration)
 

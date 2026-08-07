@@ -44,9 +44,11 @@ else
   echo "ARG_CONVERSATION:"
 fi
 
-# Unfinished conversations = active files in scv/.conversations/ (NOT under archive/).
-# v0.9.0+: persisted by action:help conversation mode, gitignored.
-CONV_DIR="scv/.conversations"
+# Unfinished conversations = active files in scv/conversations/ (NOT under archive/).
+# v0.9.0+: persisted by action:help conversation mode.
+# v0.22.0+: the directory is COMMITTED (redaction-filtered) — the pre-0.22.0
+# gitignored scv/.conversations/ is detected below for migration.
+CONV_DIR="scv/conversations"
 
 # The helper is strictly read-only, including argument-bearing diagnosis. The
 # host protocol creates a conversation file only after the user explicitly
@@ -63,6 +65,18 @@ if [[ -n "$UNFINISHED" ]]; then
   printf '  %s\n' $UNFINISHED
 else
   echo "UNFINISHED_CONVERSATIONS: (none)"
+fi
+
+# v0.22.0+ — legacy gitignored conversation dir detection (read-only). The
+# help protocol proposes migrating these files (through the redaction filter)
+# into the committed scv/conversations/.
+LEGACY_CONV_DIR="scv/.conversations"
+if [[ -d "$LEGACY_CONV_DIR" ]]; then
+  LEGACY_CONV_N=$(find "$LEGACY_CONV_DIR" -type f -name '*.md' \
+                    ! -name 'README.md' 2>/dev/null | wc -l | tr -d ' ')
+  echo "LEGACY_CONVERSATIONS: $LEGACY_CONV_DIR (${LEGACY_CONV_N:-0} file(s)) — migration to scv/conversations/ recommended"
+else
+  echo "LEGACY_CONVERSATIONS: (none)"
 fi
 echo ""
 
