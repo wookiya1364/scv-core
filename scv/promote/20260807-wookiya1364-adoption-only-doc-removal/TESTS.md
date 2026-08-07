@@ -9,13 +9,13 @@
 2. **--new 거부** — `hydrate.sh init . --new` → exit 1 + 마이그레이션 안내,
    파일 0개 생성 (fail-closed).
 3. **sync 삭제 전파** — 구버전으로 hydrate 된 프로젝트(7종 존재, 일부에
-   사용자 내용 추가)에서 sync 실행 → 7종 전부 삭제되고, 각 파일이
-   `.scv-backup/` 에 원본 그대로 존재하며, CHANGES 에 `DELETED ... (backed
-   up)` 7건이 보고된다.
-4. **백업 실패 시 중단** — 백업 디렉터리를 쓰기 불가로 만든 상태에서 sync →
-   삭제가 한 건도 일어나지 않고 명확한 에러로 중단 (fail-closed).
-5. **dry-run** — `sync --dry-run` 은 삭제 예정 7건을 표시만 하고 파일·백업
-   모두 무변경.
+   사용자 내용 추가)에서 sync 실행 → 7종 전부 삭제되고(백업 없음), CHANGES
+   에 `DELETED <file>` 7건이 보고된다.
+4. **삭제 대상 한정** — 7종 외 파일(scv/ 하위 사용자 파일 포함)은 어떤
+   경우에도 삭제되지 않는다. 심링크인 대상은 삭제하지 않고 경고만 한다
+   (fail-closed).
+5. **dry-run** — `sync --dry-run` 은 삭제 예정 7건을 표시만 하고 파일
+   무변경.
 6. **유지 파일 불변** — 시나리오 3 이후 SCV.md(PROJECT:LOCAL 포함)·
    PROMOTE.md·REPORTING.md 내용이 삭제·손상되지 않는다.
 7. **참조 잔존 0건** — `grep -rE "INTAKE|DOMAIN\.md|ARCHITECTURE\.md|DESIGN\.md|AGENTS\.md|TESTING\.md|RALPH_PROMPT"`
