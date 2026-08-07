@@ -2,7 +2,7 @@
 
 All notable changes to SCV Core are documented here.
 
-## [0.22.0] - Unreleased
+## [0.22.0] - 2026-08-07
 
 ### 가이던스 어블레이션 1단계 — CONTRACT/GUIDANCE 분리 + `SCV_GUIDANCE=minimal` (promote·work)
 
