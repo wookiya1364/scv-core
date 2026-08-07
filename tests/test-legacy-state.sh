@@ -25,13 +25,11 @@ project_with_legacy() {
   local project="$1" legacy="$2" readpath_format="${3:-pretty}"
   mkdir -p "$project/scv/raw"
   cp "$CORE/template/scv/SCV.md" "$project/scv/$legacy"
-  cp "$CORE/template/scv/INTAKE.md" "$project/scv/INTAKE.md"
-  cp "$CORE/template/scv/TESTING.md" "$project/scv/TESTING.md"
+  # Hydration proxy since TEMPLATE_VERSION 2.0.0: scv/PROMOTE.md.
+  cp "$CORE/template/scv/PROMOTE.md" "$project/scv/PROMOTE.md"
   cp "$CORE/template/scv/REPORTING.md" "$project/scv/REPORTING.md"
-  perl -pi -e 's{^status: draft$}{status: N/A}' \
-    "$project/scv/TESTING.md" "$project/scv/REPORTING.md"
   perl -0pi -e 's/(<!-- PROJECT:LOCAL START -->).*?(<!-- PROJECT:LOCAL END -->)/$1\nlegacy-local-value: keep-me\n$2/s' \
-    "$project/scv/TESTING.md" "$project/scv/REPORTING.md"
+    "$project/scv/REPORTING.md"
   perl -0pi -e 's{<!-- SCV:WORKSPACE START -->.*?<!-- SCV:WORKSPACE END -->}{<!-- SCV:WORKSPACE START -->\n```yaml\nrepo_id: legacy-fe\nrole: frontend\nroot: https://example.invalid/scv-root.git\nworkspace: legacy-workspace\n```\n<!-- SCV:WORKSPACE END -->}s' \
     "$project/scv/$legacy"
   printf 'baseline\n' > "$project/scv/raw/existing.txt"
@@ -75,7 +73,7 @@ for legacy in CLAUDE.md CODEX.md; do
   out="$(cd "$project" && SCV_HOST_PROFILE="$PROFILE" bash "$CORE/scripts/help.sh")"
   after="$(snapshot "$project")"
   [[ "$before" == "$after" ]]
-  grep -qF "hydrate complete (scv/$legacy + scv/INTAKE.md exist)" <<<"$out"
+  grep -qF "hydrate complete (scv/$legacy + scv/PROMOTE.md exist)" <<<"$out"
   ! grep -qF "This directory is not hydrated yet" <<<"$out"
   [[ ! -e "$project/scv/SCV.md" ]]
 
@@ -106,9 +104,7 @@ for legacy in CLAUDE.md CODEX.md; do
   [[ -f "$MIGRATE/scv/SCV.md" && -f "$MIGRATE/scv/$legacy" ]]
   cmp "$TMP/expected-$legacy" "$MIGRATE/scv/$legacy"
   cmp "$TMP/expected-${legacy%.md}-readpath.json" "$MIGRATE/scv/readpath.json"
-  grep -q '^status: N/A$' "$MIGRATE/scv/TESTING.md"
   grep -q '^status: N/A$' "$MIGRATE/scv/REPORTING.md"
-  grep -qF 'legacy-local-value: keep-me' "$MIGRATE/scv/TESTING.md"
   grep -qF 'legacy-local-value: keep-me' "$MIGRATE/scv/REPORTING.md"
   grep -qF 'repo_id: legacy-fe' "$MIGRATE/scv/SCV.md"
   grep -qF 'root: https://example.invalid/scv-root.git' "$MIGRATE/scv/SCV.md"
@@ -152,7 +148,7 @@ grep -qF "will not hydrate, sync, migrate" <<<"$help_conflict"
 for legacy in CLAUDE.md CODEX.md; do
   BROKEN="$TMP/broken-${legacy%.md}"
   mkdir -p "$BROKEN/scv"
-  cp "$CORE/template/scv/INTAKE.md" "$BROKEN/scv/INTAKE.md"
+  cp "$CORE/template/scv/PROMOTE.md" "$BROKEN/scv/PROMOTE.md"
   printf '<!-- SCV:HOST-POINTER target=SCV.md -->\nRead scv/SCV.md.\n' \
     > "$BROKEN/scv/$legacy"
   before="$(snapshot "$BROKEN")"

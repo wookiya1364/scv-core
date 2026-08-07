@@ -1,13 +1,10 @@
 #!/usr/bin/env bash
 # Inject the SCV template into a project directory.
 #
-# Modes:
-#   default        Adoption mode — for existing projects. Standard docs are
-#                  seeded with status: N/A so the promote/work loop can run
-#                  immediately. Scope what you actually need later.
-#   --new          Greenfield mode — for brand-new projects. Standard docs
-#                  stay as status: draft so action:help can guide you through
-#                  the full INTAKE protocol.
+# Single path (v2.0.0+): the template seeds only the workflow files
+# (scv/SCV.md, scv/PROMOTE.md, scv/REPORTING.md, scv/raw/, promote/, archive/,
+# WORKSPACE.yaml.example, .env/.gitignore fragments). The promote/work loop is
+# usable immediately; there is no standard-doc scaffolding step.
 set -euo pipefail
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -19,19 +16,14 @@ source "$SCRIPT_DIR/lib/merge.sh"
 
 usage() {
   cat <<'EOF'
-Usage: hydrate.sh init <target_dir> [--new] [--force]
+Usage: hydrate.sh init <target_dir> [--force]
 
 Inject the SCV template into a project directory.
 
 Arguments:
   init <target_dir>  Target directory. Created if missing.
 
-Modes (default = adoption mode — for existing projects):
-  --new              Greenfield mode. Seeds standard docs as status: draft
-                     so action:help drives the full INTAKE dialog. Use this
-                     only when starting a brand-new project from scratch.
-
-Other options:
+Options:
   --root             Make this the umbrella (workspace ROOT) repo: also creates
                      scv/WORKSPACE.yaml from the example so child repos can join.
   --force            Allow copying into a directory that already has scv/.
@@ -55,12 +47,28 @@ fi
 shift || true
 
 FORCE=0
-NEW_MODE=0
 ROOT_MODE=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --force) FORCE=1; shift ;;
-    --new)   NEW_MODE=1; shift ;;
+    --new)
+      # Removed in TEMPLATE_VERSION 2.0.0 — fail closed before touching anything.
+      cat >&2 <<'EOF'
+✖ --new (greenfield mode) was removed in SCV template 2.0.0.
+
+  hydrate now has a single path: it seeds only the workflow files and no
+  standard-doc scaffolding, so the promote/work loop is usable immediately
+  on new and existing projects alike.
+
+  Migration: re-run without --new
+
+      hydrate.sh init <target_dir>
+
+  Decisions worth keeping belong in version-controlled team notes
+  (e.g. DECISIONS.md / a journal), not in pre-seeded snapshot docs.
+EOF
+      exit 1
+      ;;
     --root)  ROOT_MODE=1; shift ;;
     *) echo "Unknown flag: $1" >&2; exit 1 ;;
   esac
@@ -76,12 +84,6 @@ if [[ -e "$TARGET/scv" && $FORCE -eq 0 ]]; then
   exit 1
 fi
 
-if [[ $NEW_MODE -eq 1 ]]; then
-  MODE_LABEL="new (greenfield)"
-else
-  MODE_LABEL="adoption (default)"
-fi
-echo "→ Hydrate mode: $MODE_LABEL"
 echo "→ Copying template to $TARGET"
 # `cp -R -p` is supported by both BSD and GNU implementations. The `/.`
 # suffix copies dotfiles without relying on a shell glob.
@@ -116,21 +118,6 @@ if [[ -f "$TARGET/scv/SCV.md" ]]; then
   echo "  scv/SCV.md stamped: version=$VERSION synced_at=$TODAY"
 fi
 
-# Default (adoption) mode: flip standard-doc status from "draft" to "N/A"
-# so the promote/work loop can run immediately without INTAKE being enforced.
-# --new (greenfield) mode: leave them as "draft" (INTAKE will drive them).
-if [[ $NEW_MODE -eq 0 ]]; then
-  for doc in DOMAIN ARCHITECTURE DESIGN AGENTS TESTING REPORTING RALPH_PROMPT; do
-    f="$TARGET/scv/$doc.md"
-    [[ -f "$f" ]] || continue
-    # BSD/GNU sed portable: rewrite first matching `status: draft` line only.
-    awk 'BEGIN{d=0} !d && /^status: draft$/ {print "status: N/A"; d=1; next} {print}' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
-  done
-  echo "  standard docs seeded with status: N/A (adoption mode)"
-else
-  echo "  standard docs seeded with status: draft (greenfield — SCV help drives INTAKE)"
-fi
-
 # --root: promote this repo to the workspace umbrella by creating scv/WORKSPACE.yaml.
 if [[ $ROOT_MODE -eq 1 ]]; then
   if [[ -f "$TARGET/scv/WORKSPACE.yaml" ]]; then
@@ -146,7 +133,7 @@ fi
 cat <<EOF
 
 ✅ SCV template hydrated into: $TARGET
-   SCV version: $VERSION (synced $TODAY, mode=$MODE_LABEL)
+   SCV version: $VERSION (synced $TODAY)
 
 ▶ Next: in your the host agent session, run this one line:
 
