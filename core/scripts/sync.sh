@@ -332,6 +332,14 @@ if [[ -f "$TEMPLATE_DIR/scv/journal/README.md" ]]; then
   process_template_file "$TEMPLATE_DIR/scv/journal/README.md" "scv/journal"
 fi
 
+# scv/routines/README.md — the routine convention guide (v0.22.0+,
+# merge_policy: overwrite). Same explicit-line propagation as raw/README.md:
+# ONLY the README travels — routine files are user-owned, and the example
+# routine templates (template/scv/routines/examples/) never leave core.
+if [[ -f "$TEMPLATE_DIR/scv/routines/README.md" ]]; then
+  process_template_file "$TEMPLATE_DIR/scv/routines/README.md" "scv/routines"
+fi
+
 # Retired standard docs (TEMPLATE_VERSION 2.0.0) — deleted from existing
 # projects, deliberately WITHOUT backup (user decision; git history is the
 # recovery path). Only these exact seven filenames, only directly under scv/.
