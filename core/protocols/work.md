@@ -64,7 +64,7 @@ Based on `GRAPHIFY_SKILL` + `GRAPH_STATUS`:
 
 ### Step 3 — Load PLAN.md (required)
 
-`Read` the `PLAN_FILE` path emitted by the helper. Summarize `Summary`, `Goals / Non-Goals`, `Steps` to the user in 3–5 bullets so they can confirm scope.
+`Read` the `PLAN_FILE` path emitted by the helper. Summarize `Summary`, `Goals / Non-Goals`, `Guardrails` + `Exit criteria` (when present), and `Suggested path` (legacy PLANs: `Steps`) to the user in 3–5 bullets so they can confirm scope. Both PLAN forms are valid — a legacy PLAN with only `## Steps` and no Guardrails / Exit criteria is processed exactly as before.
 
 Also surface any **external refs** from the helper's `=== external refs ===` block (grouped by `type`, e.g. `[jira] 2`, `[pr] 1`). One line per type is enough — the user can follow links without the host agent reading them.
 
@@ -74,7 +74,7 @@ Also surface any **external refs** from the helper's `=== external refs ===` blo
 |---|---|
 | User explicit: "split it" / "split into ARCH.md" / "extract into REQUIREMENTS.md" (or any-language equivalent like 분리해 / REQUIREMENTS.md 로 빼줘) | **Always split** — write the new file and trim PLAN.md accordingly. Ask before the actual write. |
 | User explicit: "don't split" / "keep it in one file" / "no split" (or 분리 마) | **Do not propose split**. Continue in PLAN.md even if it grows. |
-| Neither (default) | the host agent judges. If `Approach Overview` > ~50 lines, `Steps` > ~15, or implementation reveals a dense sub-topic (ARCH / REQUIREMENTS / API / MIGRATION / tests) — **propose** split by asking the user. User accepts or declines. |
+| Neither (default) | the host agent judges. If `Approach Overview` > ~50 lines, `Suggested path` (or legacy `Steps`) > ~15, or implementation reveals a dense sub-topic (ARCH / REQUIREMENTS / API / MIGRATION / tests) — **propose** split by asking the user. User accepts or declines. |
 
 ### Step 4 — Load Related Documents (as needed)
 
@@ -165,9 +165,19 @@ When emitted, print this as a single info block (not a question — work proceed
 >
 > (SCV work continues as normal — this is a notice only.)
 
+### Step 5c — Long-run execution contract (v0.22.0+)
+
+Once you hold PLAN.md's **Guardrails / Exit criteria** and TESTS.md's **verification means** (the `## How to run` commands), do not wait for — or ask for — step-by-step procedural instructions: **run to completion**. The Suggested path is a suggestion; Guardrails and Exit criteria are the contract. Work autonomously until the Exit criteria are met and TESTS pass, checking back with the user only at the decision points this protocol defines (split proposals, archive, PR). When you get stuck, **strengthen the verification means first** — add a failing repro, tighten an assertion, improve observability — instead of asking the user to micro-specify the procedure. Legacy PLANs that have only `## Steps` are still fully valid: treat `## Steps` as the Suggested path and TESTS.md's `## Pass criteria` as the Exit criteria.
+
+Relation to Ralph Loop: this paragraph is what owns `action:work`'s long-run behavior — even after RALPH_PROMPT retirement, no external loop harness is required for a plan to run to completion (an external loop remains an optional accelerant, not a dependency).
+
+### Step 5d — Parallel fan-out hint (`parallel_groups`, optional, v0.22.0+)
+
+If PLAN.md frontmatter declares `parallel_groups:` (e.g. `parallel_groups: [[1, 2], [3]]` — inner arrays of Suggested-path step numbers that are independent of each other), and your host supports subagents / parallel workflows, you MAY fan out: run the steps of each group concurrently (groups themselves run in declaration order), then verify each TESTS scenario independently before merging results. The hint never changes WHAT must hold — Guardrails / Exit criteria / TESTS remain the contract for every parallel branch. If the field is absent, or the host has no parallel capability, behave exactly as before (sequential execution — zero behavior change).
+
 ### Step 6 — Implement
 
-Follow `PLAN.md` `Steps` in order. For each step:
+Follow `PLAN.md`'s `Suggested path` (legacy PLANs: `Steps`) as the default route — it is a suggestion, not the contract; if you find a better path that satisfies the Guardrails and Exit criteria, take it and tell the user in one line. For each step:
 1. Describe the change to the user briefly (one sentence).
 2. Use `Read` / `Edit` / `Write` as needed.
 3. After each significant change, surface any document-split proposal per Step 3.
