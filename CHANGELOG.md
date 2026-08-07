@@ -4,6 +4,40 @@ All notable changes to SCV Core are documented here.
 
 ## [0.22.0] - Unreleased
 
+### BREAKING — adoption 단일화 + 표준 문서 7종 제거 (TEMPLATE_VERSION 2.0.0)
+
+- `hydrate.sh --new` (greenfield mode) is removed. Passing `--new` now exits 1
+  with a migration notice and changes no files (fail-closed). Hydrate has a
+  single path and no longer seeds the seven standard docs
+  (`DOMAIN.md` / `ARCHITECTURE.md` / `DESIGN.md` / `AGENTS.md` / `TESTING.md` /
+  `INTAKE.md` / `RALPH_PROMPT.md`) — their templates are deleted from
+  `core/template/scv/`. Kept files are unchanged in behavior: `SCV.md`,
+  `PROMOTE.md`, `REPORTING.md`, `raw/README.md`, `WORKSPACE.yaml.example`,
+  and the `.env` / `.gitignore` fragments.
+- `action:sync` now **deletes** those seven files from existing projects,
+  **without backup** (deliberate decision — git history is the recovery path),
+  and reports each as `DELETED scv/<file>` in the CHANGES summary.
+  `--dry-run` previews the deletions without touching files. No file outside
+  the seven is ever deleted; a symlinked target is left in place with a
+  `WARN` instead of being deleted (fail-closed). The `sync.md` protocol
+  instructs the host agent to check each doomed file for user-authored content
+  first and, when found, propose migrating the decisions worth keeping into a
+  version-controlled team note (e.g. `DECISIONS.md` / journal) before applying.
+- Cascade cleanup: the draft/N/A status gate, the INTAKE flow, and all
+  standard-doc references are removed from `check-frontmatter.sh`, `help.sh` /
+  `help.md` (incl. the greenfield hydrate option), `promote.md` (diagram 2 now
+  sources from graphify only), `work.md`, `deck.md` / `deck-context.sh`,
+  `SCV.md` / `PROMOTE.md` / `REPORTING.md` templates, and
+  `integrations/loop-runner.md` (rewritten to run from `scv/promote/<slug>/`
+  plans with a free-form user-authored entry prompt instead of
+  `RALPH_PROMPT.md`). The hydration signal in `state-index.sh` / `help.sh` now
+  uses `scv/PROMOTE.md` (previously `scv/INTAKE.md`); state-index and legacy
+  CLAUDE.md/CODEX.md migration semantics are otherwise unchanged.
+- Upgrade note: external loop harnesses (e.g. rloop) that expect
+  `scv/RALPH_PROMPT.md` must switch to a free-form entry prompt; content you
+  still need from a deleted doc is recoverable from git history
+  (`git log -- scv/<file>`).
+
 ### Changed
 
 - PLAN grammar overhaul (guardrails-first, Boris Cherny's task+guardrails+exit

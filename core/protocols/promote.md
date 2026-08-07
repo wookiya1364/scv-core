@@ -397,7 +397,7 @@ refs: []
 -->
 ```
 
-**Per-slug E2E spec (video-faithful, v0.16.0+)** — when the plan ships or changes **user-facing behavior** AND the project is a Playwright project (`playwright.config.*` exists), give the plan its **own** E2E spec and scope its `## How to run` to that spec. This is what makes the PR video show *this* feature. (Non-Playwright project — Cypress/Puppeteer/none: see `action:work` Step 5b's framework notice; SCV auto-attach is Playwright-only, so adapt the command or skip. Pure-logic plan: keep a unit `## How to run`, no e2e spec — test pyramid in `scv/TESTING.md`.)
+**Per-slug E2E spec (video-faithful, v0.16.0+)** — when the plan ships or changes **user-facing behavior** AND the project is a Playwright project (`playwright.config.*` exists), give the plan its **own** E2E spec and scope its `## How to run` to that spec. This is what makes the PR video show *this* feature. (Non-Playwright project — Cypress/Puppeteer/none: see `action:work` Step 5b's framework notice; SCV auto-attach is Playwright-only, so adapt the command or skip. Pure-logic plan: keep a unit `## How to run`, no e2e spec.)
 
 - **Offer to create** (per the explicit-approval rule above — this writes into the project's test tree, *outside* `scv/`) `<testDir>/<FOLDER_NAME>.spec.ts`, reading `testDir` from `playwright.config.*` (commonly `e2e/`). Author it from PLAN.md as the feature's happy-path flow — log in, navigate to the feature's route, assert the key behavior:
   - **feature / new UI** → write it **TDD Red** (fails now, passes once implemented) — aligns with `action:codegen` Step 6.
@@ -507,17 +507,16 @@ flowchart LR
 
 Determine the source for the system-level layout:
 
-| `scv/ARCHITECTURE.md` `status` | `GRAPHIFY_SKILL` | `GRAPH_STATUS` | Action |
-|---|---|---|---|
-| `active` or `draft` | (any) | (any) | Use `scv/ARCHITECTURE.md` content as the layout reference |
-| `N/A` (or file missing) | `available` | `built` | Use `.graphify/docs/graphify-out/graph.json` |
-| `N/A` | `available` | `stale` or `missing` | Ask the 3-way question below |
-| `N/A` | `missing` | (any) | Ask the 2-way question below |
+| `GRAPHIFY_SKILL` | `GRAPH_STATUS` | Action |
+|---|---|---|
+| `available` | `built` | Use `.graphify/docs/graphify-out/graph.json` |
+| `available` | `stale` or `missing` | Ask the 3-way question below |
+| `missing` | (any) | Ask the 2-way question below |
 
 **3-way question** (graphify available + stale/missing graph):
 
 ```
-Question: "scv/ARCHITECTURE.md is N/A and the graphify graph is <stale|missing>. How should I source diagram 2?"
+Question: "The graphify graph is <stale|missing>. How should I source diagram 2?"
 
 [1] "Run graphify update (or full build) now"
     description:
@@ -535,38 +534,29 @@ Question: "scv/ARCHITECTURE.md is N/A and the graphify graph is <stale|missing>.
 
 [3] (free-form) "Other — type your direction"
     description:
-    "Examples: 'use stale graph as-is, note the date' / 'I will lift
-     ARCHITECTURE.md manually first' / 'guess from code structure'."
+    "Examples: 'use stale graph as-is, note the date' / 'guess from code
+     structure'."
 ```
 
 **2-way question** (graphify not installed):
 
 ```
-Question: "scv/ARCHITECTURE.md is N/A and graphify is not installed. How should I source diagram 2?"
+Question: "graphify is not installed. How should I source diagram 2?"
 
 [1] "Skip diagram 2"
     description:
     "Only diagram 1 (component data flow) will be generated. The system-
-     level layout needs a reference (ARCHITECTURE.md or graphify) that
-     is not available."
+     level layout needs a graphify graph that is not available."
 
 [2] (free-form) "Other — type your direction"
     description:
     "Examples: 'guess from code top-level directory layout' / 'I will install
-     graphify first (see action:install-deps)' / 'lift ARCHITECTURE.md to
-     draft and try again'."
+     graphify first (see action:install-deps)'."
 ```
 
 After the source decision, build a `flowchart TB` with subgraphs for each layer / domain.
 
 **Mapping rules by data source:**
-
-**Source = `scv/ARCHITECTURE.md`** (`active` or `draft`):
-
-1. Read the doc's `## Logical view` (or equivalent service-boundaries section).
-2. Each named service / domain there → a `subgraph` (use the exact name).
-3. Each component listed under that service → a node inside the subgraph.
-4. Map this feature's new components (from PLAN.md) into the most relevant subgraph.
 
 **Source = graphify `graph.json`** (`.graphify/docs/graphify-out/graph.json` exists):
 
@@ -642,7 +632,7 @@ How this feature's components interact.
 
 Where this feature sits in the system. New components highlighted in yellow.
 
-> Source: <one of: `scv/ARCHITECTURE.md` | graphify graph (built <YYYY-MM-DD>) | omitted — first diagram only>
+> Source: <one of: graphify graph (built <YYYY-MM-DD>) | omitted — first diagram only>
 
 ```mermaid
 %%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
@@ -655,30 +645,29 @@ If diagram 2 was skipped, replace the entire `## 2.` section with:
 ```markdown
 ## 2. Position in whole architecture
 
-> Skipped — `scv/ARCHITECTURE.md` is `N/A` and no graphify graph available.
-> Lift ARCHITECTURE.md to `draft` (or run `/graphify`) and re-run `action:promote`
-> on this folder to generate diagram 2.
+> Skipped — no graphify graph available.
+> Run `/graphify` and re-run `action:promote` on this folder to generate diagram 2.
 ```
 
 Print one-line confirmation:
 
 ```
 ✓ Created scv/promote/<folder>/FEATURE_ARCHITECTURE.md
-  Diagram 2 source: <ARCHITECTURE.md | graphify | skipped>
+  Diagram 2 source: <graphify | skipped>
   ⚠ Review Mermaid syntax + node labels — LLM-generated.
 ```
 
 #### Step 6.4 — Screen mockups (optional, UI plans only)
 
-Markdown alone is hard to picture — "이게 화면이 어떻게 생겼는지 모르겠다." `action:deck` renders a `​```screen` fenced JSON block as an actual wireframe (dark scv-native skin, zero build). Skip this step entirely for a CLI/backend-only plan (no user-facing UI — same signal as `DESIGN.md: status: N/A`). Otherwise, ask:
+Markdown alone is hard to picture — "이게 화면이 어떻게 생겼는지 모르겠다." `action:deck` renders a `​```screen` fenced JSON block as an actual wireframe (dark scv-native skin, zero build). Skip this step entirely for a CLI/backend-only plan (no user-facing UI). Otherwise, ask:
 
 ```
-Question: "이 계획에 화면 목업을 추가할까요? (실제 스크린샷이 아니라 PLAN/DESIGN 내용
+Question: "이 계획에 화면 목업을 추가할까요? (실제 스크린샷이 아니라 PLAN 내용
 기반의 와이어프레임 — action:deck 이 그림으로 그려줍니다)"
 
 [1] "Yes — generate wireframe mockups" (recommended for UI-facing plans)
     description:
-    "PLAN.md의 Steps/Approach Overview 와 DESIGN.md 의 화면 목록에서 이 계획이
+    "PLAN.md의 Suggested path/Approach Overview 에서 이 계획이
      건드리는 화면마다 하나씩 그림. 실제 화면 컴포넌트가 아니라 구조만 보여주는
      중립 와이어프레임(다크, scv 자체 스킨) — 어떤 프로젝트의 실제 디자인도
      흉내내지 않는다."
@@ -690,7 +679,7 @@ Question: "이 계획에 화면 목업을 추가할까요? (실제 스크린샷�
 
 If [2]: skip the rest of Step 6.4, continue with Step 6.5.
 
-If [1]: for **each screen this plan materially adds or changes** (named in PLAN.md's `Suggested path` (legacy: `Steps`) / `Approach Overview`, or DESIGN.md's Screen list if this plan references it), author one `​```screen` fenced JSON block and append it under a new `## 3. Screen mockups` section in FEATURE_ARCHITECTURE.md, one `### <screen name>` subsection per screen.
+If [1]: for **each screen this plan materially adds or changes** (named in PLAN.md's `Suggested path` (legacy: `Steps`) / `Approach Overview`), author one `​```screen` fenced JSON block and append it under a new `## 3. Screen mockups` section in FEATURE_ARCHITECTURE.md, one `### <screen name>` subsection per screen.
 
 **Schema** (top-level object inside the fence):
 
@@ -722,7 +711,7 @@ If [1]: for **each screen this plan materially adds or changes** (named in PLAN.
 **Style priority — scv skin first, project tokens only when told:**
 
 - **2순위 default: the scv-native skin.** Say nothing, add nothing extra — every mockup renders in scv's own neutral dark wireframe (no `theme` field). This is correct for most plans; do not go hunting for the project's real colors unprompted.
-- **1순위 override: only when the user has told you this project has its own design tokens** — either just now in conversation, or durably via an already-filled `scv/DESIGN.md` §5 "Design tokens" (check it — if §5 is real content, not `<TODO>` placeholders, that IS the user having told you). When that's the case, add a `"theme"` object to **every** `​```screen` block for this plan:
+- **1순위 override: only when the user has told you this project has its own design tokens** — either just now in conversation, or by pointing you at a project doc that genuinely documents them. When that's the case, add a `"theme"` object to **every** `​```screen` block for this plan:
 
   ```jsonc
   {
@@ -736,11 +725,11 @@ If [1]: for **each screen this plan materially adds or changes** (named in PLAN.
   }
   ```
 
-  All keys optional — set only the ones the project's DESIGN.md actually documents; the rest keep the scv-native default. **Base hex colors only** — copy the exact values from DESIGN.md §5 (or wherever the user pointed you), never invent or approximate one. Do **not** compute paired values yourself (readable text-on-primary, translucent badge backgrounds, etc.) — `action:deck`'s renderer derives those automatically from the base color (this is deliberate: a past version had the host agent/hand-picked white-on-accent text that failed WCAG contrast for some palettes; letting the renderer compute it from real luminance closes that class of bug). An invalid value (not a hex color) is silently dropped by the renderer and falls back to the scv-native default for that one property — it will not break the build, but double-check your hex codes against DESIGN.md anyway.
+  All keys optional — set only the ones the user's token source actually documents; the rest keep the scv-native default. **Base hex colors only** — copy the exact values from wherever the user pointed you, never invent or approximate one. Do **not** compute paired values yourself (readable text-on-primary, translucent badge backgrounds, etc.) — `action:deck`'s renderer derives those automatically from the base color (this is deliberate: a past version had the host agent/hand-picked white-on-accent text that failed WCAG contrast for some palettes; letting the renderer compute it from real luminance closes that class of bug). An invalid value (not a hex color) is silently dropped by the renderer and falls back to the scv-native default for that one property — it will not break the build, but double-check your hex codes against the source anyway.
 - Glass/blur/translucency effects (if the project's real style uses them) are **not** supported by this override yet — only flat colors + corner radius. If the project's real look depends on glassmorphism, mention in your confirmation that the mockup approximates colors only, not the visual effect.
 
 **Faithfulness (non-negotiable, same rule as the diagrams):**
-- Every nav item, table column, field, and button label must trace back to PLAN.md / TESTS.md / DESIGN.md. Never invent a screen, a data column, or a button that isn't in the source docs.
+- Every nav item, table column, field, and button label must trace back to PLAN.md / TESTS.md. Never invent a screen, a data column, or a button that isn't in the source docs.
 - A table row that would NOT show a button in that state in the real product (e.g., an action only available for one status) must omit that cell's button too — mockups show real conditional UI, not a maximal one.
 - If you're unsure of an exact label, use the closest wording actually present in the source. When truly unknown, leave that block out — an incomplete but faithful mockup beats a fabricated one.
 - Buttons/inputs in a mockup are always static illustrations (the deck never makes them clickable) — describe the STATE shown, not an interaction.
@@ -762,19 +751,19 @@ Checklist (apply once per generated file):
 2. **No inventions**: every node in diagram 1 traces back to PLAN.md. If any node has no PLAN.md basis, remove it.
 3. **Edge labels**: every edge in diagram 1 has a non-empty label (function call / event / SQL / HTTP verb). Bare `-->` arrows get a label or get removed.
 4. **External-vs-internal notation**: cylinder `[(...)]` only for external systems (DB / queue / 3rd-party API), plain `[...]` for internal services. Fix any miscategorized nodes.
-5. **Diagram 2 Source line** (when present): the `> Source:` line in §2 names exactly one of `scv/ARCHITECTURE.md` / `graphify graph (built YYYY-MM-DD)` / `skipped`. If it says "ARCHITECTURE.md or graphify" / vague text, pick the actual source.
+5. **Diagram 2 Source line** (when present): the `> Source:` line in §2 names exactly one of `graphify graph (built YYYY-MM-DD)` / `skipped`. If it carries vague text, pick the actual source.
 6. **`:::new` class** (diagram 2): every node introduced by this feature has `:::new`. Existing nodes do not.
 7. **Dashed edges** (diagram 2 with graphify source): edges from new components use `-.->` (dashed). Existing-to-existing edges use `-->`.
 8. **Mermaid fence**: the diagram is inside a ` ```mermaid ` ... ` ``` ` fence (not ` ```markdown ` or unfenced).
 9. **Screen mockups valid JSON** (if §3 present): each `​```screen` fence parses as JSON (a malformed one renders as a visible error callout, not silently). Fix any syntax mistakes.
-10. **Screen mockups faithful**: every nav item / column / field / button label in §3 traces back to PLAN.md / TESTS.md / DESIGN.md. Remove anything invented.
-11. **Screen mockup `theme` only when told**: if any `​```screen` block has a `theme` field, confirm the user actually said this project has design tokens (or `scv/DESIGN.md` §5 is genuinely filled in) — remove `theme` if you added it speculatively. If `theme` IS warranted, every value must be a base hex color copied verbatim from the real source (DESIGN.md §5 / user's own message) — never a value you approximated or a computed derivative (on-color, tint) you picked by hand.
+10. **Screen mockups faithful**: every nav item / column / field / button label in §3 traces back to PLAN.md / TESTS.md. Remove anything invented.
+11. **Screen mockup `theme` only when told**: if any `​```screen` block has a `theme` field, confirm the user actually said this project has design tokens — remove `theme` if you added it speculatively. If `theme` IS warranted, every value must be a base hex color copied verbatim from the real source (the doc the user pointed at / the user's own message) — never a value you approximated or a computed derivative (on-color, tint) you picked by hand.
 
 If a fix changed something user-visible (added a missing component / removed an invented one), mention it in the confirmation:
 
 ```
 ✓ Created scv/promote/<folder>/FEATURE_ARCHITECTURE.md
-  Diagram 2 source: <ARCHITECTURE.md | graphify | skipped>
+  Diagram 2 source: <graphify | skipped>
   Self-review: added 1 missing component (RefundEventHandler from Steps).
   ⚠ Review Mermaid syntax + node labels — LLM-generated.
 ```
