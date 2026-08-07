@@ -115,12 +115,13 @@ assert_read_case() {
     || fail "$label: output leaked an absolute fixture path"
 }
 
+# Hydration proxy since TEMPLATE_VERSION 2.0.0: scv/PROMOTE.md (INTAKE.md was retired).
 new_project() {
-  local name="$1" intake="${2:-yes}"
+  local name="$1" hydrated="${2:-yes}"
   local project="$TMP/fixtures/$name"
   mkdir -p "$project/scv"
-  if [[ "$intake" == yes ]]; then
-    printf '%s\n' '# intake' > "$project/scv/INTAKE.md"
+  if [[ "$hydrated" == yes ]]; then
+    printf '%s\n' '# promote convention' > "$project/scv/PROMOTE.md"
   fi
   printf '%s\n' "$project"
 }
@@ -276,9 +277,9 @@ MIGRATION_REQUIRED: reconcile the listed state indexes explicitly; no file was o
 EOF
 )"
 
-NO_INTAKE="$(new_project no-intake no)"
-write_state "$NO_INTAKE" SCV.md "shared-state"
-assert_read_case no-intake "$NO_INTAKE" 0 "$(expected_canonical no)"
+NO_PROMOTE="$(new_project no-promote no)"
+write_state "$NO_PROMOTE" SCV.md "shared-state"
+assert_read_case no-promote "$NO_PROMOTE" 0 "$(expected_canonical no)"
 
 EXACT_POINTER="$(new_project canonical-pointer)"
 write_state "$EXACT_POINTER" SCV.md "shared-state"
@@ -333,7 +334,7 @@ EOF
 dry_run_cases=(
   "$EMPTY_ROOT" "$EMPTY" "$CANONICAL" "$CLAUDE_ONLY" "$CODEX_ONLY"
   "$EQUAL_DUAL" "$DIVERGENT_DUAL" "$CANONICAL_EQUAL_BOTH"
-  "$CANONICAL_DIFF_BOTH" "$NO_INTAKE" "$EXACT_POINTER"
+  "$CANONICAL_DIFF_BOTH" "$NO_PROMOTE" "$EXACT_POINTER"
   "$SIMILAR_MARKER" "$ACTIVE_BROKEN" "$POINTER_ONLY"
 )
 for project in "${dry_run_cases[@]}"; do
