@@ -93,7 +93,23 @@ echo "→ Copying template to $TARGET"
 shopt -s dotglob nullglob
 for entry in "$TEMPLATE_DIR"/*; do
   [[ "$(basename "$entry")" == "hooks" ]] && continue
-  cp -R -p "$entry" "$TARGET/"
+  if [[ "$(basename "$entry")" == "scv" ]]; then
+    # scv/ is copied per-child so scv/routines/ seeds ONLY its README.md
+    # (the convention doc): the example routine templates
+    # (template/scv/routines/examples/) stay in core — routine files are
+    # added by the user/agent (see routines/README.md).
+    mkdir -p "$TARGET/scv"
+    for sub in "$entry"/*; do
+      if [[ "$(basename "$sub")" == "routines" ]]; then
+        mkdir -p "$TARGET/scv/routines"
+        cp -p "$sub/README.md" "$TARGET/scv/routines/README.md"
+      else
+        cp -R -p "$sub" "$TARGET/scv/"
+      fi
+    done
+  else
+    cp -R -p "$entry" "$TARGET/"
+  fi
 done
 shopt -u dotglob nullglob
 

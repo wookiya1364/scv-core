@@ -114,7 +114,7 @@ At minimum, wrapper CI should:
 
 1. verify the pinned Core hashes and profile;
 2. regenerate the projection and fail on a diff;
-3. assert all 14 actions exist exactly once;
+3. assert all 15 actions exist exactly once;
 4. run Core's shared regression suite through the wrapper layout;
 5. test adapter-owned update and model-policy behavior;
 6. ensure installed runtime execution performs no Core network fetch.

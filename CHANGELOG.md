@@ -95,6 +95,42 @@ All notable changes to SCV Core are documented here.
   WHY that previously evaporated with the session).
 - `action:status` now surfaces the last 5 `DECISIONS.md` entries and the open
   `TODO.md` items counted per author.
+- **`scv/routines/` — 한 문장 프롬프트 유지보수 루틴 레이어** (Boris Cherny's
+  daily-maintenance-routines practice): one routine = one md file under
+  `scv/routines/<name>.md` with a five-key frontmatter contract
+  (`name` / `cadence` / `guardrails` / `exit` / `report`) and a task-only body
+  (plan-grammar — 과업+가드레일+종료 조건, 절차 나열 금지). hydrate seeds ONLY
+  `scv/routines/README.md` (the convention doc, `merge_policy: overwrite`);
+  sync propagates it to existing projects the same explicit-line way as
+  `raw/README.md`. Routine files themselves are user/agent-authored.
+- **`action:routine` — the 15th action** (core-owned): `--list` shows a
+  NAME/CADENCE/REPORT table (guidance line when none are defined), `<name>`
+  parses the routine md via the new `core/scripts/routine.sh`
+  (frontmatter signals + task body + host-scheduling guidance block;
+  unknown name → error with the available list, exit 1; `--lint <file>`
+  validates the five-key schema). The `routine.md` protocol binds execution
+  to the routine's task/guardrails/exit contract, forbids direct writes to
+  permanent branches (working branch + PR or report only), makes the
+  `report:` summary follow the `action:report` format, and ends with
+  host-specific schedule-registration EXAMPLES — **SCV itself never
+  schedules**: no cron registration, no daemon, no loop (host-owned, like
+  `update` / `set-models` installation ownership). Action-count contracts
+  updated 14 → 15 (`tests/test-actions.sh`, `tools/verify-core.sh`, READMEs,
+  `docs/wrapper-integration.md`, `docs/core-wrapper-ownership.ko.md`);
+  wrappers must register the new command surface (handoff drafts in
+  `scv/promote/20260807-wookiya1364-routines/HANDOFF-DRAFTS.md`).
+- Seven built-in routine templates under `core/template/scv/routines/examples/`
+  (copy into `scv/routines/` to adopt; never auto-seeded): 4 SCV maintenance
+  routines — `regression-runner` (run `action:regression`, report failures),
+  `outdated-verifier` (semantically verify `readpath.sh outdated`'s
+  `OUTDATED-CANDIDATE` docs against current code — completes the 0.21.0
+  heuristic), `promote-staleness` (remind about `status: planned` folders
+  older than N days), `archive-integrity` (regenerate `INDEX.yaml`, verify
+  `supersedes` links) — plus 3 project-agnostic codebase routines imported
+  from the Boris interview: `dead-code`, `abstraction-police`,
+  `useless-tests`. All pass the routine frontmatter lint
+  (`core/tests/test-routines.sh` covers seeding, list/prepare/error paths,
+  outdated wiring, the 15-action catalog, and a no-scheduler-code sweep).
 
 ### Changed (team journal wave)
 
