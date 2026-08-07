@@ -114,22 +114,66 @@ At minimum, wrapper CI should:
 
 1. verify the pinned Core hashes and profile;
 2. regenerate the projection and fail on a diff;
-3. assert all 14 actions exist exactly once;
+3. assert all 15 actions exist exactly once;
 4. run Core's shared regression suite through the wrapper layout;
 5. test adapter-owned update and model-policy behavior;
 6. ensure installed runtime execution performs no Core network fetch.
 
-## 6. Automated updates
+## 6. Hook seam (journal capture, v0.22.0+)
+
+Hook **registration is wrapper-owned**; Core ships only the executable
+templates and this contract — the same ownership boundary as `update` and
+`set-models`. The templates capture free conversation (turns that never invoke
+an `action:*`) into the committed, author-attributed team journal
+(`scv/journal/<YYYYMMDD>-<author>.md`).
+
+| Template (materialized payload) | Host event | stdin contract |
+|---|---|---|
+| `core/template/hooks/on-user-prompt.sh` | Claude Code: `UserPromptSubmit` · Codex: the equivalent pre-turn / prompt-submitted hook | one JSON object with a `prompt` string field |
+| `core/template/hooks/on-stop.sh` | Claude Code: `Stop` · Codex: the equivalent turn-end / session-end hook | one JSON object with a `transcript_path` field pointing at a JSONL transcript |
+
+Wrapper requirements:
+
+1. **Register** the two scripts for the events above (e.g. Claude Code
+   `settings.json` → `hooks.UserPromptSubmit[].hooks[].command` and
+   `hooks.Stop[].hooks[].command`), executing with the **project root as
+   cwd** — the templates resolve `scv/` relative to cwd and no-op elsewhere.
+2. **Export `SCV_CORE_ROOT`** (absolute path of the materialized `core/`) so
+   the templates can locate `scripts/journal-append.sh`. Without it they fall
+   back to their in-payload relative location
+   (`<hook dir>/../../scripts/journal-append.sh`) — valid when the wrapper
+   registers the vendored files in place, broken when it copies them
+   elsewhere.
+3. **Preserve the non-blocking guarantee.** The templates exit `0` on every
+   failure (invalid JSON, missing `prompt`, unreadable/unknown transcript,
+   missing `jq`/`python3`, un-hydrated project) and write nothing. A wrapper
+   that wraps or copies them must not turn hook failure into a session
+   failure, and must not register them as blocking hooks.
+4. **Never bypass redaction.** All journal writes route through
+   `journal-append.sh`, whose redaction filter
+   (password/token/secret/api-key values, `Bearer` tokens, `AKIA…` keys →
+   `[REDACTED]`) runs before anything hits disk. Wrappers must not write to
+   `scv/journal/` directly.
+5. Author attribution comes from `core/scripts/lib/author.sh`
+   (`git config user.name` → `GIT_AUTHOR_NAME` → `USER` → `unknown`,
+   filename-slugged). Wrappers needing a different identity source should
+   export `GIT_AUTHOR_NAME` rather than patch the templates.
+
+Hosts without hook support cannot capture free conversation — the session-end
+protocol summaries partially compensate; the gap is documented in the
+project-side `scv/journal/README.md`.
+
+## 7. Automated updates
 
 Core releases send a `repository_dispatch` event named
 `scv-core-released` with this payload:
 
 ```json
 {
-  "version": "0.21.0",
-  "tag": "v0.21.0",
-  "asset_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.21.0/scv-core-v0.21.0.tar.gz",
-  "checksum_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.21.0/scv-core-v0.21.0.tar.gz.sha256"
+  "version": "0.22.0",
+  "tag": "v0.22.0",
+  "asset_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.22.0/scv-core-v0.22.0.tar.gz",
+  "checksum_url": "https://github.com/wookiya1364/scv-core/releases/download/v0.22.0/scv-core-v0.22.0.tar.gz.sha256"
 }
 ```
 
