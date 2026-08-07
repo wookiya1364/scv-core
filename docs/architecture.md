@@ -114,7 +114,7 @@ mid-operation, Core fails closed and does not follow the replacement.
 5. Explicit migration seeds `SCV.md` with no-replace semantics, preserves each
    legacy file in a recoverable backup, then replaces only existing legacy
    files with the same host-neutral pointer.
-6. A conflict remains hydrated when readable state and `INTAKE.md` exist, but
+6. A conflict remains hydrated when readable state and `PROMOTE.md` exist, but
    every mutating operation still fails closed.
 
 Help never triggers sync or migration. Dry-run sync reports the pending

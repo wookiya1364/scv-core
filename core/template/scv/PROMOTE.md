@@ -49,9 +49,9 @@ If you already have files in `scv/raw/`, the classic flow (§1.5 below) still wo
 
 ---
 
-## 1.5. Adoption mode usage (default mode)
+## 1.5. Everyday usage (single path)
 
-If hydrated with `hydrate.sh init .` (default), you're in this mode. Standard docs (DOMAIN, ARCHITECTURE, etc.) seed at `status: N/A` and **INTAKE is not forced**. The promote loop still works:
+Hydrate seeds only the workflow files — there is no scaffolding to fill before the promote loop works:
 
 1. For the **subsystem unit** you'll work on, drop material (meeting notes, specs, external specs) into `scv/raw/`.
 2. `action:promote` → creates `scv/promote/<YYYYMMDD>-<author>-<slug>/`.
@@ -59,9 +59,7 @@ If hydrated with `hydrate.sh init .` (default), you're in this mode. Standard do
 4. Existing Confluence specs or Jira tickets connect via `refs:` — **no need to rewrite the body**.
 5. `action:work <slug>` to implement → test → archive.
 
-If you decide to formally document a specific subsystem, lift just that section in `scv/DOMAIN.md` (etc.) by tightening the scope: `N/A → draft → active`. You don't need to fill everything at once.
-
-> **Realistic path for large legacy adoption** — scope in just 1 subsystem (e.g., payment refactor) for a month, confirm value, then expand to other teams / subsystems. Project-wide INTAKE is unrealistic and only causes drift.
+> **Realistic path for large legacy adoption** — scope in just 1 subsystem (e.g., payment refactor) for a month, confirm value, then expand to other teams / subsystems. Facts the model can derive from the codebase need no pre-documentation; decisions worth keeping belong in version-controlled team notes (e.g. `DECISIONS.md` / a journal).
 
 ---
 
@@ -424,8 +422,8 @@ pnpm exec playwright test e2e/<YYYYMMDD>-<AUTHOR>-<slug>.spec.ts   # this plan's
 ```
 
 - The PR video then shows **that feature**, not a shared smoke or the whole suite.
-  Feature videos on green PRs require `video: 'on'` (the template default — see §3.3
-  in `scv/TESTING.md`; `retain-on-failure` would leave a passing feature PR videoless).
+  Feature videos on green PRs require `video: 'on'` in the project's Playwright
+  config (`retain-on-failure` would leave a passing feature PR videoless).
 - `action:regression` re-runs each *archived* slug's `## How to run`, so the feature is
   re-verified exactly as in its PR; the accumulated per-slug specs are the full suite.
 - Keep the block to the **spec only** — don't bundle project-wide `tsc -b` / lint: a
@@ -457,7 +455,7 @@ If any of those is ambiguous, `action:work` will ask the user before starting im
 
 ### Auto video evidence attachment (v0.3+)
 
-If Playwright (`video: 'on'`) or an equivalent tool produces .webm/.mp4 under `test-results/`, `action:work` Step 9d's PR creation **auto-embeds** them inline into the PR body. Videos are pushed to a separate `scv-attachments` orphan branch (so the working branch's git history stays clean), and auto-deleted N days after PR merge. See `TESTING.md §3.3` for details.
+If Playwright (`video: 'on'`) or an equivalent tool produces .webm/.mp4 under `test-results/`, `action:work` Step 9d's PR creation **auto-embeds** them inline into the PR body. Videos are pushed to a separate `scv-attachments` orphan branch (so the working branch's git history stays clean), and auto-deleted N days after PR merge.
 
 ### Authoring guide for regression re-runs
 
@@ -499,15 +497,13 @@ Trivial changes (typo fix, single-line null guard, patch dep bump) get no value 
 **Diagram 2's data source:**
 
 ```
-scv/ARCHITECTURE.md status?
-  ├─ active or draft → use it as the layout reference
-  └─ N/A → check graphify
-      ├─ skill installed + graph fresh → use .graphify/docs/graphify-out/
-      ├─ skill installed + graph stale/missing → ask user (run graphify? skip? other?)
-      └─ skill missing → ask user (skip? other?)
+graphify status?
+  ├─ skill installed + graph fresh → use .graphify/docs/graphify-out/
+  ├─ skill installed + graph stale/missing → ask user (run graphify? skip? other?)
+  └─ skill missing → ask user (skip? other?)
 ```
 
-`action:promote` decides this branching automatically. The user only sees the resulting user confirmation when there is a real decision to make (graphify run-or-skip when ARCHITECTURE.md is `N/A`).
+`action:promote` decides this branching automatically. The user only sees the resulting user confirmation when there is a real decision to make (graphify run-or-skip).
 
 **File location and frontmatter:**
 
@@ -545,7 +541,7 @@ flowchart LR
 
 ## 2. Position in whole architecture
 
-> Source: <ARCHITECTURE.md | graphify graph (built YYYY-MM-DD) | skipped>
+> Source: <graphify graph (built YYYY-MM-DD) | skipped>
 
 ```mermaid
 %%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
@@ -559,7 +555,7 @@ flowchart TB
 
 - New components introduced by this feature are highlighted with the `new` class (yellow fill, orange stroke).
 - The "Source:" line in section 2 is mandatory when section 2 is present — it makes the diagram's accuracy basis auditable.
-- If diagram 2 is skipped (graphify missing AND ARCHITECTURE.md `N/A`), section 2 is replaced by a one-line note pointing at how to enable it (lift ARCHITECTURE.md or run `/graphify`).
+- If diagram 2 is skipped (no graphify graph available), section 2 is replaced by a one-line note pointing at how to enable it (run `/graphify`).
 - LLM-generated Mermaid may have syntax errors or wrong labels. Treat the file like PLAN.md / TESTS.md — review and edit before `action:work`.
 - The file is **not enforced** by `action:work` or `action:regression`. Its value is human comprehension, not gating.
 
