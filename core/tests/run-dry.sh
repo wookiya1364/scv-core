@@ -113,11 +113,18 @@ grep -qF "/standard-report" "$EXIST_APP/.env.example.scv" \
   && fail ".env.example.scv still references legacy /standard-report" \
   || pass ".env.example.scv no longer references legacy /standard-report"
 
-# scv/ hierarchy (now includes SCV.md)
-for f in SCV.md INTAKE.md PROMOTE.md RALPH_PROMPT.md ARCHITECTURE.md DESIGN.md DOMAIN.md AGENTS.md TESTING.md REPORTING.md; do
+# scv/ hierarchy (v2.0.0: only the workflow docs — no standard-doc scaffolding)
+for f in SCV.md PROMOTE.md REPORTING.md; do
   assert_file "$APP/scv/$f"
 done
+# Scenario 1 — the seven retired standard docs are NOT seeded
+for f in DOMAIN.md ARCHITECTURE.md DESIGN.md AGENTS.md TESTING.md INTAKE.md RALPH_PROMPT.md; do
+  [[ ! -e "$APP/scv/$f" ]] \
+    && pass "retired doc not seeded: scv/$f" \
+    || fail "retired doc was seeded: scv/$f"
+done
 assert_file "$APP/scv/raw/README.md"
+assert_file "$APP/scv/WORKSPACE.yaml.example"
 [[ -d "$APP/scv/archive" ]] && pass "scv/archive directory hydrated" || fail "scv/archive directory missing"
 [[ -d "$APP/scv/promote" ]] && pass "scv/promote directory hydrated" || fail "scv/promote directory missing"
 
@@ -127,63 +134,51 @@ assert_contains "$APP/scv/SCV.md" "<!-- STANDARD:SYNCED_AT -->$(date +%Y-%m-%d)<
 [[ ! -f "$APP/.gitignore.fragment" ]] && pass ".gitignore.fragment merged into .gitignore" || fail ".gitignore.fragment leaked"
 
 echo
-echo "=== [1b] Zero-base 템플릿 순수성 ==="
-# 각 표준 문서에 How to elicit + Completion criteria 섹션 존재
-for f in DOMAIN ARCHITECTURE DESIGN AGENTS TESTING REPORTING; do
-  assert_contains "$APP/scv/$f.md" "How to elicit"
-  assert_contains "$APP/scv/$f.md" "Completion criteria"
-done
-# INTAKE.md 의 프로세스 섹션
-assert_contains "$APP/scv/INTAKE.md" "Immutable principles"
-assert_contains "$APP/scv/INTAKE.md" "Step 0"
-# 구체 예시가 핵심 표준 문서에서 제거됐는지
+echo "=== [1b] Zero-base 템플릿 순수성 (kept files) ==="
+# 유지 문서(REPORTING)에 How to elicit + Completion criteria 섹션 존재
+assert_contains "$APP/scv/REPORTING.md" "How to elicit"
+assert_contains "$APP/scv/REPORTING.md" "Completion criteria"
+# 구체 예시가 유지 문서에서 제거된 상태 유지
 for term in Livekit Temporal "UC-001" Utterance dialog-llm; do
-  hits=""
-  for f in DOMAIN ARCHITECTURE DESIGN AGENTS TESTING REPORTING; do
-    if grep -qF "$term" "$APP/scv/$f.md" 2>/dev/null; then
-      hits+="scv/$f.md "
-    fi
-  done
-  if [[ -z "$hits" ]]; then
-    pass "example term absent from core docs: $term"
+  if grep -qF "$term" "$APP/scv/REPORTING.md" 2>/dev/null; then
+    fail "example term '$term' still in: scv/REPORTING.md"
   else
-    fail "example term '$term' still in: $hits"
+    pass "example term absent from kept docs: $term"
   fi
 done
-# 상태: INTAKE/PROMOTE 는 active (process docs), 나머지는 default(adoption) 모드에서 N/A
-intake_status=$(grep -E "^status:" "$APP/scv/INTAKE.md" | head -1 | awk '{print $2}')
-[[ "$intake_status" == "active" ]] && pass "INTAKE status=active" || fail "INTAKE status should be active, got '$intake_status'"
+# 상태: PROMOTE 는 active (process doc), REPORTING 은 N/A 시딩 (구 adoption 결과와 동일)
 promote_status=$(grep -E "^status:" "$APP/scv/PROMOTE.md" | head -1 | awk '{print $2}')
 [[ "$promote_status" == "active" ]] && pass "PROMOTE status=active" || fail "PROMOTE status should be active, got '$promote_status'"
-domain_status=$(grep -E "^status:" "$APP/scv/DOMAIN.md" | head -1 | awk '{print $2}')
-[[ "$domain_status" == "N/A" ]] && pass "DOMAIN starts as N/A (adoption default)" || fail "DOMAIN should be N/A in adoption mode, got '$domain_status'"
+reporting_status=$(grep -E "^status:" "$APP/scv/REPORTING.md" | head -1 | awk '{print $2}')
+[[ "$reporting_status" == "N/A" ]] && pass "REPORTING seeds as N/A (same as pre-2.0 adoption result)" || fail "REPORTING should seed as N/A, got '$reporting_status'"
+"$CHECK_FRONT" --project-dir "$APP" >/dev/null 2>&1 && pass "check-frontmatter passes hydrated project" || fail "check-frontmatter rejects hydrated project"
 
 echo
-echo "=== [1c] Greenfield (--new) hydrate mode ==="
+echo "=== [1c] Scenario 2 — hydrate --new is rejected (fail-closed) ==="
 NEW_APP="$TMP/new-app"
-"$HYDRATE" init "$NEW_APP" --new >/dev/null 2>&1
-# In --new mode, standard docs stay as draft (INTAKE drives the flow)
-for doc in DOMAIN ARCHITECTURE DESIGN AGENTS TESTING REPORTING RALPH_PROMPT; do
-  st=$(grep -E "^status:" "$NEW_APP/scv/$doc.md" | head -1 | awk '{print $2}')
-  [[ "$st" == "draft" ]] && pass "--new: $doc status=draft" || fail "--new: $doc should be draft, got '$st'"
-done
-# INTAKE/PROMOTE stay active in both modes (process docs)
-intake_st=$(grep -E "^status:" "$NEW_APP/scv/INTAKE.md" | head -1 | awk '{print $2}')
-[[ "$intake_st" == "active" ]] && pass "--new: INTAKE still active" || fail "--new: INTAKE should be active"
-# Frontmatter validator must accept both N/A and draft
-"$CHECK_FRONT" --project-dir "$APP" >/dev/null 2>&1     && pass "check-frontmatter passes adoption mode (N/A)"   || fail "check-frontmatter rejects adoption mode"
-"$CHECK_FRONT" --project-dir "$NEW_APP" >/dev/null 2>&1 && pass "check-frontmatter passes greenfield mode (draft)" || fail "check-frontmatter rejects greenfield mode"
+NEW_OUT=$("$HYDRATE" init "$NEW_APP" --new 2>&1)
+NEW_RC=$?
+[[ "$NEW_RC" -eq 1 ]] && pass "--new: exit 1" || fail "--new: expected exit 1, got $NEW_RC"
+assert_out_contains "removed in SCV template 2.0.0" "$NEW_OUT" "--new: migration notice printed"
+assert_out_contains "re-run without --new" "$NEW_OUT" "--new: migration command shown"
+[[ ! -e "$NEW_APP" ]] \
+  && pass "--new: no files created (fail-closed — target dir untouched)" \
+  || fail "--new: target dir was created despite rejection"
 
 echo
-echo '=== [1d] action:help hydrate recommendation shows BOTH modes ==='
+echo '=== [1d] action:help hydrate recommendation (single path) ==='
 EMPTY_DIR2=$(mktemp -d)
 (
   cd "$EMPTY_DIR2"
   OUT=$(bash "$HELP_SH" 2>&1)
-  assert_out_contains "default · adoption" "$OUT" "help(un-hydrated): shows default/adoption option"
-  assert_out_contains "--new"       "$OUT"  "help(un-hydrated): shows --new option"
-  assert_out_contains "adoption mode" "$OUT" "help(un-hydrated): mentions adoption mode"
-  assert_out_contains "INTAKE"      "$OUT"  "help(un-hydrated): mentions INTAKE for --new"
+  assert_out_contains "not hydrated yet" "$OUT" "help(un-hydrated): detects un-hydrated dir"
+  assert_out_contains "hydrate.sh" "$OUT"       "help(un-hydrated): shows the single hydrate command"
+  printf '%s' "$OUT" | grep -qF -- "--new" \
+    && fail "help(un-hydrated): still offers --new" \
+    || pass "help(un-hydrated): --new option gone"
+  printf '%s' "$OUT" | grep -q "INTAKE" \
+    && fail "help(un-hydrated): still mentions INTAKE" \
+    || pass "help(un-hydrated): no INTAKE mention"
 )
 rm -rf "$EMPTY_DIR2"
 
@@ -284,7 +279,6 @@ rm -rf "$EMPTY_DIR"
   cd "$APP"
   OUT=$(bash "$HELP_SH" 2>&1)
   assert_out_contains "hydrate complete" "$OUT" "help: detects hydrated dir"
-  assert_out_contains "N/A" "$OUT" "help: lists N/A documents (adoption default)"
   assert_out_contains 'action:status' "$OUT" "help: includes status"
   assert_out_contains 'action:promote' "$OUT" "help: includes promote"
   assert_out_contains 'action:work' "$OUT" "help: includes work"
@@ -789,24 +783,6 @@ echo '=== [11f] action:status docs graph section ==='
 )
 
 echo
-echo "=== [11j] ARCHITECTURE.md perspective checklist + diagrams support ==="
-ARCH="$APP/scv/ARCHITECTURE.md"
-assert_contains "$ARCH" "Perspective checklist"
-assert_contains "$ARCH" "Logical"
-assert_contains "$ARCH" "Deployment"
-assert_contains "$ARCH" "Network"
-assert_contains "$ARCH" "Security"
-assert_contains "$ARCH" "Compliance"
-assert_contains "$ARCH" "DR/BCP"
-assert_contains "$ARCH" "AI/ML"
-assert_contains "$ARCH" "Observability"
-assert_contains "$ARCH" "Closed network"
-assert_contains "$ARCH" "Mermaid"
-assert_contains "$ARCH" "scv/architecture/assets/"
-assert_contains "$ARCH" "Related Architecture Documents"
-assert_contains "$ARCH" "RTO"
-
-echo
 echo "=== [11d] PROMOTE.md protocol doc ==="
 assert_file "$APP/scv/PROMOTE.md"
 assert_contains "$APP/scv/PROMOTE.md" "PROMOTE — Promotion document convention"
@@ -818,21 +794,14 @@ assert_contains "$APP/scv/PROMOTE.md" "Archive"
 
 echo
 echo '=== [11h] action:help stage-aware recommendations ==='
-# Build a fresh hydrated sandbox with all docs active to exercise the
-# recommendation priority: draft > raw-changes > active-plans > all-clean.
+# Build a fresh hydrated sandbox to exercise the recommendation priority:
+# raw-changes > active-plans > all-clean (the draft-docs gate is gone in v2.0.0).
 HA=$(mktemp -d)
 bash "$HYDRATE" init "$HA" >/dev/null 2>&1
-# Mark env + docs as active to pass those gates
+# Mark env as configured to pass that gate
 cp "$HA/.env.example.scv" "$HA/.env"
 sed 's/^NOTIFIER_PROVIDER=.*/NOTIFIER_PROVIDER=slack/' "$HA/.env" > "$HA/.env.tmp" && mv "$HA/.env.tmp" "$HA/.env"
 sed 's|^SLACK_BOT_TOKEN=.*|SLACK_BOT_TOKEN=xoxb-fake|' "$HA/.env" > "$HA/.env.tmp" && mv "$HA/.env.tmp" "$HA/.env"
-# Default hydrate = adoption mode (N/A). Force all to active for this test so
-# downstream states (raw changes, plan priority) can be exercised without the
-# draft-docs branch taking priority.
-for d in DOMAIN ARCHITECTURE DESIGN AGENTS TESTING REPORTING RALPH_PROMPT; do
-  # BSD/GNU portable: rewrite first matching status: line only.
-  awk 'BEGIN{done=0} !done && /^status:/ {sub(/^status: .*/, "status: active"); done=1} {print}' "$HA/scv/$d.md" > "$HA/scv/$d.md.tmp" && mv "$HA/scv/$d.md.tmp" "$HA/scv/$d.md"
-done
 
 (
   cd "$HA"
@@ -863,16 +832,6 @@ done
   printf 'done' > scv/archive/20260418-wookiya1364-old-plan/ARCHIVED_AT.md
   OUT=$(bash "$HELP_SH" 2>&1)
   assert_out_contains "scv/archive has 1 completed plan" "$OUT"  "help: diagnosis includes archive count"
-
-  # [5] priority: draft docs override raw/plan detection
-  awk 'BEGIN{done=0} !done && /^status:/ {sub(/^status: .*/, "status: draft"); done=1} {print}' scv/DOMAIN.md > scv/DOMAIN.md.tmp && mv scv/DOMAIN.md.tmp scv/DOMAIN.md
-  OUT=$(bash "$HELP_SH" 2>&1)
-  assert_out_contains "resume or"          "$OUT"                  "help/state-priority: draft docs take precedence (A/B prompt)"
-  assert_out_contains "DOMAIN"             "$OUT"                   "help/state-priority: mentions specific draft doc"
-  assert_out_contains "resume check"       "$OUT"                   "help/state-priority: references INTAKE resume procedure"
-  printf '%s' "$OUT" | grep -qF "활성 promote 계획이" \
-    && fail "help: draft priority violated (also showed active plan message)" \
-    || pass "help: draft state suppresses active-plan recommendation"
 )
 rm -rf "$HA"
 
@@ -2424,9 +2383,9 @@ assert_contains "$WORK_CMD" "github.com/safishamsi/graphify"
 assert_contains "$PROMOTE_CMD" "github.com/safishamsi/graphify"
 
 echo
-echo "=== [11yy] v0.6.1 — 표준 문서 부담 완화 + Y5+ refs 자동 인식 ==="
+echo "=== [11yy] v2.0.0 — 표준 문서 게이트 소멸 (Scenario 8) + Y5+ refs 자동 인식 ==="
 
-# --- help.sh 의 Document status 압축 (draft = 0 시 한 줄) ---
+# --- Scenario 8: help 출력에 draft/INTAKE 게이트 문구가 더 이상 없다 ---
 HELP_ADOPTION_OUT=$(bash <<INNER_EOF
 TMP=\$(mktemp -d)
 cd "\$TMP"
@@ -2435,32 +2394,39 @@ bash $STANDARD_ROOT/scripts/help.sh 2>&1
 cd /; rm -rf "\$TMP"
 INNER_EOF
 )
-assert_out_contains "Standard docs:" "$HELP_ADOPTION_OUT"           "help.sh: adoption 모드 한 줄 출력"
-assert_out_contains "adoption mode default" "$HELP_ADOPTION_OUT"    "help.sh: adoption 모드 명시 문구"
-assert_out_contains "Lift any N/A doc to draft" "$HELP_ADOPTION_OUT" "help.sh: lift 안내"
-# Document status 가 multi-line block 으로 안 출력 됨 (draft=0 일 때)
-echo "$HELP_ADOPTION_OUT" | grep -q "^  Document status:" \
-  && fail "help.sh: 압축 안 됨 (draft=0 인데 multi-line)" \
-  || pass "help.sh: draft=0 이면 multi-line 안 출력 (압축 작동)"
+echo "$HELP_ADOPTION_OUT" | grep -q "INTAKE" \
+  && fail "help.sh(hydrated): still mentions INTAKE" \
+  || pass "help.sh(hydrated): no INTAKE mention (scenario 8)"
+echo "$HELP_ADOPTION_OUT" | grep -qi "draft" \
+  && fail "help.sh(hydrated): still mentions the draft gate" \
+  || pass "help.sh(hydrated): no draft-gate wording (scenario 8)"
+echo "$HELP_ADOPTION_OUT" | grep -q "Standard docs:" \
+  && fail "help.sh(hydrated): still prints the standard-doc status line" \
+  || pass "help.sh(hydrated): standard-doc status line gone (scenario 8)"
+echo "$HELP_ADOPTION_OUT" | grep -q "Document status:" \
+  && fail "help.sh(hydrated): still prints the Document status block" \
+  || pass "help.sh(hydrated): Document status block gone (scenario 8)"
 
-# --- help.sh 의 draft 분기 (적어도 1 개 draft 면 multi-line 유지) ---
-HELP_DRAFT_OUT=$(bash <<INNER_EOF
+# --- Scenario 8: status 출력에도 draft/INTAKE 게이트 문구 없음 ---
+STATUS_GATE_OUT=$(bash <<INNER_EOF
 TMP=\$(mktemp -d)
 cd "\$TMP"
 bash $STANDARD_ROOT/scripts/hydrate.sh init . >/dev/null 2>&1
-sed 's/^status: N\/A\$/status: draft/' scv/DOMAIN.md > scv/DOMAIN.md.tmp && mv scv/DOMAIN.md.tmp scv/DOMAIN.md
-bash $STANDARD_ROOT/scripts/help.sh 2>&1
+bash $STANDARD_ROOT/scripts/status.sh 2>&1
 cd /; rm -rf "\$TMP"
 INNER_EOF
 )
-assert_out_contains "Document status:" "$HELP_DRAFT_OUT"            "help.sh: draft 있을 때 multi-line"
-assert_out_contains "draft   : DOMAIN" "$HELP_DRAFT_OUT"            "help.sh: draft DOMAIN 표시"
-assert_out_contains "needs filling" "$HELP_DRAFT_OUT"               "help.sh: needs filling hint"
+echo "$STATUS_GATE_OUT" | grep -q "INTAKE" \
+  && fail "status.sh: still mentions INTAKE" \
+  || pass "status.sh: no INTAKE mention (scenario 8)"
+echo "$STATUS_GATE_OUT" | grep -qi "draft" \
+  && fail "status.sh: still mentions the draft gate" \
+  || pass "status.sh: no draft-gate wording (scenario 8)"
 
-# --- scv/SCV.md 의 adoption 강화 단락 ---
+# --- scv/SCV.md 의 단일 경로 단락 ---
 SCV_INDEX="$STANDARD_ROOT/template/scv/SCV.md"
-assert_contains "$SCV_INDEX" "N/A is a steady state, not a backlog"
-assert_contains "$SCV_INDEX" "Lift one doc at a time when there's a real driver"
+assert_contains "$SCV_INDEX" "Hydrate — one path"
+assert_contains "$SCV_INDEX" "no standard-doc scaffolding step"
 
 # --- commands/promote.md Y5+ Step 2.1 / 3.1 / 3.1.5 / 5 instruction ---
 PROMOTE_CMD="$PROTOCOL_ROOT/promote.md"
@@ -2515,15 +2481,16 @@ assert_contains "$PROMOTE_CMD" "Step 6.1 — First diagram (Component data flow)
 assert_contains "$PROMOTE_CMD" "flowchart LR"
 assert_contains "$PROMOTE_CMD" 'functionName(arg1, arg2)'
 
-# commands/promote.md — Step 6.2 second diagram + branching table
+# commands/promote.md — Step 6.2 second diagram + branching table (graphify-only, v2.0.0)
 assert_contains "$PROMOTE_CMD" "Step 6.2 — Second diagram (Position in whole"
-assert_contains "$PROMOTE_CMD" 'scv/ARCHITECTURE.md`'
 assert_contains "$PROMOTE_CMD" "GRAPHIFY_SKILL"
 assert_contains "$PROMOTE_CMD" "GRAPH_STATUS"
-assert_contains "$PROMOTE_CMD" "Use \`scv/ARCHITECTURE.md\` content"
 assert_contains "$PROMOTE_CMD" ".graphify/docs/graphify-out/graph.json"
 assert_contains "$PROMOTE_CMD" "**3-way question**"
 assert_contains "$PROMOTE_CMD" "**2-way question**"
+grep -qF 'scv/ARCHITECTURE.md' "$PROMOTE_CMD" \
+  && fail "promote.md: still references scv/ARCHITECTURE.md as a diagram source" \
+  || pass "promote.md: scv/ARCHITECTURE.md source branch removed (v2.0.0)"
 
 # commands/promote.md — graphify run-or-skip question
 assert_contains "$PROMOTE_CMD" "Run graphify update (or full build) now"
@@ -2594,7 +2561,7 @@ assert_contains "$PROMOTE_DOC" "## 5b. FEATURE_ARCHITECTURE.md"
 assert_contains "$PROMOTE_DOC" "Component data flow"
 assert_contains "$PROMOTE_DOC" "Position in whole architecture"
 assert_contains "$PROMOTE_DOC" "Two is the floor, not the ceiling"
-assert_contains "$PROMOTE_DOC" "scv/ARCHITECTURE.md status?"
+assert_contains "$PROMOTE_DOC" "graphify status?"
 assert_contains "$PROMOTE_DOC" "skill installed + graph fresh"
 assert_contains "$PROMOTE_DOC" "skill installed + graph stale/missing"
 assert_contains "$PROMOTE_DOC" "skill missing"
@@ -2651,7 +2618,6 @@ assert_contains "$PROMOTE_CMD" "Style priority — scv skin first, project token
 assert_contains "$PROMOTE_CMD" "2순위 default: the scv-native skin"
 assert_contains "$PROMOTE_CMD" "do not go hunting for the project's real colors unprompted"
 assert_contains "$PROMOTE_CMD" "1순위 override: only when the user has told you this project has its own design tokens"
-assert_contains "$PROMOTE_CMD" 'DESIGN.md` §5 "Design tokens"'
 assert_contains "$PROMOTE_CMD" '"primary": "#5a6cff", "success": "#22c55e", "danger": "#f4556d"'
 assert_contains "$PROMOTE_CMD" "Base hex colors only"
 assert_contains "$PROMOTE_CMD" "Do **not** compute paired values yourself"
@@ -2708,7 +2674,7 @@ flowchart LR
 
 ## 2. Position in whole architecture
 
-> Source: scv/ARCHITECTURE.md
+> Source: graphify graph (built 2026-01-01)
 
 ```mermaid
 flowchart TB
@@ -2738,7 +2704,7 @@ if printf '%s' "$EXTRACTED" | grep -c '```mermaid' | grep -q '^2$'; then
 else
   fail "pr-helper awk: mermaid fence count != 2"
 fi
-if printf '%s' "$EXTRACTED" | grep -qF "Source: scv/ARCHITECTURE.md"; then
+if printf '%s' "$EXTRACTED" | grep -qF "Source: graphify graph (built 2026-01-01)"; then
   fail "pr-helper awk: Source line leaked into output (should be excluded)"
 else
   pass "pr-helper awk: Source line excluded (only mermaid blocks inline)"
@@ -2900,7 +2866,7 @@ flowchart LR
   A --> B
 ```
 
-> Source: scv/ARCHITECTURE.md
+> Source: graphify graph (built 2026-01-01)
 
 ## 2. Position in whole
 
@@ -2920,7 +2886,7 @@ if printf '%s\n' "$RESULT_E" | grep -qF "Description paragraph"; then
 else
   pass "[11ccc] Scenario E: description paragraph excluded"
 fi
-if printf '%s\n' "$RESULT_E" | grep -qF "Source: scv/ARCHITECTURE.md"; then
+if printf '%s\n' "$RESULT_E" | grep -qF "Source: graphify graph (built 2026-01-01)"; then
   fail "[11ccc] Scenario E: Source line leaked"
 else
   pass "[11ccc] Scenario E: Source line excluded"
@@ -3384,13 +3350,165 @@ rm -rf "$PG_APP"
 
 echo
 echo "=== [10] sync --dry-run (version detection) ==="
-# Force a local divergence on a preserve-policy file so sync reports SKIP
-printf '\n<!-- local note: force divergence -->\n' >> "$APP/scv/AGENTS.md"
+# Force a local divergence on a merge-on-markers file so sync reports MERGE
+printf '\n<!-- local note: force divergence -->\n' >> "$APP/scv/REPORTING.md"
 OUT=$("$SYNC" --project-dir "$APP" --dry-run 2>&1)
 rc=$?
 assert_ok_exit "$rc" "sync --dry-run: exit 0"
 assert_out_contains "local=${VERSION_NOW} → remote=${VERSION_NOW}" "$OUT" "sync: version parity detected"
-assert_out_contains "SKIP      scv/AGENTS.md" "$OUT" "sync: preserve policy honored (scv/ prefix)"
+assert_out_contains "MERGE     scv/REPORTING.md" "$OUT" "sync: merge-on-markers policy honored (scv/ prefix)"
+
+echo
+echo "=== [12] v2.0.0 — sync deletes the retired standard docs (Scenarios 3-6) ==="
+# Simulate a pre-2.0.0 project: hydrate fresh, then hand-create the seven
+# retired docs (some with real user content), one extra user file, and a
+# PROJECT:LOCAL block so kept-file preservation is verifiable.
+OLD_APP="$TMP/old-app"
+bash "$HYDRATE" init "$OLD_APP" >/dev/null 2>&1
+for f in DOMAIN.md ARCHITECTURE.md DESIGN.md AGENTS.md TESTING.md INTAKE.md RALPH_PROMPT.md; do
+  printf '# legacy %s\n\nuser-authored content worth reading\n' "$f" > "$OLD_APP/scv/$f"
+done
+printf '# user notes — must survive\n' > "$OLD_APP/scv/NOTES-KEEP.md"
+printf 'raw material\n' > "$OLD_APP/scv/raw/user-material.md"
+perl -0pi -e 's/(<!-- PROJECT:LOCAL START -->).*?(<!-- PROJECT:LOCAL END -->)/$1\nkeep-me: project-local-rule\n$2/s' "$OLD_APP/scv/SCV.md"
+# Simulate a genuine pre-2.0.0 project: legacy template version stamp
+# (a fresh 2.0.0 hydrate would version-gate the retired-doc migration off).
+perl -0pi -e 's/(<!-- STANDARD:VERSION -->).*?(<!-- \/STANDARD:VERSION -->)/${1}1.0.0$2/s' "$OLD_APP/scv/SCV.md"
+
+# Scenario 5 — dry-run lists the deletions but touches nothing
+OUT=$("$SYNC" --project-dir "$OLD_APP" --dry-run 2>&1)
+rc=$?
+assert_ok_exit "$rc" "sync --dry-run (retired docs present): exit 0"
+DRY_DELETED=$(printf '%s\n' "$OUT" | grep -c "DELETED   scv/")
+[[ "$DRY_DELETED" -eq 7 ]] \
+  && pass "sync --dry-run: previews all 7 DELETED entries" \
+  || fail "sync --dry-run: expected 7 DELETED entries, got $DRY_DELETED"
+DRY_SURVIVED=1
+for f in DOMAIN.md ARCHITECTURE.md DESIGN.md AGENTS.md TESTING.md INTAKE.md RALPH_PROMPT.md; do
+  [[ -f "$OLD_APP/scv/$f" ]] || DRY_SURVIVED=0
+done
+[[ "$DRY_SURVIVED" -eq 1 ]] \
+  && pass "sync --dry-run: no file deleted (preview only)" \
+  || fail "sync --dry-run deleted files"
+
+# Scenario 3 — real sync deletes all 7 (no backup) and reports DELETED
+OUT=$("$SYNC" --project-dir "$OLD_APP" 2>&1)
+rc=$?
+assert_ok_exit "$rc" "sync (retired docs): exit 0"
+for f in DOMAIN.md ARCHITECTURE.md DESIGN.md AGENTS.md TESTING.md INTAKE.md RALPH_PROMPT.md; do
+  assert_out_contains "DELETED   scv/$f" "$OUT" "sync: reports DELETED scv/$f"
+  [[ ! -e "$OLD_APP/scv/$f" ]] \
+    && pass "sync: scv/$f deleted" \
+    || fail "sync: scv/$f still present"
+done
+# No backup of the deleted docs anywhere under .scv-backup (user decision)
+if find "$OLD_APP/.scv-backup" -name 'DOMAIN.md' -o -name 'INTAKE.md' -o -name 'RALPH_PROMPT.md' 2>/dev/null | grep -q .; then
+  fail "sync: deleted docs were backed up (should be no backup)"
+else
+  pass "sync: deleted docs have no backup (deliberate)"
+fi
+
+# Scenario 4 — nothing outside the seven is deleted
+for f in NOTES-KEEP.md SCV.md PROMOTE.md REPORTING.md; do
+  [[ -f "$OLD_APP/scv/$f" ]] \
+    && pass "sync: scv/$f survives deletion pass" \
+    || fail "sync: scv/$f was deleted"
+done
+[[ -f "$OLD_APP/scv/raw/user-material.md" ]] \
+  && pass "sync: scv/raw user file survives" \
+  || fail "sync: scv/raw user file deleted"
+
+# Scenario 6 — kept files undamaged: PROJECT:LOCAL preserved, PROMOTE/REPORTING intact
+grep -qF 'keep-me: project-local-rule' "$OLD_APP/scv/SCV.md" \
+  && pass "sync: SCV.md PROJECT:LOCAL block preserved" \
+  || fail "sync: SCV.md PROJECT:LOCAL block lost"
+grep -qF "PROMOTE — Promotion document convention" "$OLD_APP/scv/PROMOTE.md" \
+  && pass "sync: PROMOTE.md content intact" \
+  || fail "sync: PROMOTE.md damaged"
+grep -qF "REPORTING" "$OLD_APP/scv/REPORTING.md" \
+  && pass "sync: REPORTING.md content intact" \
+  || fail "sync: REPORTING.md damaged"
+
+# Scenario 3 (idempotence) — second sync reports no further deletions
+OUT=$("$SYNC" --project-dir "$OLD_APP" 2>&1)
+printf '%s\n' "$OUT" | grep -q "DELETED" \
+  && fail "sync: second run still reports DELETED (not idempotent)" \
+  || pass "sync: second run reports no DELETED (idempotent)"
+
+# Scenario 4 — symlinked retired doc is NOT deleted; warned instead (fail-closed)
+SYM_APP="$TMP/sym-app"
+bash "$HYDRATE" init "$SYM_APP" >/dev/null 2>&1
+perl -0pi -e 's/(<!-- STANDARD:VERSION -->).*?(<!-- \/STANDARD:VERSION -->)/${1}1.0.0$2/s' "$SYM_APP/scv/SCV.md"
+printf '# the real file a symlink points at\n' > "$SYM_APP/scv/NOTES-KEEP.md"
+ln -s NOTES-KEEP.md "$SYM_APP/scv/DESIGN.md"
+OUT=$("$SYNC" --project-dir "$SYM_APP" 2>&1)
+rc=$?
+assert_ok_exit "$rc" "sync (symlinked retired doc): exit 0"
+assert_out_contains "WARN      scv/DESIGN.md" "$OUT" "sync: symlink warned, not deleted"
+[[ -L "$SYM_APP/scv/DESIGN.md" ]] \
+  && pass "sync: symlink scv/DESIGN.md left in place" \
+  || fail "sync: symlink scv/DESIGN.md removed"
+[[ -f "$SYM_APP/scv/NOTES-KEEP.md" ]] \
+  && pass "sync: symlink target file untouched" \
+  || fail "sync: symlink target file deleted"
+printf '%s\n' "$OUT" | grep -q "DELETED   scv/DESIGN.md" \
+  && fail "sync: symlink also reported DELETED" \
+  || pass "sync: symlink not reported as DELETED"
+
+# Version gate (D2 guard) — a project already stamped 2.0.0 owns the seven
+# names again: a recreated file is NEVER re-deleted by later syncs.
+GATE_APP="$TMP/gate-app"
+bash "$HYDRATE" init "$GATE_APP" >/dev/null 2>&1   # fresh hydrate stamps 2.0.0
+printf '# user-authored, post-migration\n' > "$GATE_APP/scv/DOMAIN.md"
+OUT=$("$SYNC" --project-dir "$GATE_APP" 2>&1)
+assert_ok_exit "$?" "sync (post-2.0.0 recreation): exit 0"
+printf '%s\n' "$OUT" | grep -q "DELETED" \
+  && fail "sync: post-2.0.0 user file re-deleted (version gate broken)" \
+  || pass "sync: post-2.0.0 recreated DOMAIN.md survives (version gate)"
+[[ -f "$GATE_APP/scv/DOMAIN.md" ]] \
+  && pass "sync: recreated DOMAIN.md still on disk" \
+  || fail "sync: recreated DOMAIN.md deleted"
+
+# Symlinked scv/ DIRECTORY (D1 guard) — migration pass is skipped entirely so
+# the deletion can never resolve through the link into a foreign tree.
+LNK_APP="$TMP/lnk-app"; LNK_TARGET="$TMP/lnk-target"
+bash "$HYDRATE" init "$LNK_TARGET" >/dev/null 2>&1
+perl -0pi -e 's/(<!-- STANDARD:VERSION -->).*?(<!-- \/STANDARD:VERSION -->)/${1}1.0.0$2/s' "$LNK_TARGET/scv/SCV.md"
+printf '# foreign-tree file that must survive\n' > "$LNK_TARGET/scv/DOMAIN.md"
+mkdir -p "$LNK_APP"
+ln -s "$LNK_TARGET/scv" "$LNK_APP/scv"
+OUT=$("$SYNC" --project-dir "$LNK_APP" 2>&1)
+printf '%s\n' "$OUT" | grep -q "WARN      scv/  (symlinked directory" \
+  && pass "sync: symlinked scv/ dir warns and skips migration" \
+  || fail "sync: symlinked scv/ dir not warned"
+[[ -f "$LNK_TARGET/scv/DOMAIN.md" ]] \
+  && pass "sync: file behind symlinked scv/ untouched" \
+  || fail "sync: deletion escaped through symlinked scv/"
+
+# sync.md protocol carries the DECISIONS.md migration instruction
+SYNC_CMD_FILE="$PROTOCOL_ROOT/sync.md"
+assert_contains "$SYNC_CMD_FILE" "DELETED"
+assert_contains "$SYNC_CMD_FILE" "without any backup"
+assert_contains "$SYNC_CMD_FILE" "DECISIONS.md"
+assert_contains "$SYNC_CMD_FILE" "No file other than those seven is ever deleted by sync."
+
+echo
+echo "=== [13] v2.0.0 — Scenario 7: retired-doc references are gone from core ==="
+SWEEP=$(grep -rnE "INTAKE|DOMAIN\.md|ARCHITECTURE\.md|DESIGN\.md|AGENTS\.md|TESTING\.md|RALPH_PROMPT" \
+  "$STANDARD_ROOT/scripts" "$STANDARD_ROOT/protocols" "$STANDARD_ROOT/template" 2>/dev/null \
+  | grep -v "FEATURE_ARCHITECTURE" \
+  | grep -iv "retired" || true)
+if [[ -z "$SWEEP" ]]; then
+  pass "no retired-doc references left in core scripts/protocols/template (allowlist: FEATURE_ARCHITECTURE, retired-doc deletion blocks)"
+else
+  fail "retired-doc references remain: $(printf '%s' "$SWEEP" | head -3)"
+fi
+# The seven retired templates themselves are gone
+for f in DOMAIN.md ARCHITECTURE.md DESIGN.md AGENTS.md TESTING.md INTAKE.md RALPH_PROMPT.md; do
+  [[ ! -e "$STANDARD_ROOT/template/scv/$f" ]] \
+    && pass "template deleted: template/scv/$f" \
+    || fail "template still present: template/scv/$f"
+done
 
 # Aggregate counters from temp files
 PASS=$(wc -l < "$PASS_FILE" | tr -d ' ')

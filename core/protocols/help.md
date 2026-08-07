@@ -15,7 +15,7 @@ Three modes — picked automatically by whether you passed an argument and (if s
 
 `action:help "I want to add a refund button"` (or any *forward-looking* idea): enter **conversation mode**. the host agent talks with you to refine the idea into a concrete plan, persists the conversation to disk so you can pick it up later, and offers to promote when there's enough information for `PLAN.md + TESTS.md`.
 
-This is the entry point for **adoption mode without raw materials** — you have an idea but nothing in `scv/raw/` yet.
+This is the entry point for **starting without raw materials** — you have an idea but nothing in `scv/raw/` yet.
 
 ## Mode B' — Archive Search (retrospective argument, v0.10.0+)
 
@@ -92,7 +92,7 @@ If the helper output contains the line `This directory is not hydrated yet.`, th
 
 **Legacy-index guard:** the helper resolves the shared `scv/SCV.md` first and
 then any legacy index names declared by the wrapper profile. If any resolved
-index exists together with `scv/INTAKE.md`, the project is hydrated. Continue
+index exists together with `scv/PROMOTE.md`, the project is hydrated. Continue
 with diagnosis. Never infer "not hydrated" merely because one host-specific
 filename is absent.
 
@@ -111,18 +111,16 @@ Ask the user for confirmation:
 ```
 Question: "This project isn't hydrated yet. Set it up now?"
 options:
-[1] "Yes — adoption mode (recommended)"
-    description: "Seeds 9 standard docs at status: N/A. action:promote and action:work are usable immediately. Document only the scope you need, lift one doc to draft when you decide to. This is the right pick for an existing project."
-[2] "Yes — greenfield mode (--new)"
-    description: "Seeds standard docs at status: draft and walks you through the INTAKE protocol filling DOMAIN / ARCHITECTURE / DESIGN / TESTING one at a time. Pick this only when you are truly starting a new project from zero."
-[3] "Not now — show me the manual command"
+[1] "Yes — set it up (recommended)"
+    description: "Seeds only the SCV workflow files (scv/SCV.md, scv/PROMOTE.md, scv/REPORTING.md, scv/raw/, promote/, archive/). action:promote and action:work are usable immediately, on new and existing projects alike."
+[2] "Not now — show me the manual command"
     description: "Skip automatic setup. I'll print the bash command and you can run it yourself when ready."
 ```
 
-On choice [1]: run `bash "$SCV_CORE_ROOT/scripts/hydrate.sh" init .`. On [2]:
-append `--new`. After hydrate completes, re-run
-`bash "$SCV_CORE_ROOT/scripts/help.sh"` and present the new diagnosis. On [3]:
-re-present the manual command from the helper output and stop.
+On choice [1]: run `bash "$SCV_CORE_ROOT/scripts/hydrate.sh" init .`. After
+hydrate completes, re-run `bash "$SCV_CORE_ROOT/scripts/help.sh"` and present
+the new diagnosis. On [2]: re-present the manual command from the helper
+output and stop.
 
 #### Step A1 — Re-present diagnosis
 

@@ -169,7 +169,7 @@ When emitted, print this as a single info block (not a question — work proceed
 
 Once you hold PLAN.md's **Guardrails / Exit criteria** and TESTS.md's **verification means** (the `## How to run` commands), do not wait for — or ask for — step-by-step procedural instructions: **run to completion**. The Suggested path is a suggestion; Guardrails and Exit criteria are the contract. Work autonomously until the Exit criteria are met and TESTS pass, checking back with the user only at the decision points this protocol defines (split proposals, archive, PR). When you get stuck, **strengthen the verification means first** — add a failing repro, tighten an assertion, improve observability — instead of asking the user to micro-specify the procedure. Legacy PLANs that have only `## Steps` are still fully valid: treat `## Steps` as the Suggested path and TESTS.md's `## Pass criteria` as the Exit criteria.
 
-Relation to Ralph Loop: this paragraph is what owns `action:work`'s long-run behavior — even after RALPH_PROMPT retirement, no external loop harness is required for a plan to run to completion (an external loop remains an optional accelerant, not a dependency).
+Relation to Ralph Loop: this paragraph is what owns `action:work`'s long-run behavior — no external loop harness is required for a plan to run to completion (an external loop remains an optional accelerant, not a dependency).
 
 ### Step 5d — Parallel fan-out hint (`parallel_groups`, optional, v0.22.0+)
 
