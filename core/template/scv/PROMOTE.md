@@ -197,7 +197,7 @@ supersedes:
 supersedes_scenarios:
   - 20251201-kmlee-legacy-login:T3    # Only T3 of legacy-login is retired; other T's still run
 # Optional — file-path globs this plan is allowed to touch (used by action:codegen as a guard).
-# If omitted, the natural scope from PLAN.md Steps applies (current action:work behavior).
+# If omitted, the natural scope from PLAN.md Suggested path (legacy: Steps) applies (current action:work behavior).
 scope:
   - "src/auth/**"
   - "tests/auth/**"
@@ -206,6 +206,10 @@ scope:
 invariants:
   - "기존 비밀번호 정책 (8자 이상, 특수문자 1개) 유지"
   - "session token 저장 위치 변경 금지"
+# Optional (v0.22.0+) — independent Suggested-path step groups that MAY run in parallel.
+# Each inner array lists step numbers with no dependency on each other; groups run in
+# declaration order. Hosts without subagent/workflow support ignore this entirely.
+parallel_groups: [[1, 2], [3]]
 ---
 
 # {{title}}
@@ -225,7 +229,28 @@ invariants:
 
 5–15 lines of full design summary. If this section exceeds 50 lines → split into `ARCH.md` recommended.
 
-## Steps
+## Guardrails
+
+What must NOT be done: untouchable areas, forbidden approaches, and the invariants
+to protect (cross-reference frontmatter `invariants:` — restate them here in prose
+when they need context or scope).
+
+- ...
+
+## Exit criteria
+
+When is this plan DONE beyond "TESTS pass"? Higher-level, observable end conditions
+("what being true means we can stop").
+
+- All TESTS.md scenarios pass
+- ...
+
+## Suggested path
+
+The path is a suggestion — Guardrails and Exit criteria are the contract
+(경로는 제안, Guardrails/Exit criteria 가 계약). The implementing model may follow
+a better path when it finds one. (Legacy PLANs titled `## Steps` remain valid —
+`action:work` / `action:regression` process both forms.)
 
 1. ...
 2. ...
@@ -267,8 +292,9 @@ invariants:
 | `epic` | — | When splitting a large user request into multiple features, group them under the same epic slug (count is content-driven — the host agent proposes + user adjusts). `action:status` shows epic progress; `action:work`'s PR auto-creation uses the epic branch as base. See §8d |
 | `kind` | — | `feature` (default) / `refactor` (epic-closing integration cleanup) / `retirement` (pure removal — §8c). Used by the host agent for epic flow / refactor guidance |
 | `lang` | — | (v0.7.3+) The resolved language for this promote's content + diagrams + commit/PR text. Set by `action:promote` Step 0 — auto-resolved from `settings.json language` and `.env SCV_LANG`, or via user confirmation when those mismatch. Read by `action:work` Step 9d and `pr-helper.sh` for full localization (PR title, body labels like `## Summary` / `## 요약` / `## 概要`, footer `🗂 Archived` / `🗂 보관됨` / `🗂 アーカイブ済み`). Values: `english` / `korean` / `japanese` / free-form. Empty / unknown → English fallback. |
-| `scope` | — | (v0.11.0+) Optional file-path glob array this plan is allowed to touch. Used by `action:codegen` Step 7 as a guard — Edit/Write outside these globs emits a warning (does not block). If omitted, the natural scope from PLAN.md Steps applies (current `action:work` behavior, unchanged). Example: `["src/auth/**", "tests/auth/**"]`. |
+| `scope` | — | (v0.11.0+) Optional file-path glob array this plan is allowed to touch. Used by `action:codegen` Step 7 as a guard — Edit/Write outside these globs emits a warning (does not block). If omitted, the natural scope from PLAN.md Suggested path (legacy: Steps) applies (current `action:work` behavior, unchanged). Example: `["src/auth/**", "tests/auth/**"]`. |
 | `invariants` | — | (v0.11.0+) Optional string array of *existing behaviors this plan must NOT break*. Used by `action:codegen` Step 7 as a per-iteration self-check (LLM re-reads each item after every Green iteration; user confirmation if unsure). Targets T5 logic-skip — the cheat pattern where a focused change silently omits an unrelated invariant. Capture only what's easy to violate; not a general regression list. Example: `["기존 결제 한도 체크 유지", "음수 환불 금지"]`. `action:work` does not enforce this field. |
+| `parallel_groups` | — | (v0.22.0+) Optional array of arrays of `## Suggested path` step numbers — each inner array is a group of mutually independent steps a subagent-capable host MAY run concurrently (groups run in declaration order; each TESTS scenario is still verified independently — see `action:work` Step 5d, `action:regression` allows the analogous slug-level fan-out). Absent field, or a host without parallel capability → behavior identical to sequential execution. Example: `[[1, 2], [3]]`. |
 
 ### `refs:` spec — vendor-neutral external references
 
@@ -670,7 +696,7 @@ supersedes:
 Remove payment-v1 (`/api/v1/pay/*`) endpoints and return 410 Gone.
 Clients have completed migration to payment-v2.
 
-## Steps
+## Suggested path
 1. Delete /api/v1/pay/* route handlers
 2. Add catch-all returning 410 Gone
 3. Monitor access logs for residual calls 24h post-deploy
@@ -770,7 +796,7 @@ audit-log, settlement-batch, partner-callback — N items; actual count
 varies per epic). Each unit PR was OK in isolation, but post-integration
 these items surfaced.
 
-## Steps
+## Suggested path
 
 1. Consolidate duplicate helpers across features (`utils/payment.ts`)
 2. Naming consistency (`charge_id` vs `paymentId` unified)
