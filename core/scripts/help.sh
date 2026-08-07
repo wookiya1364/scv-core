@@ -177,6 +177,7 @@ Skills
   action:sync       Safe merge on template version bump
   action:workspace  Multi-repo setup: join an umbrella / create a root / detach (interactive, no flags)
   action:handoff    Multi-repo: declare another repo needs corresponding dev (→ root scv repo)
+  action:routine    Run a named maintenance routine from scv/routines/ (--list to enumerate)
   action:update     the host agent marketplace update guide
   action:set-models Explain the host agent session-level model selection compatibility
 
