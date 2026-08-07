@@ -324,6 +324,14 @@ if [[ -f "$TEMPLATE_DIR/scv/raw/README.md" ]]; then
   process_template_file "$TEMPLATE_DIR/scv/raw/README.md" "scv/raw"
 fi
 
+# scv/journal/README.md — the journal usage guide (v0.22.0+, merge_policy:
+# preserve). Same explicit-line propagation as raw/README.md so pre-0.22.0
+# projects receive the journal via sync; its siblings DECISIONS.md / TODO.md
+# ride the top-level scv/*.md glob above.
+if [[ -f "$TEMPLATE_DIR/scv/journal/README.md" ]]; then
+  process_template_file "$TEMPLATE_DIR/scv/journal/README.md" "scv/journal"
+fi
+
 # Retired standard docs (TEMPLATE_VERSION 2.0.0) — deleted from existing
 # projects, deliberately WITHOUT backup (user decision; git history is the
 # recovery path). Only these exact seven filenames, only directly under scv/.

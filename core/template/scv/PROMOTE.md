@@ -39,10 +39,10 @@ Drop into scv/raw/ → action:promote (the host agent refines via dialogue)
 action:help "I want to add a refund button to checkout"
 ```
 
-This enters **conversation mode** — the host agent refines your idea with you (asking goal / scope / acceptance questions), persists every turn to `scv/.conversations/<timestamp>-<slug>.md` (gitignored, local), and offers to draft `PLAN.md + TESTS.md` when there's enough information. You can:
+This enters **conversation mode** — the host agent refines your idea with you (asking goal / scope / acceptance questions), persists every turn to `scv/conversations/<timestamp>-<slug>.md` (committed, redaction-filtered — v0.22.0+), and offers to draft `PLAN.md + TESTS.md` when there's enough information. You can:
 
 - **Quit anytime** — the conversation file is saved turn-by-turn. Run `action:help "<continue idea>"` later to resume.
-- **Promote without `scv/raw/`** — choice [1] in the conversation's "ready?" prompt creates the plan directly. Conversation stays in `.conversations/` (gitignored).
+- **Promote without `scv/raw/`** — choice [1] in the conversation's "ready?" prompt creates the plan directly. Conversation stays in `scv/conversations/` (committed).
 - **Promote with team traceability** — choice [2] also copies the conversation to `scv/raw/<YYYYMMDD>-<author>-<slug>.md` (committable). Pick this when teammates value the raw-thinking history.
 
 If you already have files in `scv/raw/`, the classic flow (§1.5 below) still works — `action:help "..."` is the *additional* entry, not a replacement.
