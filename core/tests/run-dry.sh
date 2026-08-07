@@ -3109,10 +3109,12 @@ PROMOTE_CMD_v9="$PROTOCOL_ROOT/promote.md"
 WORK_CMD_v9="$PROTOCOL_ROOT/work.md"
 PROMOTE_DOC_v9="$STANDARD_ROOT/template/scv/PROMOTE.md"
 
-# help.sh — argument parsing + .conversations dir + UNFINISHED emit
+# help.sh — argument parsing + conversations dir + UNFINISHED emit
+# (v0.22.0: scv/conversations/ is committed; the dotted legacy dir is detected
+# separately — see [17].)
 assert_contains "$HELP_SCRIPT" 'CONV_ARG=""'
 assert_contains "$HELP_SCRIPT" 'echo "ARG_CONVERSATION:'
-assert_contains "$HELP_SCRIPT" 'CONV_DIR="scv/.conversations"'
+assert_contains "$HELP_SCRIPT" 'CONV_DIR="scv/conversations"'
 assert_contains "$HELP_SCRIPT" 'UNFINISHED_CONVERSATIONS:'
 
 # help.md — Mode A / Mode B branch + Step B0~B6
@@ -3123,24 +3125,26 @@ assert_contains "$HELP_CMD" "Step B0 — Resume vs new"
 assert_contains "$HELP_CMD" "Step B1 — Create / open the conversation file"
 assert_contains "$HELP_CMD" "Step B2 — Conversation loop"
 assert_contains "$HELP_CMD" "Step B3"
-assert_contains "$HELP_CMD" 'scv/.conversations/<YYYYMMDD-HHMMSS>-<slug>.md'
+assert_contains "$HELP_CMD" 'scv/conversations/<YYYYMMDD-HHMMSS>-<slug>.md'
 assert_contains "$HELP_CMD" "draft PLAN.md + TESTS.md now"
 assert_contains "$HELP_CMD" "copy this conversation into scv/raw/"
 assert_contains "$HELP_CMD" "keep talking"
 
-# .gitignore — /scv/.conversations/
-assert_contains "$STANDARD_ROOT/.gitignore" "/scv/.conversations/"
-assert_contains "$STANDARD_ROOT/template/.gitignore.fragment" "/scv/.conversations/"
+# .gitignore — the legacy /scv/.conversations/ ignore is GONE (v0.22.0:
+# conversations are committed). See [17] for the full persistence-switch asserts.
+grep -qF "/scv/.conversations/" "$STANDARD_ROOT/template/.gitignore.fragment" \
+  && fail "gitignore fragment still ignores /scv/.conversations/" \
+  || pass "gitignore fragment no longer ignores /scv/.conversations/"
 
-# promote.md — source material branching (raw / .conversations / both)
-assert_contains "$PROMOTE_CMD_v9" "Source material — raw / .conversations / both"
-assert_contains "$PROMOTE_CMD_v9" 'scv/.conversations/<file>'
+# promote.md — source material branching (raw / conversations / both)
+assert_contains "$PROMOTE_CMD_v9" "Source material — raw / conversations / both"
+assert_contains "$PROMOTE_CMD_v9" 'scv/conversations/<file>'
 assert_contains "$PROMOTE_CMD_v9" "is the source"
 
 # work.md Step 9b.1 — conversation archive option
 assert_contains "$WORK_CMD_v9" "Step 9b.1 — Conversation archive"
-assert_contains "$WORK_CMD_v9" "scv/.conversations/archive/"
-assert_contains "$WORK_CMD_v9" "scv/.conversations/ for now"
+assert_contains "$WORK_CMD_v9" "scv/conversations/archive/"
+assert_contains "$WORK_CMD_v9" "scv/conversations/ for now"
 
 # template/scv/PROMOTE.md §1.4 — idea-first entry
 assert_contains "$PROMOTE_DOC_v9" "1.4. Idea-first entry"
@@ -3509,6 +3513,149 @@ for f in DOMAIN.md ARCHITECTURE.md DESIGN.md AGENTS.md TESTING.md INTAKE.md RALP
     && pass "template deleted: template/scv/$f" \
     || fail "template still present: template/scv/$f"
 done
+
+echo
+echo "=== [14] v0.22.0 — team journal: hydrate seeds the 3 templates (Scenario 1) ==="
+# journal/README.md + DECISIONS.md + TODO.md, all merge_policy: preserve
+for f in scv/journal/README.md scv/DECISIONS.md scv/TODO.md; do
+  assert_file "$APP/$f"
+  grep -qE '^merge_policy:[[:space:]]*preserve' "$APP/$f" \
+    && pass "merge_policy: preserve — $f" \
+    || fail "missing merge_policy: preserve — $f"
+done
+# author attribution + append-only invariants are stated in the templates
+assert_contains "$APP/scv/DECISIONS.md" "author"
+assert_contains "$APP/scv/DECISIONS.md" "append-only"
+assert_contains "$APP/scv/TODO.md" "@<author>"
+assert_contains "$APP/scv/journal/README.md" "journal-append.sh"
+assert_contains "$APP/scv/journal/README.md" "REDACTED"
+# DECISIONS entry schema reuses the handoff decision format (author-attributed header)
+assert_contains "$APP/scv/DECISIONS.md" "## [YYYY-MM-DD HH:MM] <author>"
+# hook templates ship in core but are NOT hydrated into the project
+for h in on-user-prompt.sh on-stop.sh; do
+  [[ -x "$STANDARD_ROOT/template/hooks/$h" ]] \
+    && pass "hook template present+executable: template/hooks/$h" \
+    || fail "hook template missing or not executable: template/hooks/$h"
+done
+[[ ! -e "$APP/hooks" ]] \
+  && pass "hydrate does NOT seed hooks/ into the project (wrapper-owned)" \
+  || fail "hydrate leaked template/hooks into the project root"
+
+echo
+echo "=== [15] v0.22.0 — sync propagates the trio: NEW + SKIP(preserve) (Scenario 2) ==="
+OLDJ_APP="$TMP/oldj-app"
+bash "$HYDRATE" init "$OLDJ_APP" >/dev/null 2>&1
+# Simulate a pre-0.22.0 project: the three templates don't exist yet
+rm -f "$OLDJ_APP/scv/DECISIONS.md" "$OLDJ_APP/scv/TODO.md"
+rm -rf "$OLDJ_APP/scv/journal"
+OUT=$("$SYNC" --project-dir "$OLDJ_APP" 2>&1)
+assert_ok_exit "$?" "sync (journal trio absent): exit 0"
+assert_out_contains "NEW       scv/DECISIONS.md" "$OUT" "sync: DECISIONS.md propagated as NEW"
+assert_out_contains "NEW       scv/TODO.md" "$OUT" "sync: TODO.md propagated as NEW"
+assert_out_contains "NEW       scv/journal/README.md" "$OUT" "sync: journal/README.md propagated as NEW"
+for f in scv/DECISIONS.md scv/TODO.md scv/journal/README.md; do
+  [[ -f "$OLDJ_APP/$f" ]] && pass "sync created $f" || fail "sync did not create $f"
+done
+# User writes content → preserve must protect it on the next sync
+printf '\n## [2026-08-07 10:00] tester — first decision\n\n- verdict: adopted\n- why: user content must survive sync\n' >> "$OLDJ_APP/scv/DECISIONS.md"
+printf -- '- [ ] (T-001) keep me — @tester, 2026-08-07\n' >> "$OLDJ_APP/scv/TODO.md"
+OUT=$("$SYNC" --project-dir "$OLDJ_APP" 2>&1)
+assert_out_contains "SKIP      scv/DECISIONS.md  (preserve)" "$OUT" "sync: user DECISIONS.md skipped (preserve)"
+assert_out_contains "SKIP      scv/TODO.md  (preserve)" "$OUT" "sync: user TODO.md skipped (preserve)"
+grep -qF "first decision" "$OLDJ_APP/scv/DECISIONS.md" \
+  && pass "sync: user decision entry preserved" \
+  || fail "sync: user decision entry lost"
+grep -qF "(T-001) keep me" "$OLDJ_APP/scv/TODO.md" \
+  && pass "sync: user TODO item preserved" \
+  || fail "sync: user TODO item lost"
+
+echo
+echo "=== [16] v0.22.0 — decision record points in 3 protocols (Scenario 7) ==="
+# promote.md — plan approval appends adopted direction + discarded alternatives
+assert_contains "$PROMOTE_CMD" "Step 5.1 — Decision log append"
+assert_contains "$PROMOTE_CMD" "scv/DECISIONS.md"
+assert_contains "$PROMOTE_CMD" "discarded alternatives"
+assert_contains "$PROMOTE_CMD" "버린 대안"
+# work.md — archive promotes the reason into a decision summary
+assert_contains "$WORK_CMD" "Step 9b.0 — Decision log append"
+assert_contains "$WORK_CMD" "scv/DECISIONS.md"
+assert_contains "$WORK_CMD" "verdict: archived"
+# regression.md — obsolete verdict records the WHY
+assert_contains "$REGRESSION_CMD" "Decision log append"
+assert_contains "$REGRESSION_CMD" "scv/DECISIONS.md"
+assert_contains "$REGRESSION_CMD" "verdict: obsolete"
+# Entry format: handoff-decision shape with MANDATORY author, in all three
+for cmdfile in "$PROMOTE_CMD" "$WORK_CMD" "$REGRESSION_CMD"; do
+  assert_contains "$cmdfile" '## [<YYYY-MM-DD HH:MM>] <author>'
+  assert_contains "$cmdfile" "author is mandatory"
+done
+
+echo
+echo "=== [17] v0.22.0 — conversations persistence switch (Scenario 8) ==="
+# New hydrate's .gitignore no longer ignores the conversations dir
+grep -qF "/scv/.conversations/" "$APP/.gitignore" \
+  && fail "hydrated .gitignore still ignores /scv/.conversations/" \
+  || pass "hydrated .gitignore has no /scv/.conversations/ ignore"
+# help.md — save path is the committed scv/conversations/, writes go through redaction
+assert_contains "$HELP_CMD" "Conversation persistence — committed + redaction-filtered"
+assert_contains "$HELP_CMD" "--redact-only"
+assert_contains "$HELP_CMD" 'mkdir -p scv/conversations'
+# help.md — legacy .conversations detection proposes migration
+assert_contains "$HELP_CMD" "LEGACY_CONVERSATIONS"
+assert_contains "$HELP_CMD" "Migrate them to the committed scv/conversations/?"
+# help.sh — runtime legacy detection (read-only)
+CONVMIG_APP=$(mktemp -d)
+bash "$HYDRATE" init "$CONVMIG_APP" >/dev/null 2>&1
+(
+  cd "$CONVMIG_APP"
+  OUT=$(bash "$HELP_SH" 2>&1)
+  assert_out_contains "LEGACY_CONVERSATIONS: (none)" "$OUT" "help.sh: no legacy dir → (none)"
+  mkdir -p scv/.conversations
+  printf -- '---\nslug: old-idea\n---\n## Turn 1\nold local sketch\n' > scv/.conversations/20260101-000000-old-idea.md
+  OUT=$(bash "$HELP_SH" 2>&1)
+  assert_out_contains "LEGACY_CONVERSATIONS: scv/.conversations (1 file(s))" "$OUT" "help.sh: legacy dir detected with count"
+  assert_out_contains "migration to scv/conversations/ recommended" "$OUT" "help.sh: legacy line recommends migration"
+  [[ -f scv/.conversations/20260101-000000-old-idea.md ]] \
+    && pass "help.sh: detection is read-only (legacy file untouched)" \
+    || fail "help.sh: legacy file disappeared during detection"
+)
+rm -rf "$CONVMIG_APP"
+
+echo
+echo "=== [18] v0.22.0 — status: recent decisions + open TODO by author (Scenario 9) ==="
+STJ_APP=$(mktemp -d)
+bash "$HYDRATE" init "$STJ_APP" >/dev/null 2>&1
+cat >> "$STJ_APP/scv/DECISIONS.md" <<'DEC'
+
+## [2026-08-06 14:00] kim — adopt journal hybrid
+
+- verdict: adopted
+- why: raw dialog in journal, structure in DECISIONS/TODO
+
+## [2026-08-07 09:30] lee — retire legacy exporter
+
+- verdict: obsolete
+- why: replaced by streaming exporter
+DEC
+cat >> "$STJ_APP/scv/TODO.md" <<'TODO'
+- [ ] (T-001) write hook registration handoff — @kim, 2026-08-07
+- [x] (T-002) seed DECISIONS template — @lee, 2026-08-06
+TODO
+(
+  cd "$STJ_APP"
+  OUT=$(bash "$STATUS_SH" 2>&1)
+  assert_out_contains "[scv/DECISIONS.md — recent decisions]" "$OUT" "status: decisions section present"
+  assert_out_contains "2 entr" "$OUT" "status: decision count reported"
+  assert_out_contains "kim — adopt journal hybrid" "$OUT" "status: decision 1 listed with author"
+  assert_out_contains "lee — retire legacy exporter" "$OUT" "status: decision 2 listed with author"
+  assert_out_contains "[scv/TODO.md — open items]" "$OUT" "status: TODO section present"
+  assert_out_contains "1 open — by author: @kim 1" "$OUT" "status: open TODO counted per author"
+  assert_out_contains "(T-001) write hook registration handoff — @kim" "$OUT" "status: open item listed with author"
+  printf '%s' "$OUT" | grep -qF "(T-002)" \
+    && fail "status: completed TODO leaked into open list" \
+    || pass "status: completed TODO excluded"
+)
+rm -rf "$STJ_APP"
 
 # Aggregate counters from temp files
 PASS=$(wc -l < "$PASS_FILE" | tr -d ' ')

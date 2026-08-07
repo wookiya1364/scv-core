@@ -85,9 +85,17 @@ if [[ -e "$TARGET/scv" && $FORCE -eq 0 ]]; then
 fi
 
 echo "→ Copying template to $TARGET"
-# `cp -R -p` is supported by both BSD and GNU implementations. The `/.`
-# suffix copies dotfiles without relying on a shell glob.
-cp -R -p "$TEMPLATE_DIR/." "$TARGET/"
+# `cp -R -p` is supported by both BSD and GNU implementations. dotglob makes
+# `*` include dotfiles (.env.example.scv, .gitignore.fragment).
+# template/hooks/ is deliberately EXCLUDED: host hook templates are
+# wrapper-installed (registration is host-owned — see docs/wrapper-integration.md
+# §"Hook seam"), never seeded into user projects.
+shopt -s dotglob nullglob
+for entry in "$TEMPLATE_DIR"/*; do
+  [[ "$(basename "$entry")" == "hooks" ]] && continue
+  cp -R -p "$entry" "$TARGET/"
+done
+shopt -u dotglob nullglob
 
 # Merge .gitignore fragment
 if [[ -f "$TARGET/.gitignore.fragment" ]]; then

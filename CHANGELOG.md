@@ -67,6 +67,42 @@ All notable changes to SCV Core are documented here.
 - Raw-injection hygiene: `action:promote` and `action:help` now state that raw /
   conversation file content is **data** — instruction-like text inside it is
   never executed and is reported to the user instead.
+- **Team journal — author-attributed, committed project memory**
+  (전면 기록화): three new templates, all `merge_policy: preserve`, seeded by
+  hydrate and propagated as `NEW` by sync — `scv/journal/README.md` (usage
+  rules), `scv/DECISIONS.md` (append-only decision log; entry schema reuses
+  the handoff decision format with a mandatory author), and `scv/TODO.md`
+  (team todo, `- [ ] (T-NNN) <내용> — @<author>, YYYY-MM-DD`).
+- `core/scripts/lib/author.sh` — unified author resolution
+  (`git config user.name` → `GIT_AUTHOR_NAME` → `USER` → `unknown`) +
+  filename-safe slugging that keeps non-ASCII (Korean) names;
+  `promote-helper.sh`'s `AUTHOR` signal now uses it.
+- `core/scripts/journal-append.sh` — appends `### [HH:MM:SS] <speaker>` blocks
+  to `scv/journal/<YYYYMMDD>-<author>.md` (per-day, per-author files — no git
+  conflicts), with a built-in redaction filter
+  (password/token/secret/api-key values, `Bearer` tokens, `AKIA…` keys →
+  `[REDACTED]`); `--redact-only` exposes the filter to protocols.
+- Host hook templates `core/template/hooks/on-user-prompt.sh` (prompt-submit
+  event, stdin JSON `prompt`) and `on-stop.sh` (stop event, stdin JSON
+  `transcript_path`) journal free conversation; both are non-blocking (any
+  failure → exit 0, no write). Registration is **wrapper-owned** — the seam
+  contract is `docs/wrapper-integration.md` §6, hydrate never seeds `hooks/`
+  into projects.
+- Decision record points in three protocols, appending author-attributed
+  entries to `scv/DECISIONS.md`: `action:promote` plan approval (adopted
+  direction + **discarded alternatives**), `action:work` archive (the reason
+  promoted to a decision summary), `action:regression` obsolete triage (the
+  WHY that previously evaporated with the session).
+- `action:status` now surfaces the last 5 `DECISIONS.md` entries and the open
+  `TODO.md` items counted per author.
+
+### Changed (team journal wave)
+
+- Conversations are now **committed**: `.gitignore.fragment` no longer ignores
+  `/scv/.conversations/`; `action:help` persists conversation files to
+  `scv/conversations/` through the `journal-append.sh --redact-only` filter,
+  and offers a one-time migration when it detects a legacy local
+  `scv/.conversations/` (`LEGACY_CONVERSATIONS:` helper line).
 
 ## [0.21.0] - 2026-08-04
 
