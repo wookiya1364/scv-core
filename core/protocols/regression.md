@@ -98,8 +98,24 @@ Answer handling:
      - Add `obsoleted_at: <TODAY>` if missing
      - Add `obsoleted_by: manual` if missing
   3. Never touch TESTS.md or ARCHIVED_AT.md.
-  4. Report one line to the user: "Marked `<slug>` as obsolete (PLAN.md frontmatter only)."
-  5. Log `[obsolete] <slug>` to triage log.
+  4. **Decision log append (v0.22.0+)** — the WHY of an obsolete verdict used
+     to evaporate with the triage session; record it. Append **one** entry to
+     `scv/DECISIONS.md` (append-only — never edit existing entries; seed the
+     file via `action:sync` if missing). The entry reuses the handoff decision
+     format. **author is mandatory — never write an anonymous entry** (resolve
+     via `git config user.name` → `GIT_AUTHOR_NAME` → `USER`):
+
+     ```markdown
+     ## [<YYYY-MM-DD HH:MM>] <author> — <slug> marked obsolete
+
+     - verdict: obsolete
+     - why: <1–3 lines — WHY this feature is intentionally dead (replaced
+       without a supersedes declaration / environment change / deprecation),
+       as the user explained it in this triage>
+     - refs: scv/archive/<slug>/PLAN.md
+     ```
+  5. Report one line to the user: "Marked `<slug>` as obsolete (PLAN.md frontmatter + DECISIONS.md entry)."
+  6. Log `[obsolete] <slug>` to triage log.
 - **[3] flaky**: Run `bash ${SCV_CORE_ROOT}/scripts/regression.sh --only <slug> --quiet` up to 2 times. On pass, log `[flaky→pass on retry N] <slug>`. If both retries fail, re-fire the 3-way dialog.
 
 ## Step 3 — Final summary
