@@ -37,7 +37,7 @@
 
 ### 공통 액션과 워크플로
 
-14개 SCV 액션 중 다음 12개 구현은 Core가 소유한다.
+15개 SCV 액션 중 다음 13개 구현은 Core가 소유한다.
 
 - `help`
 - `status`
@@ -51,6 +51,7 @@
 - `install-deps`
 - `workspace`
 - `handoff`
+- `routine`
 
 정규 action 목록과 owner는
 [`core/actions.json`](../core/actions.json)에 선언한다.
