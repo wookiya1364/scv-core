@@ -4,6 +4,32 @@ All notable changes to SCV Core are documented here.
 
 ## [0.22.0] - Unreleased
 
+### 가이던스 어블레이션 1단계 — CONTRACT/GUIDANCE 분리 + `SCV_GUIDANCE=minimal` (promote·work)
+
+- 프로토콜 md 의 행동 코칭(GUIDANCE)을 `<!-- SCV:GUIDANCE -->` …
+  `<!-- /SCV:GUIDANCE -->` HTML 주석 마커로 감싸는 규약을 도입했다.
+  분류 기준: **삭제해도 산출물의 형식·경로·불변식(생성 파일 목록 ·
+  frontmatter 스키마 · 스크립트 호출 시퀀스)이 변하지 않으면 GUIDANCE** —
+  규약/기준 문서는 `docs/guidance-ablation.md`.
+- 주입 필터 `core/scripts/guidance-filter.sh` 를 추가하고 래퍼 주입 지점인
+  `tools/materialize-profile.sh` 에 연결했다. `SCV_GUIDANCE=full`(기본,
+  미설정 포함)은 주입 내용이 원본과 바이트 동일하고,
+  `SCV_GUIDANCE=minimal` 은 GUIDANCE 블록을 제거한 투영본을 주입한다.
+  원본 프로토콜 파일은 어떤 모드에서도 불변. 잘못된 마커(닫힘 누락 ·
+  고아 닫힘 · 중첩 · malformed)는 `파일:줄` 에러로 전체 주입을 중단한다
+  (fail-closed — 부분 주입 없음; full 모드도 동일하게 검증).
+- 어블레이션 동등성 하네스: `core/tests/run-dry.sh` [19] 가 promote·work
+  경로를 두 모드로 실행해 생성 파일 목록 · frontmatter 스키마 · 스크립트
+  호출 시퀀스가 동일함을 강제한다(차이 = CONTRACT 오분류 → 재분류).
+  마커 lint · fail-closed · 타 프로토콜 바이트 불변 · deck 마커 비노출은
+  `core/tests/test-guidance.sh` 가 검증하고, deck transform 은 마커 줄만
+  드롭한다(GUIDANCE 본문은 deck 문서에서 계속 렌더).
+- **1단계 분류 결과 (목표 비율 없이 기준 적용 후 측정)** —
+  `promote.md`: GUIDANCE 241줄 / 전체 883줄 (27.3%),
+  `work.md`: GUIDANCE 203줄 / 전체 529줄 (38.4%).
+  다른 프로토콜 파일들은 이 웨이브에서 바이트 불변이다 (2단계는 minimal
+  모드 실사용 피드백 후 별도 계획).
+
 ### BREAKING — adoption 단일화 + 표준 문서 7종 제거 (TEMPLATE_VERSION 2.0.0)
 
 - `hydrate.sh --new` (greenfield mode) is removed. Passing `--new` now exits 1

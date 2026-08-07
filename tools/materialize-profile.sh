@@ -126,6 +126,24 @@ if [[ "$ARGUMENT_STYLE" == "template-string" && -d "$CORE_ROOT/protocols" ]]; th
   done < <(find "$CORE_ROOT/protocols" -type f -name '*.md' -print0)
 fi
 
+# Guidance-ablation injection filter (v0.22.0+). SCV_GUIDANCE=minimal strips
+# <!-- SCV:GUIDANCE --> blocks from the materialized protocol projection a
+# wrapper injects; the default (full) keeps every protocol byte-identical.
+# Canonical protocol sources are never modified — only this materialized copy.
+# The filter validates ALL protocol markers in every mode and aborts the whole
+# materialization on an unpaired/nested marker (fail-closed: a partial
+# injection is never produced).
+if [[ -d "$CORE_ROOT/protocols" && -f "$CORE_ROOT/scripts/guidance-filter.sh" ]]; then
+  PROTOCOL_FILES=()
+  while IFS= read -r -d '' protocol; do
+    PROTOCOL_FILES+=("$protocol")
+  done < <(find "$CORE_ROOT/protocols" -type f -name '*.md' -print0)
+  if [[ ${#PROTOCOL_FILES[@]} -gt 0 ]]; then
+    bash "$CORE_ROOT/scripts/guidance-filter.sh" \
+      --mode "${SCV_GUIDANCE:-full}" --in-place "${PROTOCOL_FILES[@]}"
+  fi
+fi
+
 {
   echo "# Materialized SCV host profile v1. Values are canonical unquoted data."
   for key in \
