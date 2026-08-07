@@ -4,6 +4,7 @@
 
 You — the host agent — drive a promote plan to completion: **read PLAN.md + TESTS.md → implement → run tests → archive on success**. Full protocol in `scv/PROMOTE.md`.
 
+<!-- SCV:GUIDANCE -->
 ## Language preference
 
 Resolve the user's preferred language with this priority, then use it for ALL user-facing output (question text, status messages, summaries, the non-Playwright notice in Step 5b, etc.):
@@ -15,6 +16,7 @@ Resolve the user's preferred language with this priority, then use it for ALL us
 Technical identifiers stay as-is in every language: file paths, skill invocation names (`action:work`), frontmatter keys (`status`, `kind`, `epic`, `supersedes`), env var names (`SCV_LANG`, `SCV_ATTACHMENTS_*`), and SCV terms (`promote`, `archive`, `orphan branch`, `epic`).
 
 If `.env` `SCV_LANG` is unset, you may suggest the user run `action:help` once to lock the preference (don't block the current task on it — fall back to auto-detect / English for now).
+<!-- /SCV:GUIDANCE -->
 
 **Non-negotiable rules:**
 - Never delete or move files outside the scope of this plan.
@@ -38,10 +40,12 @@ Parse the header (`MODE:`, `SCV_DIR:`, `TARGET_SLUG:`, `PLAN_FILE:`, `TESTS_FILE
 
 ## Protocol
 
+<!-- SCV:GUIDANCE -->
 > **Dependency note** — If the helper emits warnings about missing external CLI
 > (`gh` / `glab` / `ffmpeg` / etc.) or missing `graphify` skill, suggest running
 > `action:install-deps` once to get OS-specific install commands. Don't auto-run
 > it. graphify install: https://github.com/safishamsi/graphify
+<!-- /SCV:GUIDANCE -->
 
 ### Step 0 — Archive short-circuit
 
@@ -54,6 +58,10 @@ If `MODE: archive`: the helper already moved the folder and wrote `ARCHIVED_AT.m
 
 ### Step 2 — Graph freshness check
 
+Never invoke `action:promote` yourself from `action:work` — when a refresh is
+needed, tell the user the command and let them run it.
+
+<!-- SCV:GUIDANCE -->
 Based on `GRAPHIFY_SKILL` + `GRAPH_STATUS`:
 
 | GRAPHIFY_SKILL | GRAPH_STATUS | Action |
@@ -61,6 +69,7 @@ Based on `GRAPHIFY_SKILL` + `GRAPH_STATUS`:
 | `available` | `stale` | Ask the user: "docs graph is stale — refresh it first via `action:promote --graph-only`?" Default: **yes**. If yes, tell user the command (do NOT invoke `action:promote` yourself from here — they run it). If no, continue. |
 | `available` | `missing` or `built` | Continue. |
 | `missing` (skill) | any | Continue. Mention once (one line): "graphify skill not installed — see https://github.com/safishamsi/graphify or run `action:install-deps` for the full deps list." Don't repeat on subsequent runs. |
+<!-- /SCV:GUIDANCE -->
 
 ### Step 3 — Load PLAN.md (required)
 
@@ -110,6 +119,7 @@ After loading TESTS.md, decide whether to set up E2E video recording. **SCV's st
 
 If `video:` is **missing** or set to `'off'`:
 
+<!-- SCV:GUIDANCE -->
    ```
    Ask once (default Yes):
      Question: "Playwright video recording is off. Should SCV turn it on automatically?"
@@ -128,6 +138,7 @@ If `video:` is **missing** or set to `'off'`:
          description:
          "Leaves playwright.config alone. Only screenshots will be attached to the PR."
    ```
+<!-- /SCV:GUIDANCE -->
 
 If user picks **[1] Yes**: use `Edit` to insert `video: 'on'` into the `use:` block.
    - If `use:` block exists: insert `video: 'on'` line.
@@ -140,12 +151,14 @@ If `video:` is already `'on'`: skip silently (already records every run — noth
 
 If `video:` is `'retain-on-failure'` or `'retry-with-video'`: these record **nothing on a passing run**, so a **green** feature PR would have no video. Surface it by asking the user (default Yes):
 
+<!-- SCV:GUIDANCE -->
    ```
    Question: "Playwright video is set to `<mode>`, which records nothing on a passing run — so feature PRs won't get a video. Switch to video: 'on'?"
    options:
    [1] "Yes — switch to video: 'on' (recommended for feature-visible PRs)"
    [2] "No — keep `<mode>` (green PRs stay videoless)"
    ```
+<!-- /SCV:GUIDANCE -->
 
    On **Yes**, `Edit` the mode to `'on'`. On **No**, leave the config untouched.
 
@@ -153,6 +166,7 @@ This flow runs **once per project** in practice — after the config is `'on'` (
 
 ##### Non-Playwright notice (Cypress / Puppeteer / others)
 
+<!-- SCV:GUIDANCE -->
 When emitted, print this as a single info block (not a question — work proceeds normally):
 
 > ⚠ **SCV's standard E2E framework is Playwright.**
@@ -164,16 +178,23 @@ When emitted, print this as a single info block (not a question — work proceed
 > - Puppeteer → Playwright: https://playwright.dev/docs/puppeteer
 >
 > (SCV work continues as normal — this is a notice only.)
+<!-- /SCV:GUIDANCE -->
 
 ### Step 5c — Long-run execution contract (v0.22.0+)
 
-Once you hold PLAN.md's **Guardrails / Exit criteria** and TESTS.md's **verification means** (the `## How to run` commands), do not wait for — or ask for — step-by-step procedural instructions: **run to completion**. The Suggested path is a suggestion; Guardrails and Exit criteria are the contract. Work autonomously until the Exit criteria are met and TESTS pass, checking back with the user only at the decision points this protocol defines (split proposals, archive, PR). When you get stuck, **strengthen the verification means first** — add a failing repro, tighten an assertion, improve observability — instead of asking the user to micro-specify the procedure. Legacy PLANs that have only `## Steps` are still fully valid: treat `## Steps` as the Suggested path and TESTS.md's `## Pass criteria` as the Exit criteria.
+Legacy PLANs that have only `## Steps` are still fully valid: treat `## Steps` as the Suggested path and TESTS.md's `## Pass criteria` as the Exit criteria.
+
+<!-- SCV:GUIDANCE -->
+Once you hold PLAN.md's **Guardrails / Exit criteria** and TESTS.md's **verification means** (the `## How to run` commands), do not wait for — or ask for — step-by-step procedural instructions: **run to completion**. The Suggested path is a suggestion; Guardrails and Exit criteria are the contract. Work autonomously until the Exit criteria are met and TESTS pass, checking back with the user only at the decision points this protocol defines (split proposals, archive, PR). When you get stuck, **strengthen the verification means first** — add a failing repro, tighten an assertion, improve observability — instead of asking the user to micro-specify the procedure.
 
 Relation to Ralph Loop: this paragraph is what owns `action:work`'s long-run behavior — no external loop harness is required for a plan to run to completion (an external loop remains an optional accelerant, not a dependency).
+<!-- /SCV:GUIDANCE -->
 
 ### Step 5d — Parallel fan-out hint (`parallel_groups`, optional, v0.22.0+)
 
+<!-- SCV:GUIDANCE -->
 If PLAN.md frontmatter declares `parallel_groups:` (e.g. `parallel_groups: [[1, 2], [3]]` — inner arrays of Suggested-path step numbers that are independent of each other), and your host supports subagents / parallel workflows, you MAY fan out: run the steps of each group concurrently (groups themselves run in declaration order), then verify each TESTS scenario independently before merging results. The hint never changes WHAT must hold — Guardrails / Exit criteria / TESTS remain the contract for every parallel branch. If the field is absent, or the host has no parallel capability, behave exactly as before (sequential execution — zero behavior change).
+<!-- /SCV:GUIDANCE -->
 
 ### Step 6 — Implement
 
@@ -274,6 +295,7 @@ AUTHOR: `git config user.name` → `GIT_AUTHOR_NAME` → `USER`):
 
 If the just-archived plan's `raw_sources` includes a path under `scv/conversations/`, the original conversation file is still in `scv/conversations/` (active). Offer to archive it too:
 
+<!-- SCV:GUIDANCE -->
 ```
 Ask: "This plan was started from a action:help conversation (`<filename>`). Archive that conversation too?"
 
@@ -283,6 +305,7 @@ Ask: "This plan was started from a action:help conversation (`<filename>`). Arch
 [2] "No — keep it in scv/conversations/ for now"
     description: "The conversation stays in the active list. You can still reference it, or archive it manually later. Pick this if you might come back to refine the original idea."
 ```
+<!-- /SCV:GUIDANCE -->
 
 **On [1]**: `mkdir -p scv/conversations/archive && mv scv/conversations/<file> scv/conversations/archive/`. Update the moved file's frontmatter: `status: archived`, `archived_at: <ISO>`. Print one-line confirmation.
 
@@ -301,6 +324,7 @@ Procedure:
    - If already `status: obsolete`, skip (avoid double-marking).
    - Otherwise, ask **one concise question** (per slug, default Yes):
 
+<!-- SCV:GUIDANCE -->
 **Question template (use as-is)**
 
 ```
@@ -347,6 +371,7 @@ Options:
 
 Default: [1] Yes (pre-selected)
 ```
+<!-- /SCV:GUIDANCE -->
 
 Answer handling:
 - **[1] Yes**: `Read` → `Edit` `scv/archive/<B-slug>/PLAN.md` frontmatter:
@@ -373,6 +398,7 @@ Condition: archive actually happened in Step 9b.
 
 When `action:work` is creating its first PR and `.env` does not have `SCV_ATTACHMENTS_RETENTION_DAYS`, ask the user one concise question (and never again):
 
+<!-- SCV:GUIDANCE -->
 ```
 Question: "How long to keep video attachments after PR merge?
            (Auto-deleted from the scv-attachments orphan branch.)"
@@ -394,6 +420,7 @@ options:
     "Permanent retention. The orphan branch's storage will keep growing — choose
      this only if you want a long-term archive."
 ```
+<!-- /SCV:GUIDANCE -->
 
 After the answer, the host agent uses `Edit` to append one line to `.env` (creating `.env` if absent):
 ```
@@ -404,6 +431,7 @@ SCV_ATTACHMENTS_RETENTION_DAYS=<N>   # or 'never'
 
 **Ask once** (default Yes):
 
+<!-- SCV:GUIDANCE -->
 ```
 Question: "Open a PR for the just-archived '<slug>' now?"
 options:
@@ -449,6 +477,7 @@ options:
     "SCV doesn't open a PR. You can create it later via git/gh, or re-enter
      this step by re-invoking action:work."
 ```
+<!-- /SCV:GUIDANCE -->
 
 **On [1] Yes**:
 
@@ -479,8 +508,12 @@ If both:
 - `remaining_features_in_promote == 0` (all features of the epic are archived)
 - `existing_refactor == 0` (no refactor PLAN exists yet)
 
-→ One-line user notice + one concise question:
+→ One-line user notice + one concise question. Scaffold contract: folder
+`scv/promote/<TODAY>-<author>-<epic-slug>-refactor/` with PLAN.md + TESTS.md;
+PLAN.md frontmatter preset `kind: refactor`, `epic: <epic-slug>`,
+`status: planned` (spec: PROMOTE.md §8e).
 
+<!-- SCV:GUIDANCE -->
 ```
 "All features of epic <epic-slug> are archived.
  Per PROMOTE.md §8e, it's time to create the integration refactor PLAN.
@@ -502,6 +535,7 @@ If both:
      "Don't create now. You can create it later via action:promote or by hand. The epic
       is shown as 'refactor pending' in action:status."
 ```
+<!-- /SCV:GUIDANCE -->
 
 **On [1] Yes**: the host agent directly creates the folder + PLAN.md + TESTS.md scaffold via `Write`. Auto-include the epic's archived feature slugs in the PLAN.md Summary section.
 

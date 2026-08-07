@@ -3657,6 +3657,130 @@ TODO
 )
 rm -rf "$STJ_APP"
 
+echo
+echo "=== [19] guidance ablation — SCV_GUIDANCE full/minimal equivalence (promote·work) ==="
+GUIDANCE_SH="$STANDARD_ROOT/scripts/guidance-filter.sh"
+assert_file "$GUIDANCE_SH"
+[[ -x "$GUIDANCE_SH" ]] && pass "guidance-filter.sh executable" || fail "guidance-filter.sh not executable"
+
+# Marker lint over the two phase-1 protocols (pairing + no nesting)
+GA_LINT=$(bash "$GUIDANCE_SH" --lint "$PROMOTE_CMD" "$WORK_CMD" 2>&1)
+assert_ok_exit "$?" "guidance lint: promote.md + work.md markers balanced"
+assert_out_contains "GUIDANCE_LINT: OK file=$PROMOTE_CMD" "$GA_LINT" "guidance lint: promote.md stats emitted"
+assert_out_contains "GUIDANCE_LINT: OK file=$WORK_CMD" "$GA_LINT" "guidance lint: work.md stats emitted"
+
+# [19a] Projection equivalence — the CONTRACT surface of the injected prompt is
+# mode-independent: full is byte-identical to the source, and the script-call
+# sequence + scaffold frontmatter schema survive minimal unchanged. A diff here
+# means a CONTRACT line was misclassified as GUIDANCE → reclassify.
+GA_DIR=$(mktemp -d)
+for proto in promote work; do
+  case "$proto" in
+    promote) SRC="$PROMOTE_CMD" ;;
+    work)    SRC="$WORK_CMD" ;;
+  esac
+  SCV_GUIDANCE=full    bash "$GUIDANCE_SH" "$SRC" > "$GA_DIR/$proto.full.md"
+  SCV_GUIDANCE=minimal bash "$GUIDANCE_SH" "$SRC" > "$GA_DIR/$proto.min.md"
+  cmp -s "$GA_DIR/$proto.full.md" "$SRC" \
+    && pass "ablation[$proto]: full projection byte-identical to source" \
+    || fail "ablation[$proto]: full projection diverged from source"
+  grep -qF -- "SCV:GUIDANCE" "$GA_DIR/$proto.min.md" \
+    && fail "ablation[$proto]: marker text leaked into minimal projection" \
+    || pass "ablation[$proto]: minimal projection has no marker text"
+  # script call sequence (ordered, host-root-token agnostic)
+  for m in full min; do
+    grep -oE '\{[A-Z_]+\}/scripts/[a-z0-9-]+\.sh' "$GA_DIR/$proto.$m.md" \
+      | sed 's|.*/||' > "$GA_DIR/$proto.$m.calls" || true
+  done
+  if diff -u "$GA_DIR/$proto.full.calls" "$GA_DIR/$proto.min.calls" >/dev/null; then
+    pass "ablation[$proto]: script call sequence identical across modes"
+  else
+    fail "ablation[$proto]: script call sequence differs across modes (CONTRACT call inside a GUIDANCE block — reclassify)"
+  fi
+  [[ -s "$GA_DIR/$proto.min.calls" ]] \
+    && pass "ablation[$proto]: minimal projection still invokes core scripts" \
+    || fail "ablation[$proto]: minimal projection lost every script call"
+  # frontmatter schema surface (column-0 scaffold keys)
+  for m in full min; do
+    grep -E '^(title|slug|author|created_at|status|kind|lang|tags|raw_sources|refs|supersedes|invariants):' \
+      "$GA_DIR/$proto.$m.md" > "$GA_DIR/$proto.$m.front" || true
+  done
+  if diff -u "$GA_DIR/$proto.full.front" "$GA_DIR/$proto.min.front" >/dev/null; then
+    pass "ablation[$proto]: frontmatter schema surface identical across modes"
+  else
+    fail "ablation[$proto]: frontmatter schema surface differs across modes (reclassify)"
+  fi
+done
+
+# [19b] Execution equivalence — run the promote·work dry-run paths once per
+# mode in identical sandboxes and compare artifacts: generated file list,
+# frontmatter key sequence, and the normalized helper output (call transcript).
+# Core scripts must not branch on SCV_GUIDANCE (the filter acts at the protocol
+# injection point only) — any drift here fails the harness.
+run_guidance_scenario() {
+  local mode="$1" dir="$2"
+  mkdir -p "$dir"
+  bash "$HYDRATE" init "$dir" >/dev/null 2>&1
+  echo "ablation probe note" > "$dir/scv/raw/ablation-note.md"
+  (
+    cd "$dir"
+    export SCV_GUIDANCE="$mode"
+    bash "$PROMOTE_HELPER" --dry-run 2>&1
+    mkdir -p scv/promote/20260807-tester-guidance-ablation
+    cat > scv/promote/20260807-tester-guidance-ablation/PLAN.md <<'PLAN'
+---
+title: Guidance Ablation Probe
+slug: 20260807-tester-guidance-ablation
+author: tester
+created_at: 2026-08-07
+status: planned
+kind: refactor
+lang: korean
+tags: [ablation]
+raw_sources:
+  - scv/raw/ablation-note.md
+refs: []
+---
+# Guidance Ablation Probe
+## Summary
+full/minimal equivalence probe.
+## Suggested path
+1. n/a
+## Related Documents
+PLAN
+    cat > scv/promote/20260807-tester-guidance-ablation/TESTS.md <<'T'
+# Test Plan
+## How to run
+```bash
+true
+```
+## Pass criteria
+- ok
+T
+    bash "$WORK_SH" guidance-ablation 2>&1
+    bash "$WORK_SH" guidance-ablation --archive --reason="ablation equivalence" 2>&1
+  ) > "$dir.out" 2>&1
+  ( cd "$dir" && find scv -mindepth 1 | LC_ALL=C sort ) > "$dir.files"
+  awk '/^---$/{c++; next} c==1 && /^[A-Za-z_]+:/{sub(/:.*/, ":"); print $1}' \
+    "$dir/scv/archive/20260807-tester-guidance-ablation/PLAN.md" > "$dir.front"
+  sed -e "s|$dir|APP|g" -e 's/[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}/HH:MM:SS/g' "$dir.out" > "$dir.norm"
+}
+run_guidance_scenario full "$TMP/ga-full"
+run_guidance_scenario minimal "$TMP/ga-min"
+[[ -f "$TMP/ga-full/scv/archive/20260807-tester-guidance-ablation/ARCHIVED_AT.md" ]] \
+  && pass "ablation run: full-mode promote→work→archive path completed" \
+  || fail "ablation run: full-mode path did not reach archive"
+diff -u "$TMP/ga-full.files" "$TMP/ga-min.files" >/dev/null \
+  && pass "ablation run: generated file list identical (full vs minimal)" \
+  || fail "ablation run: generated file list differs (full vs minimal)"
+diff -u "$TMP/ga-full.front" "$TMP/ga-min.front" >/dev/null \
+  && pass "ablation run: archived PLAN frontmatter key sequence identical" \
+  || fail "ablation run: archived PLAN frontmatter key sequence differs"
+diff -u "$TMP/ga-full.norm" "$TMP/ga-min.norm" >/dev/null \
+  && pass "ablation run: normalized script-call transcript identical" \
+  || fail "ablation run: normalized script-call transcript differs"
+rm -rf "$GA_DIR"
+
 # Aggregate counters from temp files
 PASS=$(wc -l < "$PASS_FILE" | tr -d ' ')
 FAIL=$(wc -l < "$FAIL_FILE" | tr -d ' ')
