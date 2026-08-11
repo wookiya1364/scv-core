@@ -49,7 +49,7 @@ Parse the header (`MODE:`, `SCV_DIR:`, `TARGET_SLUG:`, `PLAN_FILE:`, `TESTS_FILE
 
 ### Step 0 — Archive short-circuit
 
-If `MODE: archive`: the helper already moved the folder and wrote `ARCHIVED_AT.md`. Just report the `ARCHIVED:` line and stop. Do not continue with Steps 1+.
+If `MODE: archive`: the helper already moved the folder and wrote `ARCHIVED_AT.md`. Report the `ARCHIVED:` line, then perform **Step 9b.0 only** — the decision log entry — and stop. Do not continue with any other step. For that entry's `path delta:`, branch on who did the work: if you implemented this plan earlier in this conversation and are only archiving now, record the real delta as Step 9b.0 describes; if the work was implemented outside this conversation (see Flag semantics), you cannot know it — write `path delta: unknown (archived outside this conversation)` rather than guessing.
 
 ### Step 1 — Select target
 
@@ -198,10 +198,31 @@ If PLAN.md frontmatter declares `parallel_groups:` (e.g. `parallel_groups: [[1, 
 
 ### Step 6 — Implement
 
-Follow `PLAN.md`'s `Suggested path` (legacy PLANs: `Steps`) as the default route — it is a suggestion, not the contract; if you find a better path that satisfies the Guardrails and Exit criteria, take it and tell the user in one line. For each step:
+Follow `PLAN.md`'s `Suggested path` (legacy PLANs: `Steps`) as the default route — it is a suggestion, not the contract; if you find a better path that satisfies the Guardrails and Exit criteria, take it and tell the user in one line — keep that line: Step 9b.0 records it as the archive's `path delta:`. For each step:
 1. Describe the change to the user briefly (one sentence).
 2. Use `Read` / `Edit` / `Write` as needed.
 3. After each significant change, surface any document-split proposal per Step 3.
+
+**Implementation principles** — Core defaults. A plan's Guardrails override them
+whenever the two disagree:
+
+- Search the existing codebase first; extend or reuse what is there. Do not add a
+  parallel way of doing something that already has one.
+- Choose the simplest implementation that fully satisfies the current requirement.
+  Build for what is asked, not for a future that has not been specified.
+- Keep components modular with one clear concern, and boundaries a reader can name.
+- For decisions that are costly to reverse (data model, module boundaries,
+  published contracts), decide for the long term — no stopgap you plan to replace
+  later.
+
+<!-- SCV:GUIDANCE -->
+The last two principles pull against the second one, and that is deliberate: the
+cheap-to-change parts of a change should be simple, while the expensive-to-change
+parts should be right. When you cannot tell which one you are touching, ask
+whether a future change would be a rewrite or an edit — a rewrite means it is
+architecture, and architecture goes in the plan, not in a shortcut. Record the
+call as Step 9b.0's `path delta:` when it moved you off the plan's route.
+<!-- /SCV:GUIDANCE -->
 
 Update `PLAN.md` frontmatter `status:` as you progress:
 - `planned` → `in_progress` when you start implementation
@@ -220,6 +241,33 @@ Summarize:
 - Implementation: what changed (files, key decisions).
 - Test results: each scenario pass/fail + overall verdict.
 - Plan's `status:` now `testing` (or back to `in_progress` if failures).
+
+- Path delta: how the route actually taken differs from the one the plan expected,
+  and why. Step 9b.0 records this line as the archive's `path delta:`.
+
+When — and only when — PLAN.md declares `scope:`, run the read-only drift helper
+for a mechanical cross-check of which tracked files changed outside those globs.
+It reads `scv/promote/` only, so this is the last step where it can still see this
+plan. Skip it for a plan with no `scope:`: the helper would fall back to re-running
+TESTS, which Step 7 already did.
+
+```
+PROMOTE_DIR=<SCV_DIR>/promote bash ${SCV_CORE_ROOT}/scripts/drift-detect.sh <slug>
+```
+
+For a plain `scv` (standalone/root), drop the `PROMOTE_DIR=` prefix. This helper
+takes the slug as its only positional argument and does not resolve nested
+modules, so the env var is what points it at a module's `scv/`.
+
+<!-- SCV:GUIDANCE -->
+Surfacing the delta here — before the archive moves the folder — gives the user a
+chance to correct it while the work is fresh. Read `SCOPE_OUTSIDE_FILES` as
+evidence, not as the delta itself: the delta is why the planned route stopped
+being the right one, which no script can infer. Two limits worth knowing —
+it compares `git diff HEAD`, so files you created but never staged do not appear
+in either count, and a green `DRIFT: no` therefore means "no tracked file strayed",
+not "the plan was followed".
+<!-- /SCV:GUIDANCE -->
 
 ### Step 9a — Regression pre-flight (optional)
 
@@ -274,7 +322,11 @@ Read `<PLAN_LANG>` from the archived PLAN.md's `lang:` frontmatter (the same fie
 Archiving IS a decision — promote the `--reason` into a decision summary
 instead of leaving a one-line "tests passed". After every successful archive,
 append **one** entry to `scv/DECISIONS.md` (append-only — never edit existing
-entries; seed the file via `action:sync` if missing).
+entries; seed the file via `action:sync` if missing). In a nested module,
+append to `<SCV_DIR>/DECISIONS.md` and write `refs: <SCV_DIR>/archive/<slug>/PLAN.md`.
+
+Unlike `refs:` / `conversation:`, the `path delta:` line is **never omitted** —
+when the route matched the plan, write `as planned` on one line and move on.
 
 The entry reuses the handoff decision format. **author is mandatory — never
 write an anonymous entry** (resolve it the same way as `action:promote`'s
@@ -285,11 +337,25 @@ AUTHOR: `git config user.name` → `GIT_AUTHOR_NAME` → `USER`):
 
 - verdict: archived
 - why: <2–4 lines — WHAT this plan decided/changed and what was learned while
-  implementing it. Not "tests passed" — that is the gate, not the decision.>
+  implementing it, including anything that must not break from now on. Not
+  "tests passed" — that is the gate, not the decision.>
+- path delta: <one line — how the route actually taken differs from PLAN.md's
+  `Suggested path` (legacy PLANs: `Steps`; when the plan declares neither, the
+  route you described to the user in Step 6), and why. Write `as planned` when
+  you followed it.>
 - refs: scv/archive/<slug>/PLAN.md
 - conversation: <scv/conversations/<file> when the plan came from a
   conversation; omit otherwise>
 ```
+
+<!-- SCV:GUIDANCE -->
+`path delta:` is to this entry what "discarded alternatives" is to
+`action:promote`'s: PLAN.md already holds the route you were *supposed* to take,
+and Step 6 explicitly lets you take a better one — so the reason you left the
+plan is the one thing that exists nowhere else once the session ends. Keep it to
+what a reader could not reconstruct from the diff: not *which* files moved, but
+why the planned route stopped being the right one.
+<!-- /SCV:GUIDANCE -->
 
 #### Step 9b.1 — Conversation archive (v0.9.0+, optional)
 
