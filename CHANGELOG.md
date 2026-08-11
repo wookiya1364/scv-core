@@ -2,7 +2,7 @@
 
 All notable changes to SCV Core are documented here.
 
-## [0.23.0] - Unreleased
+## [0.23.0] - 2026-08-11
 
 ### 릴리스 알림이 실패하면 릴리스 run 도 실패한다
 
