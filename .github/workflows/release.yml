@@ -66,23 +66,25 @@ jobs:
               --generate-notes
           fi
 
-      - name: Note scheduled-polling fallback
-        if: env.SCV_WRAPPER_SYNC_TOKEN == ''
-        run: |
-          echo "::warning::SCV_WRAPPER_SYNC_TOKEN is not configured; wrappers will discover this release through scheduled polling (scv-claude-code daily, scv-codex weekly)"
-
+      # Neither an `if:` guard on the secret nor `continue-on-error`. A missing
+      # secret used to make this step `skipped` and the run green — the exact
+      # state this repository sat in unnoticed until 2026-08-11. "The wrappers
+      # were not notified" is now one signal: this step fails, so the run fails.
+      # Publishing happens above, so a red run here still leaves the release
+      # assets complete, and re-running takes the `--clobber` upload path.
       - name: Dispatch wrapper update workflows
-        id: dispatch
-        if: env.SCV_WRAPPER_SYNC_TOKEN != ''
-        continue-on-error: true
         env:
           GH_TOKEN: ${{ env.SCV_WRAPPER_SYNC_TOKEN }}
         run: |
           # No `set -e` here on purpose: the default shell is `bash -e {0}`, so an
           # unguarded failure on the first repository would abort the loop and the
-          # second wrapper would never be attempted — silently, because this step
-          # is continue-on-error. Every wrapper must get its own independent try.
+          # second wrapper would never be attempted. Every wrapper must get its
+          # own independent try; the collected result decides the step's exit.
           set -uo pipefail
+          if [ -z "${SCV_WRAPPER_SYNC_TOKEN:-}" ]; then
+            echo "::error::SCV_WRAPPER_SYNC_TOKEN is not configured; neither wrapper was notified."
+            exit 1
+          fi
           version=$(tr -d '[:space:]' < VERSION)
           asset_url="https://github.com/wookiya1364/scv-core/releases/download/v${version}/scv-core-v${version}.tar.gz"
           checksum_url="${asset_url}.sha256"
@@ -107,7 +109,6 @@ jobs:
               echo "::error::Failed to notify ${repository} after 3 attempts."
             fi
           done
-          echo "failed=$failed" >> "$GITHUB_OUTPUT"
           if [ -n "$failed" ]; then
             {
               echo "### Wrapper dispatch failed"
@@ -126,7 +127,7 @@ jobs:
               echo "  -f client_payload[checksum_url]=${checksum_url}"
               echo '```'
               echo
-              echo "Wrappers also self-heal by polling: scv-claude-code daily, scv-codex weekly."
+              echo "Wrappers also self-heal by polling: both wrappers poll daily."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
