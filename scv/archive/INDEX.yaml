@@ -1,0 +1,37 @@
+# scv/archive/INDEX.yaml — auto-managed by action:work --archive (v0.11.0+).
+# Do not edit manually. Regenerated on every archive.
+generated_at: 2026-08-11T03:04:11Z
+archives:
+  - slug: 20260804-wookiya1364-team-journal
+    title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
+    kind: feature
+    status: planned
+    epic: 20260807-scv-simplification
+  - slug: 20260807-wookiya1364-adoption-only-doc-removal
+    title: "adoption 단일화 + 표준 문서 7종 제거 (신규 미생성 · sync 삭제)"
+    kind: refactor
+    status: planned
+    epic: 20260807-scv-simplification
+  - slug: 20260807-wookiya1364-decision-log-activation
+    title: "결정 로그 실작동 — 실행 경로 복구 + 구현 델타 기록"
+    kind: feature
+    status: done
+  - slug: 20260807-wookiya1364-guidance-ablation
+    title: "가이던스 어블레이션 1단계 — CONTRACT/GUIDANCE 분리 + SCV_GUIDANCE=minimal (promote·work)"
+    kind: refactor
+    status: planned
+    epic: 20260807-scv-simplification
+  - slug: 20260807-wookiya1364-plan-grammar
+    title: "PLAN 문법 개편 — 가드레일·종료 조건 우선, 병렬 힌트, raw 인젝션 위생"
+    kind: refactor
+    status: planned
+    epic: 20260807-scv-simplification
+  - slug: 20260807-wookiya1364-routines
+    title: "scv/routines/ — 한 문장 프롬프트 유지보수 루틴 레이어"
+    kind: feature
+    status: planned
+    epic: 20260807-scv-simplification
+  - slug: 20260811-wookiya1364-implementation-principles
+    title: "구현 원칙 4종 — 재활용·최소구현·모듈분리·장기관점 (work·codegen)"
+    kind: feature
+    status: done
