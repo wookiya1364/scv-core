@@ -3580,6 +3580,19 @@ assert_contains "$PROMOTE_CMD" "버린 대안"
 assert_contains "$WORK_CMD" "Step 9b.0 — Decision log append"
 assert_contains "$WORK_CMD" "scv/DECISIONS.md"
 assert_contains "$WORK_CMD" "verdict: archived"
+# work.md — the archive entry carries the implementation delta (v0.23.0+), and the
+# manual --archive short-circuit still reaches Step 9b.0
+assert_contains "$WORK_CMD" "- path delta:"
+assert_contains "$WORK_CMD" "Step 9b.0 only"
+assert_contains "$WORK_CMD" "drift-detect.sh"
+# work.md/codegen.md — implementation principles (v0.23.0+), PLAN Guardrails win
+assert_contains "$WORK_CMD" "Implementation principles"
+assert_contains "$WORK_CMD" "reuse what is there"
+assert_contains "$WORK_CMD" "simplest implementation"
+assert_contains "$WORK_CMD" "one clear concern"
+assert_contains "$WORK_CMD" "costly to"
+assert_contains "$WORK_CMD" "Guardrails override them"
+assert_contains "$CODEGEN_CMD" "Implementation principles"
 # regression.md — obsolete verdict records the WHY
 assert_contains "$REGRESSION_CMD" "Decision log append"
 assert_contains "$REGRESSION_CMD" "scv/DECISIONS.md"
