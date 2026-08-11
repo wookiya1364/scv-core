@@ -69,22 +69,64 @@ jobs:
       - name: Note scheduled-polling fallback
         if: env.SCV_WRAPPER_SYNC_TOKEN == ''
         run: |
-          echo "::notice::SCV_WRAPPER_SYNC_TOKEN is not configured; wrappers will discover this release through scheduled polling"
+          echo "::warning::SCV_WRAPPER_SYNC_TOKEN is not configured; wrappers will discover this release through scheduled polling (scv-claude-code daily, scv-codex weekly)"
 
       - name: Dispatch wrapper update workflows
+        id: dispatch
         if: env.SCV_WRAPPER_SYNC_TOKEN != ''
         continue-on-error: true
         env:
           GH_TOKEN: ${{ env.SCV_WRAPPER_SYNC_TOKEN }}
         run: |
+          # No `set -e` here on purpose: the default shell is `bash -e {0}`, so an
+          # unguarded failure on the first repository would abort the loop and the
+          # second wrapper would never be attempted — silently, because this step
+          # is continue-on-error. Every wrapper must get its own independent try.
+          set -uo pipefail
           version=$(tr -d '[:space:]' < VERSION)
           asset_url="https://github.com/wookiya1364/scv-core/releases/download/v${version}/scv-core-v${version}.tar.gz"
           checksum_url="${asset_url}.sha256"
+          failed=""
           for repository in scv-claude-code scv-codex; do
-            gh api --method POST "repos/wookiya1364/${repository}/dispatches" \
-              -f event_type=scv-core-released \
-              -F "client_payload[version]=$version" \
-              -f "client_payload[tag]=v$version" \
-              -f "client_payload[asset_url]=$asset_url" \
-              -f "client_payload[checksum_url]=$checksum_url"
+            sent=""
+            for attempt in 1 2 3; do
+              if gh api --method POST "repos/wookiya1364/${repository}/dispatches" \
+                  -f event_type=scv-core-released \
+                  -F "client_payload[version]=$version" \
+                  -f "client_payload[tag]=v$version" \
+                  -f "client_payload[asset_url]=$asset_url" \
+                  -f "client_payload[checksum_url]=$checksum_url"; then
+                sent=yes
+                echo "dispatched ${repository} (attempt ${attempt})"
+                break
+              fi
+              [ "$attempt" -lt 3 ] && sleep $((attempt * 5))
+            done
+            if [ -z "$sent" ]; then
+              failed="${failed}${failed:+, }${repository}"
+              echo "::error::Failed to notify ${repository} after 3 attempts."
+            fi
           done
+          echo "failed=$failed" >> "$GITHUB_OUTPUT"
+          if [ -n "$failed" ]; then
+            {
+              echo "### Wrapper dispatch failed"
+              echo
+              echo "Not notified: **${failed}**"
+              echo
+              echo "The release itself is published and intact — only the wrapper"
+              echo "notification failed. Check \`SCV_WRAPPER_SYNC_TOKEN\`, then re-send:"
+              echo
+              echo '```'
+              echo "gh api --method POST repos/wookiya1364/<wrapper>/dispatches \\"
+              echo "  -f event_type=scv-core-released \\"
+              echo "  -F client_payload[version]=${version} \\"
+              echo "  -f client_payload[tag]=v${version} \\"
+              echo "  -f client_payload[asset_url]=${asset_url} \\"
+              echo "  -f client_payload[checksum_url]=${checksum_url}"
+              echo '```'
+              echo
+              echo "Wrappers also self-heal by polling: scv-claude-code daily, scv-codex weekly."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
