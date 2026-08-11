@@ -68,13 +68,22 @@ removal to an external path.
 
 ## Wrapper dispatch
 
-When configured, the repository secret `SCV_WRAPPER_SYNC_TOKEN` sends an
-immediate `repository_dispatch` event to both wrapper repositories. Dispatch is
-best-effort and never blocks publishing the Core assets.
+The repository secret `SCV_WRAPPER_SYNC_TOKEN` sends an immediate
+`repository_dispatch` event to both wrapper repositories. Each wrapper gets its
+own attempt with three backoff retries, so one unreachable wrapper never costs
+the other its notification.
+
+Dispatch never blocks publishing: the release assets are uploaded by an earlier
+step and stay intact. It does, however, **fail the release run** when either
+wrapper was not notified — including when the secret is missing entirely. A
+release that published cleanly but reached nobody is otherwise
+indistinguishable from a healthy one, and that state persisted here unnoticed
+until 2026-08-11. The job summary carries the exact re-send command.
 
 Wrapper scheduled polling is the baseline fallback and does not require this
-cross-repository secret. It resolves the latest immutable Core release and
-opens the same update PR when the pinned version is behind.
+cross-repository secret. Both wrappers poll daily, resolve the latest immutable
+Core release, and open the same update PR when the pinned version is behind — so
+a red dispatch step delays propagation by up to a day rather than losing it.
 
 Each wrapper owns the resulting update PR and its adapter tests. A failed
 wrapper update does not mutate its pinned release.
