@@ -1,0 +1,87 @@
+name: Cross-repo token health
+
+# Why this exists: a release only notices a dead SCV_WRAPPER_SYNC_TOKEN at tag
+# time, and releases are rare. A fine-grained PAT expires on a schedule nobody
+# is watching, so without this the first symptom is a release that publishes
+# cleanly and reaches no wrapper.
+#
+# NOTIFICATIONS: GitHub sends scheduled-workflow failure mail to the user who
+# created the workflow. Keep wookiya1364 as the author of this file — if another
+# account rewrites it, the alerts follow that account instead.
+
+on:
+  schedule:
+    - cron: '17 2 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: token-health
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SCV_WRAPPER_SYNC_TOKEN: ${{ secrets.SCV_WRAPPER_SYNC_TOKEN }}
+    steps:
+      - name: Probe the cross-repository token
+        run: |
+          # Every probe is read-only, and every failure is captured as a value
+          # rather than allowed to abort the step: the default shell is
+          # `bash -e -o pipefail`, so a bare `x=$(gh api ...)` on a 403 would
+          # kill the run before it could say which repository was unreachable.
+          set -uo pipefail
+
+          if [ -z "${SCV_WRAPPER_SYNC_TOKEN:-}" ]; then
+            echo "::error::SCV_WRAPPER_SYNC_TOKEN is not configured. Releases will fail at the dispatch step and neither wrapper will be notified."
+            exit 1
+          fi
+
+          export GH_TOKEN="$SCV_WRAPPER_SYNC_TOKEN"
+          rc=0
+
+          # 1. The token must still be accepted at all.
+          if ! login=$(gh api user --jq .login 2>/dev/null); then
+            echo "::error::The token was rejected by the API. It is expired, revoked, or malformed."
+            exit 1
+          fi
+          echo "authenticated as ${login}"
+
+          # 2. Expiry pre-warning. Fine-grained PATs return this header; classic
+          #    tokens and OAuth tokens do not, so its absence is not a failure.
+          expires=$(gh api -i user 2>/dev/null \
+            | tr -d '\r' \
+            | sed -n 's/^[Gg]ithub-[Aa]uthentication-[Tt]oken-[Ee]xpiration: *//p' \
+            | head -1 || true)
+          if [ -n "${expires:-}" ]; then
+            echo "token expires: ${expires}"
+            exp_epoch=$(date -u -d "${expires}" +%s 2>/dev/null || echo "")
+            if [ -n "$exp_epoch" ]; then
+              days=$(( (exp_epoch - $(date -u +%s)) / 86400 ))
+              echo "days remaining: ${days}"
+              if [ "$days" -lt 14 ]; then
+                echo "::error::The token expires in ${days} day(s) (${expires}). Reissue it and update SCV_WRAPPER_SYNC_TOKEN in scv-core plus SCV_CORE_SYNC_TOKEN in both wrappers."
+                rc=1
+              fi
+            fi
+          else
+            echo "no expiration header (not a fine-grained PAT, or no expiry set)"
+          fi
+
+          # 3. The token must still be able to reach both wrappers with write
+          #    access — that is what `POST /dispatches` requires.
+          for repository in scv-claude-code scv-codex; do
+            push=$(gh api "repos/wookiya1364/${repository}" --jq .permissions.push 2>/dev/null || true)
+            if [ "${push:-}" != "true" ]; then
+              echo "::error::The token has no write access to ${repository} (permissions.push=${push:-<unreadable>}). repository_dispatch needs Contents: write."
+              rc=1
+            else
+              echo "${repository}: write access OK"
+            fi
+          done
+
+          exit "$rc"

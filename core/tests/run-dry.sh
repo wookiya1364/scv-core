@@ -1280,14 +1280,12 @@ FRONT_APP=$(mktemp -d)
 mkdir -p "$FRONT_APP/scv/promote/20260424-tester-good"
 cat > "$FRONT_APP/scv/promote/20260424-tester-good/PLAN.md" <<'EOF'
 ---
-name: plan
-version: 1.0.0
-status: planned
-last_updated: 2026-04-24
-standard_version: 1.0.0
-merge_policy: preserve
 title: good
 slug: 20260424-tester-good
+author: tester
+created_at: 2026-04-24
+status: planned
+tags: [test]
 kind: refactor
 epic: epic-test
 ---
@@ -1300,14 +1298,12 @@ EOF
 mkdir -p "$FRONT_APP/scv/promote/20260424-tester-bad"
 cat > "$FRONT_APP/scv/promote/20260424-tester-bad/PLAN.md" <<'EOF'
 ---
-name: plan
-version: 1.0.0
-status: planned
-last_updated: 2026-04-24
-standard_version: 1.0.0
-merge_policy: preserve
 title: bad
 slug: 20260424-tester-bad
+author: tester
+created_at: 2026-04-24
+status: planned
+tags: [test]
 kind: nonsense
 ---
 EOF
@@ -1317,6 +1313,85 @@ else
   pass "check-frontmatter: kind=nonsense rejected"
 fi
 rm -rf "$FRONT_APP"
+
+# A plan written straight from the scv/PROMOTE.md §4 template must pass, and a
+# plan missing one of its required keys must not. Before v0.23.0 this script
+# applied the standard-doc header schema to plans, so the documented template
+# failed and only hand-built fixtures passed.
+SCHEMA_APP=$(mktemp -d)
+"$HYDRATE" init "$SCHEMA_APP" >/dev/null 2>&1
+mkdir -p "$SCHEMA_APP/scv/promote/20260811-tester-template"
+cat > "$SCHEMA_APP/scv/promote/20260811-tester-template/PLAN.md" <<'EOF'
+---
+title: Template-shaped plan
+slug: 20260811-tester-template
+author: tester
+created_at: 2026-08-11
+status: planned
+tags: [schema]
+---
+EOF
+"$CHECK_FRONT" --project-dir "$SCHEMA_APP" >/dev/null 2>&1 \
+  && pass "check-frontmatter: PROMOTE.md §4 template PLAN accepted" \
+  || fail "check-frontmatter: rejected a PLAN written from the documented template"
+
+# drop a required PLAN key
+mkdir -p "$SCHEMA_APP/scv/promote/20260811-tester-noauthor"
+cat > "$SCHEMA_APP/scv/promote/20260811-tester-noauthor/PLAN.md" <<'EOF'
+---
+title: Missing author
+slug: 20260811-tester-noauthor
+created_at: 2026-08-11
+status: planned
+tags: [schema]
+---
+EOF
+if "$CHECK_FRONT" --project-dir "$SCHEMA_APP" >/dev/null 2>&1; then
+  fail "check-frontmatter: should reject a PLAN missing 'author'"
+else
+  pass "check-frontmatter: PLAN missing 'author' rejected"
+fi
+rm -rf "$SCHEMA_APP/scv/promote/20260811-tester-noauthor"
+
+# The two schemas must not leak into each other. A plan carrying the standard-doc
+# header is exactly what the pre-0.23.0 fixtures looked like, and it is what kept
+# the defect green — so assert it now fails.
+mkdir -p "$SCHEMA_APP/scv/promote/20260811-tester-stddoc"
+cat > "$SCHEMA_APP/scv/promote/20260811-tester-stddoc/PLAN.md" <<'EOF'
+---
+name: plan
+version: 1.0.0
+status: draft
+last_updated: 2026-08-11
+standard_version: 1.0.0
+merge_policy: preserve
+---
+EOF
+if "$CHECK_FRONT" --project-dir "$SCHEMA_APP" >/dev/null 2>&1; then
+  fail "check-frontmatter: should reject a PLAN carrying the standard-doc header"
+else
+  pass "check-frontmatter: standard-doc header rejected in a PLAN"
+fi
+rm -rf "$SCHEMA_APP/scv/promote/20260811-tester-stddoc"
+
+# Status vocabularies are per-schema: `draft` belongs to workflow docs only.
+mkdir -p "$SCHEMA_APP/scv/promote/20260811-tester-draft"
+cat > "$SCHEMA_APP/scv/promote/20260811-tester-draft/PLAN.md" <<'EOF'
+---
+title: Draft-status plan
+slug: 20260811-tester-draft
+author: tester
+created_at: 2026-08-11
+status: draft
+tags: [schema]
+---
+EOF
+if "$CHECK_FRONT" --project-dir "$SCHEMA_APP" >/dev/null 2>&1; then
+  fail "check-frontmatter: should reject status=draft in a PLAN"
+else
+  pass "check-frontmatter: workflow-doc status rejected in a PLAN"
+fi
+rm -rf "$SCHEMA_APP"
 
 echo
 echo "=== [11x] action:status — epic progress section ==="
@@ -3256,14 +3331,12 @@ mkdir -p "$PG_APP/scv/promote/20260807-tester-parallel" "$PG_APP/scv/promote/202
          "$PG_APP/scv/raw" "$PG_APP/scv/archive"
 cat > "$PG_APP/scv/promote/20260807-tester-parallel/PLAN.md" <<'EOF'
 ---
-name: plan
-version: 1.0.0
-status: planned
-last_updated: 2026-08-07
-standard_version: 1.0.0
-merge_policy: preserve
 title: Parallel-hinted plan
 slug: 20260807-tester-parallel
+author: tester
+created_at: 2026-08-07
+status: planned
+tags: [test]
 kind: feature
 parallel_groups: [[1, 2], [3]]
 ---
@@ -3292,14 +3365,12 @@ exit 0
 EOF
 cat > "$PG_APP/scv/promote/20260807-tester-legacy/PLAN.md" <<'EOF'
 ---
-name: plan
-version: 1.0.0
-status: planned
-last_updated: 2026-08-07
-standard_version: 1.0.0
-merge_policy: preserve
 title: Legacy steps-only plan
 slug: 20260807-tester-legacy
+author: tester
+created_at: 2026-08-07
+status: planned
+tags: [test]
 kind: feature
 ---
 
