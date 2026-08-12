@@ -157,3 +157,21 @@ merge_policy: preserve
   붙인 형태로 바꿔, 대화형 셸이 무엇이든 게이트가 서게 했다. 계획 단계에서
   예상하지 못한 항목이며, SCV 의 다른 TESTS.md 에도 같은 위험이 있다.
 - refs: scv/archive/20260811-wookiya1364-implementation-principles/PLAN.md
+
+## [2026-08-12 09:14] wookiya1364 — 쉬운 말 먼저 (사용자 대상 출력 기본 규칙) archived
+
+- verdict: archived
+- why: 어떤 언어로 말할지는 정해져 있었지만 얼마나 쉽게 말할지는 없었다. 그래서
+  계획과 보고가 길고 어려워졌고, 이해되지 않은 계획은 승인 자체가 불가능하다.
+  앞으로 깨면 안 되는 것: 문구는 13개 파일에서 동일해야 한다. 회귀 가드가
+  누락과 불일치를 잡지만, 문구를 고칠 때는 13곳을 함께 고쳐야 한다.
+- discarded alternatives: 공통 블록 토큰 신설(각 파일에 토큰을 적어야 하므로
+  파일 수는 그대로고 빌드 장치만 늘어남) · 설명이 많은 액션에만 넣기(가끔
+  적용되는 규칙은 없는 규칙보다 나쁘다) · GUIDANCE 마커로 감싸기(1단계 범위가
+  promote·work 외 마커를 금지)
+- path delta: 계획은 "프로토콜 13개"라고 썼는데 실제 파일은 15개였다. 나머지
+  둘(set-models·update)은 Language preference 자체가 없는 어댑터 소유 스텁이라
+  대상에서 제외했고, 회귀 가드에 그 제외를 명시적으로 고정했다. 또 report.md 는
+  해당 절이 파일 끝이라 뒤따르는 헤딩이 없어 삽입 방식과 동일성 비교 양쪽에
+  예외 처리가 필요했다 — 문구 비교를 끝 빈 줄 무시로 바꿔 해결했다.
+- refs: scv/archive/20260812-wookiya1364-plain-language/PLAN.md
