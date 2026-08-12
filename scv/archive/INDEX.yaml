@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by action:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-08-11T03:04:11Z
+generated_at: 2026-08-12T00:14:28Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -33,5 +33,9 @@ archives:
     epic: 20260807-scv-simplification
   - slug: 20260811-wookiya1364-implementation-principles
     title: "구현 원칙 4종 — 재활용·최소구현·모듈분리·장기관점 (work·codegen)"
+    kind: feature
+    status: done
+  - slug: 20260812-wookiya1364-plain-language
+    title: "쉬운 말 먼저 — 사용자 대상 출력의 기본 규칙"
     kind: feature
     status: done
