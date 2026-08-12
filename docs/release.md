@@ -96,12 +96,17 @@ removal to an external path.
 ## Promote workflow options
 
 ```bash
-gh workflow run promote.yml                                   # promote, tag, release
-gh workflow run promote.yml -f release=false                  # promote only, no tag
-gh workflow run promote.yml -f notes_file=docs/releases/X.md  # hand-written notes
+gh workflow run promote.yml                       # promote, tag, release
+gh workflow run promote.yml -f release=false      # promote only, no tag
+gh workflow run promote.yml \
+  -f notes_file=docs/releases/<version>.md        # hand-written notes
 ```
 
 Without `notes_file` the release notes are generated from the commits.
+
+The workflow takes no version argument. The tag always comes from whatever
+`VERSION` holds on `main`, so there is nothing to keep in sync by hand — bumping
+`VERSION` in step 1 is what selects the release number.
 
 Run it from the Actions tab if you prefer a button.
 
