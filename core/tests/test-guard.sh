@@ -161,6 +161,21 @@ out="$(run "$P" gate-write "$patch")"
 denied "$out" && pass "a patch that adds source is denied under Rule B" \
               || fail "a patch bypassed Rule B"
 
+# The patch parser is the one place a GNU-only regex slipped in: `\(A\|B\)` is a
+# BSD sed no-op, so on macOS every patch sailed past both rules while Linux CI
+# stayed green. Assert portability directly instead of waiting for the other
+# runner to notice.
+if sed --posix -n 's/x/y/p' </dev/null >/dev/null 2>&1; then
+  probe=$'*** Begin Patch\n*** Add File: scv/promote/x/PLAN.md\n+H\n*** End Patch'
+  got="$(printf '%s\n' "$probe" | sed --posix -n \
+    -e 's/^\*\*\* Add File: //p' -e 's/^\*\*\* Update File: //p' -e 's/^\*\*\* Delete File: //p')"
+  [[ "$got" == "scv/promote/x/PLAN.md" ]] \
+    && pass "the patch parser works under POSIX sed (BSD behaviour)" \
+    || fail "the patch parser is GNU-only" "got: $got"
+else
+  pass "(skip) this sed has no --posix mode to probe with"
+fi
+
 echo "=== receipts are scoped ==="
 
 PA="$(mk_project j)"; PB="$(mk_project k)"

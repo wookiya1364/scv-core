@@ -136,8 +136,13 @@ targets() {
     [[ -n "$p" ]] && printf '%s\n' "$p"
   done
   local cmd; cmd="$(field '.tool_input.command')"
-  [[ -n "$cmd" ]] && printf '%s\n' "$cmd" \
-    | sed -n 's/^\*\*\* \(Add\|Update\|Delete\) File: //p'
+  # Three separate expressions, not one alternation: BSD sed has no \| in a basic
+  # regex, so the GNU form matched nothing on macOS and every patch sailed past
+  # both rules while the Linux job stayed green.
+  [[ -n "$cmd" ]] && printf '%s\n' "$cmd" | sed -n \
+    -e 's/^\*\*\* Add File: //p' \
+    -e 's/^\*\*\* Update File: //p' \
+    -e 's/^\*\*\* Delete File: //p'
 }
 
 abspath() {
@@ -164,8 +169,12 @@ is_exempt() {
 }
 
 deny() {
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":%s}}\n' \
-    "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/$/ /' | tr -d '\n' | sed 's/^/"/; s/ $/"/')"
+  # Collapse to one line, then escape only backslash and quote. Building the JSON
+  # by hand keeps this dependency-free; the reasons are fixed strings from this
+  # file, never user input.
+  local msg
+  msg="$(printf '%s' "$1" | tr '\n' ' ' | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' "$msg"
   exit 0
 }
 
