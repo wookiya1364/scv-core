@@ -5,3 +5,6 @@ coverage/
 *.tmp
 /SHA256SUMS
 /core-manifest.json
+
+# SCV journal — 기본 ignore (core/template/.gitignore.fragment 와 동일 정책)
+scv/journal/
