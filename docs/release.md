@@ -16,10 +16,37 @@
    tools/release-artifact.sh --output-dir dist
    ```
 
-4. Promote the change through `develop → stage → main`.
-5. Tag the `main` commit as `v<exact VERSION>` and push the tag.
+4. Merge the release-prep change into `develop` through a pull request.
+5. Run the promote workflow. It does the rest — promotion, tag, and release:
 
-The release workflow rejects a tag that does not exactly match `VERSION`.
+   ```bash
+   gh workflow run promote.yml
+   ```
+
+**Do not promote or tag by hand.** Steps 4 and 5 are the whole procedure, and the
+workflow is what keeps them identical every time. It opens `develop → stage` and
+`stage → main` as pull requests, waits for their checks, merges, then tags `main`
+from `VERSION` and publishes the release. It never pushes to a permanent branch —
+the branch ruleset requires a pull request for all three.
+
+`workflow_dispatch` is its only trigger. Starting it is the human gate; nothing
+promotes on a schedule or on push. A red check stops the chain and leaves that
+pull request open, so a failed promotion is a pull request you can read, not a
+half-finished merge.
+
+The release workflow rejects a tag that does not exactly match `VERSION`, and the
+promote workflow leaves an existing tag alone.
+
+### The one thing that needs two runs
+
+`workflow_dispatch` always executes the copy of the workflow file on the default
+branch. So when the change you are promoting **edits `promote.yml` itself**, the
+first run still uses the old file: it promotes your fix to `main` and may fail on
+whatever the fix addresses. Run it a second time and the corrected file is the
+one that executes.
+
+This applies only to changes that touch the workflow file. Every other release is
+one run.
 
 ## Artifacts
 
@@ -66,27 +93,31 @@ replacing a visible cache ancestor, namespace, target, or lock during an
 operation cannot redirect staging, installation, cleanup, or lock-owner
 removal to an external path.
 
-## Promoting and releasing
-
-`.github/workflows/promote.yml` runs the whole chain from one manual trigger:
-`develop → stage` and `stage → main`, each as a pull request whose checks it
-waits for, then a tag and a GitHub release from `main`.
-
-It never pushes to a permanent branch — the ruleset requires a pull request for
-all three, so the workflow opens them and merges. `workflow_dispatch` is the
-only trigger, and that manual start is the human gate. A red check stops the
-chain with the pull request left open.
-
-Run it from the Actions tab, or:
+## Promote workflow options
 
 ```bash
-gh workflow run promote.yml                      # promote and release
-gh workflow run promote.yml -f release=false     # promote only
-gh workflow run promote.yml -f notes_file=docs/releases/0.23.0.md
+gh workflow run promote.yml                                   # promote, tag, release
+gh workflow run promote.yml -f release=false                  # promote only, no tag
+gh workflow run promote.yml -f notes_file=docs/releases/X.md  # hand-written notes
 ```
 
-The tag comes from `VERSION`, so release prep still lands on `develop` first.
-An existing tag is left alone.
+Without `notes_file` the release notes are generated from the commits.
+
+Run it from the Actions tab if you prefer a button.
+
+### When it fails
+
+Read which step failed.
+
+**"Promote develop to stage, then stage to main" failed** — a check went red on
+one of the two pull requests. The pull request is still open; fix the branch and
+run the workflow again. It reuses the open pull request rather than opening a
+second one.
+
+**"Tag main and publish the release" failed** — promotion already succeeded, so
+`main` carries the new `VERSION` and only the tag is missing. Fix the cause and
+run again; the promotion steps will find nothing to do and skip straight to
+tagging.
 
 ## Wrapper dispatch
 
