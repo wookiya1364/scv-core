@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "updated_at": "2026-08-12T07:44:45Z",
+  "files": {
+    "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "size": 4974, "mtime": "2026-08-12T06:05:36Z" },
+    "scv/raw/stale/20260812-wookiya1364-forced-invocation.md": { "size": 9860, "mtime": "2026-08-12T07:41:37Z" }
+  },
+  "ref_docs": {
+    "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "slugs": ["20260812-wookiya1364-ci-provenance-gate"], "ref_commit": "1f766d4", "consumed_at": "2026-08-12T06:09:37Z", "origin": "scv/raw/20260812-wookiya1364-ci-provenance-gate.md" },
+    "scv/raw/stale/20260812-wookiya1364-forced-invocation.md": { "slugs": ["20260812-wookiya1364-forced-invocation-guard"], "ref_commit": "1f766d4", "consumed_at": "2026-08-12T07:44:45Z", "origin": "scv/raw/20260812-wookiya1364-forced-invocation.md" }
+  }
+}

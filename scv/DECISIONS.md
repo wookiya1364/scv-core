@@ -175,3 +175,58 @@ merge_policy: preserve
   해당 절이 파일 끝이라 뒤따르는 헤딩이 없어 삽입 방식과 동일성 비교 양쪽에
   예외 처리가 필요했다 — 문구 비교를 끝 빈 줄 무시로 바꿔 해결했다.
 - refs: scv/archive/20260812-wookiya1364-plain-language/PLAN.md
+
+## [2026-08-12 15:07] wookiya1364 — 계획 없는 구현 PR 을 CI 가 막는다 (프로버넌스 게이트)
+
+- verdict: adopted
+- why: 세 저장소를 실제로 재 보니 "계획 없이 구현만 올라온 PR" 을 막는 장치가
+  하나도 없었다. 계획 문서를 보는 워크플로가 아예 없고, check-frontmatter.sh 는
+  CI 에서 실제 저장소를 검사하지 않으며, 검사 대상 glob 이 scv/promote 하나뿐이라
+  work 가 아카이브를 먼저 하고 PR 을 여는 정상 경로에서는 볼 것이 없었다.
+  코드를 바꾸는 PR 에 아카이브된 계획을 요구하는 쪽을 택했다 — 대표님이 막고 싶어
+  한 것이 바로 "플러그인 안 쓰고 그럴듯하게 구현만 올리는" 경로이기 때문이다.
+  게이트는 branch-flow.yml 안에 넣는다. 세 저장소에서 경로 필터 없이 모든 PR 에
+  도는 유일한 워크플로이고, 그 체크가 이미 required_status_checks 에 올라가 있다.
+- discarded alternatives:
+  - 계획이 있을 때만 스키마 검사 (약한 안): 거짓 실패는 거의 없지만 막고 싶어 한
+    경로가 그대로 열려 있어 목적을 달성하지 못한다.
+  - 경고만 하고 막지 않기: 한동안 관찰한다는 장점은 있으나, required_status_checks
+    를 이미 켠 마당에 게이트만 무력한 상태로 두는 것은 앞서 진단한 "초록이지만
+    망가진 상태" 를 하나 더 만드는 셈이다.
+  - 새 워크플로 파일로 분리: 경로 필터 없이 모든 PR 에 돌게 만들고 세 저장소
+    ruleset 에 다시 필수 등록해야 한다. branch-flow.yml 은 그 두 조건을 이미
+    충족하므로 새 파일을 만들 이유가 없다.
+  - 게이트 파서를 새로 작성: lib/yaml.sh 의 yaml_get_list 가 flow/block 두 형식을
+    이미 처리한다(실제 계획 8 개 중 7 개가 flow 형식). 새로 쓰면 그 지원을 잃는다.
+- refs: scv/promote/20260812-wookiya1364-ci-provenance-gate/PLAN.md
+
+## [2026-08-12 17:05] wookiya1364 — scv 명령 호출을 기계적으로 강제한다 (가드 훅 + 문서 정합)
+
+- verdict: adopted
+- why: 배포된 플러그인은 강제가 0 이다. 전부 설명문이고 모델이 안 쓰기로 고르면
+  그만이다. PreToolUse 가드 훅으로 실제 거부가 가능하다는 것을 Codex 에서 재현해
+  확인했고(파일이 안 만들어짐), SCV 자체 문서가 "Codex 는 안 된다"고 적어놓은 것이
+  틀렸다는 것도 확인했다. 자기 차단은 영수증으로 푼다 — 호스트가 발생시키는
+  이벤트로 발급하므로 모델이 위조할 수 없다. 대표님이 전체(Rule A + Rule B 둘 다
+  기본 켜기)를 요구했고, 그러려면 오탐이 0 이어야 하므로 영수증 인정 범위를 15 개
+  명령 전부로 넓힌다.
+- discarded alternatives:
+  - Rule A 만 켜고 Rule B 는 opt-in (원래 권고안): 오탐 위험은 낮지만 계획 없이
+    코드만 고치는 경로가 열려 있다. 대표님이 전체를 요구해 기각.
+  - Rule B 의 "status: in_progress 계획이 있으면 허용" 조건을 튜닝: 삭제로 바꿨다.
+    work.sh 가 status 를 아예 안 써서 정상 작업 중에도 거짓이고(이 저장소 아카이브
+    8 개 중 5 개가 아직 planned), PLAN.md 가 Rule B 면제·Rule A 수정허용이라 모델이
+    한 줄 고쳐 스스로 발급하는 토큰이었다.
+  - 영수증을 {work, codegen} 으로 좁게 유지: 명령이 도는데도 막히는 경우가 5 개
+    생긴다. 그중 help.md:60 은 프로젝트 첫 사용을 벽돌로 만든다.
+  - 빠른 경로(PROMOTE.md §1.6) 삭제: work.sh 에 --fast 를 붙여 명령으로 만드는 쪽을
+    택했다. 추가만 하므로 기존 CI 단언 13 개가 그대로 통과한다.
+  - 일관성 테스트를 core/tests/ 에 두기: 그 디렉터리는 배포되고 해시 고정되며,
+    test-host-neutral.sh 의 금지 문자열 '/scv:' 를 검사기가 자기 안에 포함하게 돼
+    자기 테스트에 걸린다. 저장소 루트 tests/ 로.
+  - 토큰 allowlist 로 예외 처리: "via action:promote or by hand" 가 면제돼버린다.
+    명령 토큰의 존재는 위반과 양의 상관이다. 명시적 file:line 앵커로.
+  - 가드를 fail-closed 로: 호스트가 이미 그 경로에서 열린 채 실패하므로 적대적
+    강도는 거의 안 오르는데, 가드 버그 하나가 모든 프로젝트의 모든 쓰기를 벽돌로
+    만든다. 규칙에 명시적으로 걸린 경우만 닫는다.
+- refs: scv/promote/20260812-wookiya1364-forced-invocation-guard/PLAN.md
