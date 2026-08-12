@@ -2,7 +2,7 @@
 
 All notable changes to SCV Core are documented here.
 
-## [Unreleased]
+## [0.23.0] - 2026-08-12
 
 ### 쉬운 말 먼저 — 사용자 대상 출력의 기본 규칙
 
@@ -24,7 +24,6 @@ All notable changes to SCV Core are documented here.
 - **한계**: 규칙이 프로토콜에 있다는 것까지만 테스트한다. 에이전트가 실제로
   쉽게 말하는지 검증하는 수단은 없다.
 
-## [0.23.0] - 2026-08-11
 
 ### 릴리스 알림이 실패하면 릴리스 run 도 실패한다
 
