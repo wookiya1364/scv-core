@@ -37,6 +37,15 @@ jobs:
       - name: Core contracts and transition transcript
         run: bash tests/run.sh
 
+      - name: Frontmatter — this repository's own plans
+        # run-dry.sh exercises this script against synthetic fixtures in a temp
+        # dir. Nothing ran it against the repository itself, so every plan the
+        # project has ever shipped went unchecked while CI stayed green.
+        run: bash core/scripts/check-frontmatter.sh --project-dir .
+
+      - name: Guard and documents agree
+        run: bash tests/test-guard-consistency.sh
+
       - name: Shared regression
         run: bash core/tests/run-dry.sh
 
