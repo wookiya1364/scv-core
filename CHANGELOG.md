@@ -2,7 +2,7 @@
 
 All notable changes to SCV Core are documented here.
 
-## [Unreleased]
+## [0.24.0] - 2026-08-12
 
 ### CI 가 3분 30초에서 30초대로 (테스트만 변경, 동작 무변경)
 
