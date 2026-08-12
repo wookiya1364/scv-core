@@ -859,7 +859,12 @@ from pathlib import Path
 
 root = Path(sys.argv[1])
 payload = b"x" * 1024
-for index in range(4000):
+# The copy is descriptor-relative and per-file (~7ms each), so this count is
+# purely the width of the race window the assertions below need. 800 files is
+# about six seconds of copying against a spin loop that finds the staging
+# directory in milliseconds — generous margin at a fraction of the old 4000,
+# which spent 29 seconds and dominated the whole CI job.
+for index in range(800):
     (root / f"{index:04d}.bin").write_bytes(payload)
 PY
 SCV_DECK_CACHE_DIR="$race_base" \
@@ -1068,9 +1073,13 @@ fi
 # Malformed or surprising lock state is preserved and fails closed. A valid
 # lock whose owner has exited is the only state eligible for stale reclaim.
 make_dead_pid() {
-  sleep 30 &
+  # Let the child exit on its own rather than signalling a long sleep. `kill` on
+  # a just-forked child can lose the race, and then `wait` blocks for the sleep's
+  # whole lifetime — observed as a 30s stall in one of the five call sites while
+  # the other four returned in a millisecond. Waiting on a process that is
+  # already exiting gives the same guarantee (a reaped PID) deterministically.
+  ( exit 0 ) &
   local child=$!
-  kill "$child"
   wait "$child" 2>/dev/null || true
   printf '%s\n' "$child"
 }
