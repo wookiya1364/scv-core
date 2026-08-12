@@ -3641,6 +3641,34 @@ grep -qF "(T-001) keep me" "$OLDJ_APP/scv/TODO.md" \
   || fail "sync: user TODO item lost"
 
 echo
+echo "=== [15p] v0.23.0 — plain-language rule in every user-facing protocol ==="
+# Every protocol that resolves a language must also carry the plain-language
+# rule, and the wording must be one text — a per-file variant is unmaintainable.
+# set-models.md / update.md are adapter-owned stubs with no user-facing output,
+# so they carry neither section.
+PLAIN_TARGETS=$(grep -l "^## Language preference" "$PROTOCOL_ROOT"/*.md | sort)
+PLAIN_N=$(printf '%s\n' "$PLAIN_TARGETS" | grep -c .)
+PLAIN_HAVE=$(grep -l "^## Plain language first$" "$PROTOCOL_ROOT"/*.md | grep -c .)
+[[ "$PLAIN_N" -ge 13 ]] \
+  && pass "plain-language: $PLAIN_N protocols resolve a language" \
+  || fail "plain-language: only $PLAIN_N protocols resolve a language (expected >= 13)"
+[[ "$PLAIN_N" -eq "$PLAIN_HAVE" ]] \
+  && pass "plain-language: rule present in all $PLAIN_HAVE of them" \
+  || fail "plain-language: rule missing — $PLAIN_HAVE of $PLAIN_N protocols have it"
+PLAIN_VARIANTS=$(printf '%s\n' "$PLAIN_TARGETS" | while read -r f; do
+  awk '/^## Plain language first$/{p=1} p&&/^## /&&!/^## Plain language first$/{exit} p' "$f" \
+    | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' | md5sum | cut -d' ' -f1
+done | sort -u | grep -c .)
+[[ "$PLAIN_VARIANTS" -eq 1 ]] \
+  && pass "plain-language: one shared wording across protocols" \
+  || fail "plain-language: $PLAIN_VARIANTS different wordings found"
+for stub in set-models update; do
+  grep -q "^## Plain language first$" "$PROTOCOL_ROOT/$stub.md" \
+    && fail "plain-language: adapter stub $stub.md should not carry the rule" \
+    || pass "plain-language: adapter stub $stub.md excluded"
+done
+
+echo
 echo "=== [16] v0.22.0 — decision record points in 3 protocols (Scenario 7) ==="
 # promote.md — plan approval appends adopted direction + discarded alternatives
 assert_contains "$PROMOTE_CMD" "Step 5.1 — Decision log append"

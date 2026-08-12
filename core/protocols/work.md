@@ -38,6 +38,24 @@ Parse the header (`MODE:`, `SCV_DIR:`, `TARGET_SLUG:`, `PLAN_FILE:`, `TESTS_FILE
 
 > **Monorepo module threading** — if `SCV_DIR:` is **not** plain `scv` (i.e. the user targeted a nested module, e.g. `action:work FE <slug>` → `SCV_DIR: FE/scv`), pass that `SCV_DIR` value as the **leading arg** to every lifecycle helper in Step 9 — `regression.sh <SCV_DIR>`, `work.sh <SCV_DIR> <slug> --archive`, `pr-helper.sh <SCV_DIR> <slug>` — so Steps 9a/9b/9d all operate on the SAME scv/. Omitting it makes the Step-9a regression gate run against the wrong scv and pass **without testing (false green)**. For a plain `scv` (standalone/root), pass nothing extra.
 
+## Plain language first
+
+Say it the short way first. A reader who understands the short version can ask
+for more; a reader lost in the long version asks for nothing.
+
+- One idea per sentence. If a sentence needs a comma to join two clauses, it is
+  usually two sentences.
+- Use the plain name, not the category name. "the file that records decisions"
+  lands faster than "the decision persistence layer".
+- Lead with what happens to the user, then why it happens.
+- A comparison to something ordinary is worth more than a precise description
+  the reader cannot picture. Use one when it gets there faster.
+- Define a term of art in the same breath you first use it, or drop the term.
+- Detail is not owed up front. Offer it, and give it when asked.
+
+This governs everything the user reads: questions, plans, progress reports,
+summaries, and explanations of what went wrong.
+
 ## Protocol
 
 <!-- SCV:GUIDANCE -->
