@@ -66,6 +66,28 @@ replacing a visible cache ancestor, namespace, target, or lock during an
 operation cannot redirect staging, installation, cleanup, or lock-owner
 removal to an external path.
 
+## Promoting and releasing
+
+`.github/workflows/promote.yml` runs the whole chain from one manual trigger:
+`develop → stage` and `stage → main`, each as a pull request whose checks it
+waits for, then a tag and a GitHub release from `main`.
+
+It never pushes to a permanent branch — the ruleset requires a pull request for
+all three, so the workflow opens them and merges. `workflow_dispatch` is the
+only trigger, and that manual start is the human gate. A red check stops the
+chain with the pull request left open.
+
+Run it from the Actions tab, or:
+
+```bash
+gh workflow run promote.yml                      # promote and release
+gh workflow run promote.yml -f release=false     # promote only
+gh workflow run promote.yml -f notes_file=docs/releases/0.23.0.md
+```
+
+The tag comes from `VERSION`, so release prep still lands on `develop` first.
+An existing tag is left alone.
+
 ## Wrapper dispatch
 
 The repository secret `SCV_WRAPPER_SYNC_TOKEN` sends an immediate
