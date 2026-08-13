@@ -251,38 +251,78 @@ function renderScreen(b, t) {
 }
 
 const CSS = `
-/* 다크가 기본값(--bg/--panel 등 전부). 라이트는 html[data-theme="light"] 오버라이드 —
+/* Dark only — the light token set and its toggle were removed:
    FE 프로젝트의 다크-기본+라이트-오버라이드 관례와 동일한 모양(속성 하나만 바뀌면
    전체가 재테마된다). head 맨 앞 인라인 스크립트가 pre-paint 로 저장된 선택을 적용해
    깜빡임(FOUC)이 없다. */
-:root{--fg:#e7e9f0;--muted:#9096a8;--bg:#171922;--panel:#1d2029;--border:#2c3040;--primary:#7c93ff;--warn:#e0ab48;--danger:#ef6b6b;--good:#3ecf8e;--page-bg:#0d0e13;--on-primary:#12163a;--on-warn:#241a06;}
-html[data-theme="light"]{--fg:#1a1d24;--muted:#5b6270;--bg:#ffffff;--panel:#f6f7f9;--border:#e3e6ea;--primary:#2f6feb;--warn:#b8860b;--danger:#c0392b;--good:#1e8e5a;--page-bg:#f6f7f9;--on-primary:#ffffff;}
+/* Dark only. Ported from the owner's DesignSystem .dark block (shadcn oklch ->
+   sRGB, every neutral at chroma 0). The blue-cast greys this replaces
+   (#171922 / #1d2029 / #2c3040 / #9096a8) were the single loudest reason the
+   two decks read as different systems.
+
+   Contrast figures are WCAG 2.x, measured against the surface named. */
+:root{
+  /* surfaces */
+  --bg:#0a0a0a;                  /* the one ground */
+  --panel:#171717;               /* cards, aside, code */
+  --surface-2:#121212;           /* zebra rows, quiet fills */
+  --surface-3:#151515;           /* table head, code block */
+
+  /* text */
+  --fg:#fafafa;                  /* 18.97:1 on --bg */
+  --fg-body:#e2e2e2;             /* 15.28:1 on --bg  · body copy */
+  --muted-foreground:#a1a1a1;    /*  7.66:1 on --bg  · 6.94:1 on --panel */
+
+  /* lines — alpha so ONE value composites correctly over bg and panel alike */
+  --border:rgba(255,255,255,.10);
+  --border-strong:#4d4d4d;       /*  3.02:1 on --bg · load-bearing rules only */
+  --ring:#737373;                /*  4.18:1 on --bg */
+
+  /* brand — the owner's rose, kept for a public product on their say-so.
+     TWO values, because one cannot do both jobs: oklch(.455 .188 13.697)
+     = #a50036 measures 2.50:1 as text on --bg and is unreadable. The text
+     value is the same hue lifted in lightness only. */
+  --primary:#a50036;             /* fill · white on it 7.58:1 */
+  --primary-text:#fc7184;        /* text · 7.39:1 on --bg · 6.69:1 on --panel */
+  --on-primary:#fafafa;          /* 7.58:1 on the --primary plate */
+
+  /* status */
+  --good:#4bd39a;                /*  9.53:1 on --bg */
+  --warn:#e3b153;                /*  9.18:1 on --bg */
+  --danger:#f4837f;              /*  7.22:1 on --bg */
+  --on-warn:#241a06;             /*  8.72:1 on the --warn plate */
+}
 *{box-sizing:border-box}
 html,body{height:100%}
 html{scroll-behavior:smooth}
-body{margin:0;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:var(--fg);background:var(--page-bg)}
+body{margin:0;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:var(--fg);background:var(--bg)}
+/* Controls do not inherit the document font — a UA default applies unless asked.
+   Six controls below set font-size alone or an invalid \`font:\` shorthand, and
+   all of them rendered in 13.333px/400/Arial. This one line is what makes the
+   per-control rules that follow actually reach the element. */
+button,input,select,textarea{font:inherit;color:inherit}
 /* 문서 = 스크롤되는 본문(좌) + 상시 원문 마크다운 패널(우, sticky) — 이게 scv:deck 의
    정체성이다: 렌더링과 원문이 늘 같은 화면에 나란히 있어야 서로 어긋나지 않았다는 게
    보장된다. 인쇄 시에는 패널을 접고 본문 뒤에 원문을 부록으로 붙인다(.print-source). */
 .shell{display:flex;height:100vh;overflow:hidden}
 .scroll-main{flex:1;min-width:0;overflow-y:auto}
-.wrap{max-width:840px;margin:0 auto;background:var(--bg);min-height:100%;padding:0 clamp(20px,5vw,56px) 96px;box-shadow:0 0 0 1px var(--border)}
+.wrap{max-width:840px;margin:0 auto;min-height:100%;padding:0 clamp(20px,5vw,56px) 96px}
 header.doc{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--border);margin:0 calc(clamp(20px,5vw,56px)*-1);padding:18px clamp(20px,5vw,56px);display:flex;align-items:center;gap:14px;justify-content:space-between}
 header.doc h1{font-size:22px;margin:0;font-weight:700}
 .header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.theme-toggle,.panel-toggle{flex-shrink:0;font:600 12px/1 inherit;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer}
-.theme-toggle:hover,.panel-toggle:hover{background:var(--border);color:var(--fg)}
+.panel-toggle{flex-shrink:0;font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer}
+.panel-toggle:hover{background:var(--border);color:var(--fg)}
 .panel-toggle .kbd{opacity:.55;margin-left:4px}
 .source-panel{position:relative;width:min(440px,38vw);flex-shrink:0;border-left:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column}
 .source-panel.closed{display:none}
 .panel-resize-handle{position:absolute;left:0;top:0;bottom:0;width:7px;margin-left:-4px;cursor:col-resize;z-index:6}
 .panel-resize-handle:hover{background:rgba(127,137,160,.25)}
 .panel-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
-.panel-title{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.02em}
-.panel-close{border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 7px;border-radius:5px;line-height:1.4}
+.panel-title{font-size:12px;color:var(--muted-foreground);font-weight:700;letter-spacing:.02em}
+.panel-close{border:none;background:none;color:var(--muted-foreground);cursor:pointer;font-size:14px;padding:2px 7px;border-radius:5px;line-height:1.4}
 .panel-close:hover{background:var(--border);color:var(--fg)}
 .panel-tabs{display:flex;gap:2px;padding:9px 12px 0;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
-.panel-tab{font:600 12px/1 inherit;color:var(--muted);padding:7px 10px;border:none;background:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.panel-tab{font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);padding:7px 10px;border:none;background:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
 .panel-tab.active{color:var(--fg);border-bottom-color:var(--primary)}
 .panel-body{flex:1;overflow-y:auto;padding:14px}
 .panel-body .src-doc{display:none;margin:0}
@@ -292,7 +332,7 @@ header.doc h1{font-size:22px;margin:0;font-weight:700}
    deck-nav(아래) 가 같은 역할을 대신한다 — 페이지 번호 pill + 클릭 이동. */
 @media screen{nav.toc{display:none}}
 nav.toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:26px 0}
-nav.toc h3{margin:0 0 8px;font-size:12px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
+nav.toc h3{margin:0 0 8px;font-size:12px;letter-spacing:.04em;color:var(--muted-foreground);text-transform:uppercase}
 nav.toc ol{margin:0;padding-left:20px;columns:2;gap:24px}
 nav.toc a{color:var(--fg);text-decoration:none}
 nav.toc a:hover{color:var(--primary);text-decoration:underline}
@@ -301,23 +341,23 @@ section:first-of-type{border-top:none}
 /* 페이지 넘김(화면 전용) — 한 번에 한 섹션만. 인쇄 시엔 전부 펼쳐서 보여준다. */
 @media screen{.slide-page{display:none}.slide-page.active{display:block}}
 .deck-nav{display:flex;flex-wrap:wrap;gap:6px;margin:20px 0}
-.deck-nav-item{font:600 12px/1 inherit;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer;white-space:nowrap}
+.deck-nav-item{font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer;white-space:nowrap}
 .deck-nav-item:hover{color:var(--fg)}
 .deck-nav-item.active{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
 .deck-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:8px;padding-top:20px;border-top:1px solid var(--border)}
-.deck-arrow{font:600 13px/1 inherit;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;cursor:pointer}
+.deck-arrow{font-weight:600;font-size:13px;line-height:1;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;cursor:pointer}
 .deck-arrow:disabled{opacity:.35;cursor:default}
 .deck-arrow:not(:disabled):hover{background:var(--panel)}
 .deck-dots{display:flex;align-items:center;gap:6px}
 .deck-dot{width:8px;height:8px;border-radius:999px;background:var(--border);border:none;cursor:pointer;padding:0}
 .deck-dot.active{background:var(--primary);width:20px;border-radius:5px}
-.deck-counter{font-size:12px;color:var(--muted);min-width:52px;text-align:center}
+.deck-counter{font-size:12px;color:var(--muted-foreground);min-width:52px;text-align:center}
 mark.src-hl{background:#ffe58a;color:#3a2f00;border-radius:3px;padding:0 1px}
 h2{font-size:19px;margin:.2em 0 .6em;font-weight:700}
 h4{margin:.2em 0 .4em;font-size:14px}
 .subhead{font-size:15px;font-weight:600;margin:1.1em 0 .3em;color:var(--fg)}
-.kicker{font-size:12px;color:var(--muted);letter-spacing:.03em;margin-bottom:2px}
-.sub{color:var(--muted);margin:-.2em 0 1em}
+.kicker{font-size:12px;color:var(--muted-foreground);letter-spacing:.03em;margin-bottom:2px}
+.sub{color:var(--muted-foreground);margin:-.2em 0 1em}
 p{margin:.5em 0}
 ul,ol{margin:.4em 0;padding-left:22px}
 li{margin:.25em 0}
@@ -328,9 +368,9 @@ thead th{background:var(--panel);font-weight:600}
 table.kv th{background:var(--panel);width:30%;white-space:nowrap}
 .kpi{display:flex;flex-wrap:wrap;gap:12px;margin:.8em 0}
 .kpi-card{flex:1 1 160px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--panel)}
-.kpi-label{font-size:13px;color:var(--muted);margin-bottom:6px}
+.kpi-label{font-size:13px;color:var(--muted-foreground);margin-bottom:6px}
 .kpi-nums{display:flex;align-items:center;gap:8px;font-weight:700}
-.kpi-nums .base{color:var(--muted)}
+.kpi-nums .base{color:var(--muted-foreground)}
 .kpi-nums .arrow{color:var(--primary)}
 .kpi-nums .target{color:var(--good)}
 .goals{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:.8em 0}
@@ -372,7 +412,7 @@ pre.mermaid.mermaid-fallback::before{content:"\\29c9 \\b2e4\\c774\\c5b4\\adf8\\b
   --wf-warn:#e0ab48; --wf-warn-bg:rgba(224,171,72,.15);
   --wf-radius:10px; --wf-radius-pill:999px;
 }
-.wf-screen-label{font-size:12px;color:var(--muted);margin-bottom:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.wf-screen-label{font-size:12px;color:var(--muted-foreground);margin-bottom:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .wf-frame{border:1px solid var(--wf-border);border-radius:var(--wf-radius);background:var(--wf-bg);color:var(--wf-fg);overflow:hidden}
 .wf-nav{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--wf-border);background:var(--wf-bg);flex-wrap:wrap}
 .wf-nav-item{font-size:13px;color:var(--wf-muted-fg);padding:12px 11px;border-bottom:2px solid transparent}
@@ -385,7 +425,7 @@ pre.mermaid.mermaid-fallback::before{content:"\\29c9 \\b2e4\\c774\\c5b4\\adf8\\b
 .wf-tabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid var(--wf-border)}
 .wf-tab{font-size:12.5px;color:var(--wf-muted-fg);padding:7px 11px;border-bottom:2px solid transparent}
 .wf-tab.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-muted-fg)}
-.wf-btn{font:500 12.5px/1 inherit;padding:8px 13px;border-radius:8px;border:1px solid transparent;background:var(--wf-muted);color:var(--wf-fg);cursor:default}
+.wf-btn{font-weight:500;font-size:12.5px;line-height:1;padding:8px 13px;border-radius:8px;border:1px solid transparent;background:var(--wf-muted);color:var(--wf-fg);cursor:default}
 .wf-btn-primary{background:var(--wf-primary);color:var(--wf-primary-fg)}
 .wf-btn-danger{background:var(--wf-danger-bg);color:var(--wf-danger)}
 .wf-input{display:inline-flex;align-items:center;font-size:12.5px;color:var(--wf-muted-fg);padding:8px 12px;border:1px solid var(--wf-border);border-radius:8px;background:var(--wf-card);min-width:120px}
@@ -492,8 +532,7 @@ export function renderHtml(data, opts = {}) {
   const panelToggle = sources.length
     ? `<button class="panel-toggle" onclick="scvTogglePanel()" title="${esc(t("sourcePanelToggleTitle"))}">${esc(t("sourcePanelLabel"))} <span class="kbd">S</span></button>`
     : "";
-  const themeToggle = `<button class="theme-toggle" id="scvThemeBtn" onclick="scvToggleTheme()" title="${esc(t("themeToggleTitle"))}"></button>`;
-  const headerActions = `<div class="header-actions">${themeToggle}${panelToggle}</div>`;
+  const headerActions = `<div class="header-actions">${panelToggle}</div>`;
   const panelTabs =
     sources.length > 1
       ? `<div class="panel-tabs">${sources
@@ -682,34 +721,13 @@ export function renderHtml(data, opts = {}) {
   }
 </script>`;
 
-  // 다크 기본값 + 라이트 오버라이드. localStorage 에 저장된 선택을 <head> 맨 앞에서
-  // (스타일/본문 파싱 전) 적용해 라이트를 골랐던 사용자가 재방문 시 깜빡임 없이 바로
-  // 라이트로 뜨게 한다.
-  const themeInit = `<script>(function(){try{if(localStorage.getItem('scv-deck-theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>`;
-  const THEME_LIGHT_LABEL = JSON.stringify(t("themeLight"));
-  const THEME_DARK_LABEL = JSON.stringify(t("themeDark"));
-  const themeScript = `<script>
-  function scvThemeLabel(){ return document.documentElement.getAttribute('data-theme')==='light' ? ${THEME_LIGHT_LABEL} : ${THEME_DARK_LABEL}; }
-  function scvToggleTheme(){
-    var html = document.documentElement;
-    var next = html.getAttribute('data-theme')==='light' ? 'dark' : 'light';
-    if (next === 'light') html.setAttribute('data-theme','light'); else html.removeAttribute('data-theme');
-    try { localStorage.setItem('scv-deck-theme', next); } catch(e){}
-    var btn = document.getElementById('scvThemeBtn');
-    if (btn) btn.textContent = scvThemeLabel();
-  }
-  document.addEventListener('DOMContentLoaded', function(){
-    var btn = document.getElementById('scvThemeBtn');
-    if (btn) btn.textContent = scvThemeLabel();
-  });
-</script>`;
 
   const HTML_LANG = { english: "en", korean: "ko", japanese: "ja" }[normalizeLang(opts.lang)] || "en";
   const title = esc(data.title || data.slug || t("untitledDeck"));
   return `<!doctype html>
 <html lang="${HTML_LANG}">
 <head>
-${themeInit}
+
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${title}</title>
@@ -738,7 +756,7 @@ ${sourcePanel}
 </div>
 ${mermaidScript}
 ${pageScript}
-${themeScript}
+
 </body>
 </html>
 `;
