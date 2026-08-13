@@ -91,7 +91,7 @@ const looksRendered = (dom) =>
 // MUST be async (spawn, not spawnSync): the page is served by THIS process's
 // http server, so a blocked event loop would deadlock Chrome's page load until
 // its timeout — the classic self-serve pitfall.
-function renderOnce(extraArgs) {
+function renderOnce(extraArgs, useProfile = false) {
   const profile = mkdtempSync(join(tmpdir(), "scv-deck-chrome-"));
   return new Promise((resolve) => {
     const child = spawn(
@@ -102,7 +102,12 @@ function renderOnce(extraArgs) {
         "--hide-scrollbars",
         "--no-first-run",
         "--disable-extensions",
-        `--user-data-dir=${profile}`,
+        // A --user-data-dir makes --dump-dom emit nothing at all on Chrome 149
+        // (0 bytes, exit 0), so every attempt in the ladder below failed and the
+        // deck silently shipped the CDN loader instead of a baked SVG.
+        // --incognito gives the same clean-state isolation the profile was there
+        // for. The profile form stays reachable for hosts without incognito.
+        ...(useProfile ? [`--user-data-dir=${profile}`] : ["--incognito"]),
         "--virtual-time-budget=30000",
         "--dump-dom",
         url,
@@ -137,8 +142,18 @@ function renderOnce(extraArgs) {
 let dom = "";
 // New headless first; some sandboxed/CI environments need --no-sandbox; very old
 // Chrome only knows the legacy --headless flag.
-for (const attempt of [["--headless=new"], ["--headless=new", "--no-sandbox"], ["--headless", "--no-sandbox"]]) {
+// Two independent things silence --dump-dom on this browser: a --user-data-dir,
+// and the absence of --no-sandbox. The old ladder varied only the second, so on
+// a machine that needs both it never produced a single byte and the skip looked
+// like "offline? CDN blocked?" rather than a browser-flag problem.
+for (const attempt of [
+  ["--headless=new", "--no-sandbox"],
+  ["--headless=new"],
+  ["--headless", "--no-sandbox"],
+]) {
   dom = await renderOnce(attempt);
+  if (dom && dom.includes("</html>")) break;
+  dom = await renderOnce(attempt, true);
   if (looksRendered(dom)) break;
 }
 server.close();
