@@ -136,6 +136,17 @@ const PROBE = String.raw`
       labelColor:label?getComputedStyle(label).color:null,
       labelContrast:(label&&node)?ratio(getComputedStyle(label).color,getComputedStyle(node).fill):null,
       inlineColourAttrs:svg.querySelectorAll('[style*="fill:"],[style*="stroke:"]').length,
+      // A label whose text is wider than its box is clipped mid-word. Mermaid
+      // sizes edge boxes for two wrapped lines, so this only fires when
+      // something stopped the wrap — <pre>'s white-space:pre did, silently.
+      clippedLabels:(function(){
+        var n=0;
+        svg.querySelectorAll("foreignObject p").forEach(function(el){
+          if(el.scrollWidth>el.clientWidth+1) n++;
+        });
+        return n;
+      })(),
+      labelCount:svg.querySelectorAll("foreignObject p").length,
       idScopedRules:(function(){
         var s=svg.querySelector("style"); if(!s) return 0;
         return (s.textContent.match(/#mermaid-\d+/g)||[]).length;
@@ -144,12 +155,18 @@ const PROBE = String.raw`
   }
 
   var declared={};
-  for(var i=0;i<document.styleSheets.length;i++){
-    var rules; try{ rules=document.styleSheets[i].cssRules; }catch(e){ continue; }
+  // Walk nested rules too. A custom property declared inside @supports or @media
+  // is still declared; a flat scan reported --bleed as undeclared and would have
+  // trained the reader to ignore this line.
+  function collect(rules){
     for(var j=0;j<rules.length;j++){
-      var st=rules[j].style; if(!st) continue;
-      for(var k=0;k<st.length;k++) if(st[k].indexOf("--")===0) declared[st[k]]=1;
+      var r=rules[j];
+      if(r.style) for(var k=0;k<r.style.length;k++) if(r.style[k].indexOf("--")===0) declared[r.style[k]]=1;
+      if(r.cssRules) collect(r.cssRules);
     }
+  }
+  for(var i=0;i<document.styleSheets.length;i++){
+    try{ collect(document.styleSheets[i].cssRules); }catch(e){ continue; }
   }
   var css=Array.prototype.map.call(document.querySelectorAll("style"),function(s){return s.textContent;}).join("\n");
   var seen={}, m, re=/var\((--[a-z0-9-]+)/g;
@@ -213,6 +230,7 @@ if (out.diagram) {
   console.log("            edge " + f(d.edgeStroke) + "  contrast " + f(d.edgeContrast) + ":1");
   console.log("            node stroke contrast " + f(d.nodeStrokeContrast) + ":1  label/fill " + f(d.labelContrast) + ":1");
   console.log("            inline colour attrs " + f(d.inlineColourAttrs) + "  id-scoped rules " + f(d.idScopedRules));
+  console.log("            labels " + f(d.labelCount) + ", clipped " + f(d.clippedLabels));
 }
 if (out.chrome) console.log("  chrome    before content " + f(out.chrome.beforeContentPx) + "px");
 if (out.nav) console.log("  nav       height " + f(out.nav.heightPx) + "px  flex-wrap " + f(out.nav.flexWrap));

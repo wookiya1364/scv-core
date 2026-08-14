@@ -320,8 +320,11 @@ button,input,select,textarea{font:inherit;color:inherit}
    lived inside .wrap and pushed 268px of nav in front of the first sentence. */
 .shell{display:grid;grid-template-rows:auto 1fr auto;height:100svh;overflow:hidden}
 .shell-mid{display:flex;min-height:0;overflow:hidden}
-.scroll-main{flex:1;min-width:0;overflow-y:auto}
-.wrap{max-width:840px;margin:0 auto;min-height:100%;padding:0 clamp(20px,5vw,56px) 96px}
+/* A container so a figure can measure the READING area and break out of the
+   840px text column. 100vw would count the source panel too and push the
+   diagram under it. */
+.scroll-main{flex:1;min-width:0;overflow-y:auto;container-type:inline-size}
+.wrap{--doc-pad:clamp(20px,5vw,56px);max-width:840px;margin:0 auto;min-height:100%;padding:0 var(--doc-pad) 96px}
 header.doc{display:flex;align-items:center;gap:16px;min-width:0;background:var(--bg);border-bottom:1px solid var(--border);padding:11px 20px}
 header.doc h1{font-size:15px;font-weight:600;margin:0;flex-shrink:0;max-width:34ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)}
 .header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
@@ -411,8 +414,34 @@ pre.code{background:var(--surface-3);color:var(--fg-body);border-radius:10px;pad
    frame scrolls instead of shrinking it — a 1437px graph squeezed into an
    840px column rendered its 16px labels at 7.7px, which was the single worst
    readability defect in the deck. */
+/* Full bleed: the figure uses the whole reading area, not the 840px measure the
+   prose wants. A 1388px graph inside an 840px column left ~215px of dead gutter
+   on each side AND a scrollbar — the worst of both. */
 pre.mermaid{background:var(--surface-3);border:1px solid var(--border-strong);border-radius:10px;padding:14px;margin:1.1em 0;overflow-x:auto;text-align:left}
-pre.mermaid svg{max-width:none;height:auto}
+@supports (width:100cqw){
+  pre.mermaid{
+    /* A 16px gutter, not the prose gutter. Text wants a comfortable measure; a
+       figure wants the glass. With the source panel open — which is the deck's
+       whole point and stays open — every pixel of the reading area counts. */
+    --bleed:calc(100cqw - 32px);
+    width:var(--bleed);
+    max-width:var(--bleed);
+    margin-inline:calc((100% - var(--bleed)) / 2);
+  }
+}
+/* Fit the frame when there is room; below 900px stop shrinking and scroll
+   instead. Scaling all the way down is what made 16px labels render at 7.7px,
+   and a scrollbar is better than text nobody can read. */
+pre.mermaid svg{max-width:100%;min-width:900px;height:auto}
+/* The diagram lives in a <pre>, whose UA default is white-space:pre, and that
+   inherits into every label. Mermaid sizes an edge label's box for TWO wrapped
+   lines (200x48.75) and the text then refused to wrap, so anything past 200px
+   was clipped mid-word — "BASE_REF, HEAD_REF, PR_TITLE" measured 230px of text
+   in a 200px box. Labels are prose, not preformatted text. */
+pre.mermaid foreignObject,pre.mermaid foreignObject *{white-space:normal}
+/* On a narrow window there is nothing to floor — let it fit rather than force
+   a scrollbar the reader cannot escape. */
+@media (max-width:900px){pre.mermaid svg{min-width:0}}
 pre.mermaid.mermaid-fallback{text-align:left;white-space:pre;overflow-x:auto;background:#0f1320;color:#e6e9f0;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:30px 16px 14px;position:relative}
 pre.mermaid.mermaid-fallback::before{content:"\\29c9 \\b2e4\\c774\\c5b4\\adf8\\b7a8 \\c6d0\\bcf8 (\\c624\\d504\\b77c\\c778 \\b610\\b294 CDN \\bbf8\\b85c\\b4dc)";position:absolute;top:8px;left:16px;font:600 11px/1 -apple-system,sans-serif;color:var(--muted-foreground)}
 /* A tinted card, not a left rule — the reference's Callout. color-mix keeps one
@@ -766,7 +795,11 @@ export function renderHtml(data, opts = {}) {
       : `<script type="module" id="scv-mermaid-loader">
   try {
     const { default: mermaid } = await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs");
-    mermaid.initialize({ startOnLoad: false, theme: "base", themeVariables: { fontFamily: "inherit", fontSize: "16px" }, flowchart: { useMaxWidth: false, htmlLabels: true }, securityLevel: "strict" });
+    // The page's own stack, verbatim. "inherit" is not a font NAME: mermaid could
+    // not measure with it, fell back to a default width of 200px per label, and
+    // every label longer than that was clipped inside its foreignObject.
+    const SCV_FONT_STACK = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif';
+    mermaid.initialize({ startOnLoad: false, theme: "base", themeVariables: { fontFamily: SCV_FONT_STACK, fontSize: "16px" }, flowchart: { useMaxWidth: false, htmlLabels: true }, securityLevel: "strict" });
     // Scoped to the ACTIVE page only: mermaid measures text at run-time, so a diagram
     // processed while its .slide-page is display:none comes out zero/tiny-sized — and
     // because mermaid marks nodes data-processed="true" and skips them afterwards, that
