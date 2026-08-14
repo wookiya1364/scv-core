@@ -1,6 +1,6 @@
-# scv/archive/INDEX.yaml — auto-managed by action:work --archive (v0.11.0+).
+# scv/archive/INDEX.yaml — auto-managed by /scv:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-08-14T01:26:45Z
+generated_at: 2026-08-14T03:15:58Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -51,3 +51,7 @@ archives:
     title: "데크를 다크 전용으로 재설계하고 다이어그램을 읽히게 만든다"
     kind: refactor
     status: planned
+  - slug: 20260814-wookiya1364-release-machinery
+    title: "승격 대기 판정과 벤더 게이트"
+    kind: refactor
+    status: done
