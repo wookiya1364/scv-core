@@ -22,32 +22,28 @@ PASS=0; FAIL=0
 pass() { echo "  ✓ $1"; PASS=$((PASS+1)); }
 fail() { echo "  ✗ $1"; [[ $# -gt 1 ]] && printf '%s\n' "$2" | sed 's/^/      /'; FAIL=$((FAIL+1)); }
 
-command -v python3 >/dev/null 2>&1 || { echo "  ✓ (skip) python3 unavailable"; exit 0; }
-command -v jq      >/dev/null 2>&1 || { echo "  ✓ (skip) jq unavailable"; exit 0; }
+command -v jq >/dev/null 2>&1 || { echo "  ✓ (skip) jq unavailable"; exit 0; }
 [[ -f "$WF" ]] || { echo "missing $WF" >&2; exit 1; }
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
 # ---- extract the live block ------------------------------------------------
-python3 - "$WF" "$TMP/block.sh" <<'PY'
-import sys, yaml
-wf, out = sys.argv[1], sys.argv[2]
-d = yaml.safe_load(open(wf))
-runs = "\n".join(s["run"] for j in d["jobs"].values()
-                 for s in j.get("steps", []) if "run" in s)
-try:
-    i = runs.index("# >>> await-mergeable")
-    k = runs.index("# <<< await-mergeable")
-except ValueError:
-    sys.stderr.write("await-mergeable markers not found in promote.yml\n")
-    sys.exit(2)
-open(out, "w").write(runs[i:k])
-PY
-if [[ $? -ne 0 ]]; then
-  fail "[0] could not slice the await-mergeable block out of promote.yml"
-  echo; echo "  passed: $PASS  failed: $FAIL"; exit 1
-fi
+# Text, not a YAML parse. The first version loaded the workflow with PyYAML,
+# which is absent on the macOS runner — so the test died there while Linux
+# stayed green, which is the exact shape of the bug that put both guard rules
+# to sleep on macOS earlier.
+#
+# The lines are taken verbatim, indentation and all. Dedenting was tried and
+# dropped: the marker sits deeper than the literal scalar's own base indent, so
+# stripping the marker's indentation shifts the block two columns further left
+# than YAML would. Shell does not care about leading whitespace, and not
+# transforming the text at all is the version with nothing to get wrong.
+awk '
+  /# >>> await-mergeable/ { f = 1 }
+  /# <<< await-mergeable/ { f = 0 }
+  f
+' "$WF" > "$TMP/block.sh"
 lines="$(wc -l <"$TMP/block.sh" | tr -d ' ')"
 if (( lines > 25 )); then
   pass "[0] sliced the live block from promote.yml ($lines lines)"
