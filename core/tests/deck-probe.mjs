@@ -98,6 +98,13 @@ const PROBE = String.raw`
     if(rec.size===13.33||rec.size===13.333||(fam!==docFamily&&rec.weight==="400"&&rec.size>13&&rec.size<13.5)) out.badFont.push(rec);
   });
 
+  // Chrome is measured on the FIRST page, before any paging below. Measuring it
+  // after a scvGoto reads a scrolled position and reports 0px.
+  var first=document.querySelector(".slide-page:not([hidden]) h2")||document.querySelector(".wrap h2")||document.querySelector(".wrap p");
+  if(first) out.chrome={beforeContentPx:px(first.getBoundingClientRect().top)};
+  var navEl=document.querySelector(".deck-nav")||document.querySelector("nav");
+  if(navEl) out.nav={heightPx:px(navEl.getBoundingClientRect().height),flexWrap:getComputedStyle(navEl).flexWrap};
+
   // The deck is a pager: only one section is visible, and a diagram on page 11
   // measures 0px wide from page 1. Go to whichever page holds it first —
   // measuring a hidden element is how a scaled-down diagram stays invisible to
@@ -135,11 +142,6 @@ const PROBE = String.raw`
       })()
     };
   }
-
-  var first=document.querySelector(".slide-page:not([hidden]) h2")||document.querySelector(".wrap h2")||document.querySelector(".wrap p");
-  if(first) out.chrome={beforeContentPx:px(first.getBoundingClientRect().top)};
-  var navEl=document.querySelector(".deck-nav")||document.querySelector("nav");
-  if(navEl) out.nav={heightPx:px(navEl.getBoundingClientRect().height),flexWrap:getComputedStyle(navEl).flexWrap};
 
   var declared={};
   for(var i=0;i<document.styleSheets.length;i++){

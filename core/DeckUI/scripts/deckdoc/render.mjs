@@ -247,7 +247,13 @@ function renderScreen(b, t) {
     .join("");
   // theme absent (the common case — no project tokens told to us) → identical to before,
   // zero behavior change. theme present → inline style overrides just the validated keys.
-  return `<div class="wf-screen"${themeStyleOf(b.theme)}>${b.title ? `<div class="wf-screen-label">${esc(b.title)}</div>` : ""}<div class="wf-frame">${nav}<div class="wf-body">${body}</div></div></div>`;
+  // The title becomes browser chrome inside the frame rather than a caption above
+  // it — the reference's ScreenFrame. The label already exists in the authored
+  // JSON, so this is the one reference primitive that ports whole.
+  const chrome = b.title
+    ? `<div class="wf-chrome"><span class="wf-dot wf-dot-r"></span><span class="wf-dot wf-dot-y"></span><span class="wf-dot wf-dot-g"></span><span class="wf-url">${esc(b.title)}</span></div>`
+    : "";
+  return `<div class="wf-screen"${themeStyleOf(b.theme)}><div class="wf-frame">${chrome}${nav}<div class="wf-body">${body}</div></div></div>`;
 }
 
 const CSS = `
@@ -271,6 +277,7 @@ const CSS = `
   /* text */
   --fg:#fafafa;                  /* 18.97:1 on --bg */
   --fg-body:#e2e2e2;             /* 15.28:1 on --bg  · body copy */
+  --fg-soft:#d6d6d6;             /* 13.62:1 on --bg  · text inside a tinted card */
   --muted-foreground:#a1a1a1;    /*  7.66:1 on --bg  · 6.94:1 on --panel */
 
   /* lines — alpha so ONE value composites correctly over bg and panel alike */
@@ -365,20 +372,25 @@ section:first-of-type{border-top:none}
 .deck-dot{width:8px;height:8px;border-radius:999px;background:var(--border);border:none;cursor:pointer;padding:0}
 .deck-dot.active{background:var(--primary);width:20px;border-radius:5px}
 .deck-counter{font-size:12px;color:var(--muted-foreground);min-width:52px;text-align:center}
-mark.src-hl{background:#ffe58a;color:#3a2f00;border-radius:3px;padding:0 1px}
-h2{font-size:19px;margin:.2em 0 .6em;font-weight:700}
-h4{margin:.2em 0 .4em;font-size:14px}
-.subhead{font-size:15px;font-weight:600;margin:1.1em 0 .3em;color:var(--fg)}
-.kicker{font-size:12px;color:var(--muted-foreground);letter-spacing:.03em;margin-bottom:2px}
-.sub{color:var(--muted-foreground);margin:-.2em 0 1em}
-p{margin:.5em 0}
-ul,ol{margin:.4em 0;padding-left:22px}
-li{margin:.25em 0}
+mark.src-hl{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--fg);border-left:2px solid var(--warn);border-radius:0;padding:0 2px}
+h2{font-size:32px;line-height:1.15;letter-spacing:-.02em;margin:.1em 0 .5em;font-weight:700;color:var(--fg)}
+h4{margin:1.1em 0 .35em;font-size:17px;font-weight:600;color:var(--fg)}
+.subhead{font-size:20px;font-weight:600;margin:1.4em 0 .4em;color:var(--fg)}
+.kicker{font-size:14px;font-weight:600;letter-spacing:.02em;color:var(--primary-text);margin-bottom:6px}
+.sub{font-size:18px;line-height:1.55;color:var(--muted-foreground);margin:-.1em 0 1.3em;max-width:62ch}
+p{margin:.65em 0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul{margin:.6em 0;padding-left:0;list-style:none}
+ol{margin:.6em 0;padding-left:22px}
+li{margin:0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul>li{position:relative;padding-left:18px;margin:8px 0}
+ul>li::before{content:"";position:absolute;left:0;top:.62em;width:6px;height:6px;border-radius:50%;background:color-mix(in srgb,var(--primary-text) 70%,transparent)}
+ol>li{margin:8px 0}
 .tw{overflow-x:auto;margin:.8em 0}
-table{border-collapse:collapse;width:100%;font-size:14.5px}
-th,td{border:1px solid var(--border);padding:8px 11px;text-align:left;vertical-align:top}
-thead th{background:var(--panel);font-weight:600}
-table.kv th{background:var(--panel);width:30%;white-space:nowrap}
+table{border-collapse:collapse;width:100%;font-size:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+th,td{border:none;border-bottom:1px solid var(--border);padding:10px 14px;text-align:left;vertical-align:top;color:var(--fg-body)}
+tbody tr:last-child td{border-bottom:none}
+thead th{background:var(--surface-3);font-weight:600;font-size:12px;letter-spacing:.02em;color:var(--muted-foreground)}
+table.kv th{background:none;width:30%;white-space:nowrap;font-weight:500;color:var(--muted-foreground)}
 .kpi{display:flex;flex-wrap:wrap;gap:12px;margin:.8em 0}
 .kpi-card{flex:1 1 160px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--panel)}
 .kpi-label{font-size:13px;color:var(--muted-foreground);margin-bottom:6px}
@@ -403,13 +415,16 @@ pre.mermaid{background:var(--surface-3);border:1px solid var(--border-strong);bo
 pre.mermaid svg{max-width:none;height:auto}
 pre.mermaid.mermaid-fallback{text-align:left;white-space:pre;overflow-x:auto;background:#0f1320;color:#e6e9f0;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:30px 16px 14px;position:relative}
 pre.mermaid.mermaid-fallback::before{content:"\\29c9 \\b2e4\\c774\\c5b4\\adf8\\b7a8 \\c6d0\\bcf8 (\\c624\\d504\\b77c\\c778 \\b610\\b294 CDN \\bbf8\\b85c\\b4dc)";position:absolute;top:8px;left:16px;font:600 11px/1 -apple-system,sans-serif;color:var(--muted-foreground)}
-.callout{border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:11px 14px;margin:.8em 0;background:var(--panel)}
-.callout-title{font-weight:700;font-size:13px;margin-bottom:3px}
-.callout.info{border-left-color:var(--primary)}
-.callout.good{border-left-color:var(--good)}
-.callout.warn{border-left-color:var(--warn)}
-.callout.danger{border-left-color:var(--danger)}
-.callout.next{border-left-color:var(--primary)}
+/* A tinted card, not a left rule — the reference's Callout. color-mix keeps one
+   hue per tone instead of a second hand-picked hex for the fill. */
+.callout{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:1em 0;background:var(--panel)}
+.callout-title{font-weight:600;font-size:16px;margin-bottom:4px;color:var(--fg)}
+.callout p,.callout li{font-size:14px;color:var(--fg-soft)}
+.callout.info{border-color:color-mix(in srgb,var(--primary-text) 30%,transparent);background:color-mix(in srgb,var(--primary-text) 10%,var(--bg))}
+.callout.good{border-color:color-mix(in srgb,var(--good) 30%,transparent);background:color-mix(in srgb,var(--good) 10%,var(--bg))}
+.callout.warn{border-color:color-mix(in srgb,var(--warn) 30%,transparent);background:color-mix(in srgb,var(--warn) 10%,var(--bg))}
+.callout.danger{border-color:color-mix(in srgb,var(--danger) 30%,transparent);background:color-mix(in srgb,var(--danger) 10%,var(--bg))}
+.callout.next{border-style:dashed;border-color:var(--border-strong);background:var(--surface-2)}
 .lint h2{color:var(--warn)}
 .lint-count{display:inline-block;background:var(--warn);color:var(--on-warn);border-radius:999px;font-size:12px;padding:1px 9px;vertical-align:middle}
 /* 화면목업(와이어프레임) 킷 — scv 자체 기본 스킨(2순위 폴백): DesignSystem 의 실제
@@ -430,8 +445,11 @@ pre.mermaid.mermaid-fallback::before{content:"\\29c9 \\b2e4\\c774\\c5b4\\adf8\\b
   --wf-warn:#e0ab48; --wf-warn-bg:rgba(224,171,72,.15);
   --wf-radius:10px; --wf-radius-pill:999px;
 }
-.wf-screen-label{font-size:12px;color:var(--muted-foreground);margin-bottom:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-.wf-frame{border:1px solid var(--wf-border);border-radius:var(--wf-radius);background:var(--wf-bg);color:var(--wf-fg);overflow:hidden}
+.wf-chrome{display:flex;align-items:center;gap:7px;padding:9px 12px;border-bottom:1px solid var(--wf-border);background:var(--wf-card)}
+.wf-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;opacity:.7}
+.wf-dot-r{background:#fb2c36}.wf-dot-y{background:#fe9a00}.wf-dot-g{background:#00bc7d}
+.wf-url{margin-left:6px;padding:2px 8px;border-radius:5px;background:var(--wf-muted);color:var(--wf-muted-fg,var(--muted-foreground));font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wf-frame{border:1px solid var(--wf-border);border-radius:calc(var(--wf-radius) + 4px);background:var(--wf-bg);color:var(--wf-fg);overflow:hidden}
 .wf-nav{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--wf-border);background:var(--wf-bg);flex-wrap:wrap}
 .wf-nav-item{font-size:13px;color:var(--wf-muted-fg);padding:12px 11px;border-bottom:2px solid transparent}
 .wf-nav-item.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-primary)}
