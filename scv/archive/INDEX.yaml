@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by action:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-08-12T08:31:55Z
+generated_at: 2026-08-14T01:26:45Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -47,3 +47,7 @@ archives:
     title: "쉬운 말 먼저 — 사용자 대상 출력의 기본 규칙"
     kind: feature
     status: done
+  - slug: 20260813-wookiya1364-deck-redesign
+    title: "데크를 다크 전용으로 재설계하고 다이어그램을 읽히게 만든다"
+    kind: refactor
+    status: planned
