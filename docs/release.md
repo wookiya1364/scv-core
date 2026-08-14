@@ -115,9 +115,21 @@ Run it from the Actions tab if you prefer a button.
 Read which step failed.
 
 **"Promote develop to stage, then stage to main" failed** — a check went red on
-one of the two pull requests. The pull request is still open; fix the branch and
-run the workflow again. It reuses the open pull request rather than opening a
-second one.
+one of the two pull requests, or the pull request never became mergeable within
+fifteen minutes. Either way the pull request is still open and nothing is left
+half-promoted; fix the branch and run the workflow again. It reuses the open
+pull request rather than opening a second one.
+
+The step waits on GitHub's own `mergeStateStatus`, not on a count of checks.
+Counting was wrong twice: a matrix job skipped by a path filter is reported
+under its unexpanded name before the real jobs exist, so the count reached one
+immediately and the merge was attempted against required checks that had not
+started. `tests/test-promote-wait.sh` replays that exact rollup against the live
+workflow block.
+
+**The workflow ran the old logic** — `workflow_dispatch` executes the default
+branch's copy of the file. A fix to `promote.yml` takes effect on the release
+*after* the one that ships it.
 
 **"Tag main and publish the release" failed** — promotion already succeeded, so
 `main` carries the new `VERSION` and only the tag is missing. Fix the cause and
@@ -145,3 +157,25 @@ a red dispatch step delays propagation by up to a day rather than losing it.
 
 Each wrapper owns the resulting update PR and its adapter tests. A failed
 wrapper update does not mutate its pinned release.
+
+## Do not vendor Core by hand
+
+The bot's pull request is how a new pin lands. Wait for it, merge it, and bump
+the wrapper version in a **separate** change afterwards.
+
+Vendoring by hand is tempting during a release, because the version bump is
+already open in front of you and copying the tree into that same branch looks
+like it saves a round trip. It does not save anything. The bot's pull request
+then arrives already satisfied and gets closed as redundant — 0.25.0 and 0.26.0
+both ended that way — and the two paths are not equivalent: the bot resolves the
+published release artifact and records the canonical and materialized hashes,
+while a hand copy records whatever the working tree held at the time. Afterwards
+nothing distinguishes them.
+
+`check-vendor-provenance.sh` enforces this at merge time. It denies any pull
+request that touches `*/vendor/scv-core/` unless the branch is the bot's, the
+pull request is part of the release chain, or the title carries
+`[manual-vendor: <reason>]` — the same shape as `[no-plan: <reason>]`.
+
+Hand-vendoring stays available, because a Core contract change can genuinely
+outrun the bot. It just has to be declared.
