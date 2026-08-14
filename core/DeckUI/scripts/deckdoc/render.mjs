@@ -304,11 +304,15 @@ button,input,select,textarea{font:inherit;color:inherit}
 /* 문서 = 스크롤되는 본문(좌) + 상시 원문 마크다운 패널(우, sticky) — 이게 scv:deck 의
    정체성이다: 렌더링과 원문이 늘 같은 화면에 나란히 있어야 서로 어긋나지 않았다는 게
    보장된다. 인쇄 시에는 패널을 접고 본문 뒤에 원문을 부록으로 붙인다(.print-source). */
-.shell{display:flex;height:100vh;overflow:hidden}
+/* Three rows over the viewport: header, content, footer. The header and the
+   footer are chrome and must not scroll away with the text — before this they
+   lived inside .wrap and pushed 268px of nav in front of the first sentence. */
+.shell{display:grid;grid-template-rows:auto 1fr auto;height:100svh;overflow:hidden}
+.shell-mid{display:flex;min-height:0;overflow:hidden}
 .scroll-main{flex:1;min-width:0;overflow-y:auto}
 .wrap{max-width:840px;margin:0 auto;min-height:100%;padding:0 clamp(20px,5vw,56px) 96px}
-header.doc{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--border);margin:0 calc(clamp(20px,5vw,56px)*-1);padding:18px clamp(20px,5vw,56px);display:flex;align-items:center;gap:14px;justify-content:space-between}
-header.doc h1{font-size:22px;margin:0;font-weight:700}
+header.doc{display:flex;align-items:center;gap:16px;min-width:0;background:var(--bg);border-bottom:1px solid var(--border);padding:11px 20px}
+header.doc h1{font-size:15px;font-weight:600;margin:0;flex-shrink:0;max-width:34ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)}
 .header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .panel-toggle{flex-shrink:0;font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer}
 .panel-toggle:hover{background:var(--border);color:var(--fg)}
@@ -340,11 +344,16 @@ section{padding:22px 0;border-top:1px solid var(--border)}
 section:first-of-type{border-top:none}
 /* 페이지 넘김(화면 전용) — 한 번에 한 섹션만. 인쇄 시엔 전부 펼쳐서 보여준다. */
 @media screen{.slide-page{display:none}.slide-page.active{display:block}}
-.deck-nav{display:flex;flex-wrap:wrap;gap:6px;margin:20px 0}
-.deck-nav-item{font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer;white-space:nowrap}
+/* One scrolling row, never wrapped. The reference sets flex-wrap AND
+   overflow-x-auto together; flex-wrap wins, and fed 19 labels its own header
+   grows to three rows. nowrap is the one place this deliberately differs. */
+.deck-nav{display:flex;flex-wrap:nowrap;gap:4px;margin:0;flex:1;min-width:0;overflow-x:auto;scrollbar-width:thin}
+.deck-nav::-webkit-scrollbar{height:6px}
+.deck-nav::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.deck-nav-item{font-weight:400;font-size:12px;line-height:16px;color:var(--muted-foreground);background:none;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;white-space:nowrap}
 .deck-nav-item:hover{color:var(--fg)}
-.deck-nav-item.active{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
-.deck-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:8px;padding-top:20px;border-top:1px solid var(--border)}
+.deck-nav-item.active{background:var(--primary-text);color:var(--bg);font-weight:500}
+.deck-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0;padding:11px 20px;border-top:1px solid var(--border);background:var(--bg)}
 .deck-arrow{font-weight:600;font-size:13px;line-height:1;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;cursor:pointer}
 .deck-arrow:disabled{opacity:.35;cursor:default}
 .deck-arrow:not(:disabled):hover{background:var(--panel)}
@@ -610,7 +619,18 @@ export function renderHtml(data, opts = {}) {
     n = Math.max(0, Math.min(total - 1, n));
     scvPageIdx = n;
     document.querySelectorAll('.slide-page').forEach(function(p){ p.classList.toggle('active', p.dataset.idx === String(n)); });
-    document.querySelectorAll('.deck-nav-item').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
+    document.querySelectorAll('.deck-nav-item').forEach(function(el){
+      var on = el.dataset.idx === String(n);
+      el.classList.toggle('active', on);
+      // The nav is one scrolling row now, so the active pill can sit past the
+      // right edge. Scroll the STRIP, not the page — scrollIntoView on the
+      // element would also scroll .scroll-main and lose the reader's place.
+      if (on && el.parentElement) {
+        var strip = el.parentElement;
+        var left = el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2;
+        strip.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+      }
+    });
     document.querySelectorAll('.deck-dot').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
     if (typeof window.scvRunMermaid === 'function') { try { window.scvRunMermaid(); } catch (e) {} }
     var prevBtn = document.getElementById('scvPrev'), nextBtn = document.getElementById('scvNext'), counter = document.getElementById('scvCounter');
@@ -670,7 +690,7 @@ export function renderHtml(data, opts = {}) {
   }
   document.addEventListener('keydown', function(e){
     var t = e.target;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
     if (e.key === 'ArrowRight' || e.key === 'PageDown') scvGoto(scvIdx() + 1);
     else if (e.key === 'ArrowLeft' || e.key === 'PageUp') scvGoto(scvIdx() - 1);
     else if (e.key === 'Home') scvGoto(0);
@@ -741,18 +761,19 @@ pre.mermaid .edgeLabel,pre.mermaid .edgeLabel p,pre.mermaid .labelBkg{background
 </head>
 <body>
 <div class="shell">
+<header class="doc"><h1>${title}</h1>${deckNav}${headerActions}</header>
+<div class="shell-mid">
 <div class="scroll-main">
 <div class="wrap">
-<header class="doc"><h1>${title}</h1>${headerActions}</header>
 ${toc ? `<nav class="toc"><h3>${esc(t("toc"))}</h3><ol>${toc}</ol></nav>` : ""}
-${deckNav}
 ${sections}
 ${lintSection}
-${deckFooter}
 ${printSource}
 </div>
 </div>
 ${sourcePanel}
+</div>
+${deckFooter}
 </div>
 ${mermaidScript}
 ${pageScript}
