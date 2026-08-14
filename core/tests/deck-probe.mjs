@@ -98,7 +98,15 @@ const PROBE = String.raw`
     if(rec.size===13.33||rec.size===13.333||(fam!==docFamily&&rec.weight==="400"&&rec.size>13&&rec.size<13.5)) out.badFont.push(rec);
   });
 
+  // The deck is a pager: only one section is visible, and a diagram on page 11
+  // measures 0px wide from page 1. Go to whichever page holds it first —
+  // measuring a hidden element is how a scaled-down diagram stays invisible to
+  // a test that thinks it is checking the diagram.
   var svg=document.querySelector("pre.mermaid svg, .mermaid svg, svg.flowchart");
+  if(svg && typeof scvGoto==="function"){
+    var page=svg.closest(".slide-page");
+    if(page && page.dataset && page.dataset.idx){ try{ scvGoto(Number(page.dataset.idx)); }catch(e){} }
+  }
   if(svg){
     var vb=(svg.getAttribute("viewBox")||"").split(/\s+/);
     var natural=vb.length===4?parseFloat(vb[2]):null;

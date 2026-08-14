@@ -82,7 +82,17 @@ function blockOf(node, t) {
       // ordered carried so the renderer emits <ol> with correct per-level numbering.
       return { type: "bullets", ordered: !!node.ordered, items: listLines(node, 0), tree: listItemsTree(node) };
     case "code":
-      if (node.lang === "mermaid") return { type: "mermaid", code: node.value };
+      if (node.lang === "mermaid") {
+        // Drop a leading %%{init:…}%% directive. promote.md tells the author to
+        // paste a fixed palette into every fence, and that directive overrides
+        // the renderer's own theme — so the deck's colours lived in prose
+        // authoring instructions and could not follow the page.
+        //
+        // The .md on disk is untouched; only the copy the deck renders loses it.
+        // GitHub still sees the directive, which is what it was written for.
+        const code = node.value.replace(/^\s*%%\{\s*init\s*:[\s\S]*?\}%%\s*\n?/, "");
+        return { type: "mermaid", code };
+      }
       if (node.lang === "screen") {
         // the host agent authors a screen mockup as a JSON object inside a ```screen fence
         // (see commands/promote.md for the schema) — parsed here, deterministically,
