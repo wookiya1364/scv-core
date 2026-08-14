@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+<script>(function(){try{if(localStorage.getItem('scv-deck-theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>승격 대기 판정과 벤더 게이트</title>
+<style>
+/* 다크가 기본값(--bg/--panel 등 전부). 라이트는 html[data-theme="light"] 오버라이드 —
+   FE 프로젝트의 다크-기본+라이트-오버라이드 관례와 동일한 모양(속성 하나만 바뀌면
+   전체가 재테마된다). head 맨 앞 인라인 스크립트가 pre-paint 로 저장된 선택을 적용해
+   깜빡임(FOUC)이 없다. */
+:root{--fg:#e7e9f0;--muted:#9096a8;--bg:#171922;--panel:#1d2029;--border:#2c3040;--primary:#7c93ff;--warn:#e0ab48;--danger:#ef6b6b;--good:#3ecf8e;--page-bg:#0d0e13;--on-primary:#12163a;--on-warn:#241a06;}
+html[data-theme="light"]{--fg:#1a1d24;--muted:#5b6270;--bg:#ffffff;--panel:#f6f7f9;--border:#e3e6ea;--primary:#2f6feb;--warn:#b8860b;--danger:#c0392b;--good:#1e8e5a;--page-bg:#f6f7f9;--on-primary:#ffffff;}
+*{box-sizing:border-box}
+html,body{height:100%}
+html{scroll-behavior:smooth}
+body{margin:0;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:var(--fg);background:var(--page-bg)}
+/* 문서 = 스크롤되는 본문(좌) + 상시 원문 마크다운 패널(우, sticky) — 이게 scv:deck 의
+   정체성이다: 렌더링과 원문이 늘 같은 화면에 나란히 있어야 서로 어긋나지 않았다는 게
+   보장된다. 인쇄 시에는 패널을 접고 본문 뒤에 원문을 부록으로 붙인다(.print-source). */
+.shell{display:flex;height:100vh;overflow:hidden}
+.scroll-main{flex:1;min-width:0;overflow-y:auto}
+.wrap{max-width:840px;margin:0 auto;background:var(--bg);min-height:100%;padding:0 clamp(20px,5vw,56px) 96px;box-shadow:0 0 0 1px var(--border)}
+header.doc{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--border);margin:0 calc(clamp(20px,5vw,56px)*-1);padding:18px clamp(20px,5vw,56px);display:flex;align-items:center;gap:14px;justify-content:space-between}
+header.doc h1{font-size:22px;margin:0;font-weight:700}
+.header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.theme-toggle,.panel-toggle{flex-shrink:0;font:600 12px/1 inherit;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer}
+.theme-toggle:hover,.panel-toggle:hover{background:var(--border);color:var(--fg)}
+.panel-toggle .kbd{opacity:.55;margin-left:4px}
+.source-panel{position:relative;width:min(440px,38vw);flex-shrink:0;border-left:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column}
+.source-panel.closed{display:none}
+.panel-resize-handle{position:absolute;left:0;top:0;bottom:0;width:7px;margin-left:-4px;cursor:col-resize;z-index:6}
+.panel-resize-handle:hover{background:rgba(127,137,160,.25)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-title{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.02em}
+.panel-close{border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 7px;border-radius:5px;line-height:1.4}
+.panel-close:hover{background:var(--border);color:var(--fg)}
+.panel-tabs{display:flex;gap:2px;padding:9px 12px 0;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.panel-tab{font:600 12px/1 inherit;color:var(--muted);padding:7px 10px;border:none;background:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.panel-tab.active{color:var(--fg);border-bottom-color:var(--primary)}
+.panel-body{flex:1;overflow-y:auto;padding:14px}
+.panel-body .src-doc{display:none;margin:0}
+.panel-body .src-doc.active{display:block}
+.print-source{display:none}
+/* 목차(nav.toc) 는 인쇄본 전용(펼친 전체 문서엔 목차가 자연스럽다). 화면에서는
+   deck-nav(아래) 가 같은 역할을 대신한다 — 페이지 번호 pill + 클릭 이동. */
+@media screen{nav.toc{display:none}}
+nav.toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:26px 0}
+nav.toc h3{margin:0 0 8px;font-size:12px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
+nav.toc ol{margin:0;padding-left:20px;columns:2;gap:24px}
+nav.toc a{color:var(--fg);text-decoration:none}
+nav.toc a:hover{color:var(--primary);text-decoration:underline}
+section{padding:22px 0;border-top:1px solid var(--border)}
+section:first-of-type{border-top:none}
+/* 페이지 넘김(화면 전용) — 한 번에 한 섹션만. 인쇄 시엔 전부 펼쳐서 보여준다. */
+@media screen{.slide-page{display:none}.slide-page.active{display:block}}
+.deck-nav{display:flex;flex-wrap:wrap;gap:6px;margin:20px 0}
+.deck-nav-item{font:600 12px/1 inherit;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer;white-space:nowrap}
+.deck-nav-item:hover{color:var(--fg)}
+.deck-nav-item.active{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
+.deck-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:8px;padding-top:20px;border-top:1px solid var(--border)}
+.deck-arrow{font:600 13px/1 inherit;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;cursor:pointer}
+.deck-arrow:disabled{opacity:.35;cursor:default}
+.deck-arrow:not(:disabled):hover{background:var(--panel)}
+.deck-dots{display:flex;align-items:center;gap:6px}
+.deck-dot{width:8px;height:8px;border-radius:999px;background:var(--border);border:none;cursor:pointer;padding:0}
+.deck-dot.active{background:var(--primary);width:20px;border-radius:5px}
+.deck-counter{font-size:12px;color:var(--muted);min-width:52px;text-align:center}
+mark.src-hl{background:#ffe58a;color:#3a2f00;border-radius:3px;padding:0 1px}
+h2{font-size:19px;margin:.2em 0 .6em;font-weight:700}
+h4{margin:.2em 0 .4em;font-size:14px}
+.subhead{font-size:15px;font-weight:600;margin:1.1em 0 .3em;color:var(--fg)}
+.kicker{font-size:12px;color:var(--muted);letter-spacing:.03em;margin-bottom:2px}
+.sub{color:var(--muted);margin:-.2em 0 1em}
+p{margin:.5em 0}
+ul,ol{margin:.4em 0;padding-left:22px}
+li{margin:.25em 0}
+.tw{overflow-x:auto;margin:.8em 0}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{border:1px solid var(--border);padding:8px 11px;text-align:left;vertical-align:top}
+thead th{background:var(--panel);font-weight:600}
+table.kv th{background:var(--panel);width:30%;white-space:nowrap}
+.kpi{display:flex;flex-wrap:wrap;gap:12px;margin:.8em 0}
+.kpi-card{flex:1 1 160px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--panel)}
+.kpi-label{font-size:13px;color:var(--muted);margin-bottom:6px}
+.kpi-nums{display:flex;align-items:center;gap:8px;font-weight:700}
+.kpi-nums .base{color:var(--muted)}
+.kpi-nums .arrow{color:var(--primary)}
+.kpi-nums .target{color:var(--good)}
+.goals{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:.8em 0}
+.goal-col{border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+.goal-col.g{border-left:4px solid var(--good)}
+.goal-col.ng{border-left:4px solid var(--danger)}
+pre.code{background:#0f1320;color:#e6e9f0;border-radius:10px;padding:14px 16px;overflow-x:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;margin:.8em 0}
+/* mermaid 는 항상 라이트 카드에 그린다(테마 무관, pre.code 가 항상 다크인 것과 대칭) —
+   mermaid 렌더 테마를 다크로 다시 그리려면 이미 SVG 로 처리된 노드를 되돌려야 해서
+   토글마다 재처리가 필요해진다. 대신 다이어그램 카드 자체를 고정 라이트로 둬서
+   토글과 무관하게 항상 선명하게 읽힌다. */
+pre.mermaid{background:#f6f7f9;border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;margin:.8em 0}
+pre.mermaid.mermaid-fallback{text-align:left;white-space:pre;overflow-x:auto;background:#0f1320;color:#e6e9f0;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:30px 16px 14px;position:relative}
+pre.mermaid.mermaid-fallback::before{content:"\29c9 \b2e4\c774\c5b4\adf8\b7a8 \c6d0\bcf8 (\c624\d504\b77c\c778 \b610\b294 CDN \bbf8\b85c\b4dc)";position:absolute;top:8px;left:16px;font:600 11px/1 -apple-system,sans-serif;color:#9aa4b2}
+.callout{border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:11px 14px;margin:.8em 0;background:var(--panel)}
+.callout-title{font-weight:700;font-size:13px;margin-bottom:3px}
+.callout.info{border-left-color:var(--primary)}
+.callout.good{border-left-color:var(--good)}
+.callout.warn{border-left-color:var(--warn)}
+.callout.danger{border-left-color:var(--danger)}
+.callout.next{border-left-color:var(--primary)}
+.lint h2{color:var(--warn)}
+.lint-count{display:inline-block;background:var(--warn);color:var(--on-warn);border-radius:999px;font-size:12px;padding:1px 9px;vertical-align:middle}
+/* 화면목업(와이어프레임) 킷 — scv 자체 기본 스킨(2순위 폴백): DesignSystem 의 실제
+   다크 팔레트를 distill(무채색 표면 + 단일 로즈 악센트 + border-only depth + pill
+   배지, 글라스 없음 — DesignSystem 본체엔 글라스가 없다). 문서 자체의 라이트/다크
+   토글과는 독립적으로 항상 이 다크 스킨을 쓴다(--wf-* 로 스코프해 문서 테마 변수와
+   충돌하지 않음) — mermaid 카드를 항상 라이트로 고정하는 것과 같은 이유(재처리 없이
+   항상 또렷하게). 프로젝트 실제 토큰(1순위) 자동감지는 아직 없음 — 후속 작업.
+   버튼은 항상 disabled(정적 예시 그림이라 실제 인터랙션 없음). */
+.wf-screen{
+  margin:1em 0;
+  --wf-bg:#0a0a0b; --wf-fg:#fafafa; --wf-card:#1c1c1e; --wf-border:rgba(255,255,255,.1);
+  --wf-muted:#232326; --wf-muted-fg:#9a9a9f;
+  --wf-primary:#a53257; --wf-primary-fg:#fdf1f3;
+  --wf-success:#34d399; --wf-success-bg:rgba(16,185,129,.15); --wf-success-border:rgba(16,185,129,.4);
+  --wf-danger:#ef6b6b; --wf-danger-bg:rgba(239,107,107,.14);
+  --wf-info:#60a5fa; --wf-info-bg:rgba(96,165,250,.15);
+  --wf-warn:#e0ab48; --wf-warn-bg:rgba(224,171,72,.15);
+  --wf-radius:10px; --wf-radius-pill:999px;
+}
+.wf-screen-label{font-size:12px;color:var(--muted);margin-bottom:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.wf-frame{border:1px solid var(--wf-border);border-radius:var(--wf-radius);background:var(--wf-bg);color:var(--wf-fg);overflow:hidden}
+.wf-nav{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--wf-border);background:var(--wf-bg);flex-wrap:wrap}
+.wf-nav-item{font-size:13px;color:var(--wf-muted-fg);padding:12px 11px;border-bottom:2px solid transparent}
+.wf-nav-item.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-primary)}
+.wf-body{padding:20px}
+.wf-header{margin-bottom:0}
+.wf-header-title{font-size:16px;font-weight:600;color:var(--wf-fg)}
+.wf-header-sub{font-size:12.5px;color:var(--wf-muted-fg);margin-top:3px}
+.wf-toolbar{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+.wf-tabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid var(--wf-border)}
+.wf-tab{font-size:12.5px;color:var(--wf-muted-fg);padding:7px 11px;border-bottom:2px solid transparent}
+.wf-tab.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-muted-fg)}
+.wf-btn{font:500 12.5px/1 inherit;padding:8px 13px;border-radius:8px;border:1px solid transparent;background:var(--wf-muted);color:var(--wf-fg);cursor:default}
+.wf-btn-primary{background:var(--wf-primary);color:var(--wf-primary-fg)}
+.wf-btn-danger{background:var(--wf-danger-bg);color:var(--wf-danger)}
+.wf-input{display:inline-flex;align-items:center;font-size:12.5px;color:var(--wf-muted-fg);padding:8px 12px;border:1px solid var(--wf-border);border-radius:8px;background:var(--wf-card);min-width:120px}
+.wf-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.wf-table th,.wf-table td{border-bottom:1px solid var(--wf-border);padding:9px 10px;text-align:left}
+.wf-table th{color:var(--wf-muted-fg);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.02em}
+.wf-badge{display:inline-flex;align-items:center;height:20px;border-radius:var(--wf-radius-pill);padding:0 9px;font-size:10.5px;font-weight:500;border:1px solid transparent}
+.wf-badge-muted{background:var(--wf-muted);color:var(--wf-muted-fg);border-color:var(--wf-border)}
+.wf-badge-info{background:var(--wf-info-bg);color:var(--wf-info);border-color:rgba(96,165,250,.35)}
+.wf-badge-good{background:var(--wf-success-bg);color:var(--wf-success);border-color:var(--wf-success-border)}
+.wf-badge-warn{background:var(--wf-warn-bg);color:var(--wf-warn);border-color:rgba(224,171,72,.35)}
+.wf-badge-danger{background:var(--wf-danger-bg);color:var(--wf-danger);border-color:rgba(239,107,107,.35)}
+.wf-card{border-radius:var(--wf-radius);border:1px solid var(--wf-border);padding:14px 16px;margin-bottom:10px;background:var(--wf-card)}
+.wf-card-title{font-size:13px;font-weight:600;color:var(--wf-fg);margin-bottom:8px}
+.wf-list{list-style:none;margin:0;padding:0}
+.wf-list li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--wf-border);font-size:12.5px;color:var(--wf-fg)}
+.wf-list li:last-child{border-bottom:none}
+.wf-form{display:flex;flex-direction:column;gap:8px}
+.wf-field{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--wf-muted-fg)}
+.wf-text{font-size:12.5px;color:var(--wf-fg);margin:.3em 0}
+@media (max-width:900px){.source-panel{width:min(360px,44vw)}}
+@media (max-width:640px){.goals{grid-template-columns:1fr}nav.toc ol{columns:1}.shell{flex-direction:column;height:auto;overflow:visible}.scroll-main{overflow:visible}.source-panel{width:100%;height:60vh}}
+@media print{
+  body{background:#fff;display:block;height:auto}
+  .shell{display:block;height:auto;overflow:visible}
+  .scroll-main{overflow:visible;height:auto}
+  .wrap{box-shadow:none;max-width:none;padding:0}
+  header.doc{position:static}
+  .panel-toggle{display:none}
+  .source-panel{display:none}
+  .deck-nav{display:none}
+  .deck-footer{display:none}
+  nav.toc{display:block;break-inside:avoid}
+  section{break-inside:avoid}
+  .print-source{display:block;break-before:page}
+  .print-source h3{margin-top:1.6em;font-size:14px}
+}
+</style>
+<style id="scv-mermaid-contrast">
+pre.mermaid{background:transparent!important}
+pre.mermaid .flowchart-link,pre.mermaid .edgePath .path{stroke:var(--fg)!important;stroke-width:2px!important}
+pre.mermaid .marker,pre.mermaid marker path{fill:var(--fg)!important;stroke:var(--fg)!important}
+pre.mermaid .edgeLabel,pre.mermaid .edgeLabel p,pre.mermaid .labelBkg{background-color:var(--bg)!important;color:var(--fg)!important}
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="scroll-main">
+<div class="wrap">
+<header class="doc"><h1>승격 대기 판정과 벤더 게이트</h1><div class="header-actions"><button class="theme-toggle" id="scvThemeBtn" onclick="scvToggleTheme()" title="라이트/다크 전환">☾ 다크</button><button class="panel-toggle" onclick="scvTogglePanel()" title="원문 패널 토글 (S)">기획서 원문 <span class="kbd">S</span></button></div></header>
+<nav class="toc"><h3>목차</h3><ol><li><a href="#s-0-summary">Summary</a></li><li><a href="#s-1-goals--non-goals">Goals / Non-Goals</a></li><li><a href="#s-2-approach-overview">Approach Overview</a></li><li><a href="#s-3-guardrails">Guardrails</a></li><li><a href="#s-4-exit-criteria">Exit criteria</a></li><li><a href="#s-5-suggested-path">Suggested path</a></li><li><a href="#s-6-related-documents">Related Documents</a></li><li><a href="#s-7-risks--open-questions">Risks / Open Questions</a></li><li><a href="#s-8-links">Links</a></li><li><a href="#s-9--구조--featurearchitecture">📐 구조 · FEATURE_ARCHITECTURE</a></li><li><a href="#s-10-1-component-data-flow">1. Component data flow</a></li><li><a href="#s-11-2-position-in-whole-architecture">2. Position in whole architecture</a></li><li><a href="#s-12--테스트--인수기준-tests">✅ 테스트 · 인수기준 (TESTS)</a></li><li><a href="#s-13-overview">Overview</a></li><li><a href="#s-14-test-scenarios">Test scenarios</a></li><li><a href="#s-15-how-to-run">How to run</a></li><li><a href="#s-16-pass-criteria">Pass criteria</a></li><li><a href="#s-17-related-documents">Related Documents</a></li></ol></nav>
+<nav class="deck-nav"><button class="deck-nav-item active" data-idx="0" onclick="scvGoto(0)">1. Summary</button><button class="deck-nav-item" data-idx="1" onclick="scvGoto(1)">2. Goals / Non-Goals</button><button class="deck-nav-item" data-idx="2" onclick="scvGoto(2)">3. Approach Overview</button><button class="deck-nav-item" data-idx="3" onclick="scvGoto(3)">4. Guardrails</button><button class="deck-nav-item" data-idx="4" onclick="scvGoto(4)">5. Exit criteria</button><button class="deck-nav-item" data-idx="5" onclick="scvGoto(5)">6. Suggested path</button><button class="deck-nav-item" data-idx="6" onclick="scvGoto(6)">7. Related Documents</button><button class="deck-nav-item" data-idx="7" onclick="scvGoto(7)">8. Risks / Open Quest</button><button class="deck-nav-item" data-idx="8" onclick="scvGoto(8)">9. Links</button><button class="deck-nav-item" data-idx="9" onclick="scvGoto(9)">10. 📐 구조 · FEATURE_AR</button><button class="deck-nav-item" data-idx="10" onclick="scvGoto(10)">11. 1. Component data </button><button class="deck-nav-item" data-idx="11" onclick="scvGoto(11)">12. 2. Position in who</button><button class="deck-nav-item" data-idx="12" onclick="scvGoto(12)">13. ✅ 테스트 · 인수기준 (TEST</button><button class="deck-nav-item" data-idx="13" onclick="scvGoto(13)">14. Overview</button><button class="deck-nav-item" data-idx="14" onclick="scvGoto(14)">15. Test scenarios</button><button class="deck-nav-item" data-idx="15" onclick="scvGoto(15)">16. How to run</button><button class="deck-nav-item" data-idx="16" onclick="scvGoto(16)">17. Pass criteria</button><button class="deck-nav-item" data-idx="17" onclick="scvGoto(17)">18. Related Documents</button><button class="deck-nav-item" data-idx="18" onclick="scvGoto(18)">19. 품질 리포트</button></nav>
+<section id="s-0-summary" class="slide-page active" data-idx="0"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>Summary</h2><p>릴리스 기계장치에서 사람이 손으로 때우던 두 곳을 없앤다. 하나는 승격 워크플로가
+체크를 기다리는 방식이고, 다른 하나는 벤더링된 Core 를 누가 옮겼는지다. 덤으로,
+머지를 막는 게이트인데 테스트가 하나도 없던 check-provenance.sh 에 검증을 붙인다.</p></section>
+<section id="s-1-goals--non-goals" class="slide-page" data-idx="1"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>Goals / Non-Goals</h2><ul><li>Goals<ul><li>승격 워크플로가 필수 체크가 생기기 전에 머지를 시도하지 않는다</li><li>손으로 벤더링한 PR 이 머지 시점에 걸린다 — 단, 이유를 달면 통과한다</li><li>두 게이트가 실제 저장소 픽스처로 검증된다</li></ul></li><li>Non-Goals<ul><li>벤더링을 금지하지 않는다. Core 계약이 바뀌면 봇이 못 따라온다</li><li>매트릭스 잡이 확장되지 않은 이름으로 보고되는 것 자체는 고치지 않는다.
+GitHub 의 동작이고, 우리가 거기에 의존하지 않으면 된다</li><li>이번 릴리스의 승격은 여전히 옛 로직으로 돈다(아래 Risks)</li></ul></li></ul></section>
+<section id="s-2-approach-overview" class="slide-page" data-idx="2"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>Approach Overview</h2><p>대기 판정. 자작 판정을 세 번째로 만들지 않는다. 머지를 결정하는 주체가 GitHub
+이므로 GitHub 의 mergeStateStatus 를 본다. 다만 그 값 하나로는 부족하다 — 건너뛴
+매트릭스 자리표시자가 rollup 을 UNSTABLE 로 붙잡으면 CLEAN 은 영원히 오지
+않는다. 세 조건이 동시에 성립할 때만 머지한다: 실패한 체크가 없고, 도는 체크가
+없고, GitHub 이 BLOCKED 이라 하지 않는다.</p>
+<p>DIRTY/DRAFT 는 900초를 기다릴 이유가 없으므로 즉시 중단한다. BEHIND 는
+update-branch 후 계속한다. UNKNOWN 은 판정이 아니라 "아직 계산 안 됨"이므로
+대기한다.</p>
+<p>벤더 게이트. check-provenance.sh 의 형제로 check-vendor-provenance.sh 를
+둔다. 앞의 것은 "무엇이 이 변경을 만들었나"를 묻고, 새것은 "누가 핀을 옮겼나"를
+묻는다. */vendor/scv-core/ 를 건드리는 PR 은 봇 브랜치이거나, 릴리스 체인이거나,
+제목에 이유가 달려야 한다.</p>
+<p>검증. 워크플로 블록은 마커 사이를 잘라내 그대로 실행한다. 게이트는 실제 git
+저장소를 픽스처로 쓴다.</p></section>
+<section id="s-3-guardrails" class="slide-page" data-idx="3"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>Guardrails</h2><ul><li>릴리스 체인(stage/main 대상) PR 은 새 게이트가 절대 막지 않는다. 막으면 모든
+릴리스가 선다</li><li>봇 동기화 브랜치(chore/core-*)도 막지 않는다. 그게 봇의 일이다</li><li>새 스크립트는 core/ 안에 들어가므로 호스트 이름을 담을 수 없다. 벤더 경로는
+래퍼마다 깊이가 다르므로 모양(*/vendor/scv-core/)으로 맞춘다</li><li>워크플로 run: 블록 주석에 ${{ … }} 표기를 넣지 않는다. Actions 가 치환한다</li><li>대기 상한(900초)을 넘겨도 아무것도 반쯤 승격된 상태로 남기지 않는다. PR 은
+열린 채로 두고 실패한다</li><li>check-provenance.sh 의 판정 로직은 건드리지 않는다. 이번에 붙이는 건 검증뿐이다</li></ul></section>
+<section id="s-4-exit-criteria" class="slide-page" data-idx="4"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>Exit criteria</h2><ul><li>TESTS.md 시나리오 전부 통과</li><li>새 대기 블록 테스트가 옛 코드에서 실패하고 새 코드에서 통과한다. 통과만 하는
+테스트는 무엇도 증명하지 않는다</li><li>두 게이트 각각 최소 하나를 실제로 거부한다(무력화 감지)</li><li>tests/run.sh, core/tests/run-dry.sh, core/tests/test-*.sh 전부 초록</li><li>벤더링된 아티팩트에 새 스크립트가 들어간다</li><li>배포 문서(docs/release.md)가 새 절차와 일치한다</li></ul></section>
+<section id="s-5-suggested-path" class="slide-page" data-idx="5"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>Suggested path</h2><ol><li>#115 의 rollup 을 떠서 조기 종료의 실제 입력을 확정한다</li><li>대기 블록을 mergeStateStatus 기반으로 교체하고 마커로 감싼다</li><li>마커 사이를 실행하는 테스트를 쓰고, 옛 블록에 대고 돌려 실패를 확인한다</li><li>check-vendor-provenance.sh 를 check-provenance.sh 형태로 쓴다</li><li>두 게이트를 실제 저장소 픽스처로 검증한다</li><li>래퍼 워크플로에 스텝을 추가한다 — Core 벤더링 이후에</li><li>docs/release.md 와 core/contracts/guard.md 를 실제와 맞춘다</li></ol></section>
+<section id="s-6-related-documents" class="slide-page" data-idx="6"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>Related Documents</h2><ul><li>TESTS.md</li><li>FEATURE_ARCHITECTURE.md</li><li>core/contracts/guard.md — 세 게이트의 역할 구분</li></ul></section>
+<section id="s-7-risks--open-questions" class="slide-page" data-idx="7"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>Risks / Open Questions</h2><ul><li>이번 릴리스는 못 고친다. workflow_dispatch 는 기본 브랜치의 워크플로 파일을
+실행한다. 0.27.0 승격은 여전히 옛 로직으로 돌고, 또 손이 갈 수 있다. 0.28.0 부터
+듣는다</li><li>래퍼는 한 박자 뒤에 간다. 새 스크립트가 벤더링되기 전에 래퍼 워크플로에
+스텝을 넣으면 CI 가 "파일 없음"으로 빨개진다. Core → 봇 동기화 → 래퍼 순서</li><li>mergeStateStatus 는 GitHub 이 지연 계산한다. 첫 조회가 UNKNOWN 을 돌려주는
+것은 정상이고, 재조회가 계산을 촉발한다. 대기 상한 안에서 해소되는지는 실제
+승격에서 확인해야 한다</li><li>900초 상한은 근거 있는 값이 아니다. 현재 CI 가 그보다 한참 빠르다는 것만 안다</li></ul></section>
+<section id="s-8-links" class="slide-page" data-idx="8"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>Links</h2><ul><li>Raw originals: (frontmatter 참조)</li><li>Related PRs:</li></ul></section>
+<section id="s-9--구조--featurearchitecture" class="slide-page" data-idx="9"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>📐 구조 · FEATURE_ARCHITECTURE</h2><div class="callout info"><div class="callout-title">참고</div><div>이 기능의 두 갈래를 그림으로 본 것. /scv:work 전에 검토하고 고칠 것 —
+다이어그램은 생성된 것이고 부정확할 수 있다.</div></div></section>
+<section id="s-10-1-component-data-flow" class="slide-page" data-idx="10"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>1. Component data flow</h2><p>두 기계장치가 어디서 무엇을 묻는지. 왼쪽은 승격이 언제 머지해도 되는지 판정하는
+경로, 오른쪽은 PR 이 머지될 자격이 있는지 판정하는 경로다. 둘은 서로를 모른다 —
+같은 릴리스에서 고쳐질 뿐 결합돼 있지 않다.</p>
+<pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg id="mermaid-1786677373218" width="100%" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" style="max-width: 981.90625px;" viewBox="0 0 981.90625 1114.2269287109375" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#mermaid-1786677373218{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#fff;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#mermaid-1786677373218 .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#mermaid-1786677373218 .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#mermaid-1786677373218 .error-icon{fill:#1e1e1e;}#mermaid-1786677373218 .error-text{fill:#e1e1e1;stroke:#e1e1e1;}#mermaid-1786677373218 .edge-thickness-normal{stroke-width:1px;}#mermaid-1786677373218 .edge-thickness-thick{stroke-width:3.5px;}#mermaid-1786677373218 .edge-pattern-solid{stroke-dasharray:0;}#mermaid-1786677373218 .edge-thickness-invisible{stroke-width:0;fill:none;}#mermaid-1786677373218 .edge-pattern-dashed{stroke-dasharray:3;}#mermaid-1786677373218 .edge-pattern-dotted{stroke-dasharray:2;}#mermaid-1786677373218 .marker{fill:#e7e9f0;stroke:#e7e9f0;}#mermaid-1786677373218 .marker.cross{stroke:#e7e9f0;}#mermaid-1786677373218 svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#mermaid-1786677373218 p{margin:0;}#mermaid-1786677373218 .label{font-family:"trebuchet ms",verdana,arial,sans-serif;color:#fff;}#mermaid-1786677373218 .cluster-label text{fill:#e1e1e1;}#mermaid-1786677373218 .cluster-label span{color:#e1e1e1;}#mermaid-1786677373218 .cluster-label span p{background-color:transparent;}#mermaid-1786677373218 .label text,#mermaid-1786677373218 span{fill:#fff;color:#fff;}#mermaid-1786677373218 .node rect,#mermaid-1786677373218 .node circle,#mermaid-1786677373218 .node ellipse,#mermaid-1786677373218 .node polygon,#mermaid-1786677373218 .node path{fill:#1e1e1e;stroke:#9096a8;stroke-width:1px;}#mermaid-1786677373218 .rough-node .label text,#mermaid-1786677373218 .node .label text,#mermaid-1786677373218 .image-shape .label,#mermaid-1786677373218 .icon-shape .label{text-anchor:middle;}#mermaid-1786677373218 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#mermaid-1786677373218 .rough-node .label,#mermaid-1786677373218 .node .label,#mermaid-1786677373218 .image-shape .label,#mermaid-1786677373218 .icon-shape .label{text-align:center;}#mermaid-1786677373218 .node.clickable{cursor:pointer;}#mermaid-1786677373218 .root .anchor path{fill:#e7e9f0!important;stroke-width:0;stroke:#e7e9f0;}#mermaid-1786677373218 .arrowheadPath{fill:#e8e6dd;}#mermaid-1786677373218 .edgePath .path{stroke:#e7e9f0;stroke-width:1px;}#mermaid-1786677373218 .flowchart-link{stroke:#e7e9f0;fill:none;}#mermaid-1786677373218 .edgeLabel{background-color:#171922;text-align:center;}#mermaid-1786677373218 .edgeLabel p{background-color:#171922;}#mermaid-1786677373218 .edgeLabel rect{opacity:0.5;background-color:#171922;fill:#171922;}#mermaid-1786677373218 .labelBkg{background-color:rgba(23, 25, 34, 0.5);}#mermaid-1786677373218 .cluster rect{fill:#1e1e1e;stroke:hsl(0, 0%, 1.7647058824%);stroke-width:1px;}#mermaid-1786677373218 .cluster text{fill:#e1e1e1;}#mermaid-1786677373218 .cluster span{color:#e1e1e1;}#mermaid-1786677373218 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:#1e1e1e;border:1px solid hsl(0, 0%, 1.7647058824%);border-radius:2px;pointer-events:none;z-index:100;}#mermaid-1786677373218 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#fff;}#mermaid-1786677373218 rect.text{fill:none;stroke-width:0;}#mermaid-1786677373218 .icon-shape,#mermaid-1786677373218 .image-shape{background-color:#171922;text-align:center;}#mermaid-1786677373218 .icon-shape p,#mermaid-1786677373218 .image-shape p{background-color:#171922;padding:2px;}#mermaid-1786677373218 .icon-shape .label rect,#mermaid-1786677373218 .image-shape .label rect{opacity:0.5;background-color:#171922;fill:#171922;}#mermaid-1786677373218 .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#mermaid-1786677373218 .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#mermaid-1786677373218 .node .neo-node{stroke:#9096a8;}#mermaid-1786677373218 [data-look="neo"].node rect,#mermaid-1786677373218 [data-look="neo"].cluster rect,#mermaid-1786677373218 [data-look="neo"].node polygon{stroke:url(#mermaid-1786677373218-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1786677373218 [data-look="neo"].swimlane.cluster rect{filter:none;}#mermaid-1786677373218 [data-look="neo"].node path{stroke:url(#mermaid-1786677373218-gradient);stroke-width:1px;}#mermaid-1786677373218 [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1786677373218 [data-look="neo"].node .neo-line path{stroke:#9096a8;filter:none;}#mermaid-1786677373218 [data-look="neo"].node circle{stroke:url(#mermaid-1786677373218-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1786677373218 [data-look="neo"].node circle .state-start{fill:#000000;}#mermaid-1786677373218 [data-look="neo"].icon-shape .icon{fill:url(#mermaid-1786677373218-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1786677373218 [data-look="neo"].icon-shape .icon-neo path{stroke:url(#mermaid-1786677373218-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mermaid-1786677373218 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}#mermaid-1786677373218 .new&gt;*{fill:rgb(255, 224, 130)!important;stroke:rgb(245, 124, 0)!important;stroke-width:2px!important;color:rgb(0, 0, 0)!important;}#mermaid-1786677373218 .new span{fill:rgb(255, 224, 130)!important;stroke:rgb(245, 124, 0)!important;stroke-width:2px!important;color:rgb(0, 0, 0)!important;}#mermaid-1786677373218 .new tspan{fill:rgb(0, 0, 0)!important;}</style><g><marker id="mermaid-1786677373218_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="mermaid-1786677373218_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="mermaid-1786677373218_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></path></marker><marker id="mermaid-1786677373218_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></polygon></marker><marker id="mermaid-1786677373218_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="mermaid-1786677373218_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="mermaid-1786677373218_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="mermaid-1786677373218_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="mermaid-1786677373218_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="mermaid-1786677373218_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="mermaid-1786677373218_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"></path></marker><marker id="mermaid-1786677373218_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"></g><g class="edgeLabels"></g><g class="nodes"><g class="root" transform="translate(130.6796875, 0)"><g class="clusters"><g class="cluster" id="mermaid-1786677373218-subGraph1" data-look="classic"><rect style="" x="8" y="8" width="704.546875" height="548.0046615600586"></rect><g class="cluster-label" transform="translate(258.125, 8)"><foreignObject width="204.296875" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5;"><span class="nodeLabel"><p>머지 게이트 (branch-flow.yml)</p></span></div></foreignObject></g></g></g><g class="edgePaths"><path d="M206.858,99.5L197.223,109.75C187.588,120,168.317,140.5,158.682,162.333C149.047,184.167,149.047,207.333,149.047,218.917L149.047,230.5" id="mermaid-1786677373218-L_BranchFlow_ProvGate_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_BranchFlow_ProvGate_0" data-points="W3sieCI6MjA2Ljg1Nzg1MjIyNDU3NjI4LCJ5Ijo5OS41fSx7IngiOjE0OS4wNDY4NzUsInkiOjE2MX0seyJ4IjoxNDkuMDQ2ODc1LCJ5IjoyMzQuNX1d" data-look="classic" marker-end="url(#mermaid-1786677373218_flowchart-v2-pointEnd)"></path><path d="M275.873,99.5L292.437,109.75C309.002,120,342.132,140.5,370.02,160.563C397.907,180.627,420.552,200.253,431.875,210.067L443.198,219.88" id="mermaid-1786677373218-L_BranchFlow_VendGate_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_BranchFlow_VendGate_0" data-points="W3sieCI6Mjc1Ljg3MjU1MDMxNzc5NjYsInkiOjk5LjV9LHsieCI6Mzc1LjI2MTcxODc1LCJ5IjoxNjF9LHsieCI6NDQ2LjIyMDQ5OTA2NzE2NDE2LCJ5IjoyMjIuNX1d" data-look="classic" marker-end="url(#mermaid-1786677373218_flowchart-v2-pointEnd)"></path><path d="M149.047,288.5L149.047,302.75C149.047,317,149.047,345.5,173.917,375.101C198.787,404.702,248.528,435.404,273.398,450.754L298.268,466.105" id="mermaid-1786677373218-L_ProvGate_RepoHistory_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_ProvGate_RepoHistory_0" data-points="W3sieCI6MTQ5LjA0Njg3NSwieSI6Mjg4LjV9LHsieCI6MTQ5LjA0Njg3NSwieSI6Mzc0fSx7IngiOjMwMS42NzE4NzUsInkiOjQ2OC4yMDYzMTI0OTAyNjc3NX1d" data-look="classic" marker-end="url(#mermaid-1786677373218_flowchart-v2-pointEnd)"></path><path d="M491.219,300.5L491.219,312.75C491.219,325,491.219,349.5,475.638,375.347C460.057,401.195,428.895,428.389,413.314,441.986L397.733,455.584" id="mermaid-1786677373218-L_VendGate_RepoHistory_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_VendGate_RepoHistory_0" data-points="W3sieCI6NDkxLjIxODc1LCJ5IjozMDAuNX0seyJ4Ijo0OTEuMjE4NzUsInkiOjM3NH0seyJ4IjozOTQuNzE4NzUsInkiOjQ1OC4yMTM2ODIyMDI3MTd9XQ==" data-look="classic" marker-end="url(#mermaid-1786677373218_flowchart-v2-pointEnd)"></path><path d="M571.934,99.5L571.934,109.75C571.934,120,571.934,140.5,564.119,160.48C556.304,180.46,540.675,199.921,532.86,209.651L525.046,219.381" id="mermaid-1786677373218-L_SyncBot_VendGate_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_SyncBot_VendGate_0" data-points="W3sieCI6NTcxLjkzMzU5Mzc1LCJ5Ijo5OS41fSx7IngiOjU3MS45MzM1OTM3NSwieSI6MTYxfSx7IngiOjUyMi41NDA5MjgxNzE2NDE4LCJ5IjoyMjIuNX1d" data-look="classic" marker-end="url(#mermaid-1786677373218_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(149.046875, 161)"><g class="label" data-id="L_BranchFlow_ProvGate_0" transform="translate(-100, -24)"><foreignObject width="200" height="48"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="edgeLabel"><p>BASE_REF · HEAD_REF · PR_TITLE · BASE_SHA</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(375.26171875, 161)"><g class="label" data-id="L_BranchFlow_VendGate_0" transform="translate(-46.3828125, -12)"><foreignObject width="92.765625" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"><p>같은 환경변수</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(149.046875, 374)"><g class="label" data-id="L_ProvGate_RepoHistory_0" transform="translate(-100, -24)"><foreignObject width="200" height="48"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="edgeLabel"><p>git diff --diff-filter=A (보관된 PLAN.md 를 찾는다)</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(491.21875, 374)"><g class="label" data-id="L_VendGate_RepoHistory_0" transform="translate(-100, -36)"><foreignObject width="200" height="72"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="edgeLabel"><p>git diff --name-only (*/vendor/scv-core/ 를 찾는다)</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(571.93359375, 161)"><g class="label" data-id="L_SyncBot_VendGate_0" transform="translate(-95.046875, -12)"><foreignObject width="190.09375" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"><p>chore/core-* 브랜치 — 면제</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="mermaid-1786677373218-flowchart-BranchFlow-10" data-look="classic" transform="translate(232.23828125, 72.5)"><rect class="basic label-container" style="" x="-100.6875" y="-27" width="201.375" height="54"></rect><g class="label" style="" transform="translate(-70.6875, -12)"><rect></rect><foreignObject width="141.375" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>브랜치 흐름 워크플로</p></span></div></foreignObject></g></g><g class="node default" id="mermaid-1786677373218-flowchart-ProvGate-11" data-look="classic" transform="translate(149.046875, 261.5)"><rect class="basic label-container" style="" x="-106.046875" y="-27" width="212.09375" height="54"></rect><g class="label" style="" transform="translate(-76.046875, -12)"><rect></rect><foreignObject width="152.09375" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>check-provenance.sh</p></span></div></foreignObject></g></g><g class="node default new" id="mermaid-1786677373218-flowchart-VendGate-13" data-look="classic" transform="translate(491.21875, 261.5)"><rect class="basic label-container" style="fill:#FFE082 !important;stroke:#F57C00 !important;stroke-width:2px !important" x="-130" y="-39" width="260" height="78"></rect><g class="label" style="color:#000 !important" transform="translate(-100, -24)"><rect></rect><foreignObject width="200" height="48"><div style="color: rgb(0, 0, 0) !important; display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml"><span style="color:#000 !important" class="nodeLabel"><p>check-vendor-provenance.sh</p></span></div></foreignObject></g></g><g class="node default" id="mermaid-1786677373218-flowchart-RepoHistory-15" data-look="classic" transform="translate(348.1953125, 483.0023307800293)"><path d="M0,10.668219276245072 a46.5234375,10.668219276245072 0,0,0 93.046875,0 a46.5234375,10.668219276245072 0,0,0 -93.046875,0 l0,49.66821927624507 a46.5234375,10.668219276245072 0,0,0 93.046875,0 l0,-49.66821927624507" class="basic label-container outer-path" style="" transform="translate(-46.5234375, -35.50232891436761)"></path><g class="label" style="" transform="translate(-39.0234375, -2)"><rect></rect><foreignObject width="78.046875" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>저장소 이력</p></span></div></foreignObject></g></g><g class="node default" id="mermaid-1786677373218-flowchart-SyncBot-18" data-look="classic" transform="translate(571.93359375, 72.5)"><rect class="basic label-container" style="" x="-81.2265625" y="-27" width="162.453125" height="54"></rect><g class="label" style="" transform="translate(-51.2265625, -12)"><rect></rect><foreignObject width="102.453125" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>Core 동기화 봇</p></span></div></foreignObject></g></g></g></g><g class="root" transform="translate(0, 598.004638671875)"><g class="clusters"><g class="cluster" id="mermaid-1786677373218-subGraph0" data-look="classic"><rect style="" x="8" y="8" width="965.90625" height="500.22229766845703"></rect><g class="cluster-label" transform="translate(407.7265625, 8)"><foreignObject width="166.453125" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5;"><span class="nodeLabel"><p>승격 대기 (promote.yml)</p></span></div></foreignObject></g></g></g><g class="edgePaths"><path d="M523.906,99.5L523.906,109.75C523.906,120,523.906,140.5,523.906,160.333C523.906,180.167,523.906,199.333,523.906,208.917L523.906,218.5" id="mermaid-1786677373218-L_PromoteWorkflow_AwaitBlock_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_PromoteWorkflow_AwaitBlock_0" data-points="W3sieCI6NTIzLjkwNjI1LCJ5Ijo5OS41fSx7IngiOjUyMy45MDYyNSwieSI6MTYxfSx7IngiOjUyMy45MDYyNSwieSI6MjIyLjV9XQ==" data-look="classic" marker-end="url(#mermaid-1786677373218_flowchart-v2-pointEnd)"></path><path d="M417.82,275.367L375.009,285.806C332.198,296.245,246.576,317.122,235.701,340.355C224.826,363.588,288.699,389.176,320.636,401.97L352.572,414.764" id="mermaid-1786677373218-L_AwaitBlock_GitHubAPI_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_AwaitBlock_GitHubAPI_0" data-points="W3sieCI6NDE3LjgyMDMxMjUsInkiOjI3NS4zNjcyNjcyMDkwOTIwNn0seyJ4IjoxNjAuOTUzMTI1LCJ5IjozMzh9LHsieCI6MzU2LjI4NTE1NjI1LCJ5Ijo0MTYuMjUxMzMzNDEwNTAzMn1d" data-look="classic" marker-end="url(#mermaid-1786677373218_flowchart-v2-pointEnd)"></path><path d="M450.441,415.281L481.019,402.4C511.596,389.52,572.751,363.76,591.108,341.048C609.465,318.336,585.024,298.672,572.803,288.84L560.582,279.007" id="mermaid-1786677373218-L_GitHubAPI_AwaitBlock_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_GitHubAPI_AwaitBlock_0" data-points="W3sieCI6NDUwLjQ0MTQwNjI1LCJ5Ijo0MTUuMjgwNTI1Mzc4MjIwOH0seyJ4Ijo2MzMuOTA2MjUsInkiOjMzOH0seyJ4Ijo1NTcuNDY1NTcyMDMzODk4MywieSI6Mjc2LjV9XQ==" data-look="classic" marker-end="url(#mermaid-1786677373218_flowchart-v2-pointEnd)"></path><path d="M490.347,276.5L477.607,286.75C464.867,297,439.386,317.5,425.605,337.343C411.824,357.187,409.743,376.373,408.702,385.966L407.661,395.56" id="mermaid-1786677373218-L_AwaitBlock_GitHubAPI_2" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_AwaitBlock_GitHubAPI_2" data-points="W3sieCI6NDkwLjM0NjkyNzk2NjEwMTcsInkiOjI3Ni41fSx7IngiOjQxMy45MDYyNSwieSI6MzM4fSx7IngiOjQwNy4yMjk0NDExNDg0MDQzNiwieSI6Mzk5LjUzNjI3OTQ1MDQyOTN9XQ==" data-look="classic" marker-end="url(#mermaid-1786677373218_flowchart-v2-pointEnd)"></path><path d="M624.584,276.5L662.805,286.75C701.025,297,777.466,317.5,815.686,338.769C853.906,360.037,853.906,382.074,853.906,393.093L853.906,404.111" id="mermaid-1786677373218-L_AwaitBlock_Merge_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_AwaitBlock_Merge_0" data-points="W3sieCI6NjI0LjU4NDIxNjEwMTY5NDksInkiOjI3Ni41fSx7IngiOjg1My45MDYyNSwieSI6MzM4fSx7IngiOjg1My45MDYyNSwieSI6NDA4LjExMTE0ODgzNDIyODV9XQ==" data-look="classic" marker-end="url(#mermaid-1786677373218_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(523.90625, 161)"><g class="label" data-id="L_PromoteWorkflow_AwaitBlock_0" transform="translate(-100, -24)"><foreignObject width="200" height="48"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="edgeLabel"><p>gh pr create --base stage --head develop</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(187.16994, 331.60747)"><g class="label" data-id="L_AwaitBlock_GitHubAPI_0" transform="translate(-132.953125, -24)"><foreignObject width="265.90625" height="48"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="edgeLabel"><p>gh pr view --json mergeStateStatus,statusCheckRollup</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(587.38148, 357.59754)"><g class="label" data-id="L_GitHubAPI_AwaitBlock_0" transform="translate(-100, -24)"><foreignObject width="200" height="48"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="edgeLabel"><p>state · rollup (check run + commit status)</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(428.01326, 326.65027)"><g class="label" data-id="L_AwaitBlock_GitHubAPI_2" transform="translate(-100, -24)"><foreignObject width="200" height="48"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="edgeLabel"><p>gh pr update-branch (BEHIND 일 때)</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(853.90625, 338)"><g class="label" data-id="L_AwaitBlock_Merge_0" transform="translate(-100, -24)"><foreignObject width="200" height="48"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="edgeLabel"><p>실패 없음 · 대기 없음 · BLOCKED 아님</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="mermaid-1786677373218-flowchart-PromoteWorkflow-0" data-look="classic" transform="translate(523.90625, 72.5)"><rect class="basic label-container" style="" x="-76.3828125" y="-27" width="152.765625" height="54"></rect><g class="label" style="" transform="translate(-46.3828125, -12)"><rect></rect><foreignObject width="92.765625" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>승격 워크플로</p></span></div></foreignObject></g></g><g class="node default new" id="mermaid-1786677373218-flowchart-AwaitBlock-1" data-look="classic" transform="translate(523.90625, 249.5)"><rect class="basic label-container" style="fill:#FFE082 !important;stroke:#F57C00 !important;stroke-width:2px !important" x="-106.0859375" y="-27" width="212.171875" height="54"></rect><g class="label" style="color:#000 !important" transform="translate(-76.0859375, -12)"><rect></rect><foreignObject width="152.171875" height="24"><div style="color: rgb(0, 0, 0) !important; display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span style="color:#000 !important" class="nodeLabel"><p>await-mergeable 블록</p></span></div></foreignObject></g></g><g class="node default" id="mermaid-1786677373218-flowchart-GitHubAPI-3" data-look="classic" transform="translate(403.36328125, 435.1111488342285)"><path d="M0,10.740767146727507 a47.078125,10.740767146727507 0,0,0 94.15625,0 a47.078125,10.740767146727507 0,0,0 -94.15625,0 l0,49.74076714672751 a47.078125,10.740767146727507 0,0,0 94.15625,0 l0,-49.74076714672751" class="basic label-container outer-path" style="" transform="translate(-47.078125, -35.61115072009126)"></path><g class="label" style="" transform="translate(-39.578125, -2)"><rect></rect><foreignObject width="79.15625" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>GitHub API</p></span></div></foreignObject></g></g><g class="node default" id="mermaid-1786677373218-flowchart-Merge-9" data-look="classic" transform="translate(853.90625, 435.1111488342285)"><rect class="basic label-container" style="" x="-73.1328125" y="-27" width="146.265625" height="54"></rect><g class="label" style="" transform="translate(-43.1328125, -12)"><rect></rect><foreignObject width="86.265625" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>gh pr merge</p></span></div></foreignObject></g></g></g></g></g></g></g><defs><filter id="mermaid-1786677373218-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="mermaid-1786677373218-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="mermaid-1786677373218-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#9096a8" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(0, 0%, 7.6470588235%)" stop-opacity="1"></stop></linearGradient></svg></pre>
+<p>세 화살표만 따로 짚어둔다.</p>
+<ul><li>GitHubAPI → AwaitBlock 이 이 계획의 전부다. 예전에는 이 자리에서 개수를
+받았다. 지금은 판정(mergeStateStatus)과 원자료(rollup)를 함께 받아 세 조건을
+각각 확인한다.</li><li>SyncBot ⇢ VendGate 가 점선인 이유는 봇이 게이트를 호출하지 않기 때문이다.
+봇은 브랜치 이름만 남기고, 게이트가 그 이름을 보고 비켜준다.</li><li>ProvGate 와 VendGate 는 같은 저장소 이력을 읽지만 다른 질문을 한다. 앞은
+"무엇이 이 변경을 만들었나", 뒤는 "누가 핀을 옮겼나".</li></ul></section>
+<section id="s-11-2-position-in-whole-architecture" class="slide-page" data-idx="11"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>2. Position in whole architecture</h2><div class="callout info"><div class="callout-title">참고</div><div>Source: omitted — first diagram only</div></div>
+<p>graphify 그래프가 없어 생략한다. 이 계획은 시스템 구조를 바꾸지 않고 이미 있는 두
+워크플로 안쪽만 고치므로, 두 번째 다이어그램이 더할 정보가 없다.</p></section>
+<section id="s-12--테스트--인수기준-tests" class="slide-page" data-idx="12"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>✅ 테스트 · 인수기준 (TESTS)</h2></section>
+<section id="s-13-overview" class="slide-page" data-idx="13"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>Overview</h2><p>세 대상을 검증한다. 승격 워크플로의 대기 블록, 새 벤더 게이트, 그리고 그동안 검증이
+없던 provenance 게이트다.</p>
+<p>세 대상 모두 문자열 검사로는 잡히지 않는다. 대기 블록은 두 번 다 문장으로는 맞게
+읽혔고 특정 입력에서의 동작만 틀렸다. 게이트는 첫 줄에서 0으로 끝나도 통과 케이스를
+전부 통과시킨다. 그래서 전부 동작으로 검사하고, 마지막에 "이 검사가 실제로 무언가를
+판정하는가"를 따로 확인한다.</p></section>
+<section id="s-14-test-scenarios" class="slide-page" data-idx="14"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>Test scenarios</h2><h3 class="subhead">T1. 건너뛴 매트릭스 자리표시자만 있을 때 머지하지 않는다</h3>
+<p>0.26.0 에서 두 번 손머지를 만든 그 상태다.</p>
+<ul><li>Setup: rollup 에 Contract (&lt;확장 안 된 matrix.os&gt;) (COMPLETED/SKIPPED) 하나만,
+mergeStateStatus= BLOCKED. 다음 상태에서 진짜 체크가 실패로 도착한다</li><li>Run: promote.yml 의 await-mergeable 블록을 마커 사이에서 잘라내 실행.
+gh 와 sleep 만 대역</li><li>Expected: 머지하지 않고 중단</li><li>Pass criterion: 블록이 0이 아닌 값으로 끝난다</li></ul>
+<div class="callout info"><div class="callout-title">참고</div><div>단언이 부정형인 것이 핵심이다. "결국 머지된다"는 픽스처는 옛 코드도 새 코드도
+MERGE 로 끝나 판별력이 없다. 일찍 머지하는 코드는 뒤에 오는 실패를 못 본다.</div></div>
+<h3 class="subhead">T2. 진짜 체크가 도착해 통과하면 승격은 진행된다</h3>
+<ul><li>Setup: T1 과 같은 시작 상태. 다음 상태에서 CLEAN + 전부 SUCCESS</li><li>Expected: 머지로 진행</li><li>Pass criterion: 블록이 0으로 끝난다</li></ul>
+<h3 class="subhead">T3. BLOCKED 에서 풀리지 않으면 상한까지 기다린 뒤 실패한다</h3>
+<ul><li>Setup: 상태가 계속 BLOCKED</li><li>Expected: 머지하지 않고, PR 은 열린 채로 남긴다</li><li>Pass criterion: 블록이 0이 아닌 값으로 끝난다</li></ul>
+<h3 class="subhead">T4. UNSTABLE 이어도 도는 체크가 없으면 머지한다</h3>
+<p>CLEAN 만 요구했을 때 빠지는 반대쪽 함정이다. 건너뛴 자리표시자가 rollup 을 계속
+UNSTABLE 로 붙잡으면 필수 체크가 다 통과했는데도 아무것도 머지되지 않는다.</p>
+<ul><li>Setup: mergeStateStatus=UNSTABLE, 실패 없음, 대기 없음</li><li>Expected: 머지로 진행</li><li>Pass criterion: 블록이 0으로 끝난다</li></ul>
+<h3 class="subhead">T5. 실패한 체크는 즉시 체인을 멈춘다</h3>
+<ul><li>Setup: rollup 에 conclusion=FAILURE 하나</li><li>Expected: 상한까지 기다리지 않고 중단</li><li>Pass criterion: 블록이 0이 아닌 값으로 끝난다</li></ul>
+<h3 class="subhead">T6. 두 rollup 모양을 모두 읽는다</h3>
+<p>check run 은 status+conclusion 을, commit status 는 state 만 들고 온다. 한쪽만
+읽으면 CI 의 절반이 안 보인다.</p>
+<ul><li>Setup: (a) state=PENDING 인 commit status, (b) state=FAILURE 인 commit status</li><li>Expected: (a) 대기 후 실패, (b) 즉시 중단</li><li>Pass criterion: 두 경우 다 머지하지 않는다</li></ul>
+<h3 class="subhead">T7. 기타 머지 상태를 올바로 다룬다</h3>
+<ul><li>Setup: DIRTY / UNKNOWN / BEHIND / 체크가 아예 없는 저장소</li><li>Expected: DIRTY 즉시 중단 · UNKNOWN 은 준비됨으로 보지 않음 ·
+BEHIND 는 update-branch 호출 후 계속 · 체크 없으면 머지</li><li>Pass criterion: 각각 위 동작. BEHIND 는 호출 기록으로 확인</li></ul>
+<h3 class="subhead">T8. 손으로 벤더링한 PR 이 막힌다</h3>
+<ul><li>Setup: chore/release-* 브랜치가 vendor/scv-core/ 를 수정. 중첩 배치
+(plugins/scv/vendor/scv-core/)도 같이</li><li>Run: check-vendor-provenance.sh</li><li>Expected: 두 배치 모두 거부</li><li>Pass criterion: 스크립트가 0이 아닌 값으로 끝난다</li></ul>
+<h3 class="subhead">T9. 벤더 게이트의 면제가 전부 통한다</h3>
+<ul><li>Setup: (a) 봇 브랜치 chore/core-*, (b) stage 대상, (c) main 대상,
+(d) 제목에 [manual-vendor: &lt;이유&gt;]</li><li>Expected: 전부 통과</li><li>Pass criterion: 네 경우 다 0으로 끝난다. 하나라도 막히면 릴리스가 선다</li></ul>
+<h3 class="subhead">T10. 이유 없는 표지는 거부한다</h3>
+<ul><li>Setup: 제목이 [manual-vendor] (이유 없음)</li><li>Expected: 거부. 이유가 표지의 전부다</li><li>Pass criterion: 0이 아닌 값으로 끝난다</li></ul>
+<h3 class="subhead">T11. 벤더 게이트가 무관한 PR 을 막지 않는다</h3>
+<ul><li>Setup: (a) 벤더 트리를 안 건드리는 PR, (b) 이름만 비슷한 경로
+(docs/vendor-scv-core-notes.md, src/vendorer.ts)</li><li>Expected: 둘 다 통과. 규칙은 디렉터리 경계이지 부분 문자열이 아니다</li><li>Pass criterion: 0으로 끝난다</li></ul>
+<h3 class="subhead">T12. provenance 게이트의 판정이 유지된다</h3>
+<p>이 게이트에는 지금까지 테스트가 없었다. 판정을 바꾸지 않고 현재 동작을 고정한다.</p>
+<ul><li>Setup: (a) 계획 없는 코드 변경, (b) 보관된 계획이 있는 코드 변경,
+(c) 문서만, (d) scv/ 안만, (e) 릴리스 체인, (f) 봇 브랜치,
+(g) [no-plan: &lt;이유&gt;], (h) 이유 없는 [no-plan]</li><li>Expected: (a)(h) 거부, 나머지 통과</li><li>Pass criterion: 여덟 경우 전부 예상대로</li></ul>
+<div class="callout info"><div class="callout-title">참고</div><div>픽스처는 실제 git 저장소다. 검증 대상에 diff 를 읽는 방식(merge-base 해석,
+경로 모양)이 포함되므로, 스텁은 git 의 동작이 아니라 내가 이해한 git 을 검증하게
+된다. 계획서 파일은 frontmatter 스키마까지 갖춰야 한다 — 게이트가 찾은 뒤에
+검증하므로, 내용이 자리표시자면 "계획 없음"으로 읽힌다.</div></div>
+<h3 class="subhead">T13. 이 검사들이 실제로 무언가를 판정한다</h3>
+<ul><li>Setup: 대기 블록을 옛 버전으로 되돌리고 T1–T7 을 돌린다. 게이트는 통과
+케이스와 별개로 거부 케이스가 실제 거부인지 확인한다</li><li>Expected: 옛 대기 블록에서 회귀 케이스(T1)가 실패한다. 두 게이트가 각각
+최소 하나를 거부한다</li><li>Pass criterion: 옛 코드에서 실패 수 &gt; 0. 첫 줄에서 0으로 끝나는 스크립트는
+통과 케이스를 전부 통과시키므로, 이 확인이 없으면 스위트는 아무것도 판정하지 않는
+게이트를 건강하다고 보고한다</li></ul>
+<h3 class="subhead">T14. 마커가 사라지면 조용히 통과하지 않는다</h3>
+<ul><li>Setup: promote.yml 에서 await-mergeable 마커를 제거</li><li>Expected: 테스트가 시끄럽게 실패한다</li><li>Pass criterion: 잘라낸 블록이 비었거나 비정상적으로 짧으면 실패로 보고</li></ul>
+<h3 class="subhead">T15. 전체 스위트가 여전히 초록이다</h3>
+<ul><li>Setup: 변경 전체</li><li>Run: tests/run.sh, core/tests/run-dry.sh, core/tests/test-*.sh,
+tests/test-host-neutral.sh, tests/test-guard-consistency.sh</li><li>Expected: 실패 0</li><li>Pass criterion: 새 스크립트가 core/ 호스트 중립성을 깨지 않는다</li></ul></section>
+<section id="s-15-how-to-run" class="slide-page" data-idx="15"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>How to run</h2><pre class="code"><code>bash tests/test-promote-wait.sh &amp;&amp; bash core/tests/test-provenance-gates.sh</code></pre></section>
+<section id="s-16-pass-criteria" class="slide-page" data-idx="16"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>Pass criteria</h2><ul><li>T1–T15 전부 통과</li><li>T13 이 핵심이다. 옛 코드에서 실패하지 않는 회귀 테스트는 회귀 테스트가 아니다</li><li>tests/run.sh · core/tests/run-dry.sh · core/tests/test-*.sh 실패 0</li><li>릴리스 아티팩트에 core/scripts/check-vendor-provenance.sh 가 들어간다</li></ul></section>
+<section id="s-17-related-documents" class="slide-page" data-idx="17"><div class="kicker">승격 대기 판정과 벤더 게이트</div><h2>Related Documents</h2><ul><li>PLAN.md</li></ul></section>
+<section id="__lint" class="lint slide-page" data-idx="18"><h2>품질 리포트 <span class="lint-count">2</span></h2>
+     <p class="sub">원문에 없는 내용은 채우지 않음 — 전문 기획서가 보통 갖추는데 이 문서엔 빠진 항목입니다.</p>
+     <div class="callout warn"><div>성공지표(Metrics) 섹션이 없습니다 — baseline→target 지표를 권장합니다.</div></div><div class="callout warn"><div>예외처리(Edge cases) 섹션이 없습니다.</div></div></section>
+<div class="deck-footer">
+      <button class="deck-arrow" id="scvPrev" disabled="" onclick="scvGoto(scvIdx()-1)">‹ 이전</button>
+      <div class="deck-dots"><button class="deck-dot active" data-idx="0" onclick="scvGoto(0)" aria-label="1"></button><button class="deck-dot" data-idx="1" onclick="scvGoto(1)" aria-label="2"></button><button class="deck-dot" data-idx="2" onclick="scvGoto(2)" aria-label="3"></button><button class="deck-dot" data-idx="3" onclick="scvGoto(3)" aria-label="4"></button><button class="deck-dot" data-idx="4" onclick="scvGoto(4)" aria-label="5"></button><button class="deck-dot" data-idx="5" onclick="scvGoto(5)" aria-label="6"></button><button class="deck-dot" data-idx="6" onclick="scvGoto(6)" aria-label="7"></button><button class="deck-dot" data-idx="7" onclick="scvGoto(7)" aria-label="8"></button><button class="deck-dot" data-idx="8" onclick="scvGoto(8)" aria-label="9"></button><button class="deck-dot" data-idx="9" onclick="scvGoto(9)" aria-label="10"></button><button class="deck-dot" data-idx="10" onclick="scvGoto(10)" aria-label="11"></button><button class="deck-dot" data-idx="11" onclick="scvGoto(11)" aria-label="12"></button><button class="deck-dot" data-idx="12" onclick="scvGoto(12)" aria-label="13"></button><button class="deck-dot" data-idx="13" onclick="scvGoto(13)" aria-label="14"></button><button class="deck-dot" data-idx="14" onclick="scvGoto(14)" aria-label="15"></button><button class="deck-dot" data-idx="15" onclick="scvGoto(15)" aria-label="16"></button><button class="deck-dot" data-idx="16" onclick="scvGoto(16)" aria-label="17"></button><button class="deck-dot" data-idx="17" onclick="scvGoto(17)" aria-label="18"></button><button class="deck-dot" data-idx="18" onclick="scvGoto(18)" aria-label="19"></button></div>
+      <span class="deck-counter" id="scvCounter">1 / 19</span>
+      <button class="deck-arrow" id="scvNext" onclick="scvGoto(scvIdx()+1)">다음 ›</button>
+    </div>
+<section class="print-source"><h2>기획서 원문</h2><h3>PLAN.md</h3><pre class="code"><code>---
+title: 승격 대기 판정과 벤더 게이트
+slug: 20260814-wookiya1364-release-machinery
+author: wookiya1364
+created_at: 2026-08-14
+status: done
+kind: refactor
+lang: korean
+tags: [ci, release, guard]
+raw_sources:
+  - scv/raw/stale/20260814-wookiya1364-release-machinery.md
+refs: []
+invariants:
+  - "릴리스 체인(develop→stage→main) PR 은 어떤 게이트도 막지 않는다"
+  - "봇 동기화 브랜치는 어떤 게이트도 막지 않는다"
+  - "게이트는 벤더링된 사본에서 실행되므로 호스트 토큰을 담지 않는다"
+---
+
+# 승격 대기 판정과 벤더 게이트
+
+## Summary
+
+릴리스 기계장치에서 사람이 손으로 때우던 두 곳을 없앤다. 하나는 승격 워크플로가
+체크를 기다리는 방식이고, 다른 하나는 벤더링된 Core 를 누가 옮겼는지다. 덤으로,
+머지를 막는 게이트인데 테스트가 하나도 없던 `check-provenance.sh` 에 검증을 붙인다.
+
+## Goals / Non-Goals
+
+- **Goals**
+  - 승격 워크플로가 필수 체크가 생기기 전에 머지를 시도하지 않는다
+  - 손으로 벤더링한 PR 이 머지 시점에 걸린다 — 단, 이유를 달면 통과한다
+  - 두 게이트가 실제 저장소 픽스처로 검증된다
+- **Non-Goals**
+  - 벤더링을 금지하지 않는다. Core 계약이 바뀌면 봇이 못 따라온다
+  - 매트릭스 잡이 확장되지 않은 이름으로 보고되는 것 자체는 고치지 않는다.
+    GitHub 의 동작이고, 우리가 거기에 의존하지 않으면 된다
+  - 이번 릴리스의 승격은 여전히 옛 로직으로 돈다(아래 Risks)
+
+## Approach Overview
+
+**대기 판정.** 자작 판정을 세 번째로 만들지 않는다. 머지를 결정하는 주체가 GitHub
+이므로 GitHub 의 `mergeStateStatus` 를 본다. 다만 그 값 하나로는 부족하다 — 건너뛴
+매트릭스 자리표시자가 rollup 을 `UNSTABLE` 로 붙잡으면 `CLEAN` 은 영원히 오지
+않는다. 세 조건이 동시에 성립할 때만 머지한다: 실패한 체크가 없고, 도는 체크가
+없고, GitHub 이 `BLOCKED` 이라 하지 않는다.
+
+`DIRTY`/`DRAFT` 는 900초를 기다릴 이유가 없으므로 즉시 중단한다. `BEHIND` 는
+`update-branch` 후 계속한다. `UNKNOWN` 은 판정이 아니라 "아직 계산 안 됨"이므로
+대기한다.
+
+**벤더 게이트.** `check-provenance.sh` 의 형제로 `check-vendor-provenance.sh` 를
+둔다. 앞의 것은 "무엇이 이 변경을 만들었나"를 묻고, 새것은 "누가 핀을 옮겼나"를
+묻는다. `*/vendor/scv-core/` 를 건드리는 PR 은 봇 브랜치이거나, 릴리스 체인이거나,
+제목에 이유가 달려야 한다.
+
+**검증.** 워크플로 블록은 마커 사이를 잘라내 그대로 실행한다. 게이트는 실제 git
+저장소를 픽스처로 쓴다.
+
+## Guardrails
+
+- 릴리스 체인(`stage`/`main` 대상) PR 은 새 게이트가 절대 막지 않는다. 막으면 모든
+  릴리스가 선다
+- 봇 동기화 브랜치(`chore/core-*`)도 막지 않는다. 그게 봇의 일이다
+- 새 스크립트는 `core/` 안에 들어가므로 호스트 이름을 담을 수 없다. 벤더 경로는
+  래퍼마다 깊이가 다르므로 모양(`*/vendor/scv-core/`)으로 맞춘다
+- 워크플로 `run:` 블록 주석에 `${{ … }}` 표기를 넣지 않는다. Actions 가 치환한다
+- 대기 상한(900초)을 넘겨도 **아무것도 반쯤 승격된 상태로 남기지 않는다**. PR 은
+  열린 채로 두고 실패한다
+- `check-provenance.sh` 의 판정 로직은 건드리지 않는다. 이번에 붙이는 건 검증뿐이다
+
+## Exit criteria
+
+- TESTS.md 시나리오 전부 통과
+- 새 대기 블록 테스트가 **옛 코드에서 실패하고 새 코드에서 통과**한다. 통과만 하는
+  테스트는 무엇도 증명하지 않는다
+- 두 게이트 각각 최소 하나를 실제로 거부한다(무력화 감지)
+- `tests/run.sh`, `core/tests/run-dry.sh`, `core/tests/test-*.sh` 전부 초록
+- 벤더링된 아티팩트에 새 스크립트가 들어간다
+- 배포 문서(`docs/release.md`)가 새 절차와 일치한다
+
+## Suggested path
+
+1. #115 의 rollup 을 떠서 조기 종료의 실제 입력을 확정한다
+2. 대기 블록을 `mergeStateStatus` 기반으로 교체하고 마커로 감싼다
+3. 마커 사이를 실행하는 테스트를 쓰고, **옛 블록에 대고 돌려** 실패를 확인한다
+4. `check-vendor-provenance.sh` 를 `check-provenance.sh` 형태로 쓴다
+5. 두 게이트를 실제 저장소 픽스처로 검증한다
+6. 래퍼 워크플로에 스텝을 추가한다 — **Core 벤더링 이후에**
+7. `docs/release.md` 와 `core/contracts/guard.md` 를 실제와 맞춘다
+
+## Related Documents
+
+- [`TESTS.md`](./TESTS.md)
+- [`FEATURE_ARCHITECTURE.md`](./FEATURE_ARCHITECTURE.md)
+- `core/contracts/guard.md` — 세 게이트의 역할 구분
+
+## Risks / Open Questions
+
+- **이번 릴리스는 못 고친다.** `workflow_dispatch` 는 기본 브랜치의 워크플로 파일을
+  실행한다. 0.27.0 승격은 여전히 옛 로직으로 돌고, 또 손이 갈 수 있다. 0.28.0 부터
+  듣는다
+- **래퍼는 한 박자 뒤에 간다.** 새 스크립트가 벤더링되기 전에 래퍼 워크플로에
+  스텝을 넣으면 CI 가 "파일 없음"으로 빨개진다. Core → 봇 동기화 → 래퍼 순서
+- `mergeStateStatus` 는 GitHub 이 지연 계산한다. 첫 조회가 `UNKNOWN` 을 돌려주는
+  것은 정상이고, 재조회가 계산을 촉발한다. 대기 상한 안에서 해소되는지는 실제
+  승격에서 확인해야 한다
+- 900초 상한은 근거 있는 값이 아니다. 현재 CI 가 그보다 한참 빠르다는 것만 안다
+
+## Links
+
+- Raw originals: (frontmatter 참조)
+- Related PRs:</code></pre><h3>FEATURE_ARCHITECTURE.md</h3><pre class="code"><code>---
+title: 승격 대기 판정과 벤더 게이트
+slug: 20260814-wookiya1364-release-machinery
+created_at: 2026-08-14
+status: planned
+---
+
+# Architecture — 승격 대기 판정과 벤더 게이트
+
+&gt; 이 기능의 두 갈래를 그림으로 본 것. **`/scv:work` 전에 검토하고 고칠 것** —
+&gt; 다이어그램은 생성된 것이고 부정확할 수 있다.
+
+## 1. Component data flow
+
+두 기계장치가 어디서 무엇을 묻는지. 왼쪽은 승격이 언제 머지해도 되는지 판정하는
+경로, 오른쪽은 PR 이 머지될 자격이 있는지 판정하는 경로다. 둘은 서로를 모른다 —
+같은 릴리스에서 고쳐질 뿐 결합돼 있지 않다.
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  subgraph "승격 대기 (promote.yml)"
+    PromoteWorkflow[승격 워크플로] --&gt;|"gh pr create --base stage --head develop"| AwaitBlock[await-mergeable 블록]:::new
+    AwaitBlock --&gt;|"gh pr view --json mergeStateStatus,statusCheckRollup"| GitHubAPI[(GitHub API)]
+    GitHubAPI --&gt;|"state · rollup (check run + commit status)"| AwaitBlock
+    AwaitBlock --&gt;|"gh pr update-branch (BEHIND 일 때)"| GitHubAPI
+    AwaitBlock --&gt;|"실패 없음 · 대기 없음 · BLOCKED 아님"| Merge[gh pr merge]
+  end
+
+  subgraph "머지 게이트 (branch-flow.yml)"
+    BranchFlow[브랜치 흐름 워크플로] --&gt;|"BASE_REF · HEAD_REF · PR_TITLE · BASE_SHA"| ProvGate[check-provenance.sh]
+    BranchFlow --&gt;|"같은 환경변수"| VendGate[check-vendor-provenance.sh]:::new
+    ProvGate --&gt;|"git diff --diff-filter=A (보관된 PLAN.md 를 찾는다)"| RepoHistory[(저장소 이력)]
+    VendGate --&gt;|"git diff --name-only (*/vendor/scv-core/ 를 찾는다)"| RepoHistory
+    SyncBot[Core 동기화 봇] -.-&gt;|"chore/core-* 브랜치 — 면제"| VendGate
+  end
+
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```
+
+세 화살표만 따로 짚어둔다.
+
+- `GitHubAPI → AwaitBlock` 이 이 계획의 전부다. 예전에는 이 자리에서 **개수**를
+  받았다. 지금은 판정(`mergeStateStatus`)과 원자료(rollup)를 함께 받아 세 조건을
+  각각 확인한다.
+- `SyncBot ⇢ VendGate` 가 점선인 이유는 봇이 게이트를 호출하지 않기 때문이다.
+  봇은 브랜치 이름만 남기고, 게이트가 그 이름을 보고 비켜준다.
+- `ProvGate` 와 `VendGate` 는 같은 저장소 이력을 읽지만 다른 질문을 한다. 앞은
+  "무엇이 이 변경을 만들었나", 뒤는 "누가 핀을 옮겼나".
+
+## 2. Position in whole architecture
+
+&gt; Source: omitted — first diagram only
+
+graphify 그래프가 없어 생략한다. 이 계획은 시스템 구조를 바꾸지 않고 이미 있는 두
+워크플로 안쪽만 고치므로, 두 번째 다이어그램이 더할 정보가 없다.</code></pre><h3>TESTS.md</h3><pre class="code"><code># Test Plan — 승격 대기 판정과 벤더 게이트
+
+## Overview
+
+세 대상을 검증한다. 승격 워크플로의 대기 블록, 새 벤더 게이트, 그리고 그동안 검증이
+없던 provenance 게이트다.
+
+세 대상 모두 **문자열 검사로는 잡히지 않는다**. 대기 블록은 두 번 다 문장으로는 맞게
+읽혔고 특정 입력에서의 동작만 틀렸다. 게이트는 첫 줄에서 0으로 끝나도 통과 케이스를
+전부 통과시킨다. 그래서 전부 동작으로 검사하고, 마지막에 "이 검사가 실제로 무언가를
+판정하는가"를 따로 확인한다.
+
+## Test scenarios
+
+### T1. 건너뛴 매트릭스 자리표시자만 있을 때 머지하지 않는다
+
+0.26.0 에서 두 번 손머지를 만든 그 상태다.
+
+- **Setup**: rollup 에 `Contract (&lt;확장 안 된 matrix.os&gt;)` (COMPLETED/SKIPPED) 하나만,
+  `mergeStateStatus`= `BLOCKED`. 다음 상태에서 진짜 체크가 **실패**로 도착한다
+- **Run**: `promote.yml` 의 `await-mergeable` 블록을 마커 사이에서 잘라내 실행.
+  `gh` 와 `sleep` 만 대역
+- **Expected**: 머지하지 않고 중단
+- **Pass criterion**: 블록이 0이 아닌 값으로 끝난다
+
+&gt; 단언이 **부정형**인 것이 핵심이다. "결국 머지된다"는 픽스처는 옛 코드도 새 코드도
+&gt; MERGE 로 끝나 판별력이 없다. 일찍 머지하는 코드는 뒤에 오는 실패를 못 본다.
+
+### T2. 진짜 체크가 도착해 통과하면 승격은 진행된다
+
+- **Setup**: T1 과 같은 시작 상태. 다음 상태에서 `CLEAN` + 전부 SUCCESS
+- **Expected**: 머지로 진행
+- **Pass criterion**: 블록이 0으로 끝난다
+
+### T3. `BLOCKED` 에서 풀리지 않으면 상한까지 기다린 뒤 실패한다
+
+- **Setup**: 상태가 계속 `BLOCKED`
+- **Expected**: 머지하지 않고, PR 은 열린 채로 남긴다
+- **Pass criterion**: 블록이 0이 아닌 값으로 끝난다
+
+### T4. `UNSTABLE` 이어도 도는 체크가 없으면 머지한다
+
+`CLEAN` 만 요구했을 때 빠지는 반대쪽 함정이다. 건너뛴 자리표시자가 rollup 을 계속
+`UNSTABLE` 로 붙잡으면 필수 체크가 다 통과했는데도 아무것도 머지되지 않는다.
+
+- **Setup**: `mergeStateStatus`=`UNSTABLE`, 실패 없음, 대기 없음
+- **Expected**: 머지로 진행
+- **Pass criterion**: 블록이 0으로 끝난다
+
+### T5. 실패한 체크는 즉시 체인을 멈춘다
+
+- **Setup**: rollup 에 `conclusion=FAILURE` 하나
+- **Expected**: 상한까지 기다리지 않고 중단
+- **Pass criterion**: 블록이 0이 아닌 값으로 끝난다
+
+### T6. 두 rollup 모양을 모두 읽는다
+
+check run 은 `status`+`conclusion` 을, commit status 는 `state` 만 들고 온다. 한쪽만
+읽으면 CI 의 절반이 안 보인다.
+
+- **Setup**: (a) `state=PENDING` 인 commit status, (b) `state=FAILURE` 인 commit status
+- **Expected**: (a) 대기 후 실패, (b) 즉시 중단
+- **Pass criterion**: 두 경우 다 머지하지 않는다
+
+### T7. 기타 머지 상태를 올바로 다룬다
+
+- **Setup**: `DIRTY` / `UNKNOWN` / `BEHIND` / 체크가 아예 없는 저장소
+- **Expected**: `DIRTY` 즉시 중단 · `UNKNOWN` 은 준비됨으로 보지 않음 ·
+  `BEHIND` 는 `update-branch` 호출 후 계속 · 체크 없으면 머지
+- **Pass criterion**: 각각 위 동작. `BEHIND` 는 호출 기록으로 확인
+
+### T8. 손으로 벤더링한 PR 이 막힌다
+
+- **Setup**: `chore/release-*` 브랜치가 `vendor/scv-core/` 를 수정. 중첩 배치
+  (`plugins/scv/vendor/scv-core/`)도 같이
+- **Run**: `check-vendor-provenance.sh`
+- **Expected**: 두 배치 모두 거부
+- **Pass criterion**: 스크립트가 0이 아닌 값으로 끝난다
+
+### T9. 벤더 게이트의 면제가 전부 통한다
+
+- **Setup**: (a) 봇 브랜치 `chore/core-*`, (b) `stage` 대상, (c) `main` 대상,
+  (d) 제목에 `[manual-vendor: &lt;이유&gt;]`
+- **Expected**: 전부 통과
+- **Pass criterion**: 네 경우 다 0으로 끝난다. 하나라도 막히면 릴리스가 선다
+
+### T10. 이유 없는 표지는 거부한다
+
+- **Setup**: 제목이 `[manual-vendor]` (이유 없음)
+- **Expected**: 거부. 이유가 표지의 전부다
+- **Pass criterion**: 0이 아닌 값으로 끝난다
+
+### T11. 벤더 게이트가 무관한 PR 을 막지 않는다
+
+- **Setup**: (a) 벤더 트리를 안 건드리는 PR, (b) 이름만 비슷한 경로
+  (`docs/vendor-scv-core-notes.md`, `src/vendorer.ts`)
+- **Expected**: 둘 다 통과. 규칙은 디렉터리 경계이지 부분 문자열이 아니다
+- **Pass criterion**: 0으로 끝난다
+
+### T12. provenance 게이트의 판정이 유지된다
+
+이 게이트에는 지금까지 테스트가 없었다. 판정을 바꾸지 않고 현재 동작을 고정한다.
+
+- **Setup**: (a) 계획 없는 코드 변경, (b) 보관된 계획이 있는 코드 변경,
+  (c) 문서만, (d) `scv/` 안만, (e) 릴리스 체인, (f) 봇 브랜치,
+  (g) `[no-plan: &lt;이유&gt;]`, (h) 이유 없는 `[no-plan]`
+- **Expected**: (a)(h) 거부, 나머지 통과
+- **Pass criterion**: 여덟 경우 전부 예상대로
+
+&gt; 픽스처는 **실제 git 저장소**다. 검증 대상에 diff 를 읽는 방식(merge-base 해석,
+&gt; 경로 모양)이 포함되므로, 스텁은 git 의 동작이 아니라 내가 이해한 git 을 검증하게
+&gt; 된다. 계획서 파일은 frontmatter 스키마까지 갖춰야 한다 — 게이트가 찾은 뒤에
+&gt; 검증하므로, 내용이 자리표시자면 "계획 없음"으로 읽힌다.
+
+### T13. 이 검사들이 실제로 무언가를 판정한다
+
+- **Setup**: 대기 블록을 **옛 버전**으로 되돌리고 T1–T7 을 돌린다. 게이트는 통과
+  케이스와 별개로 거부 케이스가 실제 거부인지 확인한다
+- **Expected**: 옛 대기 블록에서 회귀 케이스(T1)가 **실패**한다. 두 게이트가 각각
+  최소 하나를 거부한다
+- **Pass criterion**: 옛 코드에서 실패 수 &gt; 0. 첫 줄에서 0으로 끝나는 스크립트는
+  통과 케이스를 전부 통과시키므로, 이 확인이 없으면 스위트는 아무것도 판정하지 않는
+  게이트를 건강하다고 보고한다
+
+### T14. 마커가 사라지면 조용히 통과하지 않는다
+
+- **Setup**: `promote.yml` 에서 `await-mergeable` 마커를 제거
+- **Expected**: 테스트가 시끄럽게 실패한다
+- **Pass criterion**: 잘라낸 블록이 비었거나 비정상적으로 짧으면 실패로 보고
+
+### T15. 전체 스위트가 여전히 초록이다
+
+- **Setup**: 변경 전체
+- **Run**: `tests/run.sh`, `core/tests/run-dry.sh`, `core/tests/test-*.sh`,
+  `tests/test-host-neutral.sh`, `tests/test-guard-consistency.sh`
+- **Expected**: 실패 0
+- **Pass criterion**: 새 스크립트가 `core/` 호스트 중립성을 깨지 않는다
+
+## How to run
+
+```bash
+bash tests/test-promote-wait.sh &amp;&amp; bash core/tests/test-provenance-gates.sh
+```
+
+## Pass criteria
+
+- T1–T15 전부 통과
+- T13 이 핵심이다. 옛 코드에서 실패하지 않는 회귀 테스트는 회귀 테스트가 아니다
+- `tests/run.sh` · `core/tests/run-dry.sh` · `core/tests/test-*.sh` 실패 0
+- 릴리스 아티팩트에 `core/scripts/check-vendor-provenance.sh` 가 들어간다
+
+## Related Documents
+
+- [`PLAN.md`](./PLAN.md)</code></pre></section>
+</div>
+</div>
+<aside class="source-panel" id="scvSourcePanel">
+      <div class="panel-resize-handle" id="scvResizeHandle" title="드래그해서 크기 조절"></div>
+      <div class="panel-head"><span class="panel-title">기획서 원문</span><button class="panel-close" onclick="scvTogglePanel()" title="숨기기 (S)">✕</button></div>
+      <div class="panel-tabs"><button class="panel-tab active" data-idx="0" onclick="scvSelectSource(0)">PLAN.md</button><button class="panel-tab" data-idx="1" onclick="scvSelectSource(1)">FEATURE_ARCHITECTURE.md</button><button class="panel-tab" data-idx="2" onclick="scvSelectSource(2)">TESTS.md</button></div>
+      <div class="panel-body"><pre class="code src-doc active" data-idx="0"><code>---
+title: 승격 대기 판정과 벤더 게이트
+slug: 20260814-wookiya1364-release-machinery
+author: wookiya1364
+created_at: 2026-08-14
+status: done
+kind: refactor
+lang: korean
+tags: [ci, release, guard]
+raw_sources:
+  - scv/raw/stale/20260814-wookiya1364-release-machinery.md
+refs: []
+invariants:
+  - "릴리스 체인(develop→stage→main) PR 은 어떤 게이트도 막지 않는다"
+  - "봇 동기화 브랜치는 어떤 게이트도 막지 않는다"
+  - "게이트는 벤더링된 사본에서 실행되므로 호스트 토큰을 담지 않는다"
+---
+
+# 승격 대기 판정과 벤더 게이트
+
+<mark class="src-hl">## Summary
+
+릴리스 기계장치에서 사람이 손으로 때우던 두 곳을 없앤다. 하나는 승격 워크플로가
+체크를 기다리는 방식이고, 다른 하나는 벤더링된 Core 를 누가 옮겼는지다. 덤으로,
+머지를 막는 게이트인데 테스트가 하나도 없던 `check-provenance.sh` 에 검증을 붙인다.
+</mark>
+## Goals / Non-Goals
+
+- **Goals**
+  - 승격 워크플로가 필수 체크가 생기기 전에 머지를 시도하지 않는다
+  - 손으로 벤더링한 PR 이 머지 시점에 걸린다 — 단, 이유를 달면 통과한다
+  - 두 게이트가 실제 저장소 픽스처로 검증된다
+- **Non-Goals**
+  - 벤더링을 금지하지 않는다. Core 계약이 바뀌면 봇이 못 따라온다
+  - 매트릭스 잡이 확장되지 않은 이름으로 보고되는 것 자체는 고치지 않는다.
+    GitHub 의 동작이고, 우리가 거기에 의존하지 않으면 된다
+  - 이번 릴리스의 승격은 여전히 옛 로직으로 돈다(아래 Risks)
+
+## Approach Overview
+
+**대기 판정.** 자작 판정을 세 번째로 만들지 않는다. 머지를 결정하는 주체가 GitHub
+이므로 GitHub 의 `mergeStateStatus` 를 본다. 다만 그 값 하나로는 부족하다 — 건너뛴
+매트릭스 자리표시자가 rollup 을 `UNSTABLE` 로 붙잡으면 `CLEAN` 은 영원히 오지
+않는다. 세 조건이 동시에 성립할 때만 머지한다: 실패한 체크가 없고, 도는 체크가
+없고, GitHub 이 `BLOCKED` 이라 하지 않는다.
+
+`DIRTY`/`DRAFT` 는 900초를 기다릴 이유가 없으므로 즉시 중단한다. `BEHIND` 는
+`update-branch` 후 계속한다. `UNKNOWN` 은 판정이 아니라 "아직 계산 안 됨"이므로
+대기한다.
+
+**벤더 게이트.** `check-provenance.sh` 의 형제로 `check-vendor-provenance.sh` 를
+둔다. 앞의 것은 "무엇이 이 변경을 만들었나"를 묻고, 새것은 "누가 핀을 옮겼나"를
+묻는다. `*/vendor/scv-core/` 를 건드리는 PR 은 봇 브랜치이거나, 릴리스 체인이거나,
+제목에 이유가 달려야 한다.
+
+**검증.** 워크플로 블록은 마커 사이를 잘라내 그대로 실행한다. 게이트는 실제 git
+저장소를 픽스처로 쓴다.
+
+## Guardrails
+
+- 릴리스 체인(`stage`/`main` 대상) PR 은 새 게이트가 절대 막지 않는다. 막으면 모든
+  릴리스가 선다
+- 봇 동기화 브랜치(`chore/core-*`)도 막지 않는다. 그게 봇의 일이다
+- 새 스크립트는 `core/` 안에 들어가므로 호스트 이름을 담을 수 없다. 벤더 경로는
+  래퍼마다 깊이가 다르므로 모양(`*/vendor/scv-core/`)으로 맞춘다
+- 워크플로 `run:` 블록 주석에 `${{ … }}` 표기를 넣지 않는다. Actions 가 치환한다
+- 대기 상한(900초)을 넘겨도 **아무것도 반쯤 승격된 상태로 남기지 않는다**. PR 은
+  열린 채로 두고 실패한다
+- `check-provenance.sh` 의 판정 로직은 건드리지 않는다. 이번에 붙이는 건 검증뿐이다
+
+## Exit criteria
+
+- TESTS.md 시나리오 전부 통과
+- 새 대기 블록 테스트가 **옛 코드에서 실패하고 새 코드에서 통과**한다. 통과만 하는
+  테스트는 무엇도 증명하지 않는다
+- 두 게이트 각각 최소 하나를 실제로 거부한다(무력화 감지)
+- `tests/run.sh`, `core/tests/run-dry.sh`, `core/tests/test-*.sh` 전부 초록
+- 벤더링된 아티팩트에 새 스크립트가 들어간다
+- 배포 문서(`docs/release.md`)가 새 절차와 일치한다
+
+## Suggested path
+
+1. #115 의 rollup 을 떠서 조기 종료의 실제 입력을 확정한다
+2. 대기 블록을 `mergeStateStatus` 기반으로 교체하고 마커로 감싼다
+3. 마커 사이를 실행하는 테스트를 쓰고, **옛 블록에 대고 돌려** 실패를 확인한다
+4. `check-vendor-provenance.sh` 를 `check-provenance.sh` 형태로 쓴다
+5. 두 게이트를 실제 저장소 픽스처로 검증한다
+6. 래퍼 워크플로에 스텝을 추가한다 — **Core 벤더링 이후에**
+7. `docs/release.md` 와 `core/contracts/guard.md` 를 실제와 맞춘다
+
+## Related Documents
+
+- [`TESTS.md`](./TESTS.md)
+- [`FEATURE_ARCHITECTURE.md`](./FEATURE_ARCHITECTURE.md)
+- `core/contracts/guard.md` — 세 게이트의 역할 구분
+
+## Risks / Open Questions
+
+- **이번 릴리스는 못 고친다.** `workflow_dispatch` 는 기본 브랜치의 워크플로 파일을
+  실행한다. 0.27.0 승격은 여전히 옛 로직으로 돌고, 또 손이 갈 수 있다. 0.28.0 부터
+  듣는다
+- **래퍼는 한 박자 뒤에 간다.** 새 스크립트가 벤더링되기 전에 래퍼 워크플로에
+  스텝을 넣으면 CI 가 "파일 없음"으로 빨개진다. Core → 봇 동기화 → 래퍼 순서
+- `mergeStateStatus` 는 GitHub 이 지연 계산한다. 첫 조회가 `UNKNOWN` 을 돌려주는
+  것은 정상이고, 재조회가 계산을 촉발한다. 대기 상한 안에서 해소되는지는 실제
+  승격에서 확인해야 한다
+- 900초 상한은 근거 있는 값이 아니다. 현재 CI 가 그보다 한참 빠르다는 것만 안다
+
+## Links
+
+- Raw originals: (frontmatter 참조)
+- Related PRs:</code></pre><pre class="code src-doc" data-idx="1"><code>---
+title: 승격 대기 판정과 벤더 게이트
+slug: 20260814-wookiya1364-release-machinery
+created_at: 2026-08-14
+status: planned
+---
+
+# Architecture — 승격 대기 판정과 벤더 게이트
+
+&gt; 이 기능의 두 갈래를 그림으로 본 것. **`/scv:work` 전에 검토하고 고칠 것** —
+&gt; 다이어그램은 생성된 것이고 부정확할 수 있다.
+
+## 1. Component data flow
+
+두 기계장치가 어디서 무엇을 묻는지. 왼쪽은 승격이 언제 머지해도 되는지 판정하는
+경로, 오른쪽은 PR 이 머지될 자격이 있는지 판정하는 경로다. 둘은 서로를 모른다 —
+같은 릴리스에서 고쳐질 뿐 결합돼 있지 않다.
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  subgraph "승격 대기 (promote.yml)"
+    PromoteWorkflow[승격 워크플로] --&gt;|"gh pr create --base stage --head develop"| AwaitBlock[await-mergeable 블록]:::new
+    AwaitBlock --&gt;|"gh pr view --json mergeStateStatus,statusCheckRollup"| GitHubAPI[(GitHub API)]
+    GitHubAPI --&gt;|"state · rollup (check run + commit status)"| AwaitBlock
+    AwaitBlock --&gt;|"gh pr update-branch (BEHIND 일 때)"| GitHubAPI
+    AwaitBlock --&gt;|"실패 없음 · 대기 없음 · BLOCKED 아님"| Merge[gh pr merge]
+  end
+
+  subgraph "머지 게이트 (branch-flow.yml)"
+    BranchFlow[브랜치 흐름 워크플로] --&gt;|"BASE_REF · HEAD_REF · PR_TITLE · BASE_SHA"| ProvGate[check-provenance.sh]
+    BranchFlow --&gt;|"같은 환경변수"| VendGate[check-vendor-provenance.sh]:::new
+    ProvGate --&gt;|"git diff --diff-filter=A (보관된 PLAN.md 를 찾는다)"| RepoHistory[(저장소 이력)]
+    VendGate --&gt;|"git diff --name-only (*/vendor/scv-core/ 를 찾는다)"| RepoHistory
+    SyncBot[Core 동기화 봇] -.-&gt;|"chore/core-* 브랜치 — 면제"| VendGate
+  end
+
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```
+
+세 화살표만 따로 짚어둔다.
+
+- `GitHubAPI → AwaitBlock` 이 이 계획의 전부다. 예전에는 이 자리에서 **개수**를
+  받았다. 지금은 판정(`mergeStateStatus`)과 원자료(rollup)를 함께 받아 세 조건을
+  각각 확인한다.
+- `SyncBot ⇢ VendGate` 가 점선인 이유는 봇이 게이트를 호출하지 않기 때문이다.
+  봇은 브랜치 이름만 남기고, 게이트가 그 이름을 보고 비켜준다.
+- `ProvGate` 와 `VendGate` 는 같은 저장소 이력을 읽지만 다른 질문을 한다. 앞은
+  "무엇이 이 변경을 만들었나", 뒤는 "누가 핀을 옮겼나".
+
+## 2. Position in whole architecture
+
+&gt; Source: omitted — first diagram only
+
+graphify 그래프가 없어 생략한다. 이 계획은 시스템 구조를 바꾸지 않고 이미 있는 두
+워크플로 안쪽만 고치므로, 두 번째 다이어그램이 더할 정보가 없다.</code></pre><pre class="code src-doc" data-idx="2"><code># Test Plan — 승격 대기 판정과 벤더 게이트
+
+## Overview
+
+세 대상을 검증한다. 승격 워크플로의 대기 블록, 새 벤더 게이트, 그리고 그동안 검증이
+없던 provenance 게이트다.
+
+세 대상 모두 **문자열 검사로는 잡히지 않는다**. 대기 블록은 두 번 다 문장으로는 맞게
+읽혔고 특정 입력에서의 동작만 틀렸다. 게이트는 첫 줄에서 0으로 끝나도 통과 케이스를
+전부 통과시킨다. 그래서 전부 동작으로 검사하고, 마지막에 "이 검사가 실제로 무언가를
+판정하는가"를 따로 확인한다.
+
+## Test scenarios
+
+### T1. 건너뛴 매트릭스 자리표시자만 있을 때 머지하지 않는다
+
+0.26.0 에서 두 번 손머지를 만든 그 상태다.
+
+- **Setup**: rollup 에 `Contract (&lt;확장 안 된 matrix.os&gt;)` (COMPLETED/SKIPPED) 하나만,
+  `mergeStateStatus`= `BLOCKED`. 다음 상태에서 진짜 체크가 **실패**로 도착한다
+- **Run**: `promote.yml` 의 `await-mergeable` 블록을 마커 사이에서 잘라내 실행.
+  `gh` 와 `sleep` 만 대역
+- **Expected**: 머지하지 않고 중단
+- **Pass criterion**: 블록이 0이 아닌 값으로 끝난다
+
+&gt; 단언이 **부정형**인 것이 핵심이다. "결국 머지된다"는 픽스처는 옛 코드도 새 코드도
+&gt; MERGE 로 끝나 판별력이 없다. 일찍 머지하는 코드는 뒤에 오는 실패를 못 본다.
+
+### T2. 진짜 체크가 도착해 통과하면 승격은 진행된다
+
+- **Setup**: T1 과 같은 시작 상태. 다음 상태에서 `CLEAN` + 전부 SUCCESS
+- **Expected**: 머지로 진행
+- **Pass criterion**: 블록이 0으로 끝난다
+
+### T3. `BLOCKED` 에서 풀리지 않으면 상한까지 기다린 뒤 실패한다
+
+- **Setup**: 상태가 계속 `BLOCKED`
+- **Expected**: 머지하지 않고, PR 은 열린 채로 남긴다
+- **Pass criterion**: 블록이 0이 아닌 값으로 끝난다
+
+### T4. `UNSTABLE` 이어도 도는 체크가 없으면 머지한다
+
+`CLEAN` 만 요구했을 때 빠지는 반대쪽 함정이다. 건너뛴 자리표시자가 rollup 을 계속
+`UNSTABLE` 로 붙잡으면 필수 체크가 다 통과했는데도 아무것도 머지되지 않는다.
+
+- **Setup**: `mergeStateStatus`=`UNSTABLE`, 실패 없음, 대기 없음
+- **Expected**: 머지로 진행
+- **Pass criterion**: 블록이 0으로 끝난다
+
+### T5. 실패한 체크는 즉시 체인을 멈춘다
+
+- **Setup**: rollup 에 `conclusion=FAILURE` 하나
+- **Expected**: 상한까지 기다리지 않고 중단
+- **Pass criterion**: 블록이 0이 아닌 값으로 끝난다
+
+### T6. 두 rollup 모양을 모두 읽는다
+
+check run 은 `status`+`conclusion` 을, commit status 는 `state` 만 들고 온다. 한쪽만
+읽으면 CI 의 절반이 안 보인다.
+
+- **Setup**: (a) `state=PENDING` 인 commit status, (b) `state=FAILURE` 인 commit status
+- **Expected**: (a) 대기 후 실패, (b) 즉시 중단
+- **Pass criterion**: 두 경우 다 머지하지 않는다
+
+### T7. 기타 머지 상태를 올바로 다룬다
+
+- **Setup**: `DIRTY` / `UNKNOWN` / `BEHIND` / 체크가 아예 없는 저장소
+- **Expected**: `DIRTY` 즉시 중단 · `UNKNOWN` 은 준비됨으로 보지 않음 ·
+  `BEHIND` 는 `update-branch` 호출 후 계속 · 체크 없으면 머지
+- **Pass criterion**: 각각 위 동작. `BEHIND` 는 호출 기록으로 확인
+
+### T8. 손으로 벤더링한 PR 이 막힌다
+
+- **Setup**: `chore/release-*` 브랜치가 `vendor/scv-core/` 를 수정. 중첩 배치
+  (`plugins/scv/vendor/scv-core/`)도 같이
+- **Run**: `check-vendor-provenance.sh`
+- **Expected**: 두 배치 모두 거부
+- **Pass criterion**: 스크립트가 0이 아닌 값으로 끝난다
+
+### T9. 벤더 게이트의 면제가 전부 통한다
+
+- **Setup**: (a) 봇 브랜치 `chore/core-*`, (b) `stage` 대상, (c) `main` 대상,
+  (d) 제목에 `[manual-vendor: &lt;이유&gt;]`
+- **Expected**: 전부 통과
+- **Pass criterion**: 네 경우 다 0으로 끝난다. 하나라도 막히면 릴리스가 선다
+
+### T10. 이유 없는 표지는 거부한다
+
+- **Setup**: 제목이 `[manual-vendor]` (이유 없음)
+- **Expected**: 거부. 이유가 표지의 전부다
+- **Pass criterion**: 0이 아닌 값으로 끝난다
+
+### T11. 벤더 게이트가 무관한 PR 을 막지 않는다
+
+- **Setup**: (a) 벤더 트리를 안 건드리는 PR, (b) 이름만 비슷한 경로
+  (`docs/vendor-scv-core-notes.md`, `src/vendorer.ts`)
+- **Expected**: 둘 다 통과. 규칙은 디렉터리 경계이지 부분 문자열이 아니다
+- **Pass criterion**: 0으로 끝난다
+
+### T12. provenance 게이트의 판정이 유지된다
+
+이 게이트에는 지금까지 테스트가 없었다. 판정을 바꾸지 않고 현재 동작을 고정한다.
+
+- **Setup**: (a) 계획 없는 코드 변경, (b) 보관된 계획이 있는 코드 변경,
+  (c) 문서만, (d) `scv/` 안만, (e) 릴리스 체인, (f) 봇 브랜치,
+  (g) `[no-plan: &lt;이유&gt;]`, (h) 이유 없는 `[no-plan]`
+- **Expected**: (a)(h) 거부, 나머지 통과
+- **Pass criterion**: 여덟 경우 전부 예상대로
+
+&gt; 픽스처는 **실제 git 저장소**다. 검증 대상에 diff 를 읽는 방식(merge-base 해석,
+&gt; 경로 모양)이 포함되므로, 스텁은 git 의 동작이 아니라 내가 이해한 git 을 검증하게
+&gt; 된다. 계획서 파일은 frontmatter 스키마까지 갖춰야 한다 — 게이트가 찾은 뒤에
+&gt; 검증하므로, 내용이 자리표시자면 "계획 없음"으로 읽힌다.
+
+### T13. 이 검사들이 실제로 무언가를 판정한다
+
+- **Setup**: 대기 블록을 **옛 버전**으로 되돌리고 T1–T7 을 돌린다. 게이트는 통과
+  케이스와 별개로 거부 케이스가 실제 거부인지 확인한다
+- **Expected**: 옛 대기 블록에서 회귀 케이스(T1)가 **실패**한다. 두 게이트가 각각
+  최소 하나를 거부한다
+- **Pass criterion**: 옛 코드에서 실패 수 &gt; 0. 첫 줄에서 0으로 끝나는 스크립트는
+  통과 케이스를 전부 통과시키므로, 이 확인이 없으면 스위트는 아무것도 판정하지 않는
+  게이트를 건강하다고 보고한다
+
+### T14. 마커가 사라지면 조용히 통과하지 않는다
+
+- **Setup**: `promote.yml` 에서 `await-mergeable` 마커를 제거
+- **Expected**: 테스트가 시끄럽게 실패한다
+- **Pass criterion**: 잘라낸 블록이 비었거나 비정상적으로 짧으면 실패로 보고
+
+### T15. 전체 스위트가 여전히 초록이다
+
+- **Setup**: 변경 전체
+- **Run**: `tests/run.sh`, `core/tests/run-dry.sh`, `core/tests/test-*.sh`,
+  `tests/test-host-neutral.sh`, `tests/test-guard-consistency.sh`
+- **Expected**: 실패 0
+- **Pass criterion**: 새 스크립트가 `core/` 호스트 중립성을 깨지 않는다
+
+## How to run
+
+```bash
+bash tests/test-promote-wait.sh &amp;&amp; bash core/tests/test-provenance-gates.sh
+```
+
+## Pass criteria
+
+- T1–T15 전부 통과
+- T13 이 핵심이다. 옛 코드에서 실패하지 않는 회귀 테스트는 회귀 테스트가 아니다
+- `tests/run.sh` · `core/tests/run-dry.sh` · `core/tests/test-*.sh` 실패 0
+- 릴리스 아티팩트에 `core/scripts/check-vendor-provenance.sh` 가 들어간다
+
+## Related Documents
+
+- [`PLAN.md`](./PLAN.md)</code></pre></div>
+    </aside>
+</div>
+
+<script>
+  var SCV_ANCHORS = ["Summary","Goals / Non-Goals","Approach Overview","Guardrails","Exit criteria","Suggested path","Related Documents","Risks / Open Questions","Links","📐 구조 · FEATURE_ARCHITECTURE","1. Component data flow","2. Position in whole architecture","✅ 테스트 · 인수기준 (TESTS)","Overview","Test scenarios","How to run","Pass criteria","Related Documents",null];
+  var scvPageIdx = 0;
+  function scvIdx(){ return scvPageIdx; }
+  function scvEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function scvHighlight(anchor){
+    var docs = document.querySelectorAll('.src-doc');
+    docs.forEach(function(el){
+      var code = el.querySelector('code');
+      if(code) code.innerHTML = scvEsc(code.textContent);
+    });
+    if(!anchor) return;
+    for (var i=0;i<docs.length;i++){
+      var code = docs[i].querySelector('code');
+      if(!code) continue;
+      var raw = code.textContent;
+      var lines = raw.split('\n');
+      var start=-1, end=lines.length;
+      for (var j=0;j<lines.length;j++){
+        var m = lines[j].match(/^#{1,6}\s+(.*)$/);
+        if (m && m[1].trim() === String(anchor).trim()) { start = j; break; }
+      }
+      if (start < 0) continue;
+      for (var k=start+1;k<lines.length;k++){ if (/^#{1,6}\s+/.test(lines[k])) { end = k; break; } }
+      var before = lines.slice(0,start).join('\n'), hl = lines.slice(start,end).join('\n'), after = lines.slice(end).join('\n');
+      code.innerHTML = scvEsc(before) + (before ? '\n' : '') + '<mark class="src-hl">' + scvEsc(hl) + '</mark>' + (after ? '\n' + scvEsc(after) : '');
+      if (typeof scvSelectSource === 'function') scvSelectSource(i);
+      var markEl = docs[i].querySelector('mark.src-hl');
+      if (markEl && markEl.scrollIntoView) markEl.scrollIntoView({ block: 'center' });
+      return;
+    }
+  }
+  function scvGoto(n){
+    var total = 19;
+    n = Math.max(0, Math.min(total - 1, n));
+    scvPageIdx = n;
+    document.querySelectorAll('.slide-page').forEach(function(p){ p.classList.toggle('active', p.dataset.idx === String(n)); });
+    document.querySelectorAll('.deck-nav-item').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
+    document.querySelectorAll('.deck-dot').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
+    if (typeof window.scvRunMermaid === 'function') { try { window.scvRunMermaid(); } catch (e) {} }
+    var prevBtn = document.getElementById('scvPrev'), nextBtn = document.getElementById('scvNext'), counter = document.getElementById('scvCounter');
+    if (prevBtn) prevBtn.disabled = (n === 0);
+    if (nextBtn) nextBtn.disabled = (n === total - 1);
+    if (counter) counter.textContent = (n + 1) + ' / ' + total;
+    scvHighlight(SCV_ANCHORS[n]);
+    var main = document.querySelector('.scroll-main');
+    if (main) main.scrollTop = 0;
+  }
+  function scvTogglePanel(){ var p=document.getElementById('scvSourcePanel'); if(p) p.classList.toggle('closed'); }
+  function scvSelectSource(i){
+    document.querySelectorAll('.panel-tab').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+    document.querySelectorAll('.src-doc').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+  }
+  (function(){
+    // 패널 좌측 경계 드래그 리사이즈 — 원본 SourcePanel 과 같은 산식(최소 320px,
+    // 본문에 최소 420px 남김).
+    var handle = document.getElementById('scvResizeHandle');
+    var panel = document.getElementById('scvSourcePanel');
+    if (!handle || !panel) return;
+    var MOBILE_BP = 640;
+    handle.addEventListener('mousedown', function(e){
+      e.preventDefault();
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+      function onMove(ev){
+        // 버튼을 놓친 채(창 밖 등) mouseup 을 못 받은 경우 — 버튼이 눌려있지 않으면 즉시 정리.
+        if (ev.buttons === 0) { onUp(); return; }
+        var raw = window.innerWidth - ev.clientX;
+        var max = Math.max(320, window.innerWidth - 420);
+        panel.style.width = Math.min(max, Math.max(320, raw)) + 'px';
+      }
+      function onUp(){
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        window.removeEventListener('blur', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('blur', onUp);
+    });
+    // 인라인 width 는 스타일시트의 반응형 브레이크포인트(640px 모바일 전체폭·900px 좁은폭)
+    // 보다 항상 우선한다 — 창 크기가 바뀔 때마다 다시 맞춰줘야 브레이크포인트가 살아난다.
+    window.addEventListener('resize', function(){
+      if (!panel.style.width) return;
+      if (window.innerWidth <= MOBILE_BP) { panel.style.width = ''; return; }
+      var max = Math.max(320, window.innerWidth - 420);
+      if (parseFloat(panel.style.width) > max) panel.style.width = max + 'px';
+    });
+  })();
+  document.addEventListener('keydown', function(e){
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') scvGoto(scvIdx() + 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') scvGoto(scvIdx() - 1);
+    else if (e.key === 'Home') scvGoto(0);
+    else if (e.key === 'End') scvGoto(19 - 1);
+    else if (e.key === 's' || e.key === 'S') scvTogglePanel();
+  });
+  scvGoto(0);
+</script>
+<script>
+  function scvThemeLabel(){ return document.documentElement.getAttribute('data-theme')==='light' ? "☀ 라이트" : "☾ 다크"; }
+  function scvToggleTheme(){
+    var html = document.documentElement;
+    var next = html.getAttribute('data-theme')==='light' ? 'dark' : 'light';
+    if (next === 'light') html.setAttribute('data-theme','light'); else html.removeAttribute('data-theme');
+    try { localStorage.setItem('scv-deck-theme', next); } catch(e){}
+    var btn = document.getElementById('scvThemeBtn');
+    if (btn) btn.textContent = scvThemeLabel();
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    var btn = document.getElementById('scvThemeBtn');
+    if (btn) btn.textContent = scvThemeLabel();
+  });
+</script>
+
+
+<div class="mermaidTooltip" style="opacity: 0; position: absolute; text-align: center; max-width: 200px; padding: 2px; font-size: 12px; background: rgb(255, 255, 222); border: 1px solid rgb(51, 51, 51); border-radius: 2px; pointer-events: none; z-index: 100;"></div></body></html>
