@@ -3,7 +3,9 @@ title: "구현 원칙 4종 — 재활용·최소구현·모듈분리·장기관�
 slug: 20260811-wookiya1364-implementation-principles
 author: "wookiya1364"
 created_at: 2026-08-11
-status: done
+status: obsolete
+obsoleted_at: 2026-08-18
+obsoleted_by: 20260818-wookiya1364-regression-contract-repair
 kind: feature
 lang: ko
 tags: [protocols, work, codegen, principles]
