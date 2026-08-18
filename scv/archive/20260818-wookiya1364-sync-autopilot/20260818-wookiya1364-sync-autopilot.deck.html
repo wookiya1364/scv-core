@@ -1,0 +1,964 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<script>(function(){try{if(localStorage.getItem('scv-deck-theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>sync 자동화와 가드 실효 회복</title>
+<style>
+/* 다크가 기본값(--bg/--panel 등 전부). 라이트는 html[data-theme="light"] 오버라이드 —
+   FE 프로젝트의 다크-기본+라이트-오버라이드 관례와 동일한 모양(속성 하나만 바뀌면
+   전체가 재테마된다). head 맨 앞 인라인 스크립트가 pre-paint 로 저장된 선택을 적용해
+   깜빡임(FOUC)이 없다. */
+:root{--fg:#e7e9f0;--muted:#9096a8;--bg:#171922;--panel:#1d2029;--border:#2c3040;--primary:#7c93ff;--warn:#e0ab48;--danger:#ef6b6b;--good:#3ecf8e;--page-bg:#0d0e13;--on-primary:#12163a;--on-warn:#241a06;}
+html[data-theme="light"]{--fg:#1a1d24;--muted:#5b6270;--bg:#ffffff;--panel:#f6f7f9;--border:#e3e6ea;--primary:#2f6feb;--warn:#b8860b;--danger:#c0392b;--good:#1e8e5a;--page-bg:#f6f7f9;--on-primary:#ffffff;}
+*{box-sizing:border-box}
+html,body{height:100%}
+html{scroll-behavior:smooth}
+body{margin:0;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:var(--fg);background:var(--page-bg)}
+/* 문서 = 스크롤되는 본문(좌) + 상시 원문 마크다운 패널(우, sticky) — 이게 scv:deck 의
+   정체성이다: 렌더링과 원문이 늘 같은 화면에 나란히 있어야 서로 어긋나지 않았다는 게
+   보장된다. 인쇄 시에는 패널을 접고 본문 뒤에 원문을 부록으로 붙인다(.print-source). */
+.shell{display:flex;height:100vh;overflow:hidden}
+.scroll-main{flex:1;min-width:0;overflow-y:auto}
+.wrap{max-width:840px;margin:0 auto;background:var(--bg);min-height:100%;padding:0 clamp(20px,5vw,56px) 96px;box-shadow:0 0 0 1px var(--border)}
+header.doc{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--border);margin:0 calc(clamp(20px,5vw,56px)*-1);padding:18px clamp(20px,5vw,56px);display:flex;align-items:center;gap:14px;justify-content:space-between}
+header.doc h1{font-size:22px;margin:0;font-weight:700}
+.header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.theme-toggle,.panel-toggle{flex-shrink:0;font:600 12px/1 inherit;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer}
+.theme-toggle:hover,.panel-toggle:hover{background:var(--border);color:var(--fg)}
+.panel-toggle .kbd{opacity:.55;margin-left:4px}
+.source-panel{position:relative;width:min(440px,38vw);flex-shrink:0;border-left:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column}
+.source-panel.closed{display:none}
+.panel-resize-handle{position:absolute;left:0;top:0;bottom:0;width:7px;margin-left:-4px;cursor:col-resize;z-index:6}
+.panel-resize-handle:hover{background:rgba(127,137,160,.25)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-title{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.02em}
+.panel-close{border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 7px;border-radius:5px;line-height:1.4}
+.panel-close:hover{background:var(--border);color:var(--fg)}
+.panel-tabs{display:flex;gap:2px;padding:9px 12px 0;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.panel-tab{font:600 12px/1 inherit;color:var(--muted);padding:7px 10px;border:none;background:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.panel-tab.active{color:var(--fg);border-bottom-color:var(--primary)}
+.panel-body{flex:1;overflow-y:auto;padding:14px}
+.panel-body .src-doc{display:none;margin:0}
+.panel-body .src-doc.active{display:block}
+.print-source{display:none}
+/* 목차(nav.toc) 는 인쇄본 전용(펼친 전체 문서엔 목차가 자연스럽다). 화면에서는
+   deck-nav(아래) 가 같은 역할을 대신한다 — 페이지 번호 pill + 클릭 이동. */
+@media screen{nav.toc{display:none}}
+nav.toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:26px 0}
+nav.toc h3{margin:0 0 8px;font-size:12px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
+nav.toc ol{margin:0;padding-left:20px;columns:2;gap:24px}
+nav.toc a{color:var(--fg);text-decoration:none}
+nav.toc a:hover{color:var(--primary);text-decoration:underline}
+section{padding:22px 0;border-top:1px solid var(--border)}
+section:first-of-type{border-top:none}
+/* 페이지 넘김(화면 전용) — 한 번에 한 섹션만. 인쇄 시엔 전부 펼쳐서 보여준다. */
+@media screen{.slide-page{display:none}.slide-page.active{display:block}}
+.deck-nav{display:flex;flex-wrap:wrap;gap:6px;margin:20px 0}
+.deck-nav-item{font:600 12px/1 inherit;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer;white-space:nowrap}
+.deck-nav-item:hover{color:var(--fg)}
+.deck-nav-item.active{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
+.deck-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:8px;padding-top:20px;border-top:1px solid var(--border)}
+.deck-arrow{font:600 13px/1 inherit;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;cursor:pointer}
+.deck-arrow:disabled{opacity:.35;cursor:default}
+.deck-arrow:not(:disabled):hover{background:var(--panel)}
+.deck-dots{display:flex;align-items:center;gap:6px}
+.deck-dot{width:8px;height:8px;border-radius:999px;background:var(--border);border:none;cursor:pointer;padding:0}
+.deck-dot.active{background:var(--primary);width:20px;border-radius:5px}
+.deck-counter{font-size:12px;color:var(--muted);min-width:52px;text-align:center}
+mark.src-hl{background:#ffe58a;color:#3a2f00;border-radius:3px;padding:0 1px}
+h2{font-size:19px;margin:.2em 0 .6em;font-weight:700}
+h4{margin:.2em 0 .4em;font-size:14px}
+.subhead{font-size:15px;font-weight:600;margin:1.1em 0 .3em;color:var(--fg)}
+.kicker{font-size:12px;color:var(--muted);letter-spacing:.03em;margin-bottom:2px}
+.sub{color:var(--muted);margin:-.2em 0 1em}
+p{margin:.5em 0}
+ul,ol{margin:.4em 0;padding-left:22px}
+li{margin:.25em 0}
+.tw{overflow-x:auto;margin:.8em 0}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{border:1px solid var(--border);padding:8px 11px;text-align:left;vertical-align:top}
+thead th{background:var(--panel);font-weight:600}
+table.kv th{background:var(--panel);width:30%;white-space:nowrap}
+.kpi{display:flex;flex-wrap:wrap;gap:12px;margin:.8em 0}
+.kpi-card{flex:1 1 160px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--panel)}
+.kpi-label{font-size:13px;color:var(--muted);margin-bottom:6px}
+.kpi-nums{display:flex;align-items:center;gap:8px;font-weight:700}
+.kpi-nums .base{color:var(--muted)}
+.kpi-nums .arrow{color:var(--primary)}
+.kpi-nums .target{color:var(--good)}
+.goals{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:.8em 0}
+.goal-col{border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+.goal-col.g{border-left:4px solid var(--good)}
+.goal-col.ng{border-left:4px solid var(--danger)}
+pre.code{background:#0f1320;color:#e6e9f0;border-radius:10px;padding:14px 16px;overflow-x:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;margin:.8em 0}
+/* mermaid 는 항상 라이트 카드에 그린다(테마 무관, pre.code 가 항상 다크인 것과 대칭) —
+   mermaid 렌더 테마를 다크로 다시 그리려면 이미 SVG 로 처리된 노드를 되돌려야 해서
+   토글마다 재처리가 필요해진다. 대신 다이어그램 카드 자체를 고정 라이트로 둬서
+   토글과 무관하게 항상 선명하게 읽힌다. */
+pre.mermaid{background:#f6f7f9;border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;margin:.8em 0}
+pre.mermaid.mermaid-fallback{text-align:left;white-space:pre;overflow-x:auto;background:#0f1320;color:#e6e9f0;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:30px 16px 14px;position:relative}
+pre.mermaid.mermaid-fallback::before{content:"\29c9 \b2e4\c774\c5b4\adf8\b7a8 \c6d0\bcf8 (\c624\d504\b77c\c778 \b610\b294 CDN \bbf8\b85c\b4dc)";position:absolute;top:8px;left:16px;font:600 11px/1 -apple-system,sans-serif;color:#9aa4b2}
+.callout{border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:11px 14px;margin:.8em 0;background:var(--panel)}
+.callout-title{font-weight:700;font-size:13px;margin-bottom:3px}
+.callout.info{border-left-color:var(--primary)}
+.callout.good{border-left-color:var(--good)}
+.callout.warn{border-left-color:var(--warn)}
+.callout.danger{border-left-color:var(--danger)}
+.callout.next{border-left-color:var(--primary)}
+.lint h2{color:var(--warn)}
+.lint-count{display:inline-block;background:var(--warn);color:var(--on-warn);border-radius:999px;font-size:12px;padding:1px 9px;vertical-align:middle}
+/* 화면목업(와이어프레임) 킷 — scv 자체 기본 스킨(2순위 폴백): DesignSystem 의 실제
+   다크 팔레트를 distill(무채색 표면 + 단일 로즈 악센트 + border-only depth + pill
+   배지, 글라스 없음 — DesignSystem 본체엔 글라스가 없다). 문서 자체의 라이트/다크
+   토글과는 독립적으로 항상 이 다크 스킨을 쓴다(--wf-* 로 스코프해 문서 테마 변수와
+   충돌하지 않음) — mermaid 카드를 항상 라이트로 고정하는 것과 같은 이유(재처리 없이
+   항상 또렷하게). 프로젝트 실제 토큰(1순위) 자동감지는 아직 없음 — 후속 작업.
+   버튼은 항상 disabled(정적 예시 그림이라 실제 인터랙션 없음). */
+.wf-screen{
+  margin:1em 0;
+  --wf-bg:#0a0a0b; --wf-fg:#fafafa; --wf-card:#1c1c1e; --wf-border:rgba(255,255,255,.1);
+  --wf-muted:#232326; --wf-muted-fg:#9a9a9f;
+  --wf-primary:#a53257; --wf-primary-fg:#fdf1f3;
+  --wf-success:#34d399; --wf-success-bg:rgba(16,185,129,.15); --wf-success-border:rgba(16,185,129,.4);
+  --wf-danger:#ef6b6b; --wf-danger-bg:rgba(239,107,107,.14);
+  --wf-info:#60a5fa; --wf-info-bg:rgba(96,165,250,.15);
+  --wf-warn:#e0ab48; --wf-warn-bg:rgba(224,171,72,.15);
+  --wf-radius:10px; --wf-radius-pill:999px;
+}
+.wf-screen-label{font-size:12px;color:var(--muted);margin-bottom:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.wf-frame{border:1px solid var(--wf-border);border-radius:var(--wf-radius);background:var(--wf-bg);color:var(--wf-fg);overflow:hidden}
+.wf-nav{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--wf-border);background:var(--wf-bg);flex-wrap:wrap}
+.wf-nav-item{font-size:13px;color:var(--wf-muted-fg);padding:12px 11px;border-bottom:2px solid transparent}
+.wf-nav-item.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-primary)}
+.wf-body{padding:20px}
+.wf-header{margin-bottom:0}
+.wf-header-title{font-size:16px;font-weight:600;color:var(--wf-fg)}
+.wf-header-sub{font-size:12.5px;color:var(--wf-muted-fg);margin-top:3px}
+.wf-toolbar{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+.wf-tabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid var(--wf-border)}
+.wf-tab{font-size:12.5px;color:var(--wf-muted-fg);padding:7px 11px;border-bottom:2px solid transparent}
+.wf-tab.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-muted-fg)}
+.wf-btn{font:500 12.5px/1 inherit;padding:8px 13px;border-radius:8px;border:1px solid transparent;background:var(--wf-muted);color:var(--wf-fg);cursor:default}
+.wf-btn-primary{background:var(--wf-primary);color:var(--wf-primary-fg)}
+.wf-btn-danger{background:var(--wf-danger-bg);color:var(--wf-danger)}
+.wf-input{display:inline-flex;align-items:center;font-size:12.5px;color:var(--wf-muted-fg);padding:8px 12px;border:1px solid var(--wf-border);border-radius:8px;background:var(--wf-card);min-width:120px}
+.wf-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.wf-table th,.wf-table td{border-bottom:1px solid var(--wf-border);padding:9px 10px;text-align:left}
+.wf-table th{color:var(--wf-muted-fg);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.02em}
+.wf-badge{display:inline-flex;align-items:center;height:20px;border-radius:var(--wf-radius-pill);padding:0 9px;font-size:10.5px;font-weight:500;border:1px solid transparent}
+.wf-badge-muted{background:var(--wf-muted);color:var(--wf-muted-fg);border-color:var(--wf-border)}
+.wf-badge-info{background:var(--wf-info-bg);color:var(--wf-info);border-color:rgba(96,165,250,.35)}
+.wf-badge-good{background:var(--wf-success-bg);color:var(--wf-success);border-color:var(--wf-success-border)}
+.wf-badge-warn{background:var(--wf-warn-bg);color:var(--wf-warn);border-color:rgba(224,171,72,.35)}
+.wf-badge-danger{background:var(--wf-danger-bg);color:var(--wf-danger);border-color:rgba(239,107,107,.35)}
+.wf-card{border-radius:var(--wf-radius);border:1px solid var(--wf-border);padding:14px 16px;margin-bottom:10px;background:var(--wf-card)}
+.wf-card-title{font-size:13px;font-weight:600;color:var(--wf-fg);margin-bottom:8px}
+.wf-list{list-style:none;margin:0;padding:0}
+.wf-list li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--wf-border);font-size:12.5px;color:var(--wf-fg)}
+.wf-list li:last-child{border-bottom:none}
+.wf-form{display:flex;flex-direction:column;gap:8px}
+.wf-field{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--wf-muted-fg)}
+.wf-text{font-size:12.5px;color:var(--wf-fg);margin:.3em 0}
+@media (max-width:900px){.source-panel{width:min(360px,44vw)}}
+@media (max-width:640px){.goals{grid-template-columns:1fr}nav.toc ol{columns:1}.shell{flex-direction:column;height:auto;overflow:visible}.scroll-main{overflow:visible}.source-panel{width:100%;height:60vh}}
+@media print{
+  body{background:#fff;display:block;height:auto}
+  .shell{display:block;height:auto;overflow:visible}
+  .scroll-main{overflow:visible;height:auto}
+  .wrap{box-shadow:none;max-width:none;padding:0}
+  header.doc{position:static}
+  .panel-toggle{display:none}
+  .source-panel{display:none}
+  .deck-nav{display:none}
+  .deck-footer{display:none}
+  nav.toc{display:block;break-inside:avoid}
+  section{break-inside:avoid}
+  .print-source{display:block;break-before:page}
+  .print-source h3{margin-top:1.6em;font-size:14px}
+}
+</style>
+<style id="scv-mermaid-contrast">
+pre.mermaid{background:transparent!important}
+pre.mermaid .flowchart-link,pre.mermaid .edgePath .path{stroke:var(--fg)!important;stroke-width:2px!important}
+pre.mermaid .marker,pre.mermaid marker path{fill:var(--fg)!important;stroke:var(--fg)!important}
+pre.mermaid .edgeLabel,pre.mermaid .edgeLabel p,pre.mermaid .labelBkg{background-color:var(--bg)!important;color:var(--fg)!important}
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="scroll-main">
+<div class="wrap">
+<header class="doc"><h1>sync 자동화와 가드 실효 회복</h1><div class="header-actions"><button class="theme-toggle" id="scvThemeBtn" onclick="scvToggleTheme()" title="라이트/다크 전환"></button><button class="panel-toggle" onclick="scvTogglePanel()" title="원문 패널 토글 (S)">기획서 원문 <span class="kbd">S</span></button></div></header>
+<nav class="toc"><h3>목차</h3><ol><li><a href="#s-0-summary">Summary</a></li><li><a href="#s-1-goals--non-goals">Goals / Non-Goals</a></li><li><a href="#s-2-approach-overview">Approach Overview</a></li><li><a href="#s-3-guardrails">Guardrails</a></li><li><a href="#s-4-exit-criteria">Exit criteria</a></li><li><a href="#s-5-suggested-path">Suggested path</a></li><li><a href="#s-6-related-documents">Related Documents</a></li><li><a href="#s-7-risks--open-questions">Risks / Open Questions</a></li><li><a href="#s-8-links">Links</a></li><li><a href="#s-9--테스트--인수기준-tests">✅ 테스트 · 인수기준 (TESTS)</a></li><li><a href="#s-10-overview">Overview</a></li><li><a href="#s-11-test-scenarios">Test scenarios</a></li><li><a href="#s-12-how-to-run">How to run</a></li><li><a href="#s-13-pass-criteria">Pass criteria</a></li><li><a href="#s-14-related-documents">Related Documents</a></li></ol></nav>
+<nav class="deck-nav"><button class="deck-nav-item active" data-idx="0" onclick="scvGoto(0)">1. Summary</button><button class="deck-nav-item" data-idx="1" onclick="scvGoto(1)">2. Goals / Non-Goals</button><button class="deck-nav-item" data-idx="2" onclick="scvGoto(2)">3. Approach Overview</button><button class="deck-nav-item" data-idx="3" onclick="scvGoto(3)">4. Guardrails</button><button class="deck-nav-item" data-idx="4" onclick="scvGoto(4)">5. Exit criteria</button><button class="deck-nav-item" data-idx="5" onclick="scvGoto(5)">6. Suggested path</button><button class="deck-nav-item" data-idx="6" onclick="scvGoto(6)">7. Related Documents</button><button class="deck-nav-item" data-idx="7" onclick="scvGoto(7)">8. Risks / Open Quest</button><button class="deck-nav-item" data-idx="8" onclick="scvGoto(8)">9. Links</button><button class="deck-nav-item" data-idx="9" onclick="scvGoto(9)">10. ✅ 테스트 · 인수기준 (TEST</button><button class="deck-nav-item" data-idx="10" onclick="scvGoto(10)">11. Overview</button><button class="deck-nav-item" data-idx="11" onclick="scvGoto(11)">12. Test scenarios</button><button class="deck-nav-item" data-idx="12" onclick="scvGoto(12)">13. How to run</button><button class="deck-nav-item" data-idx="13" onclick="scvGoto(13)">14. Pass criteria</button><button class="deck-nav-item" data-idx="14" onclick="scvGoto(14)">15. Related Documents</button><button class="deck-nav-item" data-idx="15" onclick="scvGoto(15)">16. 품질 리포트</button></nav>
+<section id="s-0-summary" class="slide-page active" data-idx="0"><div class="kicker">sync 자동화와 가드 실효 회복</div><h2>Summary</h2><p>sync 의 .scv-backup 사본을 없애고 더티 거부로 바꾼다. 액션이 시작될 때 프로젝트
+템플릿이 payload 보다 낡았으면 그 자리에서 자동으로 최신화한다. 그리고 문서 최신화
+작업에서 드러난 &quot;가드가 실제로는 안 걸린다&quot; 계열 버그 5건의 동작을 고친다.</p></section>
+<section id="s-1-goals--non-goals" class="slide-page" data-idx="1"><div class="kicker">sync 자동화와 가드 실효 회복</div><h2>Goals / Non-Goals</h2><ul><li>Goals<ul><li>scv:update → 리로드 → 다음 액션에서 문서 포맷이 자동으로 최신화된다</li><li>sync 가 사본 디렉터리를 만들지 않는다. 커밋 안 된 변경이 있는 파일은
+덮어쓰지 않고 이름을 말한다</li><li>Codex 어댑터 액션들이 영수증을 발급한다 (SCV_GUARD_SCRIPTS 콜론 목록)</li><li>영수증 저장소가 사용 불가일 때 거부 사유가 원인을 이름 붙인다</li><li>무력 테스트 2건(T15·T21)이 실제로 판정하고, 래퍼 투영본이 어느 배치에서든 돈다</li></ul></li><li>Non-Goals<ul><li>state-index.sh 의 shared-core-migration 격리는 건드리지 않는다 (별개 장치)</li><li>pre-2.x 레거시의 대화형 마이그레이션 흐름은 그대로 둔다 — 자동화하지 않는다</li><li>update 액션이 sync 를 직접 부르게 하지 않는다. 버전별 플러그인 캐시 구조에서
+update 시점의 sync 는 옛 payload 로 돌아 옛 템플릿을 다시 깐다</li><li>래퍼 저장소 변경(codex hooks.json, cc CI 등록)은 Core 벤더링 이후 별도 PR</li></ul></li></ul></section>
+<section id="s-2-approach-overview" class="slide-page" data-idx="2"><div class="kicker">sync 자동화와 가드 실효 회복</div><h2>Approach Overview</h2><p>sync. backup_file/BACKUP_DIR 를 제거한다. 기존 파일을 바꾸기 전에
+git status --porcelain -- &lt;파일&gt; 로 더티를 판정하고, 더티면 DIRTY 로 보고하고
+건너뛴다. 추적 안 된 파일과 git 이 없는 환경은 더티로 취급한다 — 복구 경로가 없는
+곳에서 무단 덮어쓰기는 없다. --force &lt;파일&gt; 이 preserve 와 같은 방식으로 더티
+거부도 우회한다. 동일 파일(cmp -s)은 지금처럼 더티 검사 전에 건너뛴다.</p>
+<p>자동 최신화. lib/scvroot.sh 에 scv_autosync 를 추가한다. 프로젝트 스탬프
+(SCV.md 의 STANDARD:VERSION)와 payload TEMPLATE_VERSION(lib 위치 기준
+../../TEMPLATE_VERSION)을 비교해서 다르면 sync.sh --project-dir 를 돌리고 한 줄
+보고한다. sync 는 끝에서 스탬프를 다시 찍으므로 한 번 돌면 수렴한다.
+scv_init_paths 가 호출하고(액션 스크립트 9개가 이미 source), help.sh 와
+status.sh 는 명시 호출한다.</p>
+<p>가드. SCV_GUARD_SCRIPTS 를 콜론으로 갈라 디렉터리별 고정 문자열 비교.
+gate 모드에서 영수증 저장소가 만들 수도 쓸 수도 없으면 거부 사유를 저장소 경로와
+SCV_GUARD_STATE 안내로 바꾸고, mint 실패는 stderr 한 줄을 남긴다. 닫힌 쪽 실패는
+유지한다 — 모델이 저장소 권한을 부술 수 있으므로 fail open 은 가드 해제와 같다.</p>
+<p>테스트. T15 를 비면제 경로로 옮겨 새 사유를 단언한다. T21 을 계획 문서 조건
+없이 두 스크립트(guard.sh·check-provenance.sh)의 면제 집합 직접 비교로 다시
+쓴다. 루트 해석을 후보 탐색(../,../../ × core, vendor/scv-core/core,
+plugins/scv/vendor/scv-core/core)으로 바꿔 래퍼 투영본에서도 돌게 한다.</p></section>
+<section id="s-3-guardrails" class="slide-page" data-idx="3"><div class="kicker">sync 자동화와 가드 실효 회복</div><h2>Guardrails</h2><ul><li>미수화 프로젝트(SCV.md 도 PROMOTE.md 도 없음)에서 자동 sync 절대 금지 —
+수화는 사용자 동의가 있는 별도 액션이다</li><li>pre-2.x(스탬프 unknown 포함)에서 자동 sync 절대 금지. 2.0.0 은퇴 패스가 사용자
+문서 7종을 삭제하는데, 프로토콜은 삭제 전 DECISIONS.md 이관 제안을 요구한다.
+이 경우 한 줄 안내만 낸다</li><li>자동 sync 실패는 액션을 막지 않는다 (경고 후 계속)</li><li>재귀 가드(SCV_AUTOSYNC_RUNNING)와 끄기(SCV_AUTOSYNC=off, 환경변수만) 필수</li><li>core/ 는 호스트 중립 — 새 코드·주석·테스트에 호스트 토큰 금지, 필요하면 기존
+T19 의 런타임 조립 방식</li><li>raw/promote/archive/conversations 내용물은 sync 가 지금도 앞으로도 만지지 않는다</li><li>가드의 fail-open 두 입력(빈 payload·JSON 리더 없음)은 그대로 유지</li><li>계약·프로토콜 문서(guard.md·sync.md·update.md·wrapper-integration.md)는 같은
+PR 에서 새 동작과 일치시킨다 — 배포 문서가 가드·게이트 동작과 모순되면 안 된다</li><li>test-guard-consistency.sh 의 구문 스윕을 통과해야 한다. 새 anchor 가 필요하면
+줄 번호까지 정확히 등록한다</li></ul></section>
+<section id="s-4-exit-criteria" class="slide-page" data-idx="4"><div class="kicker">sync 자동화와 가드 실효 회복</div><h2>Exit criteria</h2><ul><li>TESTS.md 시나리오 전부 통과</li><li>스탬프가 낡은 프로젝트에서 아무 액션이나 한 번 돌리면 템플릿이 최신화되고,
+두 번째 실행은 no-op 이다 (수렴 증명)</li><li>옛 코드에서 실패하는 회귀 케이스가 각 버그마다 존재한다 — 통과만 하는 테스트는
+무엇도 증명하지 않는다</li><li>래퍼 배치를 흉내 낸 트리에서 test-guard.sh 가 전 케이스 통과한다</li><li>tests/run.sh · core/tests/run-dry.sh · core/tests/test-*.sh ·
+tests/test-host-neutral.sh · tests/test-guard-consistency.sh 전부 초록</li><li>릴리스 아티팩트에 변경이 들어가고, 래퍼 후속 PR 목록(codex hooks.json·문서,
+cc CI 등록)이 명시된다</li></ul></section>
+<section id="s-5-suggested-path" class="slide-page" data-idx="5"><div class="kicker">sync 자동화와 가드 실효 회복</div><h2>Suggested path</h2><ol><li>sync.sh — 백업 기계 제거, 더티 거부 삽입, 보고 문구 교체</li><li>lib/scvroot.sh — scv_autosync 추가, scv_init_paths 연결, help/status 호출</li><li>guard.sh — SCV_GUARD_SCRIPTS 콜론 분해, 저장소 사용 불가 사유 교체, mint 경고</li><li>core/tests/test-guard.sh — 루트 후보 탐색, T15 재작성, T21 재작성, 다중 디렉터리
+mint 케이스 추가</li><li>새 테스트 — autosync 수렴·가드레일(미수화/레거시/재귀/끄기), sync 더티 거부</li><li>문서 — guard.md·sync.md·update.md·wrapper-integration.md·release 문서 정합</li><li>전체 스위트 + 릴리스 준비 (0.28.0)</li></ol></section>
+<section id="s-6-related-documents" class="slide-page" data-idx="6"><div class="kicker">sync 자동화와 가드 실효 회복</div><h2>Related Documents</h2><ul><li>TESTS.md</li><li>core/contracts/guard.md — 실패 정책·mint 허용목록 절이 이번에 바뀐다</li></ul></section>
+<section id="s-7-risks--open-questions" class="slide-page" data-idx="7"><div class="kicker">sync 자동화와 가드 실효 회복</div><h2>Risks / Open Questions</h2><ul><li>자동 sync 가 액션 도중(예: readpath consume 직전) 발화한다. sync 는 워크플로
+내용물을 만지지 않지만, 테스트로 못 박는다 (T7)</li><li>더티 판정이 git 부재 환경에서 전부-거부로 떨어진다. 의도된 보수성이지만, 그런
+환경 사용자는 sync 가 아무것도 안 바꾸는 것처럼 보일 수 있다 — 보고 줄에 이유가
+나온다</li><li>래퍼 후속 PR 전까지 codex 의 mint 격차는 그대로다. Core 가 먼저 나가야 한다</li><li>플러그인 캐시가 이전 버전을 물고 있는 세션은 autosync 도 이전 payload 기준으로
+판단한다 — 리로드 전에는 어떤 설계도 새 payload 에 손이 닿지 않는다 (알려진 한계)</li></ul></section>
+<section id="s-8-links" class="slide-page" data-idx="8"><div class="kicker">sync 자동화와 가드 실효 회복</div><h2>Links</h2><ul><li>Raw originals: (frontmatter 참조)</li><li>Related PRs:</li></ul></section>
+<section id="s-9--테스트--인수기준-tests" class="slide-page" data-idx="9"><div class="kicker">sync 자동화와 가드 실효 회복</div><h2>✅ 테스트 · 인수기준 (TESTS)</h2></section>
+<section id="s-10-overview" class="slide-page" data-idx="10"><div class="kicker">sync 자동화와 가드 실효 회복</div><h2>Overview</h2><p>세 갈래를 검증한다: sync 의 새 안전장치(더티 거부), 액션 시작 시 자동 최신화의
+동작과 가드레일, 그리고 가드 실효 버그 5건의 수정. 전부 동작으로 검사한다 — 이번
+버그들 대부분이 &quot;문장으로는 맞게 읽히는 코드&quot;였고, 그중 둘은 무력한 테스트 뒤에
+숨어 있었다. 각 수정마다 옛 코드에서 실패하는 회귀 케이스를 요구한다.</p></section>
+<section id="s-11-test-scenarios" class="slide-page" data-idx="11"><div class="kicker">sync 자동화와 가드 실효 회복</div><h2>Test scenarios</h2><h3 class="subhead">T1. sync 는 더 이상 사본을 만들지 않는다</h3>
+<ul><li>Setup: 임시 git 프로젝트, 수화 완료, 템플릿과 다른 내용의 scv 문서 몇 개를
+커밋해 둔 상태</li><li>Run: sync.sh --project-dir</li><li>Expected: 파일은 갱신되고 .scv-backup/ 은 생기지 않는다. &quot;Backups:&quot; 줄 없음</li><li>Pass criterion: [[ ! -e .scv-backup ]] 그리고 출력에 Backups 부재</li></ul>
+<h3 class="subhead">T2. 커밋 안 된 변경이 있는 파일은 건너뛰고 이름을 말한다</h3>
+<ul><li>Setup: T1 프로젝트에서 SCV 소유 문서 하나를 수정하고 커밋하지 않음</li><li>Run: sync</li><li>Expected: 그 파일은 바뀌지 않고 DIRTY 로 보고된다. 다른 파일은 정상 갱신</li><li>Pass criterion: 파일 내용 불변 + 보고에 파일명 등장. --force &lt;그 파일&gt; 로
+재실행하면 덮어쓴다</li></ul>
+<h3 class="subhead">T3. 추적 안 된 파일과 git 없는 환경은 더티로 취급한다</h3>
+<ul><li>Setup: (a) 템플릿과 다른 내용의 미추적 scv 문서, (b) .git 없는 프로젝트</li><li>Expected: 둘 다 해당 파일을 건너뛰고 이유를 보고한다</li><li>Pass criterion: 내용 불변. 동일 내용 파일은 여전히 조용히 skip (cmp 우선)</li></ul>
+<h3 class="subhead">T4. 낡은 스탬프는 다음 액션에서 자동으로 메워진다</h3>
+<ul><li>Setup: 수화된 git 프로젝트, SCV.md 스탬프를 2.0.0 으로 되돌림</li><li>Run: scv_init_paths 를 쓰는 액션 헬퍼 하나 (예: status.sh)</li><li>Expected: sync 가 자동 실행되고 한 줄 보고, 스탬프가 payload 버전으로 갱신</li><li>Pass criterion: 실행 후 스탬프 == TEMPLATE_VERSION. 같은 헬퍼를 한 번 더
+돌리면 sync 가 다시 돌지 않는다 (수렴 — 출력에 autosync 줄 부재)</li></ul>
+<h3 class="subhead">T5. 자동 최신화의 가드레일</h3>
+<ul><li>Setup/Expected:<ul><li>(a) 미수화 디렉터리(빈 scv/) → 자동 sync 안 돎, 파일 생성 0</li><li>(b) 스탬프 unknown(pre-2.x 레거시 흉내: SCV.md 없음 + PROMOTE.md 있음) →
+자동 sync 안 돎, 한 줄 안내만</li><li>(c) SCV_AUTOSYNC=off → 안 돎</li><li>(d) SCV_AUTOSYNC_RUNNING=1 → 안 돎 (재귀 가드)</li></ul></li><li>Pass criterion: 네 경우 모두 트리 변경 없음. (b)는 안내 문구 존재</li></ul>
+<h3 class="subhead">T6. 자동 sync 실패는 액션을 막지 않는다</h3>
+<ul><li>Setup: 스탬프 낡음 + sync 가 실패하도록 만든 환경(payload 템플릿 디렉터리
+제거 등)</li><li>Expected: 경고 한 줄 후 액션 헬퍼는 정상 종료</li><li>Pass criterion: 헬퍼 exit 0, stderr 에 경고 존재</li></ul>
+<h3 class="subhead">T7. 자동 sync 는 워크플로 내용물을 만지지 않는다</h3>
+<ul><li>Setup: raw/promote/archive/conversations 에 파일이 있는 낡은 스탬프 프로젝트</li><li>Run: 자동 sync 발화</li><li>Expected: 그 네 디렉터리의 파일 내용·목록이 바이트 그대로</li><li>Pass criterion: 실행 전후 해시 목록 동일</li></ul>
+<h3 class="subhead">T8. SCV_GUARD_SCRIPTS 가 콜론 목록을 받는다</h3>
+<ul><li>Setup: 두 디렉터리 A·B, SCV_GUARD_SCRIPTS=&quot;A:B&quot;, gate-bash</li><li>Expected: A 의 스크립트를 부르는 명령도 B 의 것도 영수증을 발급한다.
+둘 다 아닌 명령은 발급하지 않는다</li><li>Pass criterion: 세 경우 각각 영수증 파일 유/유/무. 옛 guard.sh 에 같은
+픽스처를 돌리면 B 케이스가 실패한다 (회귀 증명)</li></ul>
+<h3 class="subhead">T9. 단일 값 동작은 그대로다</h3>
+<ul><li>Setup: 기존 형식 SCV_GUARD_SCRIPTS=&quot;A&quot;</li><li>Expected: 기존과 동일하게 발급/비발급</li><li>Pass criterion: 기존 test-guard.sh 관련 케이스 전부 통과 유지</li></ul>
+<h3 class="subhead">T10. 사용 불가 저장소의 거부 사유가 원인을 이름 붙인다</h3>
+<ul><li>Setup: SCV_GUARD_STATE 를 만들 수 없는 경로로, gate-write, 비면제 대상</li><li>Expected: 거부는 유지되(닫힘) 사유에 저장소 경로와 SCV_GUARD_STATE 가
+들어간다. &quot;액션을 실행하라&quot;는 무익한 안내가 아니다. mint 모드는 stderr 한 줄</li><li>Pass criterion: deny JSON 의 reason 에 경로 문자열 포함. 옛 guard.sh 는
+일반 사유를 내므로 이 단언이 실패한다 (회귀 증명)</li></ul>
+<h3 class="subhead">T11. T15 가 실제로 판정한다</h3>
+<ul><li>Setup: 수정된 test-guard.sh 의 해당 케이스가 비면제 경로를 쓴다</li><li>Expected: 가드의 저장소 처리 동작이 바뀌면 케이스가 빨개진다</li><li>Pass criterion: 케이스 대상 파일이 *.md/면제류가 아니다 (검사로 강제)</li></ul>
+<h3 class="subhead">T12. T21 이 두 스크립트를 직접 비교한다</h3>
+<ul><li>Setup: 수정된 T21</li><li>Expected: guard.sh 와 check-provenance.sh 의 면제 집합 공통 4종
+(*.md·.gitignore·.gitattributes·LICENSE)이 양쪽에 있음을 단언한다.
+계획 문서 존재 여부와 무관하게 항상 실행된다</li><li>Pass criterion: 한쪽 스크립트에서 항목 하나를 지운 사본에 돌리면 실패한다</li></ul>
+<h3 class="subhead">T13. 래퍼 배치에서도 test-guard.sh 가 돈다</h3>
+<ul><li>Setup: 임시 트리 wrap/tests/test-guard.sh + wrap/vendor/scv-core/core/…
+(cc 배치 흉내, 파일은 심볼릭 아닌 실제 복사)</li><li>Run: bash wrap/tests/test-guard.sh</li><li>Expected: 전 케이스 통과 (현재는 13건 실패)</li><li>Pass criterion: exit 0. Core 배치(core/tests/)에서도 여전히 exit 0</li></ul>
+<h3 class="subhead">T14. 문서와 동작이 일치한다</h3>
+<ul><li>Setup: 변경 전체</li><li>Run: tests/test-guard-consistency.sh + 문서 grep</li><li>Expected: guard.md 의 실패 정책·mint 절, sync.md 의 백업 문장, update.md 5항,
+wrapper-integration.md 의 SCV_GUARD_SCRIPTS 서술이 전부 새 동작과 일치</li><li>Pass criterion: consistency 4/4 + .scv-backup 이 sync.md 에서 사라짐</li></ul>
+<h3 class="subhead">T15. 전체 스위트가 초록이다</h3>
+<ul><li>Run: tests/run.sh, core/tests/run-dry.sh, core/tests/test-*.sh,
+tests/test-host-neutral.sh</li><li>Pass criterion: 실패 0. 새 코드가 core/ 호스트 중립성을 깨지 않는다</li></ul></section>
+<section id="s-12-how-to-run" class="slide-page" data-idx="12"><div class="kicker">sync 자동화와 가드 실효 회복</div><h2>How to run</h2><pre class="code"><code>bash core/tests/test-guard.sh &amp;&amp; bash core/tests/test-autosync.sh &amp;&amp; bash core/tests/test-sync-dirty.sh</code></pre></section>
+<section id="s-13-pass-criteria" class="slide-page" data-idx="13"><div class="kicker">sync 자동화와 가드 실효 회복</div><h2>Pass criteria</h2><ul><li>T1–T15 전부 통과</li><li>회귀 증명 3건(T8·T10·수렴 T4)이 옛 코드에서 실제로 실패한다</li><li>전체 스위트 실패 0, 릴리스 아티팩트에 변경 포함</li></ul></section>
+<section id="s-14-related-documents" class="slide-page" data-idx="14"><div class="kicker">sync 자동화와 가드 실효 회복</div><h2>Related Documents</h2><ul><li>PLAN.md</li></ul></section>
+<section id="__lint" class="lint slide-page" data-idx="15"><h2>품질 리포트 <span class="lint-count">2</span></h2>
+     <p class="sub">원문에 없는 내용은 채우지 않음 — 전문 기획서가 보통 갖추는데 이 문서엔 빠진 항목입니다.</p>
+     <div class="callout warn"><div>성공지표(Metrics) 섹션이 없습니다 — baseline→target 지표를 권장합니다.</div></div><div class="callout warn"><div>예외처리(Edge cases) 섹션이 없습니다.</div></div></section>
+<div class="deck-footer">
+      <button class="deck-arrow" id="scvPrev" disabled onclick="scvGoto(scvIdx()-1)">‹ 이전</button>
+      <div class="deck-dots"><button class="deck-dot active" data-idx="0" onclick="scvGoto(0)" aria-label="1"></button><button class="deck-dot" data-idx="1" onclick="scvGoto(1)" aria-label="2"></button><button class="deck-dot" data-idx="2" onclick="scvGoto(2)" aria-label="3"></button><button class="deck-dot" data-idx="3" onclick="scvGoto(3)" aria-label="4"></button><button class="deck-dot" data-idx="4" onclick="scvGoto(4)" aria-label="5"></button><button class="deck-dot" data-idx="5" onclick="scvGoto(5)" aria-label="6"></button><button class="deck-dot" data-idx="6" onclick="scvGoto(6)" aria-label="7"></button><button class="deck-dot" data-idx="7" onclick="scvGoto(7)" aria-label="8"></button><button class="deck-dot" data-idx="8" onclick="scvGoto(8)" aria-label="9"></button><button class="deck-dot" data-idx="9" onclick="scvGoto(9)" aria-label="10"></button><button class="deck-dot" data-idx="10" onclick="scvGoto(10)" aria-label="11"></button><button class="deck-dot" data-idx="11" onclick="scvGoto(11)" aria-label="12"></button><button class="deck-dot" data-idx="12" onclick="scvGoto(12)" aria-label="13"></button><button class="deck-dot" data-idx="13" onclick="scvGoto(13)" aria-label="14"></button><button class="deck-dot" data-idx="14" onclick="scvGoto(14)" aria-label="15"></button><button class="deck-dot" data-idx="15" onclick="scvGoto(15)" aria-label="16"></button></div>
+      <span class="deck-counter" id="scvCounter">1 / 16</span>
+      <button class="deck-arrow" id="scvNext" onclick="scvGoto(scvIdx()+1)">다음 ›</button>
+    </div>
+<section class="print-source"><h2>기획서 원문</h2><h3>PLAN.md</h3><pre class="code"><code>---
+title: sync 자동화와 가드 실효 회복
+slug: 20260818-wookiya1364-sync-autopilot
+author: wookiya1364
+created_at: 2026-08-18
+status: done
+kind: refactor
+lang: korean
+tags: [sync, guard, ci]
+raw_sources:
+  - scv/raw/stale/20260818-wookiya1364-sync-autopilot-guard-fixes.md
+refs: []
+invariants:
+  - &quot;sync 는 PROJECT:LOCAL 블록과 preserve 정책 파일을 계속 보존한다&quot;
+  - &quot;가드는 영수증 저장소가 사용 불가일 때 계속 닫힌 쪽으로 실패한다 (fail open 금지)&quot;
+  - &quot;SCV_GUARD_SCRIPTS 단일 값의 기존 동작은 바이트 그대로 유지된다&quot;
+  - &quot;자동 sync 는 미수화 프로젝트와 pre-2.x 레거시에서 절대 실행되지 않는다&quot;
+---
+
+# sync 자동화와 가드 실효 회복
+
+## Summary
+
+sync 의 `.scv-backup` 사본을 없애고 더티 거부로 바꾼다. 액션이 시작될 때 프로젝트
+템플릿이 payload 보다 낡았으면 그 자리에서 자동으로 최신화한다. 그리고 문서 최신화
+작업에서 드러난 &quot;가드가 실제로는 안 걸린다&quot; 계열 버그 5건의 동작을 고친다.
+
+## Goals / Non-Goals
+
+- **Goals**
+  - `scv:update` → 리로드 → 다음 액션에서 문서 포맷이 자동으로 최신화된다
+  - sync 가 사본 디렉터리를 만들지 않는다. 커밋 안 된 변경이 있는 파일은
+    덮어쓰지 않고 이름을 말한다
+  - Codex 어댑터 액션들이 영수증을 발급한다 (`SCV_GUARD_SCRIPTS` 콜론 목록)
+  - 영수증 저장소가 사용 불가일 때 거부 사유가 원인을 이름 붙인다
+  - 무력 테스트 2건(T15·T21)이 실제로 판정하고, 래퍼 투영본이 어느 배치에서든 돈다
+- **Non-Goals**
+  - `state-index.sh` 의 shared-core-migration 격리는 건드리지 않는다 (별개 장치)
+  - pre-2.x 레거시의 대화형 마이그레이션 흐름은 그대로 둔다 — 자동화하지 않는다
+  - update 액션이 sync 를 직접 부르게 하지 않는다. 버전별 플러그인 캐시 구조에서
+    update 시점의 sync 는 **옛 payload** 로 돌아 옛 템플릿을 다시 깐다
+  - 래퍼 저장소 변경(codex hooks.json, cc CI 등록)은 Core 벤더링 이후 별도 PR
+
+## Approach Overview
+
+**sync.** `backup_file`/`BACKUP_DIR` 를 제거한다. 기존 파일을 바꾸기 전에
+`git status --porcelain -- &lt;파일&gt;` 로 더티를 판정하고, 더티면 `DIRTY` 로 보고하고
+건너뛴다. 추적 안 된 파일과 git 이 없는 환경은 더티로 취급한다 — 복구 경로가 없는
+곳에서 무단 덮어쓰기는 없다. `--force &lt;파일&gt;` 이 preserve 와 같은 방식으로 더티
+거부도 우회한다. 동일 파일(`cmp -s`)은 지금처럼 더티 검사 전에 건너뛴다.
+
+**자동 최신화.** `lib/scvroot.sh` 에 `scv_autosync` 를 추가한다. 프로젝트 스탬프
+(`SCV.md` 의 `STANDARD:VERSION`)와 payload `TEMPLATE_VERSION`(lib 위치 기준
+`../../TEMPLATE_VERSION`)을 비교해서 다르면 `sync.sh --project-dir` 를 돌리고 한 줄
+보고한다. sync 는 끝에서 스탬프를 다시 찍으므로 한 번 돌면 수렴한다.
+`scv_init_paths` 가 호출하고(액션 스크립트 9개가 이미 source), `help.sh` 와
+`status.sh` 는 명시 호출한다.
+
+**가드.** `SCV_GUARD_SCRIPTS` 를 콜론으로 갈라 디렉터리별 고정 문자열 비교.
+gate 모드에서 영수증 저장소가 만들 수도 쓸 수도 없으면 거부 사유를 저장소 경로와
+`SCV_GUARD_STATE` 안내로 바꾸고, mint 실패는 stderr 한 줄을 남긴다. 닫힌 쪽 실패는
+유지한다 — 모델이 저장소 권한을 부술 수 있으므로 fail open 은 가드 해제와 같다.
+
+**테스트.** T15 를 비면제 경로로 옮겨 새 사유를 단언한다. T21 을 계획 문서 조건
+없이 두 스크립트(`guard.sh`·`check-provenance.sh`)의 면제 집합 직접 비교로 다시
+쓴다. 루트 해석을 후보 탐색(`../`,`../../` × `core`, `vendor/scv-core/core`,
+`plugins/scv/vendor/scv-core/core`)으로 바꿔 래퍼 투영본에서도 돌게 한다.
+
+## Guardrails
+
+- 미수화 프로젝트(SCV.md 도 PROMOTE.md 도 없음)에서 자동 sync 절대 금지 —
+  수화는 사용자 동의가 있는 별도 액션이다
+- pre-2.x(스탬프 unknown 포함)에서 자동 sync 절대 금지. 2.0.0 은퇴 패스가 사용자
+  문서 7종을 삭제하는데, 프로토콜은 삭제 전 DECISIONS.md 이관 **제안**을 요구한다.
+  이 경우 한 줄 안내만 낸다
+- 자동 sync 실패는 액션을 막지 않는다 (경고 후 계속)
+- 재귀 가드(`SCV_AUTOSYNC_RUNNING`)와 끄기(`SCV_AUTOSYNC=off`, 환경변수만) 필수
+- `core/` 는 호스트 중립 — 새 코드·주석·테스트에 호스트 토큰 금지, 필요하면 기존
+  T19 의 런타임 조립 방식
+- raw/promote/archive/conversations 내용물은 sync 가 지금도 앞으로도 만지지 않는다
+- 가드의 fail-open 두 입력(빈 payload·JSON 리더 없음)은 그대로 유지
+- 계약·프로토콜 문서(guard.md·sync.md·update.md·wrapper-integration.md)는 같은
+  PR 에서 새 동작과 일치시킨다 — 배포 문서가 가드·게이트 동작과 모순되면 안 된다
+- `test-guard-consistency.sh` 의 구문 스윕을 통과해야 한다. 새 anchor 가 필요하면
+  줄 번호까지 정확히 등록한다
+
+## Exit criteria
+
+- TESTS.md 시나리오 전부 통과
+- 스탬프가 낡은 프로젝트에서 아무 액션이나 한 번 돌리면 템플릿이 최신화되고,
+  두 번째 실행은 no-op 이다 (수렴 증명)
+- 옛 코드에서 실패하는 회귀 케이스가 각 버그마다 존재한다 — 통과만 하는 테스트는
+  무엇도 증명하지 않는다
+- 래퍼 배치를 흉내 낸 트리에서 test-guard.sh 가 전 케이스 통과한다
+- `tests/run.sh` · `core/tests/run-dry.sh` · `core/tests/test-*.sh` ·
+  `tests/test-host-neutral.sh` · `tests/test-guard-consistency.sh` 전부 초록
+- 릴리스 아티팩트에 변경이 들어가고, 래퍼 후속 PR 목록(codex hooks.json·문서,
+  cc CI 등록)이 명시된다
+
+## Suggested path
+
+1. sync.sh — 백업 기계 제거, 더티 거부 삽입, 보고 문구 교체
+2. lib/scvroot.sh — `scv_autosync` 추가, `scv_init_paths` 연결, help/status 호출
+3. guard.sh — `SCV_GUARD_SCRIPTS` 콜론 분해, 저장소 사용 불가 사유 교체, mint 경고
+4. core/tests/test-guard.sh — 루트 후보 탐색, T15 재작성, T21 재작성, 다중 디렉터리
+   mint 케이스 추가
+5. 새 테스트 — autosync 수렴·가드레일(미수화/레거시/재귀/끄기), sync 더티 거부
+6. 문서 — guard.md·sync.md·update.md·wrapper-integration.md·release 문서 정합
+7. 전체 스위트 + 릴리스 준비 (0.28.0)
+
+## Related Documents
+
+- [`TESTS.md`](./TESTS.md)
+- `core/contracts/guard.md` — 실패 정책·mint 허용목록 절이 이번에 바뀐다
+
+## Risks / Open Questions
+
+- 자동 sync 가 액션 도중(예: readpath consume 직전) 발화한다. sync 는 워크플로
+  내용물을 만지지 않지만, 테스트로 못 박는다 (T7)
+- 더티 판정이 `git` 부재 환경에서 전부-거부로 떨어진다. 의도된 보수성이지만, 그런
+  환경 사용자는 sync 가 아무것도 안 바꾸는 것처럼 보일 수 있다 — 보고 줄에 이유가
+  나온다
+- 래퍼 후속 PR 전까지 codex 의 mint 격차는 그대로다. Core 가 먼저 나가야 한다
+- 플러그인 캐시가 이전 버전을 물고 있는 세션은 autosync 도 이전 payload 기준으로
+  판단한다 — 리로드 전에는 어떤 설계도 새 payload 에 손이 닿지 않는다 (알려진 한계)
+
+## Links
+
+- Raw originals: (frontmatter 참조)
+- Related PRs:</code></pre><h3>TESTS.md</h3><pre class="code"><code># Test Plan — sync 자동화와 가드 실효 회복
+
+## Overview
+
+세 갈래를 검증한다: sync 의 새 안전장치(더티 거부), 액션 시작 시 자동 최신화의
+동작과 가드레일, 그리고 가드 실효 버그 5건의 수정. 전부 동작으로 검사한다 — 이번
+버그들 대부분이 &quot;문장으로는 맞게 읽히는 코드&quot;였고, 그중 둘은 무력한 테스트 뒤에
+숨어 있었다. 각 수정마다 옛 코드에서 실패하는 회귀 케이스를 요구한다.
+
+## Test scenarios
+
+### T1. sync 는 더 이상 사본을 만들지 않는다
+
+- **Setup**: 임시 git 프로젝트, 수화 완료, 템플릿과 다른 내용의 scv 문서 몇 개를
+  **커밋해 둔 상태**
+- **Run**: `sync.sh --project-dir`
+- **Expected**: 파일은 갱신되고 `.scv-backup/` 은 생기지 않는다. &quot;Backups:&quot; 줄 없음
+- **Pass criterion**: `[[ ! -e .scv-backup ]]` 그리고 출력에 `Backups` 부재
+
+### T2. 커밋 안 된 변경이 있는 파일은 건너뛰고 이름을 말한다
+
+- **Setup**: T1 프로젝트에서 SCV 소유 문서 하나를 수정하고 커밋하지 않음
+- **Run**: sync
+- **Expected**: 그 파일은 바뀌지 않고 `DIRTY` 로 보고된다. 다른 파일은 정상 갱신
+- **Pass criterion**: 파일 내용 불변 + 보고에 파일명 등장. `--force &lt;그 파일&gt;` 로
+  재실행하면 덮어쓴다
+
+### T3. 추적 안 된 파일과 git 없는 환경은 더티로 취급한다
+
+- **Setup**: (a) 템플릿과 다른 내용의 미추적 scv 문서, (b) `.git` 없는 프로젝트
+- **Expected**: 둘 다 해당 파일을 건너뛰고 이유를 보고한다
+- **Pass criterion**: 내용 불변. 동일 내용 파일은 여전히 조용히 skip (cmp 우선)
+
+### T4. 낡은 스탬프는 다음 액션에서 자동으로 메워진다
+
+- **Setup**: 수화된 git 프로젝트, `SCV.md` 스탬프를 `2.0.0` 으로 되돌림
+- **Run**: `scv_init_paths` 를 쓰는 액션 헬퍼 하나 (예: `status.sh`)
+- **Expected**: sync 가 자동 실행되고 한 줄 보고, 스탬프가 payload 버전으로 갱신
+- **Pass criterion**: 실행 후 스탬프 == `TEMPLATE_VERSION`. **같은 헬퍼를 한 번 더
+  돌리면 sync 가 다시 돌지 않는다** (수렴 — 출력에 autosync 줄 부재)
+
+### T5. 자동 최신화의 가드레일
+
+- **Setup/Expected**:
+  - (a) 미수화 디렉터리(빈 scv/) → 자동 sync 안 돎, 파일 생성 0
+  - (b) 스탬프 unknown(pre-2.x 레거시 흉내: SCV.md 없음 + PROMOTE.md 있음) →
+    자동 sync 안 돎, 한 줄 안내만
+  - (c) `SCV_AUTOSYNC=off` → 안 돎
+  - (d) `SCV_AUTOSYNC_RUNNING=1` → 안 돎 (재귀 가드)
+- **Pass criterion**: 네 경우 모두 트리 변경 없음. (b)는 안내 문구 존재
+
+### T6. 자동 sync 실패는 액션을 막지 않는다
+
+- **Setup**: 스탬프 낡음 + sync 가 실패하도록 만든 환경(payload 템플릿 디렉터리
+  제거 등)
+- **Expected**: 경고 한 줄 후 액션 헬퍼는 정상 종료
+- **Pass criterion**: 헬퍼 exit 0, stderr 에 경고 존재
+
+### T7. 자동 sync 는 워크플로 내용물을 만지지 않는다
+
+- **Setup**: raw/promote/archive/conversations 에 파일이 있는 낡은 스탬프 프로젝트
+- **Run**: 자동 sync 발화
+- **Expected**: 그 네 디렉터리의 파일 내용·목록이 바이트 그대로
+- **Pass criterion**: 실행 전후 해시 목록 동일
+
+### T8. SCV_GUARD_SCRIPTS 가 콜론 목록을 받는다
+
+- **Setup**: 두 디렉터리 A·B, `SCV_GUARD_SCRIPTS=&quot;A:B&quot;`, gate-bash
+- **Expected**: A 의 스크립트를 부르는 명령도 B 의 것도 영수증을 발급한다.
+  둘 다 아닌 명령은 발급하지 않는다
+- **Pass criterion**: 세 경우 각각 영수증 파일 유/유/무. **옛 guard.sh 에 같은
+  픽스처를 돌리면 B 케이스가 실패한다** (회귀 증명)
+
+### T9. 단일 값 동작은 그대로다
+
+- **Setup**: 기존 형식 `SCV_GUARD_SCRIPTS=&quot;A&quot;`
+- **Expected**: 기존과 동일하게 발급/비발급
+- **Pass criterion**: 기존 test-guard.sh 관련 케이스 전부 통과 유지
+
+### T10. 사용 불가 저장소의 거부 사유가 원인을 이름 붙인다
+
+- **Setup**: `SCV_GUARD_STATE` 를 만들 수 없는 경로로, gate-write, 비면제 대상
+- **Expected**: 거부는 유지되(닫힘) 사유에 저장소 경로와 `SCV_GUARD_STATE` 가
+  들어간다. &quot;액션을 실행하라&quot;는 무익한 안내가 아니다. mint 모드는 stderr 한 줄
+- **Pass criterion**: deny JSON 의 reason 에 경로 문자열 포함. **옛 guard.sh 는
+  일반 사유를 내므로 이 단언이 실패한다** (회귀 증명)
+
+### T11. T15 가 실제로 판정한다
+
+- **Setup**: 수정된 test-guard.sh 의 해당 케이스가 비면제 경로를 쓴다
+- **Expected**: 가드의 저장소 처리 동작이 바뀌면 케이스가 빨개진다
+- **Pass criterion**: 케이스 대상 파일이 `*.md`/면제류가 아니다 (검사로 강제)
+
+### T12. T21 이 두 스크립트를 직접 비교한다
+
+- **Setup**: 수정된 T21
+- **Expected**: guard.sh 와 check-provenance.sh 의 면제 집합 공통 4종
+  (`*.md`·`.gitignore`·`.gitattributes`·`LICENSE`)이 양쪽에 있음을 단언한다.
+  계획 문서 존재 여부와 무관하게 **항상 실행**된다
+- **Pass criterion**: 한쪽 스크립트에서 항목 하나를 지운 사본에 돌리면 실패한다
+
+### T13. 래퍼 배치에서도 test-guard.sh 가 돈다
+
+- **Setup**: 임시 트리 `wrap/tests/test-guard.sh` + `wrap/vendor/scv-core/core/…`
+  (cc 배치 흉내, 파일은 심볼릭 아닌 실제 복사)
+- **Run**: `bash wrap/tests/test-guard.sh`
+- **Expected**: 전 케이스 통과 (현재는 13건 실패)
+- **Pass criterion**: exit 0. Core 배치(`core/tests/`)에서도 여전히 exit 0
+
+### T14. 문서와 동작이 일치한다
+
+- **Setup**: 변경 전체
+- **Run**: `tests/test-guard-consistency.sh` + 문서 grep
+- **Expected**: guard.md 의 실패 정책·mint 절, sync.md 의 백업 문장, update.md 5항,
+  wrapper-integration.md 의 SCV_GUARD_SCRIPTS 서술이 전부 새 동작과 일치
+- **Pass criterion**: consistency 4/4 + `.scv-backup` 이 sync.md 에서 사라짐
+
+### T15. 전체 스위트가 초록이다
+
+- **Run**: `tests/run.sh`, `core/tests/run-dry.sh`, `core/tests/test-*.sh`,
+  `tests/test-host-neutral.sh`
+- **Pass criterion**: 실패 0. 새 코드가 `core/` 호스트 중립성을 깨지 않는다
+
+## How to run
+
+```bash
+bash core/tests/test-guard.sh &amp;&amp; bash core/tests/test-autosync.sh &amp;&amp; bash core/tests/test-sync-dirty.sh
+```
+
+## Pass criteria
+
+- T1–T15 전부 통과
+- 회귀 증명 3건(T8·T10·수렴 T4)이 옛 코드에서 실제로 실패한다
+- 전체 스위트 실패 0, 릴리스 아티팩트에 변경 포함
+
+## Related Documents
+
+- [`PLAN.md`](./PLAN.md)</code></pre></section>
+</div>
+</div>
+<aside class="source-panel" id="scvSourcePanel">
+      <div class="panel-resize-handle" id="scvResizeHandle" title="드래그해서 크기 조절"></div>
+      <div class="panel-head"><span class="panel-title">기획서 원문</span><button class="panel-close" onclick="scvTogglePanel()" title="숨기기 (S)">✕</button></div>
+      <div class="panel-tabs"><button class="panel-tab active" data-idx="0" onclick="scvSelectSource(0)">PLAN.md</button><button class="panel-tab" data-idx="1" onclick="scvSelectSource(1)">TESTS.md</button></div>
+      <div class="panel-body"><pre class="code src-doc active" data-idx="0"><code>---
+title: sync 자동화와 가드 실효 회복
+slug: 20260818-wookiya1364-sync-autopilot
+author: wookiya1364
+created_at: 2026-08-18
+status: done
+kind: refactor
+lang: korean
+tags: [sync, guard, ci]
+raw_sources:
+  - scv/raw/stale/20260818-wookiya1364-sync-autopilot-guard-fixes.md
+refs: []
+invariants:
+  - &quot;sync 는 PROJECT:LOCAL 블록과 preserve 정책 파일을 계속 보존한다&quot;
+  - &quot;가드는 영수증 저장소가 사용 불가일 때 계속 닫힌 쪽으로 실패한다 (fail open 금지)&quot;
+  - &quot;SCV_GUARD_SCRIPTS 단일 값의 기존 동작은 바이트 그대로 유지된다&quot;
+  - &quot;자동 sync 는 미수화 프로젝트와 pre-2.x 레거시에서 절대 실행되지 않는다&quot;
+---
+
+# sync 자동화와 가드 실효 회복
+
+## Summary
+
+sync 의 `.scv-backup` 사본을 없애고 더티 거부로 바꾼다. 액션이 시작될 때 프로젝트
+템플릿이 payload 보다 낡았으면 그 자리에서 자동으로 최신화한다. 그리고 문서 최신화
+작업에서 드러난 &quot;가드가 실제로는 안 걸린다&quot; 계열 버그 5건의 동작을 고친다.
+
+## Goals / Non-Goals
+
+- **Goals**
+  - `scv:update` → 리로드 → 다음 액션에서 문서 포맷이 자동으로 최신화된다
+  - sync 가 사본 디렉터리를 만들지 않는다. 커밋 안 된 변경이 있는 파일은
+    덮어쓰지 않고 이름을 말한다
+  - Codex 어댑터 액션들이 영수증을 발급한다 (`SCV_GUARD_SCRIPTS` 콜론 목록)
+  - 영수증 저장소가 사용 불가일 때 거부 사유가 원인을 이름 붙인다
+  - 무력 테스트 2건(T15·T21)이 실제로 판정하고, 래퍼 투영본이 어느 배치에서든 돈다
+- **Non-Goals**
+  - `state-index.sh` 의 shared-core-migration 격리는 건드리지 않는다 (별개 장치)
+  - pre-2.x 레거시의 대화형 마이그레이션 흐름은 그대로 둔다 — 자동화하지 않는다
+  - update 액션이 sync 를 직접 부르게 하지 않는다. 버전별 플러그인 캐시 구조에서
+    update 시점의 sync 는 **옛 payload** 로 돌아 옛 템플릿을 다시 깐다
+  - 래퍼 저장소 변경(codex hooks.json, cc CI 등록)은 Core 벤더링 이후 별도 PR
+
+## Approach Overview
+
+**sync.** `backup_file`/`BACKUP_DIR` 를 제거한다. 기존 파일을 바꾸기 전에
+`git status --porcelain -- &lt;파일&gt;` 로 더티를 판정하고, 더티면 `DIRTY` 로 보고하고
+건너뛴다. 추적 안 된 파일과 git 이 없는 환경은 더티로 취급한다 — 복구 경로가 없는
+곳에서 무단 덮어쓰기는 없다. `--force &lt;파일&gt;` 이 preserve 와 같은 방식으로 더티
+거부도 우회한다. 동일 파일(`cmp -s`)은 지금처럼 더티 검사 전에 건너뛴다.
+
+**자동 최신화.** `lib/scvroot.sh` 에 `scv_autosync` 를 추가한다. 프로젝트 스탬프
+(`SCV.md` 의 `STANDARD:VERSION`)와 payload `TEMPLATE_VERSION`(lib 위치 기준
+`../../TEMPLATE_VERSION`)을 비교해서 다르면 `sync.sh --project-dir` 를 돌리고 한 줄
+보고한다. sync 는 끝에서 스탬프를 다시 찍으므로 한 번 돌면 수렴한다.
+`scv_init_paths` 가 호출하고(액션 스크립트 9개가 이미 source), `help.sh` 와
+`status.sh` 는 명시 호출한다.
+
+**가드.** `SCV_GUARD_SCRIPTS` 를 콜론으로 갈라 디렉터리별 고정 문자열 비교.
+gate 모드에서 영수증 저장소가 만들 수도 쓸 수도 없으면 거부 사유를 저장소 경로와
+`SCV_GUARD_STATE` 안내로 바꾸고, mint 실패는 stderr 한 줄을 남긴다. 닫힌 쪽 실패는
+유지한다 — 모델이 저장소 권한을 부술 수 있으므로 fail open 은 가드 해제와 같다.
+
+**테스트.** T15 를 비면제 경로로 옮겨 새 사유를 단언한다. T21 을 계획 문서 조건
+없이 두 스크립트(`guard.sh`·`check-provenance.sh`)의 면제 집합 직접 비교로 다시
+쓴다. 루트 해석을 후보 탐색(`../`,`../../` × `core`, `vendor/scv-core/core`,
+`plugins/scv/vendor/scv-core/core`)으로 바꿔 래퍼 투영본에서도 돌게 한다.
+
+## Guardrails
+
+- 미수화 프로젝트(SCV.md 도 PROMOTE.md 도 없음)에서 자동 sync 절대 금지 —
+  수화는 사용자 동의가 있는 별도 액션이다
+- pre-2.x(스탬프 unknown 포함)에서 자동 sync 절대 금지. 2.0.0 은퇴 패스가 사용자
+  문서 7종을 삭제하는데, 프로토콜은 삭제 전 DECISIONS.md 이관 **제안**을 요구한다.
+  이 경우 한 줄 안내만 낸다
+- 자동 sync 실패는 액션을 막지 않는다 (경고 후 계속)
+- 재귀 가드(`SCV_AUTOSYNC_RUNNING`)와 끄기(`SCV_AUTOSYNC=off`, 환경변수만) 필수
+- `core/` 는 호스트 중립 — 새 코드·주석·테스트에 호스트 토큰 금지, 필요하면 기존
+  T19 의 런타임 조립 방식
+- raw/promote/archive/conversations 내용물은 sync 가 지금도 앞으로도 만지지 않는다
+- 가드의 fail-open 두 입력(빈 payload·JSON 리더 없음)은 그대로 유지
+- 계약·프로토콜 문서(guard.md·sync.md·update.md·wrapper-integration.md)는 같은
+  PR 에서 새 동작과 일치시킨다 — 배포 문서가 가드·게이트 동작과 모순되면 안 된다
+- `test-guard-consistency.sh` 의 구문 스윕을 통과해야 한다. 새 anchor 가 필요하면
+  줄 번호까지 정확히 등록한다
+
+## Exit criteria
+
+- TESTS.md 시나리오 전부 통과
+- 스탬프가 낡은 프로젝트에서 아무 액션이나 한 번 돌리면 템플릿이 최신화되고,
+  두 번째 실행은 no-op 이다 (수렴 증명)
+- 옛 코드에서 실패하는 회귀 케이스가 각 버그마다 존재한다 — 통과만 하는 테스트는
+  무엇도 증명하지 않는다
+- 래퍼 배치를 흉내 낸 트리에서 test-guard.sh 가 전 케이스 통과한다
+- `tests/run.sh` · `core/tests/run-dry.sh` · `core/tests/test-*.sh` ·
+  `tests/test-host-neutral.sh` · `tests/test-guard-consistency.sh` 전부 초록
+- 릴리스 아티팩트에 변경이 들어가고, 래퍼 후속 PR 목록(codex hooks.json·문서,
+  cc CI 등록)이 명시된다
+
+## Suggested path
+
+1. sync.sh — 백업 기계 제거, 더티 거부 삽입, 보고 문구 교체
+2. lib/scvroot.sh — `scv_autosync` 추가, `scv_init_paths` 연결, help/status 호출
+3. guard.sh — `SCV_GUARD_SCRIPTS` 콜론 분해, 저장소 사용 불가 사유 교체, mint 경고
+4. core/tests/test-guard.sh — 루트 후보 탐색, T15 재작성, T21 재작성, 다중 디렉터리
+   mint 케이스 추가
+5. 새 테스트 — autosync 수렴·가드레일(미수화/레거시/재귀/끄기), sync 더티 거부
+6. 문서 — guard.md·sync.md·update.md·wrapper-integration.md·release 문서 정합
+7. 전체 스위트 + 릴리스 준비 (0.28.0)
+
+## Related Documents
+
+- [`TESTS.md`](./TESTS.md)
+- `core/contracts/guard.md` — 실패 정책·mint 허용목록 절이 이번에 바뀐다
+
+## Risks / Open Questions
+
+- 자동 sync 가 액션 도중(예: readpath consume 직전) 발화한다. sync 는 워크플로
+  내용물을 만지지 않지만, 테스트로 못 박는다 (T7)
+- 더티 판정이 `git` 부재 환경에서 전부-거부로 떨어진다. 의도된 보수성이지만, 그런
+  환경 사용자는 sync 가 아무것도 안 바꾸는 것처럼 보일 수 있다 — 보고 줄에 이유가
+  나온다
+- 래퍼 후속 PR 전까지 codex 의 mint 격차는 그대로다. Core 가 먼저 나가야 한다
+- 플러그인 캐시가 이전 버전을 물고 있는 세션은 autosync 도 이전 payload 기준으로
+  판단한다 — 리로드 전에는 어떤 설계도 새 payload 에 손이 닿지 않는다 (알려진 한계)
+
+## Links
+
+- Raw originals: (frontmatter 참조)
+- Related PRs:</code></pre><pre class="code src-doc" data-idx="1"><code># Test Plan — sync 자동화와 가드 실효 회복
+
+## Overview
+
+세 갈래를 검증한다: sync 의 새 안전장치(더티 거부), 액션 시작 시 자동 최신화의
+동작과 가드레일, 그리고 가드 실효 버그 5건의 수정. 전부 동작으로 검사한다 — 이번
+버그들 대부분이 &quot;문장으로는 맞게 읽히는 코드&quot;였고, 그중 둘은 무력한 테스트 뒤에
+숨어 있었다. 각 수정마다 옛 코드에서 실패하는 회귀 케이스를 요구한다.
+
+## Test scenarios
+
+### T1. sync 는 더 이상 사본을 만들지 않는다
+
+- **Setup**: 임시 git 프로젝트, 수화 완료, 템플릿과 다른 내용의 scv 문서 몇 개를
+  **커밋해 둔 상태**
+- **Run**: `sync.sh --project-dir`
+- **Expected**: 파일은 갱신되고 `.scv-backup/` 은 생기지 않는다. &quot;Backups:&quot; 줄 없음
+- **Pass criterion**: `[[ ! -e .scv-backup ]]` 그리고 출력에 `Backups` 부재
+
+### T2. 커밋 안 된 변경이 있는 파일은 건너뛰고 이름을 말한다
+
+- **Setup**: T1 프로젝트에서 SCV 소유 문서 하나를 수정하고 커밋하지 않음
+- **Run**: sync
+- **Expected**: 그 파일은 바뀌지 않고 `DIRTY` 로 보고된다. 다른 파일은 정상 갱신
+- **Pass criterion**: 파일 내용 불변 + 보고에 파일명 등장. `--force &lt;그 파일&gt;` 로
+  재실행하면 덮어쓴다
+
+### T3. 추적 안 된 파일과 git 없는 환경은 더티로 취급한다
+
+- **Setup**: (a) 템플릿과 다른 내용의 미추적 scv 문서, (b) `.git` 없는 프로젝트
+- **Expected**: 둘 다 해당 파일을 건너뛰고 이유를 보고한다
+- **Pass criterion**: 내용 불변. 동일 내용 파일은 여전히 조용히 skip (cmp 우선)
+
+### T4. 낡은 스탬프는 다음 액션에서 자동으로 메워진다
+
+- **Setup**: 수화된 git 프로젝트, `SCV.md` 스탬프를 `2.0.0` 으로 되돌림
+- **Run**: `scv_init_paths` 를 쓰는 액션 헬퍼 하나 (예: `status.sh`)
+- **Expected**: sync 가 자동 실행되고 한 줄 보고, 스탬프가 payload 버전으로 갱신
+- **Pass criterion**: 실행 후 스탬프 == `TEMPLATE_VERSION`. **같은 헬퍼를 한 번 더
+  돌리면 sync 가 다시 돌지 않는다** (수렴 — 출력에 autosync 줄 부재)
+
+### T5. 자동 최신화의 가드레일
+
+- **Setup/Expected**:
+  - (a) 미수화 디렉터리(빈 scv/) → 자동 sync 안 돎, 파일 생성 0
+  - (b) 스탬프 unknown(pre-2.x 레거시 흉내: SCV.md 없음 + PROMOTE.md 있음) →
+    자동 sync 안 돎, 한 줄 안내만
+  - (c) `SCV_AUTOSYNC=off` → 안 돎
+  - (d) `SCV_AUTOSYNC_RUNNING=1` → 안 돎 (재귀 가드)
+- **Pass criterion**: 네 경우 모두 트리 변경 없음. (b)는 안내 문구 존재
+
+### T6. 자동 sync 실패는 액션을 막지 않는다
+
+- **Setup**: 스탬프 낡음 + sync 가 실패하도록 만든 환경(payload 템플릿 디렉터리
+  제거 등)
+- **Expected**: 경고 한 줄 후 액션 헬퍼는 정상 종료
+- **Pass criterion**: 헬퍼 exit 0, stderr 에 경고 존재
+
+### T7. 자동 sync 는 워크플로 내용물을 만지지 않는다
+
+- **Setup**: raw/promote/archive/conversations 에 파일이 있는 낡은 스탬프 프로젝트
+- **Run**: 자동 sync 발화
+- **Expected**: 그 네 디렉터리의 파일 내용·목록이 바이트 그대로
+- **Pass criterion**: 실행 전후 해시 목록 동일
+
+### T8. SCV_GUARD_SCRIPTS 가 콜론 목록을 받는다
+
+- **Setup**: 두 디렉터리 A·B, `SCV_GUARD_SCRIPTS=&quot;A:B&quot;`, gate-bash
+- **Expected**: A 의 스크립트를 부르는 명령도 B 의 것도 영수증을 발급한다.
+  둘 다 아닌 명령은 발급하지 않는다
+- **Pass criterion**: 세 경우 각각 영수증 파일 유/유/무. **옛 guard.sh 에 같은
+  픽스처를 돌리면 B 케이스가 실패한다** (회귀 증명)
+
+### T9. 단일 값 동작은 그대로다
+
+- **Setup**: 기존 형식 `SCV_GUARD_SCRIPTS=&quot;A&quot;`
+- **Expected**: 기존과 동일하게 발급/비발급
+- **Pass criterion**: 기존 test-guard.sh 관련 케이스 전부 통과 유지
+
+### T10. 사용 불가 저장소의 거부 사유가 원인을 이름 붙인다
+
+- **Setup**: `SCV_GUARD_STATE` 를 만들 수 없는 경로로, gate-write, 비면제 대상
+- **Expected**: 거부는 유지되(닫힘) 사유에 저장소 경로와 `SCV_GUARD_STATE` 가
+  들어간다. &quot;액션을 실행하라&quot;는 무익한 안내가 아니다. mint 모드는 stderr 한 줄
+- **Pass criterion**: deny JSON 의 reason 에 경로 문자열 포함. **옛 guard.sh 는
+  일반 사유를 내므로 이 단언이 실패한다** (회귀 증명)
+
+### T11. T15 가 실제로 판정한다
+
+- **Setup**: 수정된 test-guard.sh 의 해당 케이스가 비면제 경로를 쓴다
+- **Expected**: 가드의 저장소 처리 동작이 바뀌면 케이스가 빨개진다
+- **Pass criterion**: 케이스 대상 파일이 `*.md`/면제류가 아니다 (검사로 강제)
+
+### T12. T21 이 두 스크립트를 직접 비교한다
+
+- **Setup**: 수정된 T21
+- **Expected**: guard.sh 와 check-provenance.sh 의 면제 집합 공통 4종
+  (`*.md`·`.gitignore`·`.gitattributes`·`LICENSE`)이 양쪽에 있음을 단언한다.
+  계획 문서 존재 여부와 무관하게 **항상 실행**된다
+- **Pass criterion**: 한쪽 스크립트에서 항목 하나를 지운 사본에 돌리면 실패한다
+
+### T13. 래퍼 배치에서도 test-guard.sh 가 돈다
+
+- **Setup**: 임시 트리 `wrap/tests/test-guard.sh` + `wrap/vendor/scv-core/core/…`
+  (cc 배치 흉내, 파일은 심볼릭 아닌 실제 복사)
+- **Run**: `bash wrap/tests/test-guard.sh`
+- **Expected**: 전 케이스 통과 (현재는 13건 실패)
+- **Pass criterion**: exit 0. Core 배치(`core/tests/`)에서도 여전히 exit 0
+
+### T14. 문서와 동작이 일치한다
+
+- **Setup**: 변경 전체
+- **Run**: `tests/test-guard-consistency.sh` + 문서 grep
+- **Expected**: guard.md 의 실패 정책·mint 절, sync.md 의 백업 문장, update.md 5항,
+  wrapper-integration.md 의 SCV_GUARD_SCRIPTS 서술이 전부 새 동작과 일치
+- **Pass criterion**: consistency 4/4 + `.scv-backup` 이 sync.md 에서 사라짐
+
+### T15. 전체 스위트가 초록이다
+
+- **Run**: `tests/run.sh`, `core/tests/run-dry.sh`, `core/tests/test-*.sh`,
+  `tests/test-host-neutral.sh`
+- **Pass criterion**: 실패 0. 새 코드가 `core/` 호스트 중립성을 깨지 않는다
+
+## How to run
+
+```bash
+bash core/tests/test-guard.sh &amp;&amp; bash core/tests/test-autosync.sh &amp;&amp; bash core/tests/test-sync-dirty.sh
+```
+
+## Pass criteria
+
+- T1–T15 전부 통과
+- 회귀 증명 3건(T8·T10·수렴 T4)이 옛 코드에서 실제로 실패한다
+- 전체 스위트 실패 0, 릴리스 아티팩트에 변경 포함
+
+## Related Documents
+
+- [`PLAN.md`](./PLAN.md)</code></pre></div>
+    </aside>
+</div>
+
+<script>
+  var SCV_ANCHORS = ["Summary","Goals / Non-Goals","Approach Overview","Guardrails","Exit criteria","Suggested path","Related Documents","Risks / Open Questions","Links","✅ 테스트 · 인수기준 (TESTS)","Overview","Test scenarios","How to run","Pass criteria","Related Documents",null];
+  var scvPageIdx = 0;
+  function scvIdx(){ return scvPageIdx; }
+  function scvEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function scvHighlight(anchor){
+    var docs = document.querySelectorAll('.src-doc');
+    docs.forEach(function(el){
+      var code = el.querySelector('code');
+      if(code) code.innerHTML = scvEsc(code.textContent);
+    });
+    if(!anchor) return;
+    for (var i=0;i<docs.length;i++){
+      var code = docs[i].querySelector('code');
+      if(!code) continue;
+      var raw = code.textContent;
+      var lines = raw.split('\n');
+      var start=-1, end=lines.length;
+      for (var j=0;j<lines.length;j++){
+        var m = lines[j].match(/^#{1,6}\s+(.*)$/);
+        if (m && m[1].trim() === String(anchor).trim()) { start = j; break; }
+      }
+      if (start < 0) continue;
+      for (var k=start+1;k<lines.length;k++){ if (/^#{1,6}\s+/.test(lines[k])) { end = k; break; } }
+      var before = lines.slice(0,start).join('\n'), hl = lines.slice(start,end).join('\n'), after = lines.slice(end).join('\n');
+      code.innerHTML = scvEsc(before) + (before ? '\n' : '') + '<mark class="src-hl">' + scvEsc(hl) + '</mark>' + (after ? '\n' + scvEsc(after) : '');
+      if (typeof scvSelectSource === 'function') scvSelectSource(i);
+      var markEl = docs[i].querySelector('mark.src-hl');
+      if (markEl && markEl.scrollIntoView) markEl.scrollIntoView({ block: 'center' });
+      return;
+    }
+  }
+  function scvGoto(n){
+    var total = 16;
+    n = Math.max(0, Math.min(total - 1, n));
+    scvPageIdx = n;
+    document.querySelectorAll('.slide-page').forEach(function(p){ p.classList.toggle('active', p.dataset.idx === String(n)); });
+    document.querySelectorAll('.deck-nav-item').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
+    document.querySelectorAll('.deck-dot').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
+    if (typeof window.scvRunMermaid === 'function') { try { window.scvRunMermaid(); } catch (e) {} }
+    var prevBtn = document.getElementById('scvPrev'), nextBtn = document.getElementById('scvNext'), counter = document.getElementById('scvCounter');
+    if (prevBtn) prevBtn.disabled = (n === 0);
+    if (nextBtn) nextBtn.disabled = (n === total - 1);
+    if (counter) counter.textContent = (n + 1) + ' / ' + total;
+    scvHighlight(SCV_ANCHORS[n]);
+    var main = document.querySelector('.scroll-main');
+    if (main) main.scrollTop = 0;
+  }
+  function scvTogglePanel(){ var p=document.getElementById('scvSourcePanel'); if(p) p.classList.toggle('closed'); }
+  function scvSelectSource(i){
+    document.querySelectorAll('.panel-tab').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+    document.querySelectorAll('.src-doc').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+  }
+  (function(){
+    // 패널 좌측 경계 드래그 리사이즈 — 원본 SourcePanel 과 같은 산식(최소 320px,
+    // 본문에 최소 420px 남김).
+    var handle = document.getElementById('scvResizeHandle');
+    var panel = document.getElementById('scvSourcePanel');
+    if (!handle || !panel) return;
+    var MOBILE_BP = 640;
+    handle.addEventListener('mousedown', function(e){
+      e.preventDefault();
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+      function onMove(ev){
+        // 버튼을 놓친 채(창 밖 등) mouseup 을 못 받은 경우 — 버튼이 눌려있지 않으면 즉시 정리.
+        if (ev.buttons === 0) { onUp(); return; }
+        var raw = window.innerWidth - ev.clientX;
+        var max = Math.max(320, window.innerWidth - 420);
+        panel.style.width = Math.min(max, Math.max(320, raw)) + 'px';
+      }
+      function onUp(){
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        window.removeEventListener('blur', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('blur', onUp);
+    });
+    // 인라인 width 는 스타일시트의 반응형 브레이크포인트(640px 모바일 전체폭·900px 좁은폭)
+    // 보다 항상 우선한다 — 창 크기가 바뀔 때마다 다시 맞춰줘야 브레이크포인트가 살아난다.
+    window.addEventListener('resize', function(){
+      if (!panel.style.width) return;
+      if (window.innerWidth <= MOBILE_BP) { panel.style.width = ''; return; }
+      var max = Math.max(320, window.innerWidth - 420);
+      if (parseFloat(panel.style.width) > max) panel.style.width = max + 'px';
+    });
+  })();
+  document.addEventListener('keydown', function(e){
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') scvGoto(scvIdx() + 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') scvGoto(scvIdx() - 1);
+    else if (e.key === 'Home') scvGoto(0);
+    else if (e.key === 'End') scvGoto(16 - 1);
+    else if (e.key === 's' || e.key === 'S') scvTogglePanel();
+  });
+  scvGoto(0);
+</script>
+<script>
+  function scvThemeLabel(){ return document.documentElement.getAttribute('data-theme')==='light' ? "☀ 라이트" : "☾ 다크"; }
+  function scvToggleTheme(){
+    var html = document.documentElement;
+    var next = html.getAttribute('data-theme')==='light' ? 'dark' : 'light';
+    if (next === 'light') html.setAttribute('data-theme','light'); else html.removeAttribute('data-theme');
+    try { localStorage.setItem('scv-deck-theme', next); } catch(e){}
+    var btn = document.getElementById('scvThemeBtn');
+    if (btn) btn.textContent = scvThemeLabel();
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    var btn = document.getElementById('scvThemeBtn');
+    if (btn) btn.textContent = scvThemeLabel();
+  });
+</script>
+</body>
+</html>

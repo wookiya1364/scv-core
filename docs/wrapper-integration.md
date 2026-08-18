@@ -223,11 +223,16 @@ registers one on `PreToolUse` with a `Skill` matcher and one on
 `UserPromptExpansion`, since either can be the first event that names the
 action. A host with no such event mints from `gate-bash` alone: scv-codex
 registers no `mint` entry and relies on the action scripts being invoked through
-its shell tool. On that arrangement, `SCV_GUARD_SCRIPTS` names one directory and is matched as a
-fixed string, and scv-codex points it at the vendored Core scripts — so the two
-adapter-owned actions, `update` and `set-models`, which have no Core executable
-at all, do not mint there. `core/contracts/guard.md` records the requirement
-that an adapter script directory be part of the mint allowlist.
+its shell tool. On that arrangement, `SCV_GUARD_SCRIPTS` takes a colon-separated
+list of directories, each matched as a fixed string — list both the vendored
+Core scripts and the adapter's own script directory, or the adapter-owned
+actions (`update`, `set-models`, and any Core action the adapter reroutes)
+never mint. That is not hypothetical: scv-codex shipped with only the vendored
+directory listed, and its four adapter-routed calls minted nothing — and still
+do, until that wrapper's own follow-up release adopts the list form.
+`core/contracts/guard.md` records the requirement. Entries must be absolute
+paths with no ':' inside them and no surrounding whitespace; the guard drops
+anything else instead of matching it.
 
 Optional environment, all supplied by the wrapper:
 
@@ -236,7 +241,7 @@ Optional environment, all supplied by the wrapper:
 | `SCV_GUARD=off` | disable the guard entirely. Process environment only — never read from a file, or the agent could exempt itself in one line |
 | `SCV_GUARD_STATE` | directory holding receipts; defaults to `${TMPDIR:-/tmp}/scv-guard` |
 | `SCV_GUARD_ACTIONS` | regex of action ids the host may report in `mint` mode; defaults to the 15 shipped ids |
-| `SCV_GUARD_SCRIPTS` | action-script directory; a shell command containing this path mints |
+| `SCV_GUARD_SCRIPTS` | action-script directories, colon-separated absolute paths (no ':' in a path, no stray whitespace — invalid entries are dropped); a shell command containing any of them mints |
 | `SCV_GUARD_EXEMPT` | colon-separated extra exempt paths, matched as globs relative to the project root. This is where the host's own config file goes — scv-claude-code passes `.claude/settings.json:.claude/settings.local.json`, scv-codex passes `.codex/config.toml` |
 | `SCV_GUARD_RULE_B=off` | keep Rule A only |
 
