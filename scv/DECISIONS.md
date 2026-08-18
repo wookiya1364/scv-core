@@ -349,3 +349,38 @@ merge_policy: preserve
   규칙 주석에 예외를 명시하는 것으로 답했다. 그리고 재귀 가드를 프로세스 트리
   전체로 export 했다 — 액션 하나가 헬퍼마다 검사를 반복하고 있었다.
 - refs: scv/archive/20260818-wookiya1364-sync-autopilot/PLAN.md
+
+## [2026-08-18 14:50] wookiya1364 — 회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현
+
+- verdict: adopted
+- why: 영원히 빨간 아카이브 4건(커밋 전 상태 단언 3 + 부재 스크립트 1)을 보수
+  슬러그 하나가 supersede 한다. 기능은 넷 다 살아 있으므로 검증을 버리지 않고
+  내구성 있는 형태로 옮긴다 — 대표님 선택.
+- discarded alternatives:
+    - 후속 없이 4건 obsolete 마킹: 회귀는 초록이 되지만 살아 있는 기능 4개의
+      검증이 사라지고, obsolete 의미("더 이상 유지 안 함")와 어긋난다.
+    - 그대로 두기: 매번 "기존 4건 무관"을 확인해야 하고, 진짜 회귀가 그 사이에
+      섞이면 놓치기 쉽다.
+    - 슬러그 4개로 각각 대체: 아카이브 4개가 늘어나는 비용 대비 이득 없음 —
+      네 계약이 한 파일에 들어간다.
+    - 아카이브 TESTS.md 본문 직접 수정: 프로토콜 금지. frontmatter 3필드
+      supersede 경로가 허용된 유일한 길이다.
+- refs: scv/promote/20260818-wookiya1364-regression-contract-repair/PLAN.md
+
+## [2026-08-18 15:20] wookiya1364 — 회귀 계약 보수 archived
+
+- verdict: archived
+- why: 영원히 빨간 아카이브 4건을 보수 슬러그 하나가 supersede 했다. 네 기능의
+  검증은 내구 형태(내용 존재·투영 생존·실존 스위트 호출)로 이어지고, 옛 4건은
+  frontmatter 3필드만으로 obsolete 처리됐다(본문 md5 불변 확인). 내구성은
+  직접 증명했다: 동일 내용을 미커밋 트리와 전부-커밋 트리에서 실행해 동일 판정.
+  앞으로 깨지면 안 되는 것: TESTS 의 How-to-run 은 트리 내용에만 의존한다 —
+  커밋 상태 단언이 들어오는 순간 그 계약은 아카이브되며 죽는다.
+- path delta: as planned. 다만 구현 중 다섯 번째 자기함정 테스트를 만들 뻔했다 —
+  PROMOTE.md 에 넣은 규칙 문장의 "the uncommitted working tree" 가
+  test-sync-dirty 의 카나리아 "uncommitted work" 와 부분 일치해서, 완전히 성공한
+  덮어쓰기가 실패로 보고됐다. 카나리아 전부를 실문서에 나타날 수 없는
+  CANARY-*-9f3a 토큰으로 바꿨다. 그리고 ci-provenance-gate 의 아카이브 status 가
+  done 이 아니라 planned 였다(당시 절차 누락의 흔적) — 마킹 스크립트가 done 만
+  바꾸다 걸려서 발견했고, status 무관 치환으로 처리했다.
+- refs: scv/archive/20260818-wookiya1364-regression-contract-repair/PLAN.md

@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-08-18T03:07:15Z
+generated_at: 2026-08-18T04:21:35Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -53,6 +53,10 @@ archives:
     status: planned
   - slug: 20260814-wookiya1364-release-machinery
     title: "승격 대기 판정과 벤더 게이트"
+    kind: refactor
+    status: done
+  - slug: 20260818-wookiya1364-regression-contract-repair
+    title: "회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현"
     kind: refactor
     status: done
   - slug: 20260818-wookiya1364-sync-autopilot
