@@ -23,4 +23,6 @@
 - [ ] Core/profile/template version impact considered
 - [ ] `CHANGELOG.md` and integration docs updated if behavior changed
 - [ ] Branch follows [`.github/BRANCHING.md`](./BRANCHING.md)
+- [ ] Code change adds its archived plan (`scv/archive/<slug>/PLAN.md`), or the title
+      declares `[no-plan: <reason>]` — an empty `[no-plan]` is refused
 - [ ] No secrets, dependency directories, caches, or generated build output
