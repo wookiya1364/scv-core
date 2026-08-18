@@ -86,6 +86,19 @@ Two of these (`update`, `set-models`) have `entrypoint: null` in
 `core/actions.json` — Core ships no executable for them. On a host that mints from
 a script invocation, they mint from the wrapper adapter's own scripts instead, so
 an adapter script directory must be part of the mint allowlist.
+`SCV_GUARD_SCRIPTS` accepts a colon-separated list of directories for exactly
+this reason — the vendored Core scripts and the adapter's own scripts are two
+places, and with a single value the adapter-owned actions could never mint.
+Each entry keeps the fixed-string match; the list adds no globs and no regex.
+Entries must be absolute paths — anything else (including whitespace fragments
+from a hand-wrapped list) is dropped rather than matched, because a relative
+fragment is a substring almost every command contains.
+
+The match itself is a substring test on the command text: a command that
+merely NAMES a listed directory mints, without executing anything from it.
+That is a known and accepted limit — the guard closes the accidental path,
+and an adapter adding a directory to the list should know it is also handing
+the model a phrase that unlocks the session.
 
 Narrowing this set was tried and rejected. With only `{work, codegen}` minting,
 five protocol-instructed writes are denied while an action is legitimately
@@ -164,15 +177,20 @@ out, so an adversary deletes the script rather than corrupting its logic — clo
 on unreadable input buys almost nothing against that, while a single guard bug
 would deny every write in every project at once. Make the failure loud, not fatal.
 
-**An unusable receipt store fails closed, and silently.** This is the exception to
-everything above, and it is the failure a user actually meets. Minting is
-best-effort by construction: if the state directory cannot be created, `mint`
-returns having recorded nothing and printed nothing, and if the directory exists
-but cannot be written the append fails just as quietly. `has_receipt` is then false
-for the rest of the session, so Rule B denies every non-exempt write and Rule A
-denies plan creation. Running an action does not clear it — the action mints into
-the same unusable store. The user sees a guard that denies everything, a deny
-message telling them to run an action, and nothing changing when they do.
+**An unusable receipt store fails closed — and says so.** This is the exception
+to everything above. Closing is deliberate: the receipt's absence is what
+denies, and a shell tool can chmod the store, so failing open here would let one
+command switch the guard off. The closed posture belongs to the two write
+rules — gate-bash still allows a command that calls into a listed script
+directory, receipt or not, because bricking the very actions that mint would
+leave no way out. What used to be wrong was the silence. `mint` was
+best-effort and mute, `has_receipt` stayed false for the whole session, both
+rules refused everything, and the deny message said "run an action" — which
+mints into the same broken store and cannot help. Now the failure is loud at
+both ends: a mint that cannot record prints one stderr line naming the store,
+and a gate that denies because the store is unusable swaps its reason for one
+that names the store path and points at `SCV_GUARD_STATE`, instead of blaming
+the workflow.
 
 The guard is inert where SCV is not adopted: resolve the workflow root by walking
 up from the payload's working directory, and allow immediately when there is
