@@ -3,7 +3,9 @@ title: 계획 없는 구현 PR 을 CI 가 막는다 (프로버넌스 게이트)
 slug: 20260812-wookiya1364-ci-provenance-gate
 author: wookiya1364
 created_at: 2026-08-12
-status: planned
+status: obsolete
+obsoleted_at: 2026-08-18
+obsoleted_by: 20260818-wookiya1364-regression-contract-repair
 kind: feature
 lang: korean
 tags: [ci, governance, provenance]
