@@ -3,7 +3,9 @@ title: "쉬운 말 먼저 — 사용자 대상 출력의 기본 규칙"
 slug: 20260812-wookiya1364-plain-language
 author: "wookiya1364"
 created_at: 2026-08-12
-status: done
+status: obsolete
+obsoleted_at: 2026-08-18
+obsoleted_by: 20260818-wookiya1364-regression-contract-repair
 kind: feature
 lang: ko
 tags: [protocols, ux, language]
