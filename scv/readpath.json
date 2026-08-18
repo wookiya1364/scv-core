@@ -1,18 +1,20 @@
 {
   "version": 2,
-  "updated_at": "2026-08-18T02:00:01Z",
+  "updated_at": "2026-08-18T04:17:57Z",
   "files": {
     "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "size": 4974, "mtime": "2026-08-12T08:39:19Z" },
     "scv/raw/stale/20260812-wookiya1364-forced-invocation.md": { "size": 9860, "mtime": "2026-08-12T08:39:19Z" },
     "scv/raw/stale/20260813-wookiya1364-deck-redesign.md": { "size": 8895, "mtime": "2026-08-14T01:30:47Z" },
     "scv/raw/stale/20260814-wookiya1364-release-machinery.md": { "size": 6347, "mtime": "2026-08-14T03:26:17Z" },
-    "scv/raw/stale/20260818-wookiya1364-sync-autopilot-guard-fixes.md": { "size": 11000, "mtime": "2026-08-18T01:57:31Z" }
+    "scv/raw/stale/20260818-wookiya1364-regression-contract-repair.md": { "size": 4310, "mtime": "2026-08-18T04:15:39Z" },
+    "scv/raw/stale/20260818-wookiya1364-sync-autopilot-guard-fixes.md": { "size": 11000, "mtime": "2026-08-18T03:23:14Z" }
   },
   "ref_docs": {
     "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "slugs": ["20260812-wookiya1364-ci-provenance-gate"], "ref_commit": "1f766d4", "consumed_at": "2026-08-12T06:09:37Z", "origin": "scv/raw/20260812-wookiya1364-ci-provenance-gate.md" },
     "scv/raw/stale/20260812-wookiya1364-forced-invocation.md": { "slugs": ["20260812-wookiya1364-forced-invocation-guard"], "ref_commit": "1f766d4", "consumed_at": "2026-08-12T07:44:45Z", "origin": "scv/raw/20260812-wookiya1364-forced-invocation.md" },
     "scv/raw/stale/20260813-wookiya1364-deck-redesign.md": { "slugs": ["20260813-wookiya1364-deck-redesign"], "ref_commit": "b5ea3a9", "consumed_at": "2026-08-13T07:47:32Z", "origin": "scv/raw/20260813-wookiya1364-deck-redesign.md" },
     "scv/raw/stale/20260814-wookiya1364-release-machinery.md": { "slugs": ["20260814-wookiya1364-release-machinery"], "ref_commit": "dea5941", "consumed_at": "2026-08-14T02:55:26Z", "origin": "scv/raw/20260814-wookiya1364-release-machinery.md" },
+    "scv/raw/stale/20260818-wookiya1364-regression-contract-repair.md": { "slugs": ["20260818-wookiya1364-regression-contract-repair"], "ref_commit": "762a77a", "consumed_at": "2026-08-18T04:17:57Z", "origin": "scv/raw/20260818-wookiya1364-regression-contract-repair.md" },
     "scv/raw/stale/20260818-wookiya1364-sync-autopilot-guard-fixes.md": { "slugs": ["20260818-wookiya1364-sync-autopilot"], "ref_commit": "dd9a59b", "consumed_at": "2026-08-18T02:00:01Z", "origin": "scv/raw/20260818-wookiya1364-sync-autopilot-guard-fixes.md" }
   }
 }

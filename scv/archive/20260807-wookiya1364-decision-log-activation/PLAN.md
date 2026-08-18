@@ -3,7 +3,9 @@ title: "결정 로그 실작동 — 실행 경로 복구 + 구현 델타 기록"
 slug: 20260807-wookiya1364-decision-log-activation
 author: "wookiya1364"
 created_at: 2026-08-07
-status: done
+status: obsolete
+obsoleted_at: 2026-08-18
+obsoleted_by: 20260818-wookiya1364-regression-contract-repair
 kind: feature
 lang: ko
 tags: [decisions, work, protocols, cognitive-debt]
