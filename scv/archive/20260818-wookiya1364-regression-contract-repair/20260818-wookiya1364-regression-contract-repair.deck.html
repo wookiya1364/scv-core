@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<script>(function(){try{if(localStorage.getItem('scv-deck-theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현</title>
+<style>
+/* 다크가 기본값(--bg/--panel 등 전부). 라이트는 html[data-theme="light"] 오버라이드 —
+   FE 프로젝트의 다크-기본+라이트-오버라이드 관례와 동일한 모양(속성 하나만 바뀌면
+   전체가 재테마된다). head 맨 앞 인라인 스크립트가 pre-paint 로 저장된 선택을 적용해
+   깜빡임(FOUC)이 없다. */
+:root{--fg:#e7e9f0;--muted:#9096a8;--bg:#171922;--panel:#1d2029;--border:#2c3040;--primary:#7c93ff;--warn:#e0ab48;--danger:#ef6b6b;--good:#3ecf8e;--page-bg:#0d0e13;--on-primary:#12163a;--on-warn:#241a06;}
+html[data-theme="light"]{--fg:#1a1d24;--muted:#5b6270;--bg:#ffffff;--panel:#f6f7f9;--border:#e3e6ea;--primary:#2f6feb;--warn:#b8860b;--danger:#c0392b;--good:#1e8e5a;--page-bg:#f6f7f9;--on-primary:#ffffff;}
+*{box-sizing:border-box}
+html,body{height:100%}
+html{scroll-behavior:smooth}
+body{margin:0;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:var(--fg);background:var(--page-bg)}
+/* 문서 = 스크롤되는 본문(좌) + 상시 원문 마크다운 패널(우, sticky) — 이게 scv:deck 의
+   정체성이다: 렌더링과 원문이 늘 같은 화면에 나란히 있어야 서로 어긋나지 않았다는 게
+   보장된다. 인쇄 시에는 패널을 접고 본문 뒤에 원문을 부록으로 붙인다(.print-source). */
+.shell{display:flex;height:100vh;overflow:hidden}
+.scroll-main{flex:1;min-width:0;overflow-y:auto}
+.wrap{max-width:840px;margin:0 auto;background:var(--bg);min-height:100%;padding:0 clamp(20px,5vw,56px) 96px;box-shadow:0 0 0 1px var(--border)}
+header.doc{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--border);margin:0 calc(clamp(20px,5vw,56px)*-1);padding:18px clamp(20px,5vw,56px);display:flex;align-items:center;gap:14px;justify-content:space-between}
+header.doc h1{font-size:22px;margin:0;font-weight:700}
+.header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.theme-toggle,.panel-toggle{flex-shrink:0;font:600 12px/1 inherit;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer}
+.theme-toggle:hover,.panel-toggle:hover{background:var(--border);color:var(--fg)}
+.panel-toggle .kbd{opacity:.55;margin-left:4px}
+.source-panel{position:relative;width:min(440px,38vw);flex-shrink:0;border-left:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column}
+.source-panel.closed{display:none}
+.panel-resize-handle{position:absolute;left:0;top:0;bottom:0;width:7px;margin-left:-4px;cursor:col-resize;z-index:6}
+.panel-resize-handle:hover{background:rgba(127,137,160,.25)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-title{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.02em}
+.panel-close{border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 7px;border-radius:5px;line-height:1.4}
+.panel-close:hover{background:var(--border);color:var(--fg)}
+.panel-tabs{display:flex;gap:2px;padding:9px 12px 0;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.panel-tab{font:600 12px/1 inherit;color:var(--muted);padding:7px 10px;border:none;background:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.panel-tab.active{color:var(--fg);border-bottom-color:var(--primary)}
+.panel-body{flex:1;overflow-y:auto;padding:14px}
+.panel-body .src-doc{display:none;margin:0}
+.panel-body .src-doc.active{display:block}
+.print-source{display:none}
+/* 목차(nav.toc) 는 인쇄본 전용(펼친 전체 문서엔 목차가 자연스럽다). 화면에서는
+   deck-nav(아래) 가 같은 역할을 대신한다 — 페이지 번호 pill + 클릭 이동. */
+@media screen{nav.toc{display:none}}
+nav.toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:26px 0}
+nav.toc h3{margin:0 0 8px;font-size:12px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
+nav.toc ol{margin:0;padding-left:20px;columns:2;gap:24px}
+nav.toc a{color:var(--fg);text-decoration:none}
+nav.toc a:hover{color:var(--primary);text-decoration:underline}
+section{padding:22px 0;border-top:1px solid var(--border)}
+section:first-of-type{border-top:none}
+/* 페이지 넘김(화면 전용) — 한 번에 한 섹션만. 인쇄 시엔 전부 펼쳐서 보여준다. */
+@media screen{.slide-page{display:none}.slide-page.active{display:block}}
+.deck-nav{display:flex;flex-wrap:wrap;gap:6px;margin:20px 0}
+.deck-nav-item{font:600 12px/1 inherit;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer;white-space:nowrap}
+.deck-nav-item:hover{color:var(--fg)}
+.deck-nav-item.active{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
+.deck-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:8px;padding-top:20px;border-top:1px solid var(--border)}
+.deck-arrow{font:600 13px/1 inherit;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;cursor:pointer}
+.deck-arrow:disabled{opacity:.35;cursor:default}
+.deck-arrow:not(:disabled):hover{background:var(--panel)}
+.deck-dots{display:flex;align-items:center;gap:6px}
+.deck-dot{width:8px;height:8px;border-radius:999px;background:var(--border);border:none;cursor:pointer;padding:0}
+.deck-dot.active{background:var(--primary);width:20px;border-radius:5px}
+.deck-counter{font-size:12px;color:var(--muted);min-width:52px;text-align:center}
+mark.src-hl{background:#ffe58a;color:#3a2f00;border-radius:3px;padding:0 1px}
+h2{font-size:19px;margin:.2em 0 .6em;font-weight:700}
+h4{margin:.2em 0 .4em;font-size:14px}
+.subhead{font-size:15px;font-weight:600;margin:1.1em 0 .3em;color:var(--fg)}
+.kicker{font-size:12px;color:var(--muted);letter-spacing:.03em;margin-bottom:2px}
+.sub{color:var(--muted);margin:-.2em 0 1em}
+p{margin:.5em 0}
+ul,ol{margin:.4em 0;padding-left:22px}
+li{margin:.25em 0}
+.tw{overflow-x:auto;margin:.8em 0}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{border:1px solid var(--border);padding:8px 11px;text-align:left;vertical-align:top}
+thead th{background:var(--panel);font-weight:600}
+table.kv th{background:var(--panel);width:30%;white-space:nowrap}
+.kpi{display:flex;flex-wrap:wrap;gap:12px;margin:.8em 0}
+.kpi-card{flex:1 1 160px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--panel)}
+.kpi-label{font-size:13px;color:var(--muted);margin-bottom:6px}
+.kpi-nums{display:flex;align-items:center;gap:8px;font-weight:700}
+.kpi-nums .base{color:var(--muted)}
+.kpi-nums .arrow{color:var(--primary)}
+.kpi-nums .target{color:var(--good)}
+.goals{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:.8em 0}
+.goal-col{border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+.goal-col.g{border-left:4px solid var(--good)}
+.goal-col.ng{border-left:4px solid var(--danger)}
+pre.code{background:#0f1320;color:#e6e9f0;border-radius:10px;padding:14px 16px;overflow-x:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;margin:.8em 0}
+/* mermaid 는 항상 라이트 카드에 그린다(테마 무관, pre.code 가 항상 다크인 것과 대칭) —
+   mermaid 렌더 테마를 다크로 다시 그리려면 이미 SVG 로 처리된 노드를 되돌려야 해서
+   토글마다 재처리가 필요해진다. 대신 다이어그램 카드 자체를 고정 라이트로 둬서
+   토글과 무관하게 항상 선명하게 읽힌다. */
+pre.mermaid{background:#f6f7f9;border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;margin:.8em 0}
+pre.mermaid.mermaid-fallback{text-align:left;white-space:pre;overflow-x:auto;background:#0f1320;color:#e6e9f0;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:30px 16px 14px;position:relative}
+pre.mermaid.mermaid-fallback::before{content:"\29c9 \b2e4\c774\c5b4\adf8\b7a8 \c6d0\bcf8 (\c624\d504\b77c\c778 \b610\b294 CDN \bbf8\b85c\b4dc)";position:absolute;top:8px;left:16px;font:600 11px/1 -apple-system,sans-serif;color:#9aa4b2}
+.callout{border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:11px 14px;margin:.8em 0;background:var(--panel)}
+.callout-title{font-weight:700;font-size:13px;margin-bottom:3px}
+.callout.info{border-left-color:var(--primary)}
+.callout.good{border-left-color:var(--good)}
+.callout.warn{border-left-color:var(--warn)}
+.callout.danger{border-left-color:var(--danger)}
+.callout.next{border-left-color:var(--primary)}
+.lint h2{color:var(--warn)}
+.lint-count{display:inline-block;background:var(--warn);color:var(--on-warn);border-radius:999px;font-size:12px;padding:1px 9px;vertical-align:middle}
+/* 화면목업(와이어프레임) 킷 — scv 자체 기본 스킨(2순위 폴백): DesignSystem 의 실제
+   다크 팔레트를 distill(무채색 표면 + 단일 로즈 악센트 + border-only depth + pill
+   배지, 글라스 없음 — DesignSystem 본체엔 글라스가 없다). 문서 자체의 라이트/다크
+   토글과는 독립적으로 항상 이 다크 스킨을 쓴다(--wf-* 로 스코프해 문서 테마 변수와
+   충돌하지 않음) — mermaid 카드를 항상 라이트로 고정하는 것과 같은 이유(재처리 없이
+   항상 또렷하게). 프로젝트 실제 토큰(1순위) 자동감지는 아직 없음 — 후속 작업.
+   버튼은 항상 disabled(정적 예시 그림이라 실제 인터랙션 없음). */
+.wf-screen{
+  margin:1em 0;
+  --wf-bg:#0a0a0b; --wf-fg:#fafafa; --wf-card:#1c1c1e; --wf-border:rgba(255,255,255,.1);
+  --wf-muted:#232326; --wf-muted-fg:#9a9a9f;
+  --wf-primary:#a53257; --wf-primary-fg:#fdf1f3;
+  --wf-success:#34d399; --wf-success-bg:rgba(16,185,129,.15); --wf-success-border:rgba(16,185,129,.4);
+  --wf-danger:#ef6b6b; --wf-danger-bg:rgba(239,107,107,.14);
+  --wf-info:#60a5fa; --wf-info-bg:rgba(96,165,250,.15);
+  --wf-warn:#e0ab48; --wf-warn-bg:rgba(224,171,72,.15);
+  --wf-radius:10px; --wf-radius-pill:999px;
+}
+.wf-screen-label{font-size:12px;color:var(--muted);margin-bottom:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.wf-frame{border:1px solid var(--wf-border);border-radius:var(--wf-radius);background:var(--wf-bg);color:var(--wf-fg);overflow:hidden}
+.wf-nav{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--wf-border);background:var(--wf-bg);flex-wrap:wrap}
+.wf-nav-item{font-size:13px;color:var(--wf-muted-fg);padding:12px 11px;border-bottom:2px solid transparent}
+.wf-nav-item.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-primary)}
+.wf-body{padding:20px}
+.wf-header{margin-bottom:0}
+.wf-header-title{font-size:16px;font-weight:600;color:var(--wf-fg)}
+.wf-header-sub{font-size:12.5px;color:var(--wf-muted-fg);margin-top:3px}
+.wf-toolbar{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+.wf-tabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid var(--wf-border)}
+.wf-tab{font-size:12.5px;color:var(--wf-muted-fg);padding:7px 11px;border-bottom:2px solid transparent}
+.wf-tab.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-muted-fg)}
+.wf-btn{font:500 12.5px/1 inherit;padding:8px 13px;border-radius:8px;border:1px solid transparent;background:var(--wf-muted);color:var(--wf-fg);cursor:default}
+.wf-btn-primary{background:var(--wf-primary);color:var(--wf-primary-fg)}
+.wf-btn-danger{background:var(--wf-danger-bg);color:var(--wf-danger)}
+.wf-input{display:inline-flex;align-items:center;font-size:12.5px;color:var(--wf-muted-fg);padding:8px 12px;border:1px solid var(--wf-border);border-radius:8px;background:var(--wf-card);min-width:120px}
+.wf-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.wf-table th,.wf-table td{border-bottom:1px solid var(--wf-border);padding:9px 10px;text-align:left}
+.wf-table th{color:var(--wf-muted-fg);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.02em}
+.wf-badge{display:inline-flex;align-items:center;height:20px;border-radius:var(--wf-radius-pill);padding:0 9px;font-size:10.5px;font-weight:500;border:1px solid transparent}
+.wf-badge-muted{background:var(--wf-muted);color:var(--wf-muted-fg);border-color:var(--wf-border)}
+.wf-badge-info{background:var(--wf-info-bg);color:var(--wf-info);border-color:rgba(96,165,250,.35)}
+.wf-badge-good{background:var(--wf-success-bg);color:var(--wf-success);border-color:var(--wf-success-border)}
+.wf-badge-warn{background:var(--wf-warn-bg);color:var(--wf-warn);border-color:rgba(224,171,72,.35)}
+.wf-badge-danger{background:var(--wf-danger-bg);color:var(--wf-danger);border-color:rgba(239,107,107,.35)}
+.wf-card{border-radius:var(--wf-radius);border:1px solid var(--wf-border);padding:14px 16px;margin-bottom:10px;background:var(--wf-card)}
+.wf-card-title{font-size:13px;font-weight:600;color:var(--wf-fg);margin-bottom:8px}
+.wf-list{list-style:none;margin:0;padding:0}
+.wf-list li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--wf-border);font-size:12.5px;color:var(--wf-fg)}
+.wf-list li:last-child{border-bottom:none}
+.wf-form{display:flex;flex-direction:column;gap:8px}
+.wf-field{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--wf-muted-fg)}
+.wf-text{font-size:12.5px;color:var(--wf-fg);margin:.3em 0}
+@media (max-width:900px){.source-panel{width:min(360px,44vw)}}
+@media (max-width:640px){.goals{grid-template-columns:1fr}nav.toc ol{columns:1}.shell{flex-direction:column;height:auto;overflow:visible}.scroll-main{overflow:visible}.source-panel{width:100%;height:60vh}}
+@media print{
+  body{background:#fff;display:block;height:auto}
+  .shell{display:block;height:auto;overflow:visible}
+  .scroll-main{overflow:visible;height:auto}
+  .wrap{box-shadow:none;max-width:none;padding:0}
+  header.doc{position:static}
+  .panel-toggle{display:none}
+  .source-panel{display:none}
+  .deck-nav{display:none}
+  .deck-footer{display:none}
+  nav.toc{display:block;break-inside:avoid}
+  section{break-inside:avoid}
+  .print-source{display:block;break-before:page}
+  .print-source h3{margin-top:1.6em;font-size:14px}
+}
+</style>
+<style id="scv-mermaid-contrast">
+pre.mermaid{background:transparent!important}
+pre.mermaid .flowchart-link,pre.mermaid .edgePath .path{stroke:var(--fg)!important;stroke-width:2px!important}
+pre.mermaid .marker,pre.mermaid marker path{fill:var(--fg)!important;stroke:var(--fg)!important}
+pre.mermaid .edgeLabel,pre.mermaid .edgeLabel p,pre.mermaid .labelBkg{background-color:var(--bg)!important;color:var(--fg)!important}
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="scroll-main">
+<div class="wrap">
+<header class="doc"><h1>회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현</h1><div class="header-actions"><button class="theme-toggle" id="scvThemeBtn" onclick="scvToggleTheme()" title="라이트/다크 전환"></button><button class="panel-toggle" onclick="scvTogglePanel()" title="원문 패널 토글 (S)">기획서 원문 <span class="kbd">S</span></button></div></header>
+<nav class="toc"><h3>목차</h3><ol><li><a href="#s-0-summary">Summary</a></li><li><a href="#s-1-goals--non-goals">Goals / Non-Goals</a></li><li><a href="#s-2-approach-overview">Approach Overview</a></li><li><a href="#s-3-guardrails">Guardrails</a></li><li><a href="#s-4-exit-criteria">Exit criteria</a></li><li><a href="#s-5-suggested-path">Suggested path</a></li><li><a href="#s-6-related-documents">Related Documents</a></li><li><a href="#s-7-risks--open-questions">Risks / Open Questions</a></li><li><a href="#s-8-links">Links</a></li><li><a href="#s-9--테스트--인수기준-tests">✅ 테스트 · 인수기준 (TESTS)</a></li><li><a href="#s-10-overview">Overview</a></li><li><a href="#s-11-test-scenarios">Test scenarios</a></li><li><a href="#s-12-how-to-run">How to run</a></li><li><a href="#s-13-pass-criteria">Pass criteria</a></li><li><a href="#s-14-related-documents">Related Documents</a></li></ol></nav>
+<nav class="deck-nav"><button class="deck-nav-item active" data-idx="0" onclick="scvGoto(0)">1. Summary</button><button class="deck-nav-item" data-idx="1" onclick="scvGoto(1)">2. Goals / Non-Goals</button><button class="deck-nav-item" data-idx="2" onclick="scvGoto(2)">3. Approach Overview</button><button class="deck-nav-item" data-idx="3" onclick="scvGoto(3)">4. Guardrails</button><button class="deck-nav-item" data-idx="4" onclick="scvGoto(4)">5. Exit criteria</button><button class="deck-nav-item" data-idx="5" onclick="scvGoto(5)">6. Suggested path</button><button class="deck-nav-item" data-idx="6" onclick="scvGoto(6)">7. Related Documents</button><button class="deck-nav-item" data-idx="7" onclick="scvGoto(7)">8. Risks / Open Quest</button><button class="deck-nav-item" data-idx="8" onclick="scvGoto(8)">9. Links</button><button class="deck-nav-item" data-idx="9" onclick="scvGoto(9)">10. ✅ 테스트 · 인수기준 (TEST</button><button class="deck-nav-item" data-idx="10" onclick="scvGoto(10)">11. Overview</button><button class="deck-nav-item" data-idx="11" onclick="scvGoto(11)">12. Test scenarios</button><button class="deck-nav-item" data-idx="12" onclick="scvGoto(12)">13. How to run</button><button class="deck-nav-item" data-idx="13" onclick="scvGoto(13)">14. Pass criteria</button><button class="deck-nav-item" data-idx="14" onclick="scvGoto(14)">15. Related Documents</button><button class="deck-nav-item" data-idx="15" onclick="scvGoto(15)">16. 품질 리포트</button></nav>
+<section id="s-0-summary" class="slide-page active" data-idx="0"><div class="kicker">회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현</div><h2>Summary</h2><p>누적 회귀에서 영원히 빨간 아카이브 4건을 이 슬러그 하나가 대체한다. 셋은
+git diff HEAD 로 편집 범위를 단언해서 커밋된 순간부터 거짓이고, 하나는 존재한
+적 없는 스크립트를 부른다. 네 기능(결정 로그·구현 원칙·쉬운 말·provenance
+게이트)은 전부 살아 있으므로, 검증을 버리지 않고 내구성 있는 형태로 옮긴다.</p></section>
+<section id="s-1-goals--non-goals" class="slide-page" data-idx="1"><div class="kicker">회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현</div><h2>Goals / Non-Goals</h2><ul><li>Goals<ul><li>이 슬러그의 TESTS 가 네 기능을 커밋 후에도 참인 단언만으로 검증한다</li><li>아카이브 시 supersedes: 절차가 옛 4건을 obsolete + obsoleted_by 로 마킹</li><li>누적 회귀가 12/12 판정 가능 상태가 된다 (8 실행 + 4 스킵 + 이 슬러그)</li><li>재발 방지: PROMOTE.md 의 TESTS 규칙 한 줄 + tests-smell.sh warn 규칙</li></ul></li><li>Non-Goals<ul><li>옛 4건의 TESTS.md 본문 수정 (금지 유지)</li><li>네 기능 자체의 동작 변경 — 이 계획은 검증 문서만 옮긴다</li><li>Core 릴리스 — 보수 슬러그는 저장소 로컬. PROMOTE.md·tests-smell 변경만
+다음 릴리스에 자연 편승한다</li></ul></li></ul></section>
+<section id="s-2-approach-overview" class="slide-page" data-idx="2"><div class="kicker">회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현</div><h2>Approach Overview</h2><p>TESTS.md 가 산출물의 전부다. 원본 네 개의 How-to-run 에서 두 부류를 뺀다:
+커밋 전 상태 단언(git diff 범위 검사 — 이번 사태의 원인)과 슬러그 내부의 전체
+스위트 재실행(회귀를 O(n²) 로 만든 주범 — 전체 스위트는 CI 가 이미 돈다).
+남는 것이 각 기능의 진짜 계약이다: 파일·구절 존재, guidance-filter 투영 생존,
+실존 스위트 호출.</p>
+<p>재발 방지 둘: PROMOTE.md TESTS 작성 규칙에 &quot;How-to-run 은 아카이브된 뒤에도
+참이어야 한다&quot; 를 명시하고, tests-smell.sh 에 같은 냄새(warn 전용, 기존 헌장
+그대로)를 넣는다.</p></section>
+<section id="s-3-guardrails" class="slide-page" data-idx="3"><div class="kicker">회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현</div><h2>Guardrails</h2><ul><li>옛 4건은 frontmatter 3필드(status/obsoleted_at/obsoleted_by)만 변한다</li><li>이 슬러그의 TESTS 는 자기 규칙을 스스로 지킨다: git-diff 단언 없음, 실존 파일만
+참조, 전체 스위트 재실행 없음, 어느 커밋에서 돌려도 같은 판정</li><li>tests-smell.sh 는 warn 전용을 유지한다 — 절대 차단하지 않는다</li><li>PROMOTE.md 문구는 test-guard-consistency.sh 구문 스윕을 통과해야 한다</li></ul></section>
+<section id="s-4-exit-criteria" class="slide-page" data-idx="4"><div class="kicker">회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현</div><h2>Exit criteria</h2><ul><li>이 슬러그의 TESTS How-to-run 이 초록이고, HEAD 를 임의 과거 커밋에 둔 사본
+트리에서도 같은 판정 (내구성의 직접 증명)</li><li>아카이브 후 옛 4건이 obsolete 로 마킹되고 regression.sh 스킵 목록에 잡힌다</li><li>tests-smell.sh 가 옛 4건의 TESTS 를 주면 warn 을 내고, 이 슬러그 것에는 안 낸다</li><li>전체 스위트 초록 유지</li></ul></section>
+<section id="s-5-suggested-path" class="slide-page" data-idx="5"><div class="kicker">회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현</div><h2>Suggested path</h2><ol><li>TESTS.md — 네 기능의 내구 재표현 (T1 게이트, T2 결정로그, T3 원칙, T4 쉬운말)</li><li>tests-smell.sh — git diff --name-only HEAD 냄새 + 부재 스크립트 참조 warn</li><li>PROMOTE.md — TESTS 규칙 한 줄</li><li>아카이브 → supersede 절차로 옛 4건 마킹 → 회귀 재실행으로 스킵 확인</li></ol></section>
+<section id="s-6-related-documents" class="slide-page" data-idx="6"><div class="kicker">회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현</div><h2>Related Documents</h2><ul><li>TESTS.md</li></ul></section>
+<section id="s-7-risks--open-questions" class="slide-page" data-idx="7"><div class="kicker">회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현</div><h2>Risks / Open Questions</h2><ul><li>옛 슬러그의 검증 강도가 일부 낮아진다(범위 격리 단언은 대체 불가능해서 제거).
+그 단언이 지키던 것은 이제 merge-time provenance 게이트와 리뷰가 지킨다</li><li>tests-smell 의 부재-스크립트 검사는 상대 경로 해석이 필요해 휴리스틱이다 —
+warn 전용이므로 오탐 비용은 한 줄 출력이다</li></ul></section>
+<section id="s-8-links" class="slide-page" data-idx="8"><div class="kicker">회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현</div><h2>Links</h2><ul><li>Raw originals: (frontmatter 참조)</li><li>Related PRs:</li></ul></section>
+<section id="s-9--테스트--인수기준-tests" class="slide-page" data-idx="9"><div class="kicker">회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현</div><h2>✅ 테스트 · 인수기준 (TESTS)</h2></section>
+<section id="s-10-overview" class="slide-page" data-idx="10"><div class="kicker">회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현</div><h2>Overview</h2><p>이 문서가 곧 산출물이다. 옛 4개 슬러그의 검증 중 아카이브 후에도 참인 것만
+남겨 한 계약으로 합친다. 규칙 둘을 스스로 지킨다: 커밋 전 상태 단언 없음
+(git diff 범위 검사 금지), 존재하지 않는 파일 참조 없음, 슬러그 내부의 전체
+스위트 재실행 없음. 어느 커밋에서 돌려도 같은 판정이 나와야 한다 — 그것이 이
+계획의 존재 이유다.</p></section>
+<section id="s-11-test-scenarios" class="slide-page" data-idx="11"><div class="kicker">회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현</div><h2>Test scenarios</h2><h3 class="subhead">T1. provenance 게이트가 판정한다 (구 ci-provenance-gate)</h3>
+<ul><li>Setup: 없음 — 스위트가 자체 픽스처(실제 git 저장소)를 만든다</li><li>Run: bash core/tests/test-provenance-gates.sh</li><li>Expected: 게이트 두 개가 통과 케이스를 통과시키고 거부 케이스를 거부한다</li><li>Pass criterion: exit 0. 원본이 부르던 test-provenance.sh 는 존재한 적이
+없다 — 실존 스위트(18케이스) 호출로 교체</li></ul>
+<h3 class="subhead">T2. 결정 로그가 살아 있다 (구 decision-log-activation)</h3>
+<ul><li>Setup: 저장소 그대로</li><li>Expected: scv/DECISIONS.md 존재, 날짜 달린 엔트리 5+ 건, path delta:
+5+ 건(둘 다 단조 증가라 내구), status 액션이 최근 결정을 노출, work.md 의
+guidance 마커가 lint 를 통과하고 full 투영이 원본과 바이트 동일하며 minimal
+투영에 - path delta: 가 생존, 그 필드가 Step 9b.0 구간에 정확히 1회</li><li>Pass criterion: How-to-run 의 [T2] 블록 전부 통과</li></ul>
+<h3 class="subhead">T3. 구현 원칙이 살아 있다 (구 implementation-principles)</h3>
+<ul><li>Expected: 원칙 절이 work.md 에 존재하고 codegen.md 가 참조, minimal
+투영에서 6개 핵심 구절 생존, full/minimal 투영의 스크립트 호출 시퀀스 동일</li><li>Pass criterion: [T3] 블록 전부 통과</li></ul>
+<h3 class="subhead">T4. 쉬운 말 절이 살아 있다 (구 plain-language)</h3>
+<ul><li>Expected: Language preference 를 가진 프로토콜 전부(13+)에 절이 존재,
+문구가 서로 동일(끝 빈 줄 무시), GUIDANCE 마커는 promote/work 에만, 두 파일의
+full 투영 바이트 동일 + minimal 에서 절 생존</li><li>Pass criterion: [T4] 블록 전부 통과</li></ul>
+<h3 class="subhead">T5. 이 계약 자체가 내구적이다</h3>
+<ul><li>Setup: 저장소 사본을 만들어 아무 과거 커밋으로 git reset --hard</li><li>Run: 사본에서 How-to-run 블록 실행</li><li>Expected: 판정이 현재 트리와 동일하게 성립한다 (통과/실패가 트리 내용에만
+의존하고, 커밋 여부·diff 상태에 의존하지 않는다)</li><li>Pass criterion: 사본 실행이 정상 종료 — 옛 4건은 이 검사에서 즉사한다</li></ul>
+<h3 class="subhead">T6. 재발 방지 장치가 실제로 문다</h3>
+<ul><li>Run: bash core/scripts/tests-smell.sh &lt;옛 4건 각각의 TESTS.md&gt; 와
+bash core/scripts/tests-smell.sh &lt;이 파일&gt;</li><li>Expected: 옛 3건(git-diff 단언)과 1건(부재 스크립트)에 warn, 이 파일에는
+해당 warn 없음. tests-smell 은 warn 전용 — exit 코드로 막지 않는다</li><li>Pass criterion: warn 유/무가 위와 일치</li></ul>
+<h3 class="subhead">T7. supersede 마킹이 규칙대로다 (아카이브 후 확인)</h3>
+<ul><li>Expected: 옛 4건의 PLAN.md 에 status: obsolete·obsoleted_at·
+obsoleted_by: 20260818-wookiya1364-regression-contract-repair 세 필드만 추가,
+TESTS.md·ARCHIVED_AT.md 바이트 동일. regression.sh 스킵 목록에 4건 등장</li><li>Pass criterion: git diff 가 frontmatter 3필드 외 무변경을 보이고, 회귀
+요약이 스킵 4를 보고</li></ul></section>
+<section id="s-12-how-to-run" class="slide-page" data-idx="12"><div class="kicker">회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현</div><h2>How to run</h2><pre class="code"><code>bash -euo pipefail -c '
+fail() { echo &quot;FAIL: $1&quot;; exit 1; }
+GF=&quot;core/scripts/guidance-filter.sh&quot;
+
+# [T1] provenance 게이트 — 실존 스위트
+bash core/tests/test-provenance-gates.sh &gt;/dev/null || fail &quot;T1 provenance gates&quot;
+
+# [T2] 결정 로그
+test -f scv/DECISIONS.md || fail &quot;T2 DECISIONS.md 없음&quot;
+test &quot;$(grep -cE &quot;^## \[[0-9]{4}-[0-9]{2}-[0-9]{2}&quot; scv/DECISIONS.md)&quot; -ge 5 || fail &quot;T2 엔트리 5건 미만&quot;
+test &quot;$(grep -cE &quot;^- path delta:&quot; scv/DECISIONS.md)&quot; -ge 5 || fail &quot;T2 path delta 5건 미만&quot;
+bash core/scripts/status.sh | grep -A2 &quot;recent decisions&quot; | grep -qv &quot;does not exist&quot; || fail &quot;T2 status 노출&quot;
+bash &quot;$GF&quot; --lint core/protocols/work.md &gt;/dev/null || fail &quot;T2 lint work.md&quot;
+bash &quot;$GF&quot; --mode full core/protocols/work.md | cmp -s - core/protocols/work.md || fail &quot;T2 full 투영 불일치&quot;
+bash &quot;$GF&quot; --mode minimal core/protocols/work.md | grep -qF -- &quot;- path delta:&quot; || fail &quot;T2 minimal 소실&quot;
+test &quot;$(awk &quot;/^#### Step 9b\.0/{f=1} /^#### Step 9b\.1/{f=0} f&quot; core/protocols/work.md | grep -cE &quot;^- path delta:&quot;)&quot; -eq 1 || fail &quot;T2 구간 내 1회 아님&quot;
+
+# [T3] 구현 원칙
+grep -qF -- &quot;Implementation principles&quot; core/protocols/work.md    || fail &quot;T3 work.md 원칙 없음&quot;
+grep -qF -- &quot;Implementation principles&quot; core/protocols/codegen.md || fail &quot;T3 codegen.md 참조 없음&quot;
+M=&quot;$(bash &quot;$GF&quot; --mode minimal core/protocols/work.md)&quot;
+for s in &quot;Implementation principles&quot; &quot;reuse what is there&quot; &quot;simplest implementation&quot; \
+         &quot;one clear concern&quot; &quot;costly to reverse&quot; &quot;Guardrails override them&quot;; do
+  printf &quot;%s&quot; &quot;$M&quot; | grep -qF -- &quot;$s&quot; || fail &quot;T3 minimal 소실: $s&quot;
+done
+for m in full minimal; do
+  bash &quot;$GF&quot; --mode &quot;$m&quot; core/protocols/work.md \
+    | grep -oE &quot;\{[A-Z_]+\}/scripts/[a-z0-9-]+\.sh&quot; | sed &quot;s|.*/||&quot; &gt; &quot;/tmp/rcr.$m&quot;
+done
+cmp -s /tmp/rcr.full /tmp/rcr.minimal || fail &quot;T3 호출 시퀀스 불일치&quot;
+
+# [T4] 쉬운 말
+HEAD_MARK=&quot;## Plain language first&quot;
+targets=&quot;$(grep -l &quot;^## Language preference&quot; core/protocols/*.md)&quot;
+n=$(printf &quot;%s\n&quot; &quot;$targets&quot; | wc -l)
+have=$(grep -l &quot;^${HEAD_MARK}$&quot; core/protocols/*.md | wc -l)
+[ &quot;$n&quot; -eq &quot;$have&quot; ] || fail &quot;T4 누락: ${n}개 대상 중 ${have}개&quot;
+[ &quot;$n&quot; -ge 13 ] || fail &quot;T4 대상이 ${n}개로 줄었다&quot;
+hashes=$(printf &quot;%s\n&quot; &quot;$targets&quot; | while read -r f; do
+  awk &quot;/^${HEAD_MARK}\$/{f=1} f&amp;&amp;/^## /&amp;&amp;!/^${HEAD_MARK}\$/{exit} f&quot; &quot;$f&quot; \
+    | sed -e :a -e &quot;/^\n*\$/{\$d;N;ba&quot; -e &quot;}&quot; | cksum
+done | sort -u | wc -l)
+[ &quot;$hashes&quot; -eq 1 ] || fail &quot;T4 문구 판본 ${hashes}종&quot;
+for f in core/protocols/*.md; do
+  case &quot;$(basename &quot;$f&quot;)&quot; in promote.md|work.md) continue;; esac
+  grep -qF &quot;SCV:GUIDANCE&quot; &quot;$f&quot; &amp;&amp; fail &quot;T4 마커 유출: $f&quot; || true
+done
+bash &quot;$GF&quot; --lint core/protocols/promote.md core/protocols/work.md &gt;/dev/null || fail &quot;T4 lint&quot;
+for p in promote work; do
+  bash &quot;$GF&quot; --mode full &quot;core/protocols/$p.md&quot; | cmp -s - &quot;core/protocols/$p.md&quot; || fail &quot;T4 full 불일치: $p&quot;
+  bash &quot;$GF&quot; --mode minimal &quot;core/protocols/$p.md&quot; | grep -qF &quot;$HEAD_MARK&quot; || fail &quot;T4 minimal 소실: $p&quot;
+done
+echo &quot;ALL CONTRACTS OK&quot;
+'</code></pre></section>
+<section id="s-13-pass-criteria" class="slide-page" data-idx="13"><div class="kicker">회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현</div><h2>Pass criteria</h2><ul><li>How-to-run 이 초록이고, 과거 커밋 사본 트리에서도 같은 판정 (T5)</li><li>tests-smell 이 옛 4건에 warn, 이 파일에 무경고 (T6)</li><li>아카이브 후 옛 4건 obsolete 마킹 + 회귀 스킵 4 (T7)</li><li>이 블록 어디에도 git diff 단언·부재 파일 참조·전체 스위트 재실행이 없다</li></ul></section>
+<section id="s-14-related-documents" class="slide-page" data-idx="14"><div class="kicker">회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현</div><h2>Related Documents</h2><ul><li>PLAN.md</li></ul></section>
+<section id="__lint" class="lint slide-page" data-idx="15"><h2>품질 리포트 <span class="lint-count">2</span></h2>
+     <p class="sub">원문에 없는 내용은 채우지 않음 — 전문 기획서가 보통 갖추는데 이 문서엔 빠진 항목입니다.</p>
+     <div class="callout warn"><div>성공지표(Metrics) 섹션이 없습니다 — baseline→target 지표를 권장합니다.</div></div><div class="callout warn"><div>예외처리(Edge cases) 섹션이 없습니다.</div></div></section>
+<div class="deck-footer">
+      <button class="deck-arrow" id="scvPrev" disabled onclick="scvGoto(scvIdx()-1)">‹ 이전</button>
+      <div class="deck-dots"><button class="deck-dot active" data-idx="0" onclick="scvGoto(0)" aria-label="1"></button><button class="deck-dot" data-idx="1" onclick="scvGoto(1)" aria-label="2"></button><button class="deck-dot" data-idx="2" onclick="scvGoto(2)" aria-label="3"></button><button class="deck-dot" data-idx="3" onclick="scvGoto(3)" aria-label="4"></button><button class="deck-dot" data-idx="4" onclick="scvGoto(4)" aria-label="5"></button><button class="deck-dot" data-idx="5" onclick="scvGoto(5)" aria-label="6"></button><button class="deck-dot" data-idx="6" onclick="scvGoto(6)" aria-label="7"></button><button class="deck-dot" data-idx="7" onclick="scvGoto(7)" aria-label="8"></button><button class="deck-dot" data-idx="8" onclick="scvGoto(8)" aria-label="9"></button><button class="deck-dot" data-idx="9" onclick="scvGoto(9)" aria-label="10"></button><button class="deck-dot" data-idx="10" onclick="scvGoto(10)" aria-label="11"></button><button class="deck-dot" data-idx="11" onclick="scvGoto(11)" aria-label="12"></button><button class="deck-dot" data-idx="12" onclick="scvGoto(12)" aria-label="13"></button><button class="deck-dot" data-idx="13" onclick="scvGoto(13)" aria-label="14"></button><button class="deck-dot" data-idx="14" onclick="scvGoto(14)" aria-label="15"></button><button class="deck-dot" data-idx="15" onclick="scvGoto(15)" aria-label="16"></button></div>
+      <span class="deck-counter" id="scvCounter">1 / 16</span>
+      <button class="deck-arrow" id="scvNext" onclick="scvGoto(scvIdx()+1)">다음 ›</button>
+    </div>
+<section class="print-source"><h2>기획서 원문</h2><h3>PLAN.md</h3><pre class="code"><code>---
+title: 회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현
+slug: 20260818-wookiya1364-regression-contract-repair
+author: wookiya1364
+created_at: 2026-08-18
+status: done
+kind: refactor
+lang: korean
+tags: [regression, tests]
+raw_sources:
+  - scv/raw/stale/20260818-wookiya1364-regression-contract-repair.md
+refs: []
+supersedes:
+  - 20260807-wookiya1364-decision-log-activation
+  - 20260811-wookiya1364-implementation-principles
+  - 20260812-wookiya1364-plain-language
+  - 20260812-wookiya1364-ci-provenance-gate
+invariants:
+  - &quot;옛 4개 슬러그의 TESTS.md·ARCHIVED_AT.md 본문은 바이트 그대로 (frontmatter 3필드만)&quot;
+  - &quot;네 기능의 회귀 검증은 사라지지 않고 이 슬러그의 TESTS 로 이어진다&quot;
+---
+
+# 회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현
+
+## Summary
+
+누적 회귀에서 영원히 빨간 아카이브 4건을 이 슬러그 하나가 대체한다. 셋은
+`git diff HEAD` 로 편집 범위를 단언해서 커밋된 순간부터 거짓이고, 하나는 존재한
+적 없는 스크립트를 부른다. 네 기능(결정 로그·구현 원칙·쉬운 말·provenance
+게이트)은 전부 살아 있으므로, 검증을 버리지 않고 내구성 있는 형태로 옮긴다.
+
+## Goals / Non-Goals
+
+- **Goals**
+  - 이 슬러그의 TESTS 가 네 기능을 커밋 후에도 참인 단언만으로 검증한다
+  - 아카이브 시 `supersedes:` 절차가 옛 4건을 `obsolete + obsoleted_by` 로 마킹
+  - 누적 회귀가 12/12 판정 가능 상태가 된다 (8 실행 + 4 스킵 + 이 슬러그)
+  - 재발 방지: PROMOTE.md 의 TESTS 규칙 한 줄 + tests-smell.sh warn 규칙
+- **Non-Goals**
+  - 옛 4건의 TESTS.md 본문 수정 (금지 유지)
+  - 네 기능 자체의 동작 변경 — 이 계획은 검증 문서만 옮긴다
+  - Core 릴리스 — 보수 슬러그는 저장소 로컬. PROMOTE.md·tests-smell 변경만
+    다음 릴리스에 자연 편승한다
+
+## Approach Overview
+
+TESTS.md 가 산출물의 전부다. 원본 네 개의 How-to-run 에서 두 부류를 뺀다:
+커밋 전 상태 단언(`git diff` 범위 검사 — 이번 사태의 원인)과 슬러그 내부의 전체
+스위트 재실행(회귀를 O(n²) 로 만든 주범 — 전체 스위트는 CI 가 이미 돈다).
+남는 것이 각 기능의 진짜 계약이다: 파일·구절 존재, guidance-filter 투영 생존,
+실존 스위트 호출.
+
+재발 방지 둘: PROMOTE.md TESTS 작성 규칙에 &quot;How-to-run 은 아카이브된 뒤에도
+참이어야 한다&quot; 를 명시하고, tests-smell.sh 에 같은 냄새(warn 전용, 기존 헌장
+그대로)를 넣는다.
+
+## Guardrails
+
+- 옛 4건은 frontmatter 3필드(`status`/`obsoleted_at`/`obsoleted_by`)만 변한다
+- 이 슬러그의 TESTS 는 자기 규칙을 스스로 지킨다: git-diff 단언 없음, 실존 파일만
+  참조, 전체 스위트 재실행 없음, 어느 커밋에서 돌려도 같은 판정
+- tests-smell.sh 는 warn 전용을 유지한다 — 절대 차단하지 않는다
+- PROMOTE.md 문구는 `test-guard-consistency.sh` 구문 스윕을 통과해야 한다
+
+## Exit criteria
+
+- 이 슬러그의 TESTS How-to-run 이 초록이고, **HEAD 를 임의 과거 커밋에 둔 사본
+  트리에서도 같은 판정** (내구성의 직접 증명)
+- 아카이브 후 옛 4건이 obsolete 로 마킹되고 `regression.sh` 스킵 목록에 잡힌다
+- tests-smell.sh 가 옛 4건의 TESTS 를 주면 warn 을 내고, 이 슬러그 것에는 안 낸다
+- 전체 스위트 초록 유지
+
+## Suggested path
+
+1. TESTS.md — 네 기능의 내구 재표현 (T1 게이트, T2 결정로그, T3 원칙, T4 쉬운말)
+2. tests-smell.sh — `git diff --name-only HEAD` 냄새 + 부재 스크립트 참조 warn
+3. PROMOTE.md — TESTS 규칙 한 줄
+4. 아카이브 → supersede 절차로 옛 4건 마킹 → 회귀 재실행으로 스킵 확인
+
+## Related Documents
+
+- [`TESTS.md`](./TESTS.md)
+
+## Risks / Open Questions
+
+- 옛 슬러그의 검증 강도가 일부 낮아진다(범위 격리 단언은 대체 불가능해서 제거).
+  그 단언이 지키던 것은 이제 merge-time provenance 게이트와 리뷰가 지킨다
+- tests-smell 의 부재-스크립트 검사는 상대 경로 해석이 필요해 휴리스틱이다 —
+  warn 전용이므로 오탐 비용은 한 줄 출력이다
+
+## Links
+
+- Raw originals: (frontmatter 참조)
+- Related PRs:</code></pre><h3>TESTS.md</h3><pre class="code"><code># Test Plan — 회귀 계약 보수
+
+## Overview
+
+이 문서가 곧 산출물이다. 옛 4개 슬러그의 검증 중 **아카이브 후에도 참인 것**만
+남겨 한 계약으로 합친다. 규칙 둘을 스스로 지킨다: 커밋 전 상태 단언 없음
+(`git diff` 범위 검사 금지), 존재하지 않는 파일 참조 없음, 슬러그 내부의 전체
+스위트 재실행 없음. 어느 커밋에서 돌려도 같은 판정이 나와야 한다 — 그것이 이
+계획의 존재 이유다.
+
+## Test scenarios
+
+### T1. provenance 게이트가 판정한다 (구 ci-provenance-gate)
+
+- **Setup**: 없음 — 스위트가 자체 픽스처(실제 git 저장소)를 만든다
+- **Run**: `bash core/tests/test-provenance-gates.sh`
+- **Expected**: 게이트 두 개가 통과 케이스를 통과시키고 거부 케이스를 거부한다
+- **Pass criterion**: exit 0. 원본이 부르던 `test-provenance.sh` 는 존재한 적이
+  없다 — 실존 스위트(18케이스) 호출로 교체
+
+### T2. 결정 로그가 살아 있다 (구 decision-log-activation)
+
+- **Setup**: 저장소 그대로
+- **Expected**: `scv/DECISIONS.md` 존재, 날짜 달린 엔트리 5+ 건, `path delta:`
+  5+ 건(둘 다 단조 증가라 내구), status 액션이 최근 결정을 노출, work.md 의
+  guidance 마커가 lint 를 통과하고 full 투영이 원본과 바이트 동일하며 minimal
+  투영에 `- path delta:` 가 생존, 그 필드가 Step 9b.0 구간에 정확히 1회
+- **Pass criterion**: How-to-run 의 [T2] 블록 전부 통과
+
+### T3. 구현 원칙이 살아 있다 (구 implementation-principles)
+
+- **Expected**: 원칙 절이 work.md 에 존재하고 codegen.md 가 참조, minimal
+  투영에서 6개 핵심 구절 생존, full/minimal 투영의 스크립트 호출 시퀀스 동일
+- **Pass criterion**: [T3] 블록 전부 통과
+
+### T4. 쉬운 말 절이 살아 있다 (구 plain-language)
+
+- **Expected**: Language preference 를 가진 프로토콜 전부(13+)에 절이 존재,
+  문구가 서로 동일(끝 빈 줄 무시), GUIDANCE 마커는 promote/work 에만, 두 파일의
+  full 투영 바이트 동일 + minimal 에서 절 생존
+- **Pass criterion**: [T4] 블록 전부 통과
+
+### T5. 이 계약 자체가 내구적이다
+
+- **Setup**: 저장소 사본을 만들어 아무 과거 커밋으로 `git reset --hard`
+- **Run**: 사본에서 How-to-run 블록 실행
+- **Expected**: 판정이 현재 트리와 동일하게 성립한다 (통과/실패가 트리 내용에만
+  의존하고, 커밋 여부·diff 상태에 의존하지 않는다)
+- **Pass criterion**: 사본 실행이 정상 종료 — 옛 4건은 이 검사에서 즉사한다
+
+### T6. 재발 방지 장치가 실제로 문다
+
+- **Run**: `bash core/scripts/tests-smell.sh &lt;옛 4건 각각의 TESTS.md&gt;` 와
+  `bash core/scripts/tests-smell.sh &lt;이 파일&gt;`
+- **Expected**: 옛 3건(git-diff 단언)과 1건(부재 스크립트)에 warn, 이 파일에는
+  해당 warn 없음. tests-smell 은 warn 전용 — exit 코드로 막지 않는다
+- **Pass criterion**: warn 유/무가 위와 일치
+
+### T7. supersede 마킹이 규칙대로다 (아카이브 후 확인)
+
+- **Expected**: 옛 4건의 PLAN.md 에 `status: obsolete`·`obsoleted_at`·
+  `obsoleted_by: 20260818-wookiya1364-regression-contract-repair` 세 필드만 추가,
+  TESTS.md·ARCHIVED_AT.md 바이트 동일. `regression.sh` 스킵 목록에 4건 등장
+- **Pass criterion**: git diff 가 frontmatter 3필드 외 무변경을 보이고, 회귀
+  요약이 스킵 4를 보고
+
+## How to run
+
+```bash
+bash -euo pipefail -c '
+fail() { echo &quot;FAIL: $1&quot;; exit 1; }
+GF=&quot;core/scripts/guidance-filter.sh&quot;
+
+# [T1] provenance 게이트 — 실존 스위트
+bash core/tests/test-provenance-gates.sh &gt;/dev/null || fail &quot;T1 provenance gates&quot;
+
+# [T2] 결정 로그
+test -f scv/DECISIONS.md || fail &quot;T2 DECISIONS.md 없음&quot;
+test &quot;$(grep -cE &quot;^## \[[0-9]{4}-[0-9]{2}-[0-9]{2}&quot; scv/DECISIONS.md)&quot; -ge 5 || fail &quot;T2 엔트리 5건 미만&quot;
+test &quot;$(grep -cE &quot;^- path delta:&quot; scv/DECISIONS.md)&quot; -ge 5 || fail &quot;T2 path delta 5건 미만&quot;
+bash core/scripts/status.sh | grep -A2 &quot;recent decisions&quot; | grep -qv &quot;does not exist&quot; || fail &quot;T2 status 노출&quot;
+bash &quot;$GF&quot; --lint core/protocols/work.md &gt;/dev/null || fail &quot;T2 lint work.md&quot;
+bash &quot;$GF&quot; --mode full core/protocols/work.md | cmp -s - core/protocols/work.md || fail &quot;T2 full 투영 불일치&quot;
+bash &quot;$GF&quot; --mode minimal core/protocols/work.md | grep -qF -- &quot;- path delta:&quot; || fail &quot;T2 minimal 소실&quot;
+test &quot;$(awk &quot;/^#### Step 9b\.0/{f=1} /^#### Step 9b\.1/{f=0} f&quot; core/protocols/work.md | grep -cE &quot;^- path delta:&quot;)&quot; -eq 1 || fail &quot;T2 구간 내 1회 아님&quot;
+
+# [T3] 구현 원칙
+grep -qF -- &quot;Implementation principles&quot; core/protocols/work.md    || fail &quot;T3 work.md 원칙 없음&quot;
+grep -qF -- &quot;Implementation principles&quot; core/protocols/codegen.md || fail &quot;T3 codegen.md 참조 없음&quot;
+M=&quot;$(bash &quot;$GF&quot; --mode minimal core/protocols/work.md)&quot;
+for s in &quot;Implementation principles&quot; &quot;reuse what is there&quot; &quot;simplest implementation&quot; \
+         &quot;one clear concern&quot; &quot;costly to reverse&quot; &quot;Guardrails override them&quot;; do
+  printf &quot;%s&quot; &quot;$M&quot; | grep -qF -- &quot;$s&quot; || fail &quot;T3 minimal 소실: $s&quot;
+done
+for m in full minimal; do
+  bash &quot;$GF&quot; --mode &quot;$m&quot; core/protocols/work.md \
+    | grep -oE &quot;\{[A-Z_]+\}/scripts/[a-z0-9-]+\.sh&quot; | sed &quot;s|.*/||&quot; &gt; &quot;/tmp/rcr.$m&quot;
+done
+cmp -s /tmp/rcr.full /tmp/rcr.minimal || fail &quot;T3 호출 시퀀스 불일치&quot;
+
+# [T4] 쉬운 말
+HEAD_MARK=&quot;## Plain language first&quot;
+targets=&quot;$(grep -l &quot;^## Language preference&quot; core/protocols/*.md)&quot;
+n=$(printf &quot;%s\n&quot; &quot;$targets&quot; | wc -l)
+have=$(grep -l &quot;^${HEAD_MARK}$&quot; core/protocols/*.md | wc -l)
+[ &quot;$n&quot; -eq &quot;$have&quot; ] || fail &quot;T4 누락: ${n}개 대상 중 ${have}개&quot;
+[ &quot;$n&quot; -ge 13 ] || fail &quot;T4 대상이 ${n}개로 줄었다&quot;
+hashes=$(printf &quot;%s\n&quot; &quot;$targets&quot; | while read -r f; do
+  awk &quot;/^${HEAD_MARK}\$/{f=1} f&amp;&amp;/^## /&amp;&amp;!/^${HEAD_MARK}\$/{exit} f&quot; &quot;$f&quot; \
+    | sed -e :a -e &quot;/^\n*\$/{\$d;N;ba&quot; -e &quot;}&quot; | cksum
+done | sort -u | wc -l)
+[ &quot;$hashes&quot; -eq 1 ] || fail &quot;T4 문구 판본 ${hashes}종&quot;
+for f in core/protocols/*.md; do
+  case &quot;$(basename &quot;$f&quot;)&quot; in promote.md|work.md) continue;; esac
+  grep -qF &quot;SCV:GUIDANCE&quot; &quot;$f&quot; &amp;&amp; fail &quot;T4 마커 유출: $f&quot; || true
+done
+bash &quot;$GF&quot; --lint core/protocols/promote.md core/protocols/work.md &gt;/dev/null || fail &quot;T4 lint&quot;
+for p in promote work; do
+  bash &quot;$GF&quot; --mode full &quot;core/protocols/$p.md&quot; | cmp -s - &quot;core/protocols/$p.md&quot; || fail &quot;T4 full 불일치: $p&quot;
+  bash &quot;$GF&quot; --mode minimal &quot;core/protocols/$p.md&quot; | grep -qF &quot;$HEAD_MARK&quot; || fail &quot;T4 minimal 소실: $p&quot;
+done
+echo &quot;ALL CONTRACTS OK&quot;
+'
+```
+
+## Pass criteria
+
+- How-to-run 이 초록이고, 과거 커밋 사본 트리에서도 같은 판정 (T5)
+- tests-smell 이 옛 4건에 warn, 이 파일에 무경고 (T6)
+- 아카이브 후 옛 4건 obsolete 마킹 + 회귀 스킵 4 (T7)
+- 이 블록 어디에도 `git diff` 단언·부재 파일 참조·전체 스위트 재실행이 없다
+
+## Related Documents
+
+- [`PLAN.md`](./PLAN.md)</code></pre></section>
+</div>
+</div>
+<aside class="source-panel" id="scvSourcePanel">
+      <div class="panel-resize-handle" id="scvResizeHandle" title="드래그해서 크기 조절"></div>
+      <div class="panel-head"><span class="panel-title">기획서 원문</span><button class="panel-close" onclick="scvTogglePanel()" title="숨기기 (S)">✕</button></div>
+      <div class="panel-tabs"><button class="panel-tab active" data-idx="0" onclick="scvSelectSource(0)">PLAN.md</button><button class="panel-tab" data-idx="1" onclick="scvSelectSource(1)">TESTS.md</button></div>
+      <div class="panel-body"><pre class="code src-doc active" data-idx="0"><code>---
+title: 회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현
+slug: 20260818-wookiya1364-regression-contract-repair
+author: wookiya1364
+created_at: 2026-08-18
+status: done
+kind: refactor
+lang: korean
+tags: [regression, tests]
+raw_sources:
+  - scv/raw/stale/20260818-wookiya1364-regression-contract-repair.md
+refs: []
+supersedes:
+  - 20260807-wookiya1364-decision-log-activation
+  - 20260811-wookiya1364-implementation-principles
+  - 20260812-wookiya1364-plain-language
+  - 20260812-wookiya1364-ci-provenance-gate
+invariants:
+  - &quot;옛 4개 슬러그의 TESTS.md·ARCHIVED_AT.md 본문은 바이트 그대로 (frontmatter 3필드만)&quot;
+  - &quot;네 기능의 회귀 검증은 사라지지 않고 이 슬러그의 TESTS 로 이어진다&quot;
+---
+
+# 회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현
+
+## Summary
+
+누적 회귀에서 영원히 빨간 아카이브 4건을 이 슬러그 하나가 대체한다. 셋은
+`git diff HEAD` 로 편집 범위를 단언해서 커밋된 순간부터 거짓이고, 하나는 존재한
+적 없는 스크립트를 부른다. 네 기능(결정 로그·구현 원칙·쉬운 말·provenance
+게이트)은 전부 살아 있으므로, 검증을 버리지 않고 내구성 있는 형태로 옮긴다.
+
+## Goals / Non-Goals
+
+- **Goals**
+  - 이 슬러그의 TESTS 가 네 기능을 커밋 후에도 참인 단언만으로 검증한다
+  - 아카이브 시 `supersedes:` 절차가 옛 4건을 `obsolete + obsoleted_by` 로 마킹
+  - 누적 회귀가 12/12 판정 가능 상태가 된다 (8 실행 + 4 스킵 + 이 슬러그)
+  - 재발 방지: PROMOTE.md 의 TESTS 규칙 한 줄 + tests-smell.sh warn 규칙
+- **Non-Goals**
+  - 옛 4건의 TESTS.md 본문 수정 (금지 유지)
+  - 네 기능 자체의 동작 변경 — 이 계획은 검증 문서만 옮긴다
+  - Core 릴리스 — 보수 슬러그는 저장소 로컬. PROMOTE.md·tests-smell 변경만
+    다음 릴리스에 자연 편승한다
+
+## Approach Overview
+
+TESTS.md 가 산출물의 전부다. 원본 네 개의 How-to-run 에서 두 부류를 뺀다:
+커밋 전 상태 단언(`git diff` 범위 검사 — 이번 사태의 원인)과 슬러그 내부의 전체
+스위트 재실행(회귀를 O(n²) 로 만든 주범 — 전체 스위트는 CI 가 이미 돈다).
+남는 것이 각 기능의 진짜 계약이다: 파일·구절 존재, guidance-filter 투영 생존,
+실존 스위트 호출.
+
+재발 방지 둘: PROMOTE.md TESTS 작성 규칙에 &quot;How-to-run 은 아카이브된 뒤에도
+참이어야 한다&quot; 를 명시하고, tests-smell.sh 에 같은 냄새(warn 전용, 기존 헌장
+그대로)를 넣는다.
+
+## Guardrails
+
+- 옛 4건은 frontmatter 3필드(`status`/`obsoleted_at`/`obsoleted_by`)만 변한다
+- 이 슬러그의 TESTS 는 자기 규칙을 스스로 지킨다: git-diff 단언 없음, 실존 파일만
+  참조, 전체 스위트 재실행 없음, 어느 커밋에서 돌려도 같은 판정
+- tests-smell.sh 는 warn 전용을 유지한다 — 절대 차단하지 않는다
+- PROMOTE.md 문구는 `test-guard-consistency.sh` 구문 스윕을 통과해야 한다
+
+## Exit criteria
+
+- 이 슬러그의 TESTS How-to-run 이 초록이고, **HEAD 를 임의 과거 커밋에 둔 사본
+  트리에서도 같은 판정** (내구성의 직접 증명)
+- 아카이브 후 옛 4건이 obsolete 로 마킹되고 `regression.sh` 스킵 목록에 잡힌다
+- tests-smell.sh 가 옛 4건의 TESTS 를 주면 warn 을 내고, 이 슬러그 것에는 안 낸다
+- 전체 스위트 초록 유지
+
+## Suggested path
+
+1. TESTS.md — 네 기능의 내구 재표현 (T1 게이트, T2 결정로그, T3 원칙, T4 쉬운말)
+2. tests-smell.sh — `git diff --name-only HEAD` 냄새 + 부재 스크립트 참조 warn
+3. PROMOTE.md — TESTS 규칙 한 줄
+4. 아카이브 → supersede 절차로 옛 4건 마킹 → 회귀 재실행으로 스킵 확인
+
+## Related Documents
+
+- [`TESTS.md`](./TESTS.md)
+
+## Risks / Open Questions
+
+- 옛 슬러그의 검증 강도가 일부 낮아진다(범위 격리 단언은 대체 불가능해서 제거).
+  그 단언이 지키던 것은 이제 merge-time provenance 게이트와 리뷰가 지킨다
+- tests-smell 의 부재-스크립트 검사는 상대 경로 해석이 필요해 휴리스틱이다 —
+  warn 전용이므로 오탐 비용은 한 줄 출력이다
+
+## Links
+
+- Raw originals: (frontmatter 참조)
+- Related PRs:</code></pre><pre class="code src-doc" data-idx="1"><code># Test Plan — 회귀 계약 보수
+
+## Overview
+
+이 문서가 곧 산출물이다. 옛 4개 슬러그의 검증 중 **아카이브 후에도 참인 것**만
+남겨 한 계약으로 합친다. 규칙 둘을 스스로 지킨다: 커밋 전 상태 단언 없음
+(`git diff` 범위 검사 금지), 존재하지 않는 파일 참조 없음, 슬러그 내부의 전체
+스위트 재실행 없음. 어느 커밋에서 돌려도 같은 판정이 나와야 한다 — 그것이 이
+계획의 존재 이유다.
+
+## Test scenarios
+
+### T1. provenance 게이트가 판정한다 (구 ci-provenance-gate)
+
+- **Setup**: 없음 — 스위트가 자체 픽스처(실제 git 저장소)를 만든다
+- **Run**: `bash core/tests/test-provenance-gates.sh`
+- **Expected**: 게이트 두 개가 통과 케이스를 통과시키고 거부 케이스를 거부한다
+- **Pass criterion**: exit 0. 원본이 부르던 `test-provenance.sh` 는 존재한 적이
+  없다 — 실존 스위트(18케이스) 호출로 교체
+
+### T2. 결정 로그가 살아 있다 (구 decision-log-activation)
+
+- **Setup**: 저장소 그대로
+- **Expected**: `scv/DECISIONS.md` 존재, 날짜 달린 엔트리 5+ 건, `path delta:`
+  5+ 건(둘 다 단조 증가라 내구), status 액션이 최근 결정을 노출, work.md 의
+  guidance 마커가 lint 를 통과하고 full 투영이 원본과 바이트 동일하며 minimal
+  투영에 `- path delta:` 가 생존, 그 필드가 Step 9b.0 구간에 정확히 1회
+- **Pass criterion**: How-to-run 의 [T2] 블록 전부 통과
+
+### T3. 구현 원칙이 살아 있다 (구 implementation-principles)
+
+- **Expected**: 원칙 절이 work.md 에 존재하고 codegen.md 가 참조, minimal
+  투영에서 6개 핵심 구절 생존, full/minimal 투영의 스크립트 호출 시퀀스 동일
+- **Pass criterion**: [T3] 블록 전부 통과
+
+### T4. 쉬운 말 절이 살아 있다 (구 plain-language)
+
+- **Expected**: Language preference 를 가진 프로토콜 전부(13+)에 절이 존재,
+  문구가 서로 동일(끝 빈 줄 무시), GUIDANCE 마커는 promote/work 에만, 두 파일의
+  full 투영 바이트 동일 + minimal 에서 절 생존
+- **Pass criterion**: [T4] 블록 전부 통과
+
+### T5. 이 계약 자체가 내구적이다
+
+- **Setup**: 저장소 사본을 만들어 아무 과거 커밋으로 `git reset --hard`
+- **Run**: 사본에서 How-to-run 블록 실행
+- **Expected**: 판정이 현재 트리와 동일하게 성립한다 (통과/실패가 트리 내용에만
+  의존하고, 커밋 여부·diff 상태에 의존하지 않는다)
+- **Pass criterion**: 사본 실행이 정상 종료 — 옛 4건은 이 검사에서 즉사한다
+
+### T6. 재발 방지 장치가 실제로 문다
+
+- **Run**: `bash core/scripts/tests-smell.sh &lt;옛 4건 각각의 TESTS.md&gt;` 와
+  `bash core/scripts/tests-smell.sh &lt;이 파일&gt;`
+- **Expected**: 옛 3건(git-diff 단언)과 1건(부재 스크립트)에 warn, 이 파일에는
+  해당 warn 없음. tests-smell 은 warn 전용 — exit 코드로 막지 않는다
+- **Pass criterion**: warn 유/무가 위와 일치
+
+### T7. supersede 마킹이 규칙대로다 (아카이브 후 확인)
+
+- **Expected**: 옛 4건의 PLAN.md 에 `status: obsolete`·`obsoleted_at`·
+  `obsoleted_by: 20260818-wookiya1364-regression-contract-repair` 세 필드만 추가,
+  TESTS.md·ARCHIVED_AT.md 바이트 동일. `regression.sh` 스킵 목록에 4건 등장
+- **Pass criterion**: git diff 가 frontmatter 3필드 외 무변경을 보이고, 회귀
+  요약이 스킵 4를 보고
+
+## How to run
+
+```bash
+bash -euo pipefail -c '
+fail() { echo &quot;FAIL: $1&quot;; exit 1; }
+GF=&quot;core/scripts/guidance-filter.sh&quot;
+
+# [T1] provenance 게이트 — 실존 스위트
+bash core/tests/test-provenance-gates.sh &gt;/dev/null || fail &quot;T1 provenance gates&quot;
+
+# [T2] 결정 로그
+test -f scv/DECISIONS.md || fail &quot;T2 DECISIONS.md 없음&quot;
+test &quot;$(grep -cE &quot;^## \[[0-9]{4}-[0-9]{2}-[0-9]{2}&quot; scv/DECISIONS.md)&quot; -ge 5 || fail &quot;T2 엔트리 5건 미만&quot;
+test &quot;$(grep -cE &quot;^- path delta:&quot; scv/DECISIONS.md)&quot; -ge 5 || fail &quot;T2 path delta 5건 미만&quot;
+bash core/scripts/status.sh | grep -A2 &quot;recent decisions&quot; | grep -qv &quot;does not exist&quot; || fail &quot;T2 status 노출&quot;
+bash &quot;$GF&quot; --lint core/protocols/work.md &gt;/dev/null || fail &quot;T2 lint work.md&quot;
+bash &quot;$GF&quot; --mode full core/protocols/work.md | cmp -s - core/protocols/work.md || fail &quot;T2 full 투영 불일치&quot;
+bash &quot;$GF&quot; --mode minimal core/protocols/work.md | grep -qF -- &quot;- path delta:&quot; || fail &quot;T2 minimal 소실&quot;
+test &quot;$(awk &quot;/^#### Step 9b\.0/{f=1} /^#### Step 9b\.1/{f=0} f&quot; core/protocols/work.md | grep -cE &quot;^- path delta:&quot;)&quot; -eq 1 || fail &quot;T2 구간 내 1회 아님&quot;
+
+# [T3] 구현 원칙
+grep -qF -- &quot;Implementation principles&quot; core/protocols/work.md    || fail &quot;T3 work.md 원칙 없음&quot;
+grep -qF -- &quot;Implementation principles&quot; core/protocols/codegen.md || fail &quot;T3 codegen.md 참조 없음&quot;
+M=&quot;$(bash &quot;$GF&quot; --mode minimal core/protocols/work.md)&quot;
+for s in &quot;Implementation principles&quot; &quot;reuse what is there&quot; &quot;simplest implementation&quot; \
+         &quot;one clear concern&quot; &quot;costly to reverse&quot; &quot;Guardrails override them&quot;; do
+  printf &quot;%s&quot; &quot;$M&quot; | grep -qF -- &quot;$s&quot; || fail &quot;T3 minimal 소실: $s&quot;
+done
+for m in full minimal; do
+  bash &quot;$GF&quot; --mode &quot;$m&quot; core/protocols/work.md \
+    | grep -oE &quot;\{[A-Z_]+\}/scripts/[a-z0-9-]+\.sh&quot; | sed &quot;s|.*/||&quot; &gt; &quot;/tmp/rcr.$m&quot;
+done
+cmp -s /tmp/rcr.full /tmp/rcr.minimal || fail &quot;T3 호출 시퀀스 불일치&quot;
+
+# [T4] 쉬운 말
+HEAD_MARK=&quot;## Plain language first&quot;
+targets=&quot;$(grep -l &quot;^## Language preference&quot; core/protocols/*.md)&quot;
+n=$(printf &quot;%s\n&quot; &quot;$targets&quot; | wc -l)
+have=$(grep -l &quot;^${HEAD_MARK}$&quot; core/protocols/*.md | wc -l)
+[ &quot;$n&quot; -eq &quot;$have&quot; ] || fail &quot;T4 누락: ${n}개 대상 중 ${have}개&quot;
+[ &quot;$n&quot; -ge 13 ] || fail &quot;T4 대상이 ${n}개로 줄었다&quot;
+hashes=$(printf &quot;%s\n&quot; &quot;$targets&quot; | while read -r f; do
+  awk &quot;/^${HEAD_MARK}\$/{f=1} f&amp;&amp;/^## /&amp;&amp;!/^${HEAD_MARK}\$/{exit} f&quot; &quot;$f&quot; \
+    | sed -e :a -e &quot;/^\n*\$/{\$d;N;ba&quot; -e &quot;}&quot; | cksum
+done | sort -u | wc -l)
+[ &quot;$hashes&quot; -eq 1 ] || fail &quot;T4 문구 판본 ${hashes}종&quot;
+for f in core/protocols/*.md; do
+  case &quot;$(basename &quot;$f&quot;)&quot; in promote.md|work.md) continue;; esac
+  grep -qF &quot;SCV:GUIDANCE&quot; &quot;$f&quot; &amp;&amp; fail &quot;T4 마커 유출: $f&quot; || true
+done
+bash &quot;$GF&quot; --lint core/protocols/promote.md core/protocols/work.md &gt;/dev/null || fail &quot;T4 lint&quot;
+for p in promote work; do
+  bash &quot;$GF&quot; --mode full &quot;core/protocols/$p.md&quot; | cmp -s - &quot;core/protocols/$p.md&quot; || fail &quot;T4 full 불일치: $p&quot;
+  bash &quot;$GF&quot; --mode minimal &quot;core/protocols/$p.md&quot; | grep -qF &quot;$HEAD_MARK&quot; || fail &quot;T4 minimal 소실: $p&quot;
+done
+echo &quot;ALL CONTRACTS OK&quot;
+'
+```
+
+## Pass criteria
+
+- How-to-run 이 초록이고, 과거 커밋 사본 트리에서도 같은 판정 (T5)
+- tests-smell 이 옛 4건에 warn, 이 파일에 무경고 (T6)
+- 아카이브 후 옛 4건 obsolete 마킹 + 회귀 스킵 4 (T7)
+- 이 블록 어디에도 `git diff` 단언·부재 파일 참조·전체 스위트 재실행이 없다
+
+## Related Documents
+
+- [`PLAN.md`](./PLAN.md)</code></pre></div>
+    </aside>
+</div>
+
+<script>
+  var SCV_ANCHORS = ["Summary","Goals / Non-Goals","Approach Overview","Guardrails","Exit criteria","Suggested path","Related Documents","Risks / Open Questions","Links","✅ 테스트 · 인수기준 (TESTS)","Overview","Test scenarios","How to run","Pass criteria","Related Documents",null];
+  var scvPageIdx = 0;
+  function scvIdx(){ return scvPageIdx; }
+  function scvEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function scvHighlight(anchor){
+    var docs = document.querySelectorAll('.src-doc');
+    docs.forEach(function(el){
+      var code = el.querySelector('code');
+      if(code) code.innerHTML = scvEsc(code.textContent);
+    });
+    if(!anchor) return;
+    for (var i=0;i<docs.length;i++){
+      var code = docs[i].querySelector('code');
+      if(!code) continue;
+      var raw = code.textContent;
+      var lines = raw.split('\n');
+      var start=-1, end=lines.length;
+      for (var j=0;j<lines.length;j++){
+        var m = lines[j].match(/^#{1,6}\s+(.*)$/);
+        if (m && m[1].trim() === String(anchor).trim()) { start = j; break; }
+      }
+      if (start < 0) continue;
+      for (var k=start+1;k<lines.length;k++){ if (/^#{1,6}\s+/.test(lines[k])) { end = k; break; } }
+      var before = lines.slice(0,start).join('\n'), hl = lines.slice(start,end).join('\n'), after = lines.slice(end).join('\n');
+      code.innerHTML = scvEsc(before) + (before ? '\n' : '') + '<mark class="src-hl">' + scvEsc(hl) + '</mark>' + (after ? '\n' + scvEsc(after) : '');
+      if (typeof scvSelectSource === 'function') scvSelectSource(i);
+      var markEl = docs[i].querySelector('mark.src-hl');
+      if (markEl && markEl.scrollIntoView) markEl.scrollIntoView({ block: 'center' });
+      return;
+    }
+  }
+  function scvGoto(n){
+    var total = 16;
+    n = Math.max(0, Math.min(total - 1, n));
+    scvPageIdx = n;
+    document.querySelectorAll('.slide-page').forEach(function(p){ p.classList.toggle('active', p.dataset.idx === String(n)); });
+    document.querySelectorAll('.deck-nav-item').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
+    document.querySelectorAll('.deck-dot').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
+    if (typeof window.scvRunMermaid === 'function') { try { window.scvRunMermaid(); } catch (e) {} }
+    var prevBtn = document.getElementById('scvPrev'), nextBtn = document.getElementById('scvNext'), counter = document.getElementById('scvCounter');
+    if (prevBtn) prevBtn.disabled = (n === 0);
+    if (nextBtn) nextBtn.disabled = (n === total - 1);
+    if (counter) counter.textContent = (n + 1) + ' / ' + total;
+    scvHighlight(SCV_ANCHORS[n]);
+    var main = document.querySelector('.scroll-main');
+    if (main) main.scrollTop = 0;
+  }
+  function scvTogglePanel(){ var p=document.getElementById('scvSourcePanel'); if(p) p.classList.toggle('closed'); }
+  function scvSelectSource(i){
+    document.querySelectorAll('.panel-tab').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+    document.querySelectorAll('.src-doc').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+  }
+  (function(){
+    // 패널 좌측 경계 드래그 리사이즈 — 원본 SourcePanel 과 같은 산식(최소 320px,
+    // 본문에 최소 420px 남김).
+    var handle = document.getElementById('scvResizeHandle');
+    var panel = document.getElementById('scvSourcePanel');
+    if (!handle || !panel) return;
+    var MOBILE_BP = 640;
+    handle.addEventListener('mousedown', function(e){
+      e.preventDefault();
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+      function onMove(ev){
+        // 버튼을 놓친 채(창 밖 등) mouseup 을 못 받은 경우 — 버튼이 눌려있지 않으면 즉시 정리.
+        if (ev.buttons === 0) { onUp(); return; }
+        var raw = window.innerWidth - ev.clientX;
+        var max = Math.max(320, window.innerWidth - 420);
+        panel.style.width = Math.min(max, Math.max(320, raw)) + 'px';
+      }
+      function onUp(){
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        window.removeEventListener('blur', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('blur', onUp);
+    });
+    // 인라인 width 는 스타일시트의 반응형 브레이크포인트(640px 모바일 전체폭·900px 좁은폭)
+    // 보다 항상 우선한다 — 창 크기가 바뀔 때마다 다시 맞춰줘야 브레이크포인트가 살아난다.
+    window.addEventListener('resize', function(){
+      if (!panel.style.width) return;
+      if (window.innerWidth <= MOBILE_BP) { panel.style.width = ''; return; }
+      var max = Math.max(320, window.innerWidth - 420);
+      if (parseFloat(panel.style.width) > max) panel.style.width = max + 'px';
+    });
+  })();
+  document.addEventListener('keydown', function(e){
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') scvGoto(scvIdx() + 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') scvGoto(scvIdx() - 1);
+    else if (e.key === 'Home') scvGoto(0);
+    else if (e.key === 'End') scvGoto(16 - 1);
+    else if (e.key === 's' || e.key === 'S') scvTogglePanel();
+  });
+  scvGoto(0);
+</script>
+<script>
+  function scvThemeLabel(){ return document.documentElement.getAttribute('data-theme')==='light' ? "☀ 라이트" : "☾ 다크"; }
+  function scvToggleTheme(){
+    var html = document.documentElement;
+    var next = html.getAttribute('data-theme')==='light' ? 'dark' : 'light';
+    if (next === 'light') html.setAttribute('data-theme','light'); else html.removeAttribute('data-theme');
+    try { localStorage.setItem('scv-deck-theme', next); } catch(e){}
+    var btn = document.getElementById('scvThemeBtn');
+    if (btn) btn.textContent = scvThemeLabel();
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    var btn = document.getElementById('scvThemeBtn');
+    if (btn) btn.textContent = scvThemeLabel();
+  });
+</script>
+</body>
+</html>
