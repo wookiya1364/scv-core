@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<script>(function(){try{if(localStorage.getItem('scv-deck-theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>effort governor — 작업 무게에 맞춘 자동 실행 조절</title>
+<style>
+/* 다크가 기본값(--bg/--panel 등 전부). 라이트는 html[data-theme="light"] 오버라이드 —
+   FE 프로젝트의 다크-기본+라이트-오버라이드 관례와 동일한 모양(속성 하나만 바뀌면
+   전체가 재테마된다). head 맨 앞 인라인 스크립트가 pre-paint 로 저장된 선택을 적용해
+   깜빡임(FOUC)이 없다. */
+:root{--fg:#e7e9f0;--muted:#9096a8;--bg:#171922;--panel:#1d2029;--border:#2c3040;--primary:#7c93ff;--warn:#e0ab48;--danger:#ef6b6b;--good:#3ecf8e;--page-bg:#0d0e13;--on-primary:#12163a;--on-warn:#241a06;}
+html[data-theme="light"]{--fg:#1a1d24;--muted:#5b6270;--bg:#ffffff;--panel:#f6f7f9;--border:#e3e6ea;--primary:#2f6feb;--warn:#b8860b;--danger:#c0392b;--good:#1e8e5a;--page-bg:#f6f7f9;--on-primary:#ffffff;}
+*{box-sizing:border-box}
+html,body{height:100%}
+html{scroll-behavior:smooth}
+body{margin:0;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:var(--fg);background:var(--page-bg)}
+/* 문서 = 스크롤되는 본문(좌) + 상시 원문 마크다운 패널(우, sticky) — 이게 scv:deck 의
+   정체성이다: 렌더링과 원문이 늘 같은 화면에 나란히 있어야 서로 어긋나지 않았다는 게
+   보장된다. 인쇄 시에는 패널을 접고 본문 뒤에 원문을 부록으로 붙인다(.print-source). */
+.shell{display:flex;height:100vh;overflow:hidden}
+.scroll-main{flex:1;min-width:0;overflow-y:auto}
+.wrap{max-width:840px;margin:0 auto;background:var(--bg);min-height:100%;padding:0 clamp(20px,5vw,56px) 96px;box-shadow:0 0 0 1px var(--border)}
+header.doc{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--border);margin:0 calc(clamp(20px,5vw,56px)*-1);padding:18px clamp(20px,5vw,56px);display:flex;align-items:center;gap:14px;justify-content:space-between}
+header.doc h1{font-size:22px;margin:0;font-weight:700}
+.header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.theme-toggle,.panel-toggle{flex-shrink:0;font:600 12px/1 inherit;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer}
+.theme-toggle:hover,.panel-toggle:hover{background:var(--border);color:var(--fg)}
+.panel-toggle .kbd{opacity:.55;margin-left:4px}
+.source-panel{position:relative;width:min(440px,38vw);flex-shrink:0;border-left:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column}
+.source-panel.closed{display:none}
+.panel-resize-handle{position:absolute;left:0;top:0;bottom:0;width:7px;margin-left:-4px;cursor:col-resize;z-index:6}
+.panel-resize-handle:hover{background:rgba(127,137,160,.25)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-title{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.02em}
+.panel-close{border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 7px;border-radius:5px;line-height:1.4}
+.panel-close:hover{background:var(--border);color:var(--fg)}
+.panel-tabs{display:flex;gap:2px;padding:9px 12px 0;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.panel-tab{font:600 12px/1 inherit;color:var(--muted);padding:7px 10px;border:none;background:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.panel-tab.active{color:var(--fg);border-bottom-color:var(--primary)}
+.panel-body{flex:1;overflow-y:auto;padding:14px}
+.panel-body .src-doc{display:none;margin:0}
+.panel-body .src-doc.active{display:block}
+.print-source{display:none}
+/* 목차(nav.toc) 는 인쇄본 전용(펼친 전체 문서엔 목차가 자연스럽다). 화면에서는
+   deck-nav(아래) 가 같은 역할을 대신한다 — 페이지 번호 pill + 클릭 이동. */
+@media screen{nav.toc{display:none}}
+nav.toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:26px 0}
+nav.toc h3{margin:0 0 8px;font-size:12px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
+nav.toc ol{margin:0;padding-left:20px;columns:2;gap:24px}
+nav.toc a{color:var(--fg);text-decoration:none}
+nav.toc a:hover{color:var(--primary);text-decoration:underline}
+section{padding:22px 0;border-top:1px solid var(--border)}
+section:first-of-type{border-top:none}
+/* 페이지 넘김(화면 전용) — 한 번에 한 섹션만. 인쇄 시엔 전부 펼쳐서 보여준다. */
+@media screen{.slide-page{display:none}.slide-page.active{display:block}}
+.deck-nav{display:flex;flex-wrap:wrap;gap:6px;margin:20px 0}
+.deck-nav-item{font:600 12px/1 inherit;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer;white-space:nowrap}
+.deck-nav-item:hover{color:var(--fg)}
+.deck-nav-item.active{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
+.deck-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:8px;padding-top:20px;border-top:1px solid var(--border)}
+.deck-arrow{font:600 13px/1 inherit;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;cursor:pointer}
+.deck-arrow:disabled{opacity:.35;cursor:default}
+.deck-arrow:not(:disabled):hover{background:var(--panel)}
+.deck-dots{display:flex;align-items:center;gap:6px}
+.deck-dot{width:8px;height:8px;border-radius:999px;background:var(--border);border:none;cursor:pointer;padding:0}
+.deck-dot.active{background:var(--primary);width:20px;border-radius:5px}
+.deck-counter{font-size:12px;color:var(--muted);min-width:52px;text-align:center}
+mark.src-hl{background:#ffe58a;color:#3a2f00;border-radius:3px;padding:0 1px}
+h2{font-size:19px;margin:.2em 0 .6em;font-weight:700}
+h4{margin:.2em 0 .4em;font-size:14px}
+.subhead{font-size:15px;font-weight:600;margin:1.1em 0 .3em;color:var(--fg)}
+.kicker{font-size:12px;color:var(--muted);letter-spacing:.03em;margin-bottom:2px}
+.sub{color:var(--muted);margin:-.2em 0 1em}
+p{margin:.5em 0}
+ul,ol{margin:.4em 0;padding-left:22px}
+li{margin:.25em 0}
+.tw{overflow-x:auto;margin:.8em 0}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{border:1px solid var(--border);padding:8px 11px;text-align:left;vertical-align:top}
+thead th{background:var(--panel);font-weight:600}
+table.kv th{background:var(--panel);width:30%;white-space:nowrap}
+.kpi{display:flex;flex-wrap:wrap;gap:12px;margin:.8em 0}
+.kpi-card{flex:1 1 160px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--panel)}
+.kpi-label{font-size:13px;color:var(--muted);margin-bottom:6px}
+.kpi-nums{display:flex;align-items:center;gap:8px;font-weight:700}
+.kpi-nums .base{color:var(--muted)}
+.kpi-nums .arrow{color:var(--primary)}
+.kpi-nums .target{color:var(--good)}
+.goals{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:.8em 0}
+.goal-col{border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+.goal-col.g{border-left:4px solid var(--good)}
+.goal-col.ng{border-left:4px solid var(--danger)}
+pre.code{background:#0f1320;color:#e6e9f0;border-radius:10px;padding:14px 16px;overflow-x:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;margin:.8em 0}
+/* mermaid 는 항상 라이트 카드에 그린다(테마 무관, pre.code 가 항상 다크인 것과 대칭) —
+   mermaid 렌더 테마를 다크로 다시 그리려면 이미 SVG 로 처리된 노드를 되돌려야 해서
+   토글마다 재처리가 필요해진다. 대신 다이어그램 카드 자체를 고정 라이트로 둬서
+   토글과 무관하게 항상 선명하게 읽힌다. */
+pre.mermaid{background:#f6f7f9;border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;margin:.8em 0}
+pre.mermaid.mermaid-fallback{text-align:left;white-space:pre;overflow-x:auto;background:#0f1320;color:#e6e9f0;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:30px 16px 14px;position:relative}
+pre.mermaid.mermaid-fallback::before{content:"\29c9 \b2e4\c774\c5b4\adf8\b7a8 \c6d0\bcf8 (\c624\d504\b77c\c778 \b610\b294 CDN \bbf8\b85c\b4dc)";position:absolute;top:8px;left:16px;font:600 11px/1 -apple-system,sans-serif;color:#9aa4b2}
+.callout{border:1px solid var(--border);border-left-width:4px;border-radius:8px;padding:11px 14px;margin:.8em 0;background:var(--panel)}
+.callout-title{font-weight:700;font-size:13px;margin-bottom:3px}
+.callout.info{border-left-color:var(--primary)}
+.callout.good{border-left-color:var(--good)}
+.callout.warn{border-left-color:var(--warn)}
+.callout.danger{border-left-color:var(--danger)}
+.callout.next{border-left-color:var(--primary)}
+.lint h2{color:var(--warn)}
+.lint-count{display:inline-block;background:var(--warn);color:var(--on-warn);border-radius:999px;font-size:12px;padding:1px 9px;vertical-align:middle}
+/* 화면목업(와이어프레임) 킷 — scv 자체 기본 스킨(2순위 폴백): DesignSystem 의 실제
+   다크 팔레트를 distill(무채색 표면 + 단일 로즈 악센트 + border-only depth + pill
+   배지, 글라스 없음 — DesignSystem 본체엔 글라스가 없다). 문서 자체의 라이트/다크
+   토글과는 독립적으로 항상 이 다크 스킨을 쓴다(--wf-* 로 스코프해 문서 테마 변수와
+   충돌하지 않음) — mermaid 카드를 항상 라이트로 고정하는 것과 같은 이유(재처리 없이
+   항상 또렷하게). 프로젝트 실제 토큰(1순위) 자동감지는 아직 없음 — 후속 작업.
+   버튼은 항상 disabled(정적 예시 그림이라 실제 인터랙션 없음). */
+.wf-screen{
+  margin:1em 0;
+  --wf-bg:#0a0a0b; --wf-fg:#fafafa; --wf-card:#1c1c1e; --wf-border:rgba(255,255,255,.1);
+  --wf-muted:#232326; --wf-muted-fg:#9a9a9f;
+  --wf-primary:#a53257; --wf-primary-fg:#fdf1f3;
+  --wf-success:#34d399; --wf-success-bg:rgba(16,185,129,.15); --wf-success-border:rgba(16,185,129,.4);
+  --wf-danger:#ef6b6b; --wf-danger-bg:rgba(239,107,107,.14);
+  --wf-info:#60a5fa; --wf-info-bg:rgba(96,165,250,.15);
+  --wf-warn:#e0ab48; --wf-warn-bg:rgba(224,171,72,.15);
+  --wf-radius:10px; --wf-radius-pill:999px;
+}
+.wf-screen-label{font-size:12px;color:var(--muted);margin-bottom:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.wf-frame{border:1px solid var(--wf-border);border-radius:var(--wf-radius);background:var(--wf-bg);color:var(--wf-fg);overflow:hidden}
+.wf-nav{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--wf-border);background:var(--wf-bg);flex-wrap:wrap}
+.wf-nav-item{font-size:13px;color:var(--wf-muted-fg);padding:12px 11px;border-bottom:2px solid transparent}
+.wf-nav-item.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-primary)}
+.wf-body{padding:20px}
+.wf-header{margin-bottom:0}
+.wf-header-title{font-size:16px;font-weight:600;color:var(--wf-fg)}
+.wf-header-sub{font-size:12.5px;color:var(--wf-muted-fg);margin-top:3px}
+.wf-toolbar{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+.wf-tabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid var(--wf-border)}
+.wf-tab{font-size:12.5px;color:var(--wf-muted-fg);padding:7px 11px;border-bottom:2px solid transparent}
+.wf-tab.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-muted-fg)}
+.wf-btn{font:500 12.5px/1 inherit;padding:8px 13px;border-radius:8px;border:1px solid transparent;background:var(--wf-muted);color:var(--wf-fg);cursor:default}
+.wf-btn-primary{background:var(--wf-primary);color:var(--wf-primary-fg)}
+.wf-btn-danger{background:var(--wf-danger-bg);color:var(--wf-danger)}
+.wf-input{display:inline-flex;align-items:center;font-size:12.5px;color:var(--wf-muted-fg);padding:8px 12px;border:1px solid var(--wf-border);border-radius:8px;background:var(--wf-card);min-width:120px}
+.wf-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.wf-table th,.wf-table td{border-bottom:1px solid var(--wf-border);padding:9px 10px;text-align:left}
+.wf-table th{color:var(--wf-muted-fg);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.02em}
+.wf-badge{display:inline-flex;align-items:center;height:20px;border-radius:var(--wf-radius-pill);padding:0 9px;font-size:10.5px;font-weight:500;border:1px solid transparent}
+.wf-badge-muted{background:var(--wf-muted);color:var(--wf-muted-fg);border-color:var(--wf-border)}
+.wf-badge-info{background:var(--wf-info-bg);color:var(--wf-info);border-color:rgba(96,165,250,.35)}
+.wf-badge-good{background:var(--wf-success-bg);color:var(--wf-success);border-color:var(--wf-success-border)}
+.wf-badge-warn{background:var(--wf-warn-bg);color:var(--wf-warn);border-color:rgba(224,171,72,.35)}
+.wf-badge-danger{background:var(--wf-danger-bg);color:var(--wf-danger);border-color:rgba(239,107,107,.35)}
+.wf-card{border-radius:var(--wf-radius);border:1px solid var(--wf-border);padding:14px 16px;margin-bottom:10px;background:var(--wf-card)}
+.wf-card-title{font-size:13px;font-weight:600;color:var(--wf-fg);margin-bottom:8px}
+.wf-list{list-style:none;margin:0;padding:0}
+.wf-list li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--wf-border);font-size:12.5px;color:var(--wf-fg)}
+.wf-list li:last-child{border-bottom:none}
+.wf-form{display:flex;flex-direction:column;gap:8px}
+.wf-field{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--wf-muted-fg)}
+.wf-text{font-size:12.5px;color:var(--wf-fg);margin:.3em 0}
+@media (max-width:900px){.source-panel{width:min(360px,44vw)}}
+@media (max-width:640px){.goals{grid-template-columns:1fr}nav.toc ol{columns:1}.shell{flex-direction:column;height:auto;overflow:visible}.scroll-main{overflow:visible}.source-panel{width:100%;height:60vh}}
+@media print{
+  body{background:#fff;display:block;height:auto}
+  .shell{display:block;height:auto;overflow:visible}
+  .scroll-main{overflow:visible;height:auto}
+  .wrap{box-shadow:none;max-width:none;padding:0}
+  header.doc{position:static}
+  .panel-toggle{display:none}
+  .source-panel{display:none}
+  .deck-nav{display:none}
+  .deck-footer{display:none}
+  nav.toc{display:block;break-inside:avoid}
+  section{break-inside:avoid}
+  .print-source{display:block;break-before:page}
+  .print-source h3{margin-top:1.6em;font-size:14px}
+}
+</style>
+<style id="scv-mermaid-contrast">
+pre.mermaid{background:transparent!important}
+pre.mermaid .flowchart-link,pre.mermaid .edgePath .path{stroke:var(--fg)!important;stroke-width:2px!important}
+pre.mermaid .marker,pre.mermaid marker path{fill:var(--fg)!important;stroke:var(--fg)!important}
+pre.mermaid .edgeLabel,pre.mermaid .edgeLabel p,pre.mermaid .labelBkg{background-color:var(--bg)!important;color:var(--fg)!important}
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="scroll-main">
+<div class="wrap">
+<header class="doc"><h1>effort governor — 작업 무게에 맞춘 자동 실행 조절</h1><div class="header-actions"><button class="theme-toggle" id="scvThemeBtn" onclick="scvToggleTheme()" title="라이트/다크 전환"></button><button class="panel-toggle" onclick="scvTogglePanel()" title="원문 패널 토글 (S)">기획서 원문 <span class="kbd">S</span></button></div></header>
+<nav class="toc"><h3>목차</h3><ol><li><a href="#s-0-summary">Summary</a></li><li><a href="#s-1-goals--non-goals">Goals / Non-Goals</a></li><li><a href="#s-2-approach-overview">Approach Overview</a></li><li><a href="#s-3-guardrails">Guardrails</a></li><li><a href="#s-4-exit-criteria">Exit criteria</a></li><li><a href="#s-5-suggested-path">Suggested path</a></li><li><a href="#s-6-related-documents">Related Documents</a></li><li><a href="#s-7-risks--open-questions">Risks / Open Questions</a></li><li><a href="#s-8-links">Links</a></li><li><a href="#s-9--테스트--인수기준-tests">✅ 테스트 · 인수기준 (TESTS)</a></li><li><a href="#s-10-overview">Overview</a></li><li><a href="#s-11-test-scenarios">Test scenarios</a></li><li><a href="#s-12-how-to-run">How to run</a></li><li><a href="#s-13-pass-criteria">Pass criteria</a></li><li><a href="#s-14-related-documents">Related Documents</a></li></ol></nav>
+<nav class="deck-nav"><button class="deck-nav-item active" data-idx="0" onclick="scvGoto(0)">1. Summary</button><button class="deck-nav-item" data-idx="1" onclick="scvGoto(1)">2. Goals / Non-Goals</button><button class="deck-nav-item" data-idx="2" onclick="scvGoto(2)">3. Approach Overview</button><button class="deck-nav-item" data-idx="3" onclick="scvGoto(3)">4. Guardrails</button><button class="deck-nav-item" data-idx="4" onclick="scvGoto(4)">5. Exit criteria</button><button class="deck-nav-item" data-idx="5" onclick="scvGoto(5)">6. Suggested path</button><button class="deck-nav-item" data-idx="6" onclick="scvGoto(6)">7. Related Documents</button><button class="deck-nav-item" data-idx="7" onclick="scvGoto(7)">8. Risks / Open Quest</button><button class="deck-nav-item" data-idx="8" onclick="scvGoto(8)">9. Links</button><button class="deck-nav-item" data-idx="9" onclick="scvGoto(9)">10. ✅ 테스트 · 인수기준 (TEST</button><button class="deck-nav-item" data-idx="10" onclick="scvGoto(10)">11. Overview</button><button class="deck-nav-item" data-idx="11" onclick="scvGoto(11)">12. Test scenarios</button><button class="deck-nav-item" data-idx="12" onclick="scvGoto(12)">13. How to run</button><button class="deck-nav-item" data-idx="13" onclick="scvGoto(13)">14. Pass criteria</button><button class="deck-nav-item" data-idx="14" onclick="scvGoto(14)">15. Related Documents</button><button class="deck-nav-item" data-idx="15" onclick="scvGoto(15)">16. 품질 리포트</button></nav>
+<section id="s-0-summary" class="slide-page active" data-idx="0"><div class="kicker">effort governor — 작업 무게에 맞춘 자동 실행 조절</div><h2>Summary</h2><p>세션 effort 다이얼은 사용자 소유라 모델이 못 돌리지만, 비용의 지배항은 다이얼이
+아니라 실행 방식이다. 계획서에서 셀 수 있는 신호로 밴드를 판정하고(백테스트
+13/14), 밴드×단계 격자로 6레벨 전부를 결정적으로 배치해, 가벼운 작업이 ultra
+세션에서도 조용히 싸게 돌게 한다. 기본은 auto — 개입 0, 통지 한 줄.</p></section>
+<section id="s-1-goals--non-goals" class="slide-page" data-idx="1"><div class="kicker">effort governor — 작업 무게에 맞춘 자동 실행 조절</div><h2>Goals / Non-Goals</h2><ul><li>Goals<ul><li>effort-class.sh: 계획 폴더에서 밴드(standard/heavy/orchestration)와 승급
+장전 여부를 결정적으로 판정, 감사 가능한 REASON 한 줄 출력</li><li>SCV_EFFORT_MODE=auto|ask|off (.env, 기본 auto) — auto 는 판정대로 실행,
+ask 는 큰 어긋남에만 객관식 1회, off 는 완전 무동작</li><li>work.md·codegen.md 에 집행 절: 밴드×단계 격자(기계 low → 종합 medium →
+구현 high/xhigh → 검증 high/max/팬아웃), 승급 사다리, 아카이브 실측 기록</li><li>어느 모드든 자동 승급 동작(품질 보호 방향만)</li></ul></li><li>Non-Goals<ul><li>세션 다이얼 변경 — 호스트가 권한을 주지 않고, 주더라도 사용자 소유가 맞다</li><li>light 밴드 예측 — 실측 0건, 실측 3건까지 닫는다 (기계 단계·economy 액션의
+결정적 low 와는 별개)</li><li>6레벨을 확률로 예측 — 격자는 결정적 배치이지 예측이 아니다</li><li>economy 액션의 모델 라우팅 변경 — 이미 배송됨</li></ul></li></ul></section>
+<section id="s-2-approach-overview" class="slide-page" data-idx="2"><div class="kicker">effort governor — 작업 무게에 맞춘 자동 실행 조절</div><h2>Approach Overview</h2><p>판정은 스크립트, 집행은 프로토콜. core/scripts/effort-class.sh 가 계획
+폴더에서 신호를 세어(parallel_groups·cross-repo 선언·adversarial 요구·raw 크기)
+백테스트 통과 규칙 R1→R2→R3 로 밴드를 내고, {cross-repo, adversarial,
+raw≥9000B} 중 2개 이상이면 EFFORT_ESCALATION: armed 를 함께 낸다. frontmatter
+effort_class: 선언이 있으면 항상 이긴다.</p>
+<p>세션 자세는 스크립트가 볼 수 없으므로(호스트가 env 로 노출 안 함) 모드 분기와
+격자 집행은 프로토콜 텍스트가 모델에게 지시한다: Step 6 직전에 판정 실행 →
+auto 면 한 줄 통지 후 격자대로, ask 면 두 단계 이상 어긋날 때만 객관식 1회,
+off 면 아무것도 하지 않는다. standard 판정의 계획 범위에서는 다중 에이전트
+오케스트레이션을 띄우지 않는다 — 그것이 절약의 지배항이다.</p>
+<p>아카이브 --reason 에 (판정, 실사용 밴드, 승급 이력) 을 남겨 다음 백테스트가
+92.9% 와 격자를 갱신한다.</p></section>
+<section id="s-3-guardrails" class="slide-page" data-idx="3"><div class="kicker">effort governor — 작업 무게에 맞춘 자동 실행 조절</div><h2>Guardrails</h2><ul><li>검증 도중 강등 금지. 승급은 실측 신호(같은 단계 적색 2회, 반박 복수)로만,
+재승인 없이 한 밴드씩</li><li>off 모드는 판정 스크립트 호출조차 하지 않는다 — 현재 동작과 바이트 동일 경험</li><li>core/ 호스트 중립: 레벨명(xhigh 등) 금지, 밴드명·실행 형태·&quot;the host's session
+effort setting&quot; 으로만. 레벨 매핑 표는 래퍼 문서 몫</li><li>work.md·codegen.md 는 guidance-filter 계약 대상 — lint 통과, full 투영 바이트
+동일 유지(회귀 계약 T2가 감시), guard-consistency 구문 스윕 통과</li><li>effort-class.sh 는 판정만 한다 — 파일을 쓰지 않는다</li><li>TESTS 는 내구성 규칙 준수: git-diff 단언 금지, 실존 파일만, 전체 스위트 재실행
+금지, sentinel 은 CANARY-*-토큰</li></ul></section>
+<section id="s-4-exit-criteria" class="slide-page" data-idx="4"><div class="kicker">effort governor — 작업 무게에 맞춘 자동 실행 조절</div><h2>Exit criteria</h2><ul><li>TESTS.md 시나리오 전부 통과, 옛 코드(스크립트 부재·프로토콜 무절)에서 실패하는
+회귀 케이스 존재</li><li>판정이 백테스트 14건을 재현한다: 아카이브 14 슬러그에 effort-class.sh 를
+돌리면 백테스트 예측과 동일한 밴드 (13 적중 1 과소 그대로 — 규칙이 같으므로)</li><li>auto/ask/off 세 모드의 프로토콜 지시가 상호 배타적이고, off 가 무동작임이
+텍스트로 검증된다</li><li>전체 스위트 초록, 릴리스 아티팩트에 포함</li></ul></section>
+<section id="s-5-suggested-path" class="slide-page" data-idx="5"><div class="kicker">effort governor — 작업 무게에 맞춘 자동 실행 조절</div><h2>Suggested path</h2><ol><li>effort-class.sh — 신호 산출·규칙·선언 우선·REASON/ESCALATION 출력</li><li>test-effort-class.sh — 픽스처 판정 + 아카이브 14건 재현 + 선언 우선 + 무해성</li><li>work.md·codegen.md — Effort governor 절 (모드 분기, 격자, 승급, 기록)</li><li>.env.example.scv — SCV_EFFORT_MODE 문서화</li><li>전체 스위트 + 문서 정합(guard-consistency·guidance lint)</li></ol></section>
+<section id="s-6-related-documents" class="slide-page" data-idx="6"><div class="kicker">effort governor — 작업 무게에 맞춘 자동 실행 조절</div><h2>Related Documents</h2><ul><li>TESTS.md</li></ul></section>
+<section id="s-7-risks--open-questions" class="slide-page" data-idx="7"><div class="kicker">effort governor — 작업 무게에 맞춘 자동 실행 조절</div><h2>Risks / Open Questions</h2><ul><li>grep 신호는 휴리스틱 — cross-repo 를 본문 어휘(wrapper/래퍼)로 검출한다. 오탐은
+위쪽(heavy)으로만 틀리므로 품질 위험이 아니라 소폭 낭비다. frontmatter 선언이
+항상 탈출구</li><li>ask 모드의 &quot;두 단계 어긋남&quot; 판단은 모델 몫 — 세션 자세를 아는 유일한 주체</li><li>격자 세부는 초기값 — 아카이브 실측 기록이 쌓이면 백테스트로 보정</li><li>래퍼 후속: README 레벨 매핑 표(3언어), codex 는 팬아웃 미지원이라 orchestration
+칸이 순차 강하 — 문서 한 줄</li></ul></section>
+<section id="s-8-links" class="slide-page" data-idx="8"><div class="kicker">effort governor — 작업 무게에 맞춘 자동 실행 조절</div><h2>Links</h2><ul><li>Raw originals: (frontmatter 참조)</li><li>Related PRs:</li></ul></section>
+<section id="s-9--테스트--인수기준-tests" class="slide-page" data-idx="9"><div class="kicker">effort governor — 작업 무게에 맞춘 자동 실행 조절</div><h2>✅ 테스트 · 인수기준 (TESTS)</h2></section>
+<section id="s-10-overview" class="slide-page" data-idx="10"><div class="kicker">effort governor — 작업 무게에 맞춘 자동 실행 조절</div><h2>Overview</h2><p>세 층을 검증한다: 판정 스크립트의 결정성(같은 입력 = 같은 밴드, 아카이브 14건
+재현), 모드 계약(auto/ask/off 의 상호 배타성과 off 의 완전 무동작), 프로토콜
+집행 텍스트의 정합(격자·승급·기록이 명문화되고 guidance 계약을 깨지 않음).
+판정이 확률적이라는 오해를 막는 것이 핵심이다 — 스크립트는 결정적이고, 확률은
+규칙이 미래 계획에 맞을지에만 붙는다.</p></section>
+<section id="s-11-test-scenarios" class="slide-page" data-idx="11"><div class="kicker">effort governor — 작업 무게에 맞춘 자동 실행 조절</div><h2>Test scenarios</h2><h3 class="subhead">T1. 세 밴드가 규칙 순서대로 판정된다</h3>
+<ul><li>Setup: 픽스처 계획 3벌 — (a) frontmatter parallel_groups 선언,
+(b) 본문에 래퍼 후속 선언, (c) 둘 다 없음</li><li>Run: effort-class.sh &lt;dir&gt;</li><li>Expected: (a) orchestration, (b) heavy, (c) standard. R1 이 R2 보다
+우선한다: (a)+(b) 동시 선언 픽스처는 orchestration</li><li>Pass criterion: EFFORT_CLASS: 라인이 정확히 일치, EFFORT_REASON: 이
+발화한 규칙을 이름 붙인다</li></ul>
+<h3 class="subhead">T2. 승급 장전 힌트가 2-of-3 에서만 켜진다</h3>
+<ul><li>Setup: {cross-repo, adversarial 요구, raw≥9000B} 를 0·1·2·3개 조합한 픽스처</li><li>Expected: 01개 → EFFORT_ESCALATION: normal, 23개 → armed</li><li>Pass criterion: 네 경우 전부 일치</li></ul>
+<h3 class="subhead">T3. frontmatter 선언이 항상 이긴다</h3>
+<ul><li>Setup: 신호는 standard 인데 effort_class: orchestration 선언, 역방향도</li><li>Expected: 선언 값 그대로, REASON 에 declared 표기</li><li>Pass criterion: 두 방향 모두 선언 승</li></ul>
+<h3 class="subhead">T4. 아카이브 14건이 백테스트 예측을 재현한다</h3>
+<ul><li>Setup: 이 저장소의 실제 scv/archive/ 14개 슬러그 (이 계획 이전 것들)</li><li>Run: 각 폴더에 effort-class.sh</li><li>Expected: 백테스트가 낸 예측과 동일 — orchestration 0건(당시 계획들에
+parallel_groups 없음), heavy = 래퍼 후속 선언 슬러그들, 나머지 standard.
+sync-autopilot 는 heavy 로 나오되 armed 다 (2-of-3 충족 — 그 미스를 사다리가
+받는다는 설계의 재현)</li><li>Pass criterion: 14건 전부 기대 밴드, sync-autopilot 만 armed 검증 필수</li></ul>
+<h3 class="subhead">T5. 판정은 결정적이고 무해하다</h3>
+<ul><li>Setup: 같은 픽스처에 3회 연속 실행 + 실행 전후 트리 해시</li><li>Expected: 세 번 같은 출력, 파일 변경 0</li><li>Pass criterion: 출력 diff 없음, find -newer 결과 없음</li></ul>
+<h3 class="subhead">T6. off 모드는 완전 무동작이다</h3>
+<ul><li>Setup: 프로토콜 텍스트 검사 — work.md·codegen.md 의 governor 절</li><li>Expected: off 분기가 &quot;판정 스크립트를 호출하지 않는다&quot; 를 명시하고,
+auto/ask/off 세 분기가 상호 배타로 서술된다. 승급 사다리는 모드 무관 절에
+있다(off 에서도 품질 보호는 동작 — 단 판정이 없으므로 세션 그대로 시작)</li><li>Pass criterion: 세 분기 각 1회 존재, off 분기에 무호출 명시</li></ul>
+<h3 class="subhead">T7. 격자와 사다리가 명문화된다</h3>
+<ul><li>Expected: 두 프로토콜에 밴드×단계 격자(기계=최저, 종합=경량, 구현·검증=
+밴드 의존), 승급 트리거(동일 단계 적색 2회·반박 복수), 강등 금지, 아카이브
+--reason 실측 기록 지시가 있다. 호스트 레벨명은 등장하지 않는다</li><li>Pass criterion: 각 요소 grep 존재 + 레벨명 부재</li></ul>
+<h3 class="subhead">T8. 문서·계약 정합</h3>
+<ul><li>Run: tests/test-guard-consistency.sh, guidance-filter.sh --lint (두
+프로토콜), full 투영 cmp, tests/test-host-neutral.sh</li><li>Expected: 전부 통과 — governor 절이 마커 균형·투영 동일성·구문 스윕·호스트
+중립을 깨지 않는다</li><li>Pass criterion: 4개 검사 초록</li></ul>
+<h3 class="subhead">T9. 회귀 증명 — 옛 코드에서 실패한다</h3>
+<ul><li>Setup: effort-class.sh 를 제거한 사본 payload + governor 절 없는 HEAD
+프로토콜</li><li>Expected: T1·T6 급 케이스가 옛 상태에서 실패한다</li><li>Pass criterion: 사본에서 실패 수 &gt; 0, 현행에서 0</li></ul></section>
+<section id="s-12-how-to-run" class="slide-page" data-idx="12"><div class="kicker">effort governor — 작업 무게에 맞춘 자동 실행 조절</div><h2>How to run</h2><pre class="code"><code>bash core/tests/test-effort-class.sh</code></pre></section>
+<section id="s-13-pass-criteria" class="slide-page" data-idx="13"><div class="kicker">effort governor — 작업 무게에 맞춘 자동 실행 조절</div><h2>Pass criteria</h2><ul><li>T1–T9 전부 통과, 특히 T4(백테스트 재현)와 T9(회귀 증명)</li><li>전체 스위트(tests/run.sh · run-dry · core/tests · host-neutral ·
+guard-consistency) 실패 0</li><li>릴리스 아티팩트에 effort-class.sh 포함</li></ul></section>
+<section id="s-14-related-documents" class="slide-page" data-idx="14"><div class="kicker">effort governor — 작업 무게에 맞춘 자동 실행 조절</div><h2>Related Documents</h2><ul><li>PLAN.md</li></ul></section>
+<section id="__lint" class="lint slide-page" data-idx="15"><h2>품질 리포트 <span class="lint-count">2</span></h2>
+     <p class="sub">원문에 없는 내용은 채우지 않음 — 전문 기획서가 보통 갖추는데 이 문서엔 빠진 항목입니다.</p>
+     <div class="callout warn"><div>성공지표(Metrics) 섹션이 없습니다 — baseline→target 지표를 권장합니다.</div></div><div class="callout warn"><div>예외처리(Edge cases) 섹션이 없습니다.</div></div></section>
+<div class="deck-footer">
+      <button class="deck-arrow" id="scvPrev" disabled onclick="scvGoto(scvIdx()-1)">‹ 이전</button>
+      <div class="deck-dots"><button class="deck-dot active" data-idx="0" onclick="scvGoto(0)" aria-label="1"></button><button class="deck-dot" data-idx="1" onclick="scvGoto(1)" aria-label="2"></button><button class="deck-dot" data-idx="2" onclick="scvGoto(2)" aria-label="3"></button><button class="deck-dot" data-idx="3" onclick="scvGoto(3)" aria-label="4"></button><button class="deck-dot" data-idx="4" onclick="scvGoto(4)" aria-label="5"></button><button class="deck-dot" data-idx="5" onclick="scvGoto(5)" aria-label="6"></button><button class="deck-dot" data-idx="6" onclick="scvGoto(6)" aria-label="7"></button><button class="deck-dot" data-idx="7" onclick="scvGoto(7)" aria-label="8"></button><button class="deck-dot" data-idx="8" onclick="scvGoto(8)" aria-label="9"></button><button class="deck-dot" data-idx="9" onclick="scvGoto(9)" aria-label="10"></button><button class="deck-dot" data-idx="10" onclick="scvGoto(10)" aria-label="11"></button><button class="deck-dot" data-idx="11" onclick="scvGoto(11)" aria-label="12"></button><button class="deck-dot" data-idx="12" onclick="scvGoto(12)" aria-label="13"></button><button class="deck-dot" data-idx="13" onclick="scvGoto(13)" aria-label="14"></button><button class="deck-dot" data-idx="14" onclick="scvGoto(14)" aria-label="15"></button><button class="deck-dot" data-idx="15" onclick="scvGoto(15)" aria-label="16"></button></div>
+      <span class="deck-counter" id="scvCounter">1 / 16</span>
+      <button class="deck-arrow" id="scvNext" onclick="scvGoto(scvIdx()+1)">다음 ›</button>
+    </div>
+<section class="print-source"><h2>기획서 원문</h2><h3>PLAN.md</h3><pre class="code"><code>---
+title: effort governor — 작업 무게에 맞춘 자동 실행 조절
+slug: 20260818-wookiya1364-effort-governor
+author: wookiya1364
+created_at: 2026-08-18
+status: done
+kind: feature
+lang: korean
+tags: [effort, cost, protocols]
+raw_sources:
+  - scv/raw/stale/20260818-wookiya1364-effort-governor.md
+refs: []
+invariants:
+  - &quot;자동 승급은 올리는 방향만 존재한다 — 검증 도중 강등 금지&quot;
+  - &quot;SCV_EFFORT_MODE=off 는 현재 동작과 100% 동일하다 (판정도 출력도 없음)&quot;
+  - &quot;사용자의 그 자리 지시가 어떤 판정보다 우선한다&quot;
+  - &quot;core/ 텍스트는 호스트 레벨명 대신 밴드명과 실행 형태로만 말한다&quot;
+---
+
+# effort governor — 작업 무게에 맞춘 자동 실행 조절
+
+## Summary
+
+세션 effort 다이얼은 사용자 소유라 모델이 못 돌리지만, 비용의 지배항은 다이얼이
+아니라 실행 방식이다. 계획서에서 셀 수 있는 신호로 밴드를 판정하고(백테스트
+13/14), 밴드×단계 격자로 6레벨 전부를 결정적으로 배치해, 가벼운 작업이 ultra
+세션에서도 조용히 싸게 돌게 한다. 기본은 auto — 개입 0, 통지 한 줄.
+
+## Goals / Non-Goals
+
+- **Goals**
+  - `effort-class.sh`: 계획 폴더에서 밴드(standard/heavy/orchestration)와 승급
+    장전 여부를 결정적으로 판정, 감사 가능한 REASON 한 줄 출력
+  - `SCV_EFFORT_MODE=auto|ask|off` (.env, 기본 auto) — auto 는 판정대로 실행,
+    ask 는 큰 어긋남에만 객관식 1회, off 는 완전 무동작
+  - work.md·codegen.md 에 집행 절: 밴드×단계 격자(기계 low → 종합 medium →
+    구현 high/xhigh → 검증 high/max/팬아웃), 승급 사다리, 아카이브 실측 기록
+  - 어느 모드든 자동 승급 동작(품질 보호 방향만)
+- **Non-Goals**
+  - 세션 다이얼 변경 — 호스트가 권한을 주지 않고, 주더라도 사용자 소유가 맞다
+  - light 밴드 예측 — 실측 0건, 실측 3건까지 닫는다 (기계 단계·economy 액션의
+    결정적 low 와는 별개)
+  - 6레벨을 확률로 예측 — 격자는 결정적 배치이지 예측이 아니다
+  - economy 액션의 모델 라우팅 변경 — 이미 배송됨
+
+## Approach Overview
+
+**판정은 스크립트, 집행은 프로토콜.** `core/scripts/effort-class.sh` 가 계획
+폴더에서 신호를 세어(parallel_groups·cross-repo 선언·adversarial 요구·raw 크기)
+백테스트 통과 규칙 R1→R2→R3 로 밴드를 내고, {cross-repo, adversarial,
+raw≥9000B} 중 2개 이상이면 `EFFORT_ESCALATION: armed` 를 함께 낸다. frontmatter
+`effort_class:` 선언이 있으면 항상 이긴다.
+
+세션 자세는 스크립트가 볼 수 없으므로(호스트가 env 로 노출 안 함) 모드 분기와
+격자 집행은 프로토콜 텍스트가 모델에게 지시한다: Step 6 직전에 판정 실행 →
+auto 면 한 줄 통지 후 격자대로, ask 면 두 단계 이상 어긋날 때만 객관식 1회,
+off 면 아무것도 하지 않는다. standard 판정의 계획 범위에서는 다중 에이전트
+오케스트레이션을 띄우지 않는다 — 그것이 절약의 지배항이다.
+
+아카이브 --reason 에 (판정, 실사용 밴드, 승급 이력) 을 남겨 다음 백테스트가
+92.9% 와 격자를 갱신한다.
+
+## Guardrails
+
+- 검증 도중 강등 금지. 승급은 실측 신호(같은 단계 적색 2회, 반박 복수)로만,
+  재승인 없이 한 밴드씩
+- off 모드는 판정 스크립트 호출조차 하지 않는다 — 현재 동작과 바이트 동일 경험
+- core/ 호스트 중립: 레벨명(xhigh 등) 금지, 밴드명·실행 형태·&quot;the host's session
+  effort setting&quot; 으로만. 레벨 매핑 표는 래퍼 문서 몫
+- work.md·codegen.md 는 guidance-filter 계약 대상 — lint 통과, full 투영 바이트
+  동일 유지(회귀 계약 T2가 감시), guard-consistency 구문 스윕 통과
+- effort-class.sh 는 판정만 한다 — 파일을 쓰지 않는다
+- TESTS 는 내구성 규칙 준수: git-diff 단언 금지, 실존 파일만, 전체 스위트 재실행
+  금지, sentinel 은 CANARY-*-토큰
+
+## Exit criteria
+
+- TESTS.md 시나리오 전부 통과, 옛 코드(스크립트 부재·프로토콜 무절)에서 실패하는
+  회귀 케이스 존재
+- 판정이 백테스트 14건을 재현한다: 아카이브 14 슬러그에 effort-class.sh 를
+  돌리면 백테스트 예측과 동일한 밴드 (13 적중 1 과소 그대로 — 규칙이 같으므로)
+- auto/ask/off 세 모드의 프로토콜 지시가 상호 배타적이고, off 가 무동작임이
+  텍스트로 검증된다
+- 전체 스위트 초록, 릴리스 아티팩트에 포함
+
+## Suggested path
+
+1. effort-class.sh — 신호 산출·규칙·선언 우선·REASON/ESCALATION 출력
+2. test-effort-class.sh — 픽스처 판정 + 아카이브 14건 재현 + 선언 우선 + 무해성
+3. work.md·codegen.md — Effort governor 절 (모드 분기, 격자, 승급, 기록)
+4. .env.example.scv — SCV_EFFORT_MODE 문서화
+5. 전체 스위트 + 문서 정합(guard-consistency·guidance lint)
+
+## Related Documents
+
+- [`TESTS.md`](./TESTS.md)
+
+## Risks / Open Questions
+
+- grep 신호는 휴리스틱 — cross-repo 를 본문 어휘(wrapper/래퍼)로 검출한다. 오탐은
+  위쪽(heavy)으로만 틀리므로 품질 위험이 아니라 소폭 낭비다. frontmatter 선언이
+  항상 탈출구
+- ask 모드의 &quot;두 단계 어긋남&quot; 판단은 모델 몫 — 세션 자세를 아는 유일한 주체
+- 격자 세부는 초기값 — 아카이브 실측 기록이 쌓이면 백테스트로 보정
+- 래퍼 후속: README 레벨 매핑 표(3언어), codex 는 팬아웃 미지원이라 orchestration
+  칸이 순차 강하 — 문서 한 줄
+
+## Links
+
+- Raw originals: (frontmatter 참조)
+- Related PRs:</code></pre><h3>TESTS.md</h3><pre class="code"><code># Test Plan — effort governor
+
+## Overview
+
+세 층을 검증한다: 판정 스크립트의 결정성(같은 입력 = 같은 밴드, 아카이브 14건
+재현), 모드 계약(auto/ask/off 의 상호 배타성과 off 의 완전 무동작), 프로토콜
+집행 텍스트의 정합(격자·승급·기록이 명문화되고 guidance 계약을 깨지 않음).
+판정이 확률적이라는 오해를 막는 것이 핵심이다 — 스크립트는 결정적이고, 확률은
+규칙이 미래 계획에 맞을지에만 붙는다.
+
+## Test scenarios
+
+### T1. 세 밴드가 규칙 순서대로 판정된다
+
+- **Setup**: 픽스처 계획 3벌 — (a) frontmatter `parallel_groups` 선언,
+  (b) 본문에 래퍼 후속 선언, (c) 둘 다 없음
+- **Run**: `effort-class.sh &lt;dir&gt;`
+- **Expected**: (a) orchestration, (b) heavy, (c) standard. R1 이 R2 보다
+  우선한다: (a)+(b) 동시 선언 픽스처는 orchestration
+- **Pass criterion**: `EFFORT_CLASS:` 라인이 정확히 일치, `EFFORT_REASON:` 이
+  발화한 규칙을 이름 붙인다
+
+### T2. 승급 장전 힌트가 2-of-3 에서만 켜진다
+
+- **Setup**: {cross-repo, adversarial 요구, raw≥9000B} 를 0·1·2·3개 조합한 픽스처
+- **Expected**: 0~1개 → `EFFORT_ESCALATION: normal`, 2~3개 → `armed`
+- **Pass criterion**: 네 경우 전부 일치
+
+### T3. frontmatter 선언이 항상 이긴다
+
+- **Setup**: 신호는 standard 인데 `effort_class: orchestration` 선언, 역방향도
+- **Expected**: 선언 값 그대로, REASON 에 declared 표기
+- **Pass criterion**: 두 방향 모두 선언 승
+
+### T4. 아카이브 14건이 백테스트 예측을 재현한다
+
+- **Setup**: 이 저장소의 실제 `scv/archive/` 14개 슬러그 (이 계획 이전 것들)
+- **Run**: 각 폴더에 effort-class.sh
+- **Expected**: 백테스트가 낸 예측과 동일 — orchestration 0건(당시 계획들에
+  parallel_groups 없음), heavy = 래퍼 후속 선언 슬러그들, 나머지 standard.
+  sync-autopilot 는 heavy 로 나오되 `armed` 다 (2-of-3 충족 — 그 미스를 사다리가
+  받는다는 설계의 재현)
+- **Pass criterion**: 14건 전부 기대 밴드, sync-autopilot 만 armed 검증 필수
+
+### T5. 판정은 결정적이고 무해하다
+
+- **Setup**: 같은 픽스처에 3회 연속 실행 + 실행 전후 트리 해시
+- **Expected**: 세 번 같은 출력, 파일 변경 0
+- **Pass criterion**: 출력 diff 없음, `find -newer` 결과 없음
+
+### T6. off 모드는 완전 무동작이다
+
+- **Setup**: 프로토콜 텍스트 검사 — work.md·codegen.md 의 governor 절
+- **Expected**: off 분기가 &quot;판정 스크립트를 호출하지 않는다&quot; 를 명시하고,
+  auto/ask/off 세 분기가 상호 배타로 서술된다. 승급 사다리는 모드 무관 절에
+  있다(off 에서도 품질 보호는 동작 — 단 판정이 없으므로 세션 그대로 시작)
+- **Pass criterion**: 세 분기 각 1회 존재, off 분기에 무호출 명시
+
+### T7. 격자와 사다리가 명문화된다
+
+- **Expected**: 두 프로토콜에 밴드×단계 격자(기계=최저, 종합=경량, 구현·검증=
+  밴드 의존), 승급 트리거(동일 단계 적색 2회·반박 복수), 강등 금지, 아카이브
+  --reason 실측 기록 지시가 있다. 호스트 레벨명은 등장하지 않는다
+- **Pass criterion**: 각 요소 grep 존재 + 레벨명 부재
+
+### T8. 문서·계약 정합
+
+- **Run**: `tests/test-guard-consistency.sh`, `guidance-filter.sh --lint` (두
+  프로토콜), full 투영 cmp, `tests/test-host-neutral.sh`
+- **Expected**: 전부 통과 — governor 절이 마커 균형·투영 동일성·구문 스윕·호스트
+  중립을 깨지 않는다
+- **Pass criterion**: 4개 검사 초록
+
+### T9. 회귀 증명 — 옛 코드에서 실패한다
+
+- **Setup**: effort-class.sh 를 제거한 사본 payload + governor 절 없는 HEAD
+  프로토콜
+- **Expected**: T1·T6 급 케이스가 옛 상태에서 실패한다
+- **Pass criterion**: 사본에서 실패 수 &gt; 0, 현행에서 0
+
+## How to run
+
+```bash
+bash core/tests/test-effort-class.sh
+```
+
+## Pass criteria
+
+- T1–T9 전부 통과, 특히 T4(백테스트 재현)와 T9(회귀 증명)
+- 전체 스위트(tests/run.sh · run-dry · core/tests · host-neutral ·
+  guard-consistency) 실패 0
+- 릴리스 아티팩트에 effort-class.sh 포함
+
+## Related Documents
+
+- [`PLAN.md`](./PLAN.md)</code></pre></section>
+</div>
+</div>
+<aside class="source-panel" id="scvSourcePanel">
+      <div class="panel-resize-handle" id="scvResizeHandle" title="드래그해서 크기 조절"></div>
+      <div class="panel-head"><span class="panel-title">기획서 원문</span><button class="panel-close" onclick="scvTogglePanel()" title="숨기기 (S)">✕</button></div>
+      <div class="panel-tabs"><button class="panel-tab active" data-idx="0" onclick="scvSelectSource(0)">PLAN.md</button><button class="panel-tab" data-idx="1" onclick="scvSelectSource(1)">TESTS.md</button></div>
+      <div class="panel-body"><pre class="code src-doc active" data-idx="0"><code>---
+title: effort governor — 작업 무게에 맞춘 자동 실행 조절
+slug: 20260818-wookiya1364-effort-governor
+author: wookiya1364
+created_at: 2026-08-18
+status: done
+kind: feature
+lang: korean
+tags: [effort, cost, protocols]
+raw_sources:
+  - scv/raw/stale/20260818-wookiya1364-effort-governor.md
+refs: []
+invariants:
+  - &quot;자동 승급은 올리는 방향만 존재한다 — 검증 도중 강등 금지&quot;
+  - &quot;SCV_EFFORT_MODE=off 는 현재 동작과 100% 동일하다 (판정도 출력도 없음)&quot;
+  - &quot;사용자의 그 자리 지시가 어떤 판정보다 우선한다&quot;
+  - &quot;core/ 텍스트는 호스트 레벨명 대신 밴드명과 실행 형태로만 말한다&quot;
+---
+
+# effort governor — 작업 무게에 맞춘 자동 실행 조절
+
+## Summary
+
+세션 effort 다이얼은 사용자 소유라 모델이 못 돌리지만, 비용의 지배항은 다이얼이
+아니라 실행 방식이다. 계획서에서 셀 수 있는 신호로 밴드를 판정하고(백테스트
+13/14), 밴드×단계 격자로 6레벨 전부를 결정적으로 배치해, 가벼운 작업이 ultra
+세션에서도 조용히 싸게 돌게 한다. 기본은 auto — 개입 0, 통지 한 줄.
+
+## Goals / Non-Goals
+
+- **Goals**
+  - `effort-class.sh`: 계획 폴더에서 밴드(standard/heavy/orchestration)와 승급
+    장전 여부를 결정적으로 판정, 감사 가능한 REASON 한 줄 출력
+  - `SCV_EFFORT_MODE=auto|ask|off` (.env, 기본 auto) — auto 는 판정대로 실행,
+    ask 는 큰 어긋남에만 객관식 1회, off 는 완전 무동작
+  - work.md·codegen.md 에 집행 절: 밴드×단계 격자(기계 low → 종합 medium →
+    구현 high/xhigh → 검증 high/max/팬아웃), 승급 사다리, 아카이브 실측 기록
+  - 어느 모드든 자동 승급 동작(품질 보호 방향만)
+- **Non-Goals**
+  - 세션 다이얼 변경 — 호스트가 권한을 주지 않고, 주더라도 사용자 소유가 맞다
+  - light 밴드 예측 — 실측 0건, 실측 3건까지 닫는다 (기계 단계·economy 액션의
+    결정적 low 와는 별개)
+  - 6레벨을 확률로 예측 — 격자는 결정적 배치이지 예측이 아니다
+  - economy 액션의 모델 라우팅 변경 — 이미 배송됨
+
+## Approach Overview
+
+**판정은 스크립트, 집행은 프로토콜.** `core/scripts/effort-class.sh` 가 계획
+폴더에서 신호를 세어(parallel_groups·cross-repo 선언·adversarial 요구·raw 크기)
+백테스트 통과 규칙 R1→R2→R3 로 밴드를 내고, {cross-repo, adversarial,
+raw≥9000B} 중 2개 이상이면 `EFFORT_ESCALATION: armed` 를 함께 낸다. frontmatter
+`effort_class:` 선언이 있으면 항상 이긴다.
+
+세션 자세는 스크립트가 볼 수 없으므로(호스트가 env 로 노출 안 함) 모드 분기와
+격자 집행은 프로토콜 텍스트가 모델에게 지시한다: Step 6 직전에 판정 실행 →
+auto 면 한 줄 통지 후 격자대로, ask 면 두 단계 이상 어긋날 때만 객관식 1회,
+off 면 아무것도 하지 않는다. standard 판정의 계획 범위에서는 다중 에이전트
+오케스트레이션을 띄우지 않는다 — 그것이 절약의 지배항이다.
+
+아카이브 --reason 에 (판정, 실사용 밴드, 승급 이력) 을 남겨 다음 백테스트가
+92.9% 와 격자를 갱신한다.
+
+## Guardrails
+
+- 검증 도중 강등 금지. 승급은 실측 신호(같은 단계 적색 2회, 반박 복수)로만,
+  재승인 없이 한 밴드씩
+- off 모드는 판정 스크립트 호출조차 하지 않는다 — 현재 동작과 바이트 동일 경험
+- core/ 호스트 중립: 레벨명(xhigh 등) 금지, 밴드명·실행 형태·&quot;the host's session
+  effort setting&quot; 으로만. 레벨 매핑 표는 래퍼 문서 몫
+- work.md·codegen.md 는 guidance-filter 계약 대상 — lint 통과, full 투영 바이트
+  동일 유지(회귀 계약 T2가 감시), guard-consistency 구문 스윕 통과
+- effort-class.sh 는 판정만 한다 — 파일을 쓰지 않는다
+- TESTS 는 내구성 규칙 준수: git-diff 단언 금지, 실존 파일만, 전체 스위트 재실행
+  금지, sentinel 은 CANARY-*-토큰
+
+## Exit criteria
+
+- TESTS.md 시나리오 전부 통과, 옛 코드(스크립트 부재·프로토콜 무절)에서 실패하는
+  회귀 케이스 존재
+- 판정이 백테스트 14건을 재현한다: 아카이브 14 슬러그에 effort-class.sh 를
+  돌리면 백테스트 예측과 동일한 밴드 (13 적중 1 과소 그대로 — 규칙이 같으므로)
+- auto/ask/off 세 모드의 프로토콜 지시가 상호 배타적이고, off 가 무동작임이
+  텍스트로 검증된다
+- 전체 스위트 초록, 릴리스 아티팩트에 포함
+
+## Suggested path
+
+1. effort-class.sh — 신호 산출·규칙·선언 우선·REASON/ESCALATION 출력
+2. test-effort-class.sh — 픽스처 판정 + 아카이브 14건 재현 + 선언 우선 + 무해성
+3. work.md·codegen.md — Effort governor 절 (모드 분기, 격자, 승급, 기록)
+4. .env.example.scv — SCV_EFFORT_MODE 문서화
+5. 전체 스위트 + 문서 정합(guard-consistency·guidance lint)
+
+## Related Documents
+
+- [`TESTS.md`](./TESTS.md)
+
+## Risks / Open Questions
+
+- grep 신호는 휴리스틱 — cross-repo 를 본문 어휘(wrapper/래퍼)로 검출한다. 오탐은
+  위쪽(heavy)으로만 틀리므로 품질 위험이 아니라 소폭 낭비다. frontmatter 선언이
+  항상 탈출구
+- ask 모드의 &quot;두 단계 어긋남&quot; 판단은 모델 몫 — 세션 자세를 아는 유일한 주체
+- 격자 세부는 초기값 — 아카이브 실측 기록이 쌓이면 백테스트로 보정
+- 래퍼 후속: README 레벨 매핑 표(3언어), codex 는 팬아웃 미지원이라 orchestration
+  칸이 순차 강하 — 문서 한 줄
+
+## Links
+
+- Raw originals: (frontmatter 참조)
+- Related PRs:</code></pre><pre class="code src-doc" data-idx="1"><code># Test Plan — effort governor
+
+## Overview
+
+세 층을 검증한다: 판정 스크립트의 결정성(같은 입력 = 같은 밴드, 아카이브 14건
+재현), 모드 계약(auto/ask/off 의 상호 배타성과 off 의 완전 무동작), 프로토콜
+집행 텍스트의 정합(격자·승급·기록이 명문화되고 guidance 계약을 깨지 않음).
+판정이 확률적이라는 오해를 막는 것이 핵심이다 — 스크립트는 결정적이고, 확률은
+규칙이 미래 계획에 맞을지에만 붙는다.
+
+## Test scenarios
+
+### T1. 세 밴드가 규칙 순서대로 판정된다
+
+- **Setup**: 픽스처 계획 3벌 — (a) frontmatter `parallel_groups` 선언,
+  (b) 본문에 래퍼 후속 선언, (c) 둘 다 없음
+- **Run**: `effort-class.sh &lt;dir&gt;`
+- **Expected**: (a) orchestration, (b) heavy, (c) standard. R1 이 R2 보다
+  우선한다: (a)+(b) 동시 선언 픽스처는 orchestration
+- **Pass criterion**: `EFFORT_CLASS:` 라인이 정확히 일치, `EFFORT_REASON:` 이
+  발화한 규칙을 이름 붙인다
+
+### T2. 승급 장전 힌트가 2-of-3 에서만 켜진다
+
+- **Setup**: {cross-repo, adversarial 요구, raw≥9000B} 를 0·1·2·3개 조합한 픽스처
+- **Expected**: 0~1개 → `EFFORT_ESCALATION: normal`, 2~3개 → `armed`
+- **Pass criterion**: 네 경우 전부 일치
+
+### T3. frontmatter 선언이 항상 이긴다
+
+- **Setup**: 신호는 standard 인데 `effort_class: orchestration` 선언, 역방향도
+- **Expected**: 선언 값 그대로, REASON 에 declared 표기
+- **Pass criterion**: 두 방향 모두 선언 승
+
+### T4. 아카이브 14건이 백테스트 예측을 재현한다
+
+- **Setup**: 이 저장소의 실제 `scv/archive/` 14개 슬러그 (이 계획 이전 것들)
+- **Run**: 각 폴더에 effort-class.sh
+- **Expected**: 백테스트가 낸 예측과 동일 — orchestration 0건(당시 계획들에
+  parallel_groups 없음), heavy = 래퍼 후속 선언 슬러그들, 나머지 standard.
+  sync-autopilot 는 heavy 로 나오되 `armed` 다 (2-of-3 충족 — 그 미스를 사다리가
+  받는다는 설계의 재현)
+- **Pass criterion**: 14건 전부 기대 밴드, sync-autopilot 만 armed 검증 필수
+
+### T5. 판정은 결정적이고 무해하다
+
+- **Setup**: 같은 픽스처에 3회 연속 실행 + 실행 전후 트리 해시
+- **Expected**: 세 번 같은 출력, 파일 변경 0
+- **Pass criterion**: 출력 diff 없음, `find -newer` 결과 없음
+
+### T6. off 모드는 완전 무동작이다
+
+- **Setup**: 프로토콜 텍스트 검사 — work.md·codegen.md 의 governor 절
+- **Expected**: off 분기가 &quot;판정 스크립트를 호출하지 않는다&quot; 를 명시하고,
+  auto/ask/off 세 분기가 상호 배타로 서술된다. 승급 사다리는 모드 무관 절에
+  있다(off 에서도 품질 보호는 동작 — 단 판정이 없으므로 세션 그대로 시작)
+- **Pass criterion**: 세 분기 각 1회 존재, off 분기에 무호출 명시
+
+### T7. 격자와 사다리가 명문화된다
+
+- **Expected**: 두 프로토콜에 밴드×단계 격자(기계=최저, 종합=경량, 구현·검증=
+  밴드 의존), 승급 트리거(동일 단계 적색 2회·반박 복수), 강등 금지, 아카이브
+  --reason 실측 기록 지시가 있다. 호스트 레벨명은 등장하지 않는다
+- **Pass criterion**: 각 요소 grep 존재 + 레벨명 부재
+
+### T8. 문서·계약 정합
+
+- **Run**: `tests/test-guard-consistency.sh`, `guidance-filter.sh --lint` (두
+  프로토콜), full 투영 cmp, `tests/test-host-neutral.sh`
+- **Expected**: 전부 통과 — governor 절이 마커 균형·투영 동일성·구문 스윕·호스트
+  중립을 깨지 않는다
+- **Pass criterion**: 4개 검사 초록
+
+### T9. 회귀 증명 — 옛 코드에서 실패한다
+
+- **Setup**: effort-class.sh 를 제거한 사본 payload + governor 절 없는 HEAD
+  프로토콜
+- **Expected**: T1·T6 급 케이스가 옛 상태에서 실패한다
+- **Pass criterion**: 사본에서 실패 수 &gt; 0, 현행에서 0
+
+## How to run
+
+```bash
+bash core/tests/test-effort-class.sh
+```
+
+## Pass criteria
+
+- T1–T9 전부 통과, 특히 T4(백테스트 재현)와 T9(회귀 증명)
+- 전체 스위트(tests/run.sh · run-dry · core/tests · host-neutral ·
+  guard-consistency) 실패 0
+- 릴리스 아티팩트에 effort-class.sh 포함
+
+## Related Documents
+
+- [`PLAN.md`](./PLAN.md)</code></pre></div>
+    </aside>
+</div>
+
+<script>
+  var SCV_ANCHORS = ["Summary","Goals / Non-Goals","Approach Overview","Guardrails","Exit criteria","Suggested path","Related Documents","Risks / Open Questions","Links","✅ 테스트 · 인수기준 (TESTS)","Overview","Test scenarios","How to run","Pass criteria","Related Documents",null];
+  var scvPageIdx = 0;
+  function scvIdx(){ return scvPageIdx; }
+  function scvEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function scvHighlight(anchor){
+    var docs = document.querySelectorAll('.src-doc');
+    docs.forEach(function(el){
+      var code = el.querySelector('code');
+      if(code) code.innerHTML = scvEsc(code.textContent);
+    });
+    if(!anchor) return;
+    for (var i=0;i<docs.length;i++){
+      var code = docs[i].querySelector('code');
+      if(!code) continue;
+      var raw = code.textContent;
+      var lines = raw.split('\n');
+      var start=-1, end=lines.length;
+      for (var j=0;j<lines.length;j++){
+        var m = lines[j].match(/^#{1,6}\s+(.*)$/);
+        if (m && m[1].trim() === String(anchor).trim()) { start = j; break; }
+      }
+      if (start < 0) continue;
+      for (var k=start+1;k<lines.length;k++){ if (/^#{1,6}\s+/.test(lines[k])) { end = k; break; } }
+      var before = lines.slice(0,start).join('\n'), hl = lines.slice(start,end).join('\n'), after = lines.slice(end).join('\n');
+      code.innerHTML = scvEsc(before) + (before ? '\n' : '') + '<mark class="src-hl">' + scvEsc(hl) + '</mark>' + (after ? '\n' + scvEsc(after) : '');
+      if (typeof scvSelectSource === 'function') scvSelectSource(i);
+      var markEl = docs[i].querySelector('mark.src-hl');
+      if (markEl && markEl.scrollIntoView) markEl.scrollIntoView({ block: 'center' });
+      return;
+    }
+  }
+  function scvGoto(n){
+    var total = 16;
+    n = Math.max(0, Math.min(total - 1, n));
+    scvPageIdx = n;
+    document.querySelectorAll('.slide-page').forEach(function(p){ p.classList.toggle('active', p.dataset.idx === String(n)); });
+    document.querySelectorAll('.deck-nav-item').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
+    document.querySelectorAll('.deck-dot').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
+    if (typeof window.scvRunMermaid === 'function') { try { window.scvRunMermaid(); } catch (e) {} }
+    var prevBtn = document.getElementById('scvPrev'), nextBtn = document.getElementById('scvNext'), counter = document.getElementById('scvCounter');
+    if (prevBtn) prevBtn.disabled = (n === 0);
+    if (nextBtn) nextBtn.disabled = (n === total - 1);
+    if (counter) counter.textContent = (n + 1) + ' / ' + total;
+    scvHighlight(SCV_ANCHORS[n]);
+    var main = document.querySelector('.scroll-main');
+    if (main) main.scrollTop = 0;
+  }
+  function scvTogglePanel(){ var p=document.getElementById('scvSourcePanel'); if(p) p.classList.toggle('closed'); }
+  function scvSelectSource(i){
+    document.querySelectorAll('.panel-tab').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+    document.querySelectorAll('.src-doc').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+  }
+  (function(){
+    // 패널 좌측 경계 드래그 리사이즈 — 원본 SourcePanel 과 같은 산식(최소 320px,
+    // 본문에 최소 420px 남김).
+    var handle = document.getElementById('scvResizeHandle');
+    var panel = document.getElementById('scvSourcePanel');
+    if (!handle || !panel) return;
+    var MOBILE_BP = 640;
+    handle.addEventListener('mousedown', function(e){
+      e.preventDefault();
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+      function onMove(ev){
+        // 버튼을 놓친 채(창 밖 등) mouseup 을 못 받은 경우 — 버튼이 눌려있지 않으면 즉시 정리.
+        if (ev.buttons === 0) { onUp(); return; }
+        var raw = window.innerWidth - ev.clientX;
+        var max = Math.max(320, window.innerWidth - 420);
+        panel.style.width = Math.min(max, Math.max(320, raw)) + 'px';
+      }
+      function onUp(){
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        window.removeEventListener('blur', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('blur', onUp);
+    });
+    // 인라인 width 는 스타일시트의 반응형 브레이크포인트(640px 모바일 전체폭·900px 좁은폭)
+    // 보다 항상 우선한다 — 창 크기가 바뀔 때마다 다시 맞춰줘야 브레이크포인트가 살아난다.
+    window.addEventListener('resize', function(){
+      if (!panel.style.width) return;
+      if (window.innerWidth <= MOBILE_BP) { panel.style.width = ''; return; }
+      var max = Math.max(320, window.innerWidth - 420);
+      if (parseFloat(panel.style.width) > max) panel.style.width = max + 'px';
+    });
+  })();
+  document.addEventListener('keydown', function(e){
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') scvGoto(scvIdx() + 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') scvGoto(scvIdx() - 1);
+    else if (e.key === 'Home') scvGoto(0);
+    else if (e.key === 'End') scvGoto(16 - 1);
+    else if (e.key === 's' || e.key === 'S') scvTogglePanel();
+  });
+  scvGoto(0);
+</script>
+<script>
+  function scvThemeLabel(){ return document.documentElement.getAttribute('data-theme')==='light' ? "☀ 라이트" : "☾ 다크"; }
+  function scvToggleTheme(){
+    var html = document.documentElement;
+    var next = html.getAttribute('data-theme')==='light' ? 'dark' : 'light';
+    if (next === 'light') html.setAttribute('data-theme','light'); else html.removeAttribute('data-theme');
+    try { localStorage.setItem('scv-deck-theme', next); } catch(e){}
+    var btn = document.getElementById('scvThemeBtn');
+    if (btn) btn.textContent = scvThemeLabel();
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    var btn = document.getElementById('scvThemeBtn');
+    if (btn) btn.textContent = scvThemeLabel();
+  });
+</script>
+</body>
+</html>
