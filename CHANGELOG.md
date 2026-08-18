@@ -286,7 +286,7 @@ Core 저장소 소유이고 배포 payload 에 들어가지 않는다 — 래퍼
   독립적인 3회 백오프 재시도를 받고, 실패는 `::error::` 와 재발송 명령이 담긴
   job summary 로 남는다.
 - **`core_tag` 는 Core 에 추가하지 않았다.** `scv-codex` 가 읽던 그 키는 Core
-  계약(`docs/wrapper-integration.md` §7 의 `version`/`tag`/`asset_url`/
+  계약(`docs/wrapper-integration.md` §8 의 `version`/`tag`/`asset_url`/
   `checksum_url`)에 존재한 적이 없다. 계약에 없는 키를 Core 가 맞춰 보내는
   대신 래퍼가 계약에 맞추는 쪽으로 정리했다(scv-codex PR #21). 두 래퍼의 폴링
   주기도 매일로 통일했다.

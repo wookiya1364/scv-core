@@ -47,7 +47,7 @@ LICENSE
 ```
 
 This list is duplicated by the CI provenance gate on purpose, and
-`tests/test-guard-consistency.sh` asserts the two agree. If they diverge, the
+`core/tests/test-guard.sh` (T21) asserts the two agree. If they diverge, the
 product states two different definitions of "a code change".
 
 `<host_config>` is the host's own settings file (for example a runtime config
@@ -112,7 +112,7 @@ write, or the guard blocks the action it exists to protect. Verified by hand on
 | Protocol | First mint | Guarded write before it? |
 |---|---|---|
 | codegen | 47 | no |
-| deck | 71 | no |
+| deck | 75 | no |
 | handoff | 62 | no — its writes target a temp dir, outside the working tree |
 | help | 64 (`env-set.sh`) | no — the `.env` write *is* the first script call |
 | install-deps | 36 | no |
@@ -139,7 +139,7 @@ excuse cannot outlive the text it excuses. `tests/test-guard-consistency.sh`
 fails when an anchor no longer matches.
 
 ```guard:exceptions
-core/protocols/deck.md:119 — forbids hand-editing generated output; the opposite of a sanction
+core/protocols/deck.md:136 — forbids hand-editing generated output; the opposite of a sanction
 core/integrations/loop-runner.md:6 — the subject is the user writing their own loop prompt, not the agent authoring a plan
 core/template/scv/raw/README.md:110 — forbids hand-creating a plan folder and says why
 core/protocols/promote.md:43 — forbids moving raw originals by hand
@@ -149,15 +149,30 @@ core/protocols/promote.md:840 — about mockup colour values, unrelated to workf
 
 ## Failure behavior
 
-Fail **open** on internal error: unreadable input, a missing state directory, an
-unparseable payload. Print one line to stderr and allow. Fail **closed** only on
-an explicit rule match.
+Two inputs fail **open**, and only those two. An empty payload — nothing arrived
+on stdin, so there is no write to judge. No JSON reader on the machine — with
+neither `jq` nor `python3` the guard cannot see a path at all. Both print one line
+to stderr and allow.
 
-This is deliberate and it is not a strength trade worth reversing. The hosts
-already proceed when a hook script is missing or times out, so an adversary
-deletes the script rather than corrupting its logic — closing on internal error
-buys almost nothing against that, while a single guard bug would deny every write
-in every project at once. Make the failure loud, not fatal.
+A payload that arrives but does not parse also allows, by a different route and
+without the stderr line: no target path can be read out of it, so neither rule
+finds anything to match.
+
+Failing open on unreadable input is deliberate and it is not a strength trade
+worth reversing. The hosts already proceed when a hook script is missing or times
+out, so an adversary deletes the script rather than corrupting its logic — closing
+on unreadable input buys almost nothing against that, while a single guard bug
+would deny every write in every project at once. Make the failure loud, not fatal.
+
+**An unusable receipt store fails closed, and silently.** This is the exception to
+everything above, and it is the failure a user actually meets. Minting is
+best-effort by construction: if the state directory cannot be created, `mint`
+returns having recorded nothing and printed nothing, and if the directory exists
+but cannot be written the append fails just as quietly. `has_receipt` is then false
+for the rest of the session, so Rule B denies every non-exempt write and Rule A
+denies plan creation. Running an action does not clear it — the action mints into
+the same unusable store. The user sees a guard that denies everything, a deny
+message telling them to run an action, and nothing changing when they do.
 
 The guard is inert where SCV is not adopted: resolve the workflow root by walking
 up from the payload's working directory, and allow immediately when there is
