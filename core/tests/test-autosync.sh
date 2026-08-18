@@ -32,7 +32,11 @@ export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 
 stamp_of() { sed -n 's/.*<!-- STANDARD:VERSION -->\(.*\)<!-- \/STANDARD:VERSION -->.*/\1/p' "$1" | head -n 1; }
 set_stamp() {  # set_stamp <SCV.md> <version>
-  sed -i "s|<!-- STANDARD:VERSION -->[^<]*<!-- /STANDARD:VERSION -->|<!-- STANDARD:VERSION -->$2<!-- /STANDARD:VERSION -->|" "$1"
+  # perl -pi, not sed -i: BSD sed reads the expression as a backup suffix and
+  # dies with "invalid command code" — which took 12 of these cases down on
+  # macOS while Linux stayed green, the exact platform split this repo keeps
+  # relearning. run-dry.sh already standardized on perl for in-place edits.
+  V="$2" perl -pi -e 's|<!-- STANDARD:VERSION -->[^<]*<!-- /STANDARD:VERSION -->|<!-- STANDARD:VERSION -->$ENV{V}<!-- /STANDARD:VERSION -->|' "$1"
 }
 
 mk_project() {  # hydrated, committed
@@ -148,9 +152,12 @@ printf 'an archive\n'     > "$P/scv/archive/y/PLAN.md"
 printf 'a conversation\n' > "$P/scv/conversations/c.md"
 set_stamp "$P/scv/SCV.md" "2.0.0"
 ( cd "$P" && git add -A && git commit -qam stale )
-before="$(cd "$P" && find scv/raw scv/promote scv/archive scv/conversations -type f | sort | xargs md5sum)"
+# cksum, not md5sum: macOS has no md5sum, and with it missing BOTH sides of
+# this comparison became the same xargs error — a false pass that read as
+# "byte-identical" while checking nothing.
+before="$(cd "$P" && find scv/raw scv/promote scv/archive scv/conversations -type f | sort | xargs cksum)"
 call "$P" >/dev/null
-after="$(cd "$P" && find scv/raw scv/promote scv/archive scv/conversations -type f | sort | xargs md5sum)"
+after="$(cd "$P" && find scv/raw scv/promote scv/archive scv/conversations -type f | sort | xargs cksum)"
 [[ "$before" == "$after" ]] && pass "T7 raw/promote/archive/conversations are byte-identical" \
                             || fail "T7 the automatic refresh modified workflow contents"
 
