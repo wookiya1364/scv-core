@@ -384,3 +384,41 @@ merge_policy: preserve
   done 이 아니라 planned 였다(당시 절차 누락의 흔적) — 마킹 스크립트가 done 만
   바꾸다 걸려서 발견했고, status 무관 치환으로 처리했다.
 - refs: scv/archive/20260818-wookiya1364-regression-contract-repair/PLAN.md
+
+## [2026-08-18 16:40] wookiya1364 — effort governor — 작업 무게에 맞춘 자동 실행 조절
+
+- verdict: adopted
+- why: 가벼운 작업이 ultra 세션에서 낭비되는 문제를, 사용자 다이얼을 건드리지
+  않고 실행 방식으로 푼다. 판정은 아카이브 14건 백테스트를 통과한 3규칙(13/14,
+  과소 1·과대 0)만 싣고, 6레벨은 밴드×단계의 결정적 격자로 배치한다. 기본 auto
+  (개입 0)는 대표님이 객관식으로 확정.
+- discarded alternatives:
+    - 권고 한 줄만(advisory): 대표님이 기각 — "켜나마나". 보고 취소하고 다시
+      실행하는 왕복이 절약분보다 비싸다.
+    - 세션 다이얼 자동 변경: 두 호스트 모두 모델에게 권한이 없고, 있어도
+      사용자 소유가 맞다.
+    - 시나리오 수·Guardrails 수 기반 판정: 백테스트가 기각 — 0시나리오 heavy
+      4건, 21시나리오 standard 1건, guardrails 는 역상관.
+    - light 밴드 예측: 실측 0건. 지어낸 문턱은 비싼 방향 미스가 된다.
+    - raw≥10000B 를 orchestration 규칙으로: 이웃과 1,140B 차 단일점 적합 —
+      규칙 대신 승급 장전 힌트(2-of-3)로 강등.
+    - 6레벨을 각각 확률 예측: 검증 불가능한 문턱 5개를 지어내는 일 — 격자
+      (결정적) + 사다리(실측 신호)로 전 레벨 도달을 보장하는 쪽이 정직하다.
+- refs: scv/promote/20260818-wookiya1364-effort-governor/PLAN.md
+
+## [2026-08-18 17:30] wookiya1364 — effort governor archived
+
+- verdict: archived
+- why: 판정은 스크립트(결정적 3규칙, 백테스트 13/14), 집행은 프로토콜(밴드×단계
+  격자·상향 승급), 통제는 사용자(auto|ask|off + frontmatter 선언 + 그 자리
+  한마디). 세션 다이얼은 끝내 건드리지 않는다 — 절약의 지배항은 오케스트레이션
+  억제였다. 앞으로 깨지면 안 되는 것: standard 밴드에서 팬아웃 금지, 검증 중
+  강등 금지, off 의 완전 무동작.
+- path delta: as planned — 그리고 이 계획 자체가 거버너의 첫 판정 대상이었다.
+  heavy(armed) 판정에 따라 팬아웃 대신 단일 강검증으로 갔고, 위임 에이전트
+  스폰이 두 번 무산되자(산출물 0) 검증을 인라인으로 직접 수행했다. 그 검증이
+  결함 3건을 잡았다: CRLF 가 frontmatter 신호를 숨기고(비싼 방향 미스), raw
+  경로 순회가 저장소 밖 파일을 계측하고(20KB 실증 — 픽스처에 scv/raw 가 없어
+  우연히 안전해 보였던 것), 무효 선언이 소리 없이 사라졌다. 셋 다 수정 후
+  T10 으로 고정.
+- refs: scv/archive/20260818-wookiya1364-effort-governor/PLAN.md
