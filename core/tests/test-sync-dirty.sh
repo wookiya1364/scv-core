@@ -163,7 +163,8 @@ echo "=== T9 — a refusal keeps the version stamp where it was ==="
 # while the stale file stays stale forever — and the automatic refresh, gated
 # on that stamp, would never retry.
 P="$(mk_project t9)"
-sed -i 's|<!-- STANDARD:VERSION -->[^<]*<!-- /STANDARD:VERSION -->|<!-- STANDARD:VERSION -->2.0.0<!-- /STANDARD:VERSION -->|' "$P/scv/SCV.md"
+# perl -pi, not sed -i — BSD sed treats the expression as a backup suffix.
+perl -pi -e 's|<!-- STANDARD:VERSION -->[^<]*<!-- /STANDARD:VERSION -->|<!-- STANDARD:VERSION -->2.0.0<!-- /STANDARD:VERSION -->|' "$P/scv/SCV.md"
 ( cd "$P" && git commit -qam stale && printf '\nuncommitted work\n' >> "$TARGET" )
 out="$(bash "$SYNC" --project-dir "$P" 2>&1)"
 stamp="$(sed -n 's/.*<!-- STANDARD:VERSION -->\(.*\)<!-- \/STANDARD:VERSION -->.*/\1/p' "$P/scv/SCV.md" | head -1)"
