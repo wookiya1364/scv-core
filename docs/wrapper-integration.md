@@ -117,7 +117,39 @@ At minimum, wrapper CI should:
 3. assert all 15 actions exist exactly once;
 4. run Core's shared regression suite through the wrapper layout;
 5. test adapter-owned update and model-policy behavior;
-6. ensure installed runtime execution performs no Core network fetch.
+6. ensure installed runtime execution performs no Core network fetch;
+7. run Core's two pull-request gates against the vendored copy.
+
+### Pull-request gates
+
+Both gates ship in the pinned payload and run from the wrapper's branch-flow
+workflow, one step each. They read the same four environment variables:
+
+```yaml
+- name: Provenance gate
+  env:
+    BASE_REF: ${{ github.base_ref }}
+    HEAD_REF: ${{ github.head_ref }}
+    PR_TITLE: ${{ github.event.pull_request.title }}
+    BASE_SHA: ${{ github.event.pull_request.base.sha }}
+  run: bash vendor/scv-core/core/scripts/check-provenance.sh
+```
+
+`check-provenance.sh` refuses a pull request that changes code without adding
+`scv/archive/<slug>/PLAN.md`. `check-vendor-provenance.sh` refuses a pull
+request that rewrites `vendor/scv-core/` at any depth on a branch that is not
+the sync bot's — hand-vendoring and the bot's vendoring look identical afterwards, but
+only the bot resolves the published artifact and records both hashes.
+
+Both exempt the release chain (base `stage` or `main`) and the sync branch, and
+both accept one declared exception in the title: `[no-plan: <reason>]` and
+`[manual-vendor: <reason>]` respectively. An empty marker with no reason is
+refused. Two optional knobs: `SCV_PROVENANCE_EXEMPT`, colon-separated extra
+exempt path globs, and `SCV_VENDOR_SYNC_BRANCH`, the glob matching the bot's
+branch (default `chore/core-*`).
+
+The vendor gate matches by shape, not by a hardcoded path, so it works whether
+the wrapper nests the tree at `vendor/scv-core/` or deeper.
 
 ## 6. Hook seam (journal capture, v0.22.0+)
 
@@ -163,7 +195,84 @@ Hosts without hook support cannot capture free conversation — the session-end
 protocol summaries partially compensate; the gap is documented in the
 project-side `scv/journal/README.md`.
 
-## 7. Automated updates
+## 7. Register the workspace guard
+
+`core/template/hooks/guard.sh` is a `PreToolUse` hook that denies writes no SCV
+action accounts for: creating a plan file under `<scv_root>/promote/` without a
+receipt (Rule A), and writing outside the workflow directory without a receipt
+(Rule B). A receipt is minted when the host itself reports that an SCV action is
+running — the model cannot fabricate a host event. The rules, the exempt set,
+and the reasoning are in
+[`core/contracts/guard.md`](../core/contracts/guard.md).
+
+Registration is **wrapper-owned**, like the journal hooks above. The script
+names no host and no tool — the only event name in it is the `PreToolUse` that
+its denial JSON echoes back — and the wrapper tells it what kind of call this is
+by setting `SCV_GUARD_MODE` on each hook entry.
+
+| `SCV_GUARD_MODE` | Register on | Behavior |
+|---|---|---|
+| `mint` | the host event that reports an SCV action starting | records a receipt for this session and project; never denies |
+| `gate-write` | editor-style write tools | reads the target path out of the payload; may deny |
+| `gate-bash` | shell / command tools | mints when the command calls into `SCV_GUARD_SCRIPTS`; otherwise checks any patch target named inside the command; may deny |
+
+`mint` takes the reported action id from `.tool_input.skill`, then
+`.command_name`, then `.tool_input.command_name`, and mints when the id matches
+the allowlist. A host may need more than one `mint` entry — scv-claude-code
+registers one on `PreToolUse` with a `Skill` matcher and one on
+`UserPromptExpansion`, since either can be the first event that names the
+action. A host with no such event mints from `gate-bash` alone: scv-codex
+registers no `mint` entry and relies on the action scripts being invoked through
+its shell tool. On that arrangement, `SCV_GUARD_SCRIPTS` names one directory and is matched as a
+fixed string, and scv-codex points it at the vendored Core scripts — so the two
+adapter-owned actions, `update` and `set-models`, which have no Core executable
+at all, do not mint there. `core/contracts/guard.md` records the requirement
+that an adapter script directory be part of the mint allowlist.
+
+Optional environment, all supplied by the wrapper:
+
+| Variable | Meaning |
+|---|---|
+| `SCV_GUARD=off` | disable the guard entirely. Process environment only — never read from a file, or the agent could exempt itself in one line |
+| `SCV_GUARD_STATE` | directory holding receipts; defaults to `${TMPDIR:-/tmp}/scv-guard` |
+| `SCV_GUARD_ACTIONS` | regex of action ids the host may report in `mint` mode; defaults to the 15 shipped ids |
+| `SCV_GUARD_SCRIPTS` | action-script directory; a shell command containing this path mints |
+| `SCV_GUARD_EXEMPT` | colon-separated extra exempt paths, matched as globs relative to the project root. This is where the host's own config file goes — scv-claude-code passes `.claude/settings.json:.claude/settings.local.json`, scv-codex passes `.codex/config.toml` |
+| `SCV_GUARD_RULE_B=off` | keep Rule A only |
+
+Wrapper requirements:
+
+1. **Point the command at a path the host actually provides.** This is the one
+   failure that hides itself completely. If the root variable is wrong, the hook
+   still fires, the shell finds no script, the host proceeds as it does for any
+   missing hook, and nothing anywhere reports a problem — the guard is inert and
+   the product looks healthy. scv-codex shipped that way in 0.25.0-codex.1: the
+   entry named a plugin-root variable the host does not set. The fix was
+   `${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}`. Confirm a real denial in a fresh
+   session before believing the guard is on; a green build proves nothing here.
+2. **Register it as a blocking hook** — the opposite of the journal templates. A
+   denial is carried in the hook's own stdout
+   (`hookSpecificOutput.permissionDecision = "deny"`), and the script exits `0`
+   either way, so the host must be reading that output for the guard to have any
+   effect at all.
+3. **Keep the timeout short.** Both shipped wrappers use 5 seconds; the guard
+   runs on every matched tool call.
+4. **Do not turn failure into a denial.** The policy is fail **open**: an empty
+   payload, or neither `jq` nor `python3` on the box, prints one line to stderr
+   and allows. Only an explicit rule match denies.
+   The hosts already proceed when a hook is missing or times out, so closing on
+   internal error buys almost nothing against an adversary who simply deletes the
+   script, while one guard bug would deny every write in every project at once.
+   A wrapper that wraps the script must not convert its exit status into a block.
+5. **Let it stay inert off-SCV.** The guard resolves the workflow root by walking
+   up from the payload's `cwd` and allows immediately when there is none, so a
+   globally registered entry does not affect projects that never adopted SCV.
+
+Receipts are keyed by session and project together, so one earned in a checkout
+does not unlock a different one. The session comes from `.session_id` in the
+payload; a host that does not supply one shares a single `nosession` key.
+
+## 8. Automated updates
 
 Core releases send a `repository_dispatch` event named
 `scv-core-released` with this payload:

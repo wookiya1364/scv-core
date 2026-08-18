@@ -21,11 +21,18 @@
 #   SCV_GUARD_EXEMPT    <paths>    colon-separated extra exempt paths (host config)
 #   SCV_GUARD_RULE_B    off        keep Rule A only
 #
-# Failure policy: open. Any internal problem allows the action and prints one line
-# to stderr. The host already proceeds when a hook is missing or times out, so an
-# adversary deletes this file rather than corrupting it — closing on internal error
-# buys almost nothing, while one bug here would deny every write in every project.
-# Only an explicit rule match denies.
+# Failure policy: open on two inputs, and only those two — an empty payload, and no
+# JSON reader on the machine. Both print one line to stderr and allow. The host
+# already proceeds when a hook is missing or times out, so an adversary deletes this
+# file rather than corrupting it; closing on unreadable input buys almost nothing,
+# while one bug here would deny every write in every project.
+#
+# The receipt store is the exception and it fails CLOSED. mint() is best-effort: an
+# unwritable SCV_GUARD_STATE records nothing and says nothing, has_receipt() then
+# stays false, and Rule B denies every non-exempt write for the rest of the session.
+# Running an action does not clear it, because the action mints into the same
+# unusable store. This is the one failure a user meets as "the guard denies
+# everything and I do not know why". Full account in core/contracts/guard.md.
 
 set -uo pipefail
 
