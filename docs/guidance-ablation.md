@@ -100,8 +100,8 @@ SCV_GUIDANCE=minimal bash tools/vendor-core.sh --source . --target vendor/scv-co
 
 | 프로토콜 | GUIDANCE 줄 / 전체 줄 | 비율 |
 |---|---|---|
-| `core/protocols/promote.md` | 241 / 883 | 27.3% |
-| `core/protocols/work.md` | 222 / 589 | 37.7% |
+| `core/protocols/promote.md` | 241 / 910 | 26.5% |
+| `core/protocols/work.md` | 222 / 609 | 36.5% |
 
 (전체 줄 수는 마커 줄 제외 기준. `--lint` 출력과 동일.)
 

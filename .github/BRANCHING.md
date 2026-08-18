@@ -12,6 +12,14 @@ force pushes, and deletion should remain disabled.
 | `stage` | `develop` |
 | `main` | `stage`, `fix/*` for an emergency hotfix |
 
+A pull request into `develop` that changes code must also add the plan it came
+from, at `scv/archive/<slug>/PLAN.md`, or declare `[no-plan: <reason>]` in the
+title. An empty `[no-plan]` is refused — the reason is the point of the marker.
+The `branch-flow` workflow runs this as `core/scripts/check-provenance.sh`. It
+exempts the release chain (base `stage` or `main`), the sync bot's
+`chore/core-*` branches, and a diff touching nothing but prose and the `scv/`
+workspace.
+
 ## Normal flow
 
 1. Create a work branch from `develop`, such as `feat/<slug>`.
