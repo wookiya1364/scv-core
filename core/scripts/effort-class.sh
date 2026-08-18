@@ -61,7 +61,14 @@ TESTS="$DIR/TESTS.md"
 frontmatter() { tr -d '\r' < "$PLAN" | awk '/^---$/{n++; next} n==1{print} n>=2{exit}'; }
 
 # ---- R0: an explicit declaration always wins ---------------------------------
-declared="$(frontmatter | sed -n 's/^effort_class:[[:space:]]*\(standard\|heavy\|orchestration\)[[:space:]]*$/\1/p' | head -n 1)"
+# Three separate expressions, not one alternation: BSD sed has no \| in a
+# basic regex — the exact platform split that once put both guard rules to
+# sleep on one OS while the other stayed green, and this repository has now
+# stepped in twice.
+declared="$(frontmatter | sed -n \
+  -e 's/^effort_class:[[:space:]]*\(standard\)[[:space:]]*$/\1/p' \
+  -e 's/^effort_class:[[:space:]]*\(heavy\)[[:space:]]*$/\1/p' \
+  -e 's/^effort_class:[[:space:]]*\(orchestration\)[[:space:]]*$/\1/p' | head -n 1)"
 # A declaration that does not parse is a user intent this script cannot honor —
 # swallowing it silently would read as the override having worked. Say so once.
 declared_any="$(frontmatter | sed -n 's/^effort_class:[[:space:]]*\(.*\)$/\1/p' | head -n 1)"
