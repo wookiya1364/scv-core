@@ -25,9 +25,10 @@
 
 **Do not promote or tag by hand.** Steps 4 and 5 are the whole procedure, and the
 workflow is what keeps them identical every time. It opens `develop → stage` and
-`stage → main` as pull requests, waits for their checks, merges, then tags `main`
-from `VERSION` and publishes the release. It never pushes to a permanent branch —
-the branch ruleset requires a pull request for all three.
+`stage → main` as pull requests, waits until GitHub itself calls each one
+mergeable, merges, then tags `main` from `VERSION` and publishes the release. It
+never pushes to a permanent branch — the branch ruleset requires a pull request
+for all three.
 
 `workflow_dispatch` is its only trigger. Starting it is the human gate; nothing
 promotes on a schedule or on push. A red check stops the chain and leaves that
@@ -39,8 +40,9 @@ promote workflow leaves an existing tag alone.
 
 ### The one thing that needs two runs
 
-`workflow_dispatch` always executes the copy of the workflow file on the default
-branch. So when the change you are promoting **edits `promote.yml` itself**, the
+`gh workflow run` dispatches against the default branch unless you pass `--ref`,
+so it is `main`'s copy of the workflow file that executes. When the change you
+are promoting **edits `promote.yml` itself**, the
 first run still uses the old file: it promotes your fix to `main` and may fail on
 whatever the fix addresses. Run it a second time and the corrected file is the
 one that executes.
@@ -127,9 +129,8 @@ immediately and the merge was attempted against required checks that had not
 started. `tests/test-promote-wait.sh` replays that exact rollup against the live
 workflow block.
 
-**The workflow ran the old logic** — `workflow_dispatch` executes the default
-branch's copy of the file. A fix to `promote.yml` takes effect on the release
-*after* the one that ships it.
+**The workflow ran the old logic** — see "The one thing that needs two runs"
+above.
 
 **"Tag main and publish the release" failed** — promotion already succeeded, so
 `main` carries the new `VERSION` and only the tag is missing. Fix the cause and

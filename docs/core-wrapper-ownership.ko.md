@@ -63,6 +63,10 @@
 - `core/protocols/**`: action의 절차와 사용자 워크플로
 - `core/scripts/**`: hydrate, sync, promote, work, report, regression 등 공통 실행 로직
 - `core/template/scv/**`: hydrate 결과와 표준 SCV 문서
+- `core/template/hooks/**`: guard와 journal hook 스크립트 본문
+- `core/contracts/guard.md`: guard의 규칙, exempt 목록, receipt를 발급하는 action
+- `core/scripts/check-provenance.sh`, `core/scripts/check-vendor-provenance.sh`:
+  두 CI 게이트의 판정 로직
 - `core/scripts/state-index.sh`: 상태 파일 판정, 충돌, pointer, migration
 - `core/DeckUI/**`와 `core/assets/**`
 - 공통 notifier, attachment, workspace, handoff 로직
@@ -87,12 +91,37 @@ Wrapper는 이 규칙을 별도로 재구현하면 안 된다.
 - 호출 문법과 인자 전달 방식
 - 설치, reload, wrapper update UX
 - 호스트별 모델 정책과 model metadata
+- guard hook 등록: 어떤 호스트 이벤트를 어떤 `SCV_GUARD_MODE`에 연결할지
+- `SCV_GUARD_EXEMPT`로 넘기는 호스트 설정 파일 경로
+- Core가 배포한 CI 게이트를 실행하는 workflow
 - host profile의 실제 값
 - wrapper `VERSION`, changelog, release, CI/CD
 - Core release를 검증하고 vendor하는 maintainer 도구
 
 Core action catalog에는 `update`와 `set-models`도 포함되지만, 두 액션은
 `owner: adapter`이며 실제 protocol과 entrypoint는 각 wrapper가 구현한다.
+
+Guard hook도 같은 경계에 있다. `core/template/hooks/guard.sh`와 그 계약인
+`core/contracts/guard.md`는 Core가 소유한다. 스크립트는 호스트도 도구도
+이름으로 부르지 않으므로, 그 스크립트를 어떤 호스트 이벤트에 등록할지는
+wrapper가 소유한다. Wrapper는 등록 항목마다 `SCV_GUARD_MODE`(`mint`,
+`gate-write`, `gate-bash`)를 지정하고, 호스트 자신의 설정 파일은
+`SCV_GUARD_EXEMPT`로 넘긴다.
+
+두 wrapper의 등록은 같지 않다. Claude Code는 `mint` 항목을 두 개 둔다.
+`PreToolUse`의 `Skill` matcher와 `UserPromptExpansion`이다. Codex에는 action
+시작을 알리는 일급 호스트 이벤트가 없어서 `mint` 항목이 아예 없고,
+`gate-bash`가 vendored Core script 호출을 볼 때만 receipt가 생긴다. exempt로
+넘기는 값도 다르다. Claude Code는 `.claude/settings.json`과
+`.claude/settings.local.json`을, Codex는 `.codex/config.toml`을 넘긴다.
+한쪽의 배치를 두 호스트 공통인 것처럼 설명하면 안 된다.
+등록 절차의 상세는 [Wrapper integration](wrapper-integration.md)의
+"Register the workspace guard"에 있다.
+
+두 CI 게이트도 소유가 나뉜다. provenance 게이트와 vendor 게이트 스크립트는
+Core가 배포하고, 각 wrapper의 `.github/workflows/branch-flow.yml`이 vendored
+경로에서 실행한다. 게이트의 판정을 바꾸려면 Core를 고치고, 언제 어떤 PR에
+게이트를 걸지는 각 wrapper workflow에서 정한다.
 
 ## `scv-codex`가 소유하는 영역
 
@@ -103,6 +132,7 @@ Codex wrapper에서는 다음 항목을 수정한다.
 - `plugins/scv/skills/*/SKILL.md`
 - `plugins/scv/skills/*/agents/openai.yaml`
 - `plugins/scv/references/codex-runtime.md`
+- `plugins/scv/hooks/hooks.json`
 - `plugins/scv/adapter/host-profile.env`
 - `plugins/scv/adapter/protocols/update.md`
 - `plugins/scv/adapter/protocols/set-models.md`
@@ -131,6 +161,7 @@ Claude Code wrapper에서는 다음 항목을 수정한다.
 - `.claude-plugin/plugin.json`
 - `.claude-plugin/marketplace.json`
 - `adapter/claude-code.env`
+- `hooks/hooks.json`
 - `/scv:<action>` slash command 등록
 - `commands/*.md`의 YAML frontmatter
 - `argument-hint`, `allowed-tools`, `model`
@@ -190,12 +221,17 @@ Core source를 수정한 뒤 `scripts/sync-core.sh`로 갱신한다.
 | hydrate 결과나 표준 문서를 바꾼다 | `scv-core` |
 | `SCV.md` 판정, conflict, pointer, migration을 고친다 | `scv-core` |
 | DeckUI 또는 공통 asset을 바꾼다 | `scv-core` |
+| guard의 규칙, exempt 목록, 실패 정책을 바꾼다 | `scv-core` |
+| provenance 또는 vendor 게이트의 판정을 바꾼다 | `scv-core` |
 | Codex 자연어 skill routing 또는 `$scv:*`를 바꾼다 | `scv-codex` |
 | Codex marketplace, plugin manifest를 바꾼다 | `scv-codex` |
 | Codex update 또는 모델 설정 UX를 바꾼다 | `scv-codex` |
 | Claude `/scv:*` frontmatter나 allowed-tools를 바꾼다 | `scv-claude-code` |
 | Claude command별 opus/sonnet/haiku 정책을 바꾼다 | `scv-claude-code` |
 | Claude marketplace, reload, update UX를 바꾼다 | `scv-claude-code` |
+| guard를 어떤 호스트 이벤트에 등록할지 바꾼다 | 해당 wrapper |
+| guard가 호스트 설정 파일 쓰기를 막는다 | 해당 wrapper |
+| CI 게이트를 실행하는 workflow를 바꾼다 | 해당 wrapper |
 | 공통 action을 새로 추가하거나 이름을 바꾼다 | Core와 두 wrapper |
 | host-profile 계약이나 Core API를 호환 불가능하게 바꾼다 | Core와 두 wrapper |
 
