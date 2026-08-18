@@ -222,7 +222,8 @@ is_dirty() {
   if ! head_blob="$(git -C "$PROJECT_DIR" rev-parse -q --verify "HEAD:$rel" 2>/dev/null)"; then
     return 0                                      # never committed → nothing to restore from
   fi
-  if git -C "$PROJECT_DIR" cat-file blob "$head_blob" 2>/dev/null | _stamp_neutral -        | cmp -s - <(_stamp_neutral "$f"); then
+  if git -C "$PROJECT_DIR" cat-file blob "$head_blob" 2>/dev/null | _stamp_neutral \
+       | cmp -s - <(_stamp_neutral < "$f"); then
     return 1                                      # worktree == HEAD (stamps aside) → replace freely
   fi
   DIRTY_KIND="modified"
@@ -231,9 +232,12 @@ is_dirty() {
 
 # Version/date stamps are maintained by the stamping block at the end of this
 # script, not by the merge — so for equality questions they are noise.
-_stamp_neutral() {  # file path, or "-" for stdin
+# A pure stdin→stdout filter, deliberately taking no filename: GNU sed treats
+# "-" as stdin while BSD sed opens a file named "-", so a filename argument is
+# a portability trap. Callers redirect.
+_stamp_neutral() {
   sed -e 's|<!-- STANDARD:VERSION -->.*<!-- /STANDARD:VERSION -->|@STAMP@|' \
-      -e 's|<!-- STANDARD:SYNCED_AT -->.*<!-- /STANDARD:SYNCED_AT -->|@STAMP@|' "${1:--}"
+      -e 's|<!-- STANDARD:SYNCED_AT -->.*<!-- /STANDARD:SYNCED_AT -->|@STAMP@|'
 }
 
 # refuse_if_dirty <dst> <display> — returns 0 (and records the refusal) when
@@ -394,7 +398,7 @@ process_template_file() {
       local sim; sim="$(mktemp)"
       cp "$dst" "$sim"
       apply_merge_on_markers "$tmpl" "$sim"
-      if cmp -s <(_stamp_neutral "$sim") <(_stamp_neutral "$dst"); then
+      if cmp -s <(_stamp_neutral < "$sim") <(_stamp_neutral < "$dst"); then
         rm -f "$sim"
         return 0
       fi
