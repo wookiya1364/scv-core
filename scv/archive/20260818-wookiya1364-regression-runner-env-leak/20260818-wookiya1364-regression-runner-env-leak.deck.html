@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</title>
+<style>
+/* Dark only — the light token set and its toggle were removed:
+   FE 프로젝트의 다크-기본+라이트-오버라이드 관례와 동일한 모양(속성 하나만 바뀌면
+   전체가 재테마된다). head 맨 앞 인라인 스크립트가 pre-paint 로 저장된 선택을 적용해
+   깜빡임(FOUC)이 없다. */
+/* Dark only. Ported from the owner's DesignSystem .dark block (shadcn oklch ->
+   sRGB, every neutral at chroma 0). The blue-cast greys this replaces
+   (#171922 / #1d2029 / #2c3040 / #9096a8) were the single loudest reason the
+   two decks read as different systems.
+
+   Contrast figures are WCAG 2.x, measured against the surface named. */
+:root{
+  /* surfaces */
+  --bg:#0a0a0a;                  /* the one ground */
+  --panel:#171717;               /* cards, aside, code */
+  --surface-2:#121212;           /* zebra rows, quiet fills */
+  --surface-3:#151515;           /* table head, code block */
+
+  /* text */
+  --fg:#fafafa;                  /* 18.97:1 on --bg */
+  --fg-body:#e2e2e2;             /* 15.28:1 on --bg  · body copy */
+  --fg-soft:#d6d6d6;             /* 13.62:1 on --bg  · text inside a tinted card */
+  --muted-foreground:#a1a1a1;    /*  7.66:1 on --bg  · 6.94:1 on --panel */
+
+  /* lines — alpha so ONE value composites correctly over bg and panel alike */
+  --border:rgba(255,255,255,.10);
+  --border-strong:#707070;       /* load-bearing rules. Measured where it actually
+                                    sits, not on --bg: 3.62:1 on --panel (node
+                                    fill), 3.69:1 on --surface-3 (figure ground),
+                                    5.87:1 on --bg. #4d4d4d cleared 3:1 against
+                                    --bg alone and failed at 2.12:1 on a node. */
+  --ring:#737373;                /*  4.18:1 on --bg */
+
+  /* brand — the owner's rose, kept for a public product on their say-so.
+     TWO values, because one cannot do both jobs: oklch(.455 .188 13.697)
+     = #a50036 measures 2.50:1 as text on --bg and is unreadable. The text
+     value is the same hue lifted in lightness only. */
+  --primary:#a50036;             /* fill · white on it 7.58:1 */
+  --primary-text:#fc7184;        /* text · 7.39:1 on --bg · 6.69:1 on --panel */
+  --on-primary:#fafafa;          /* 7.58:1 on the --primary plate */
+
+  /* status */
+  --good:#4bd39a;                /*  9.53:1 on --bg */
+  --warn:#e3b153;                /*  9.18:1 on --bg */
+  --danger:#f4837f;              /*  7.22:1 on --bg */
+  --on-warn:#241a06;             /*  8.72:1 on the --warn plate */
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+html{scroll-behavior:smooth}
+body{margin:0;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:var(--fg);background:var(--bg)}
+/* Controls do not inherit the document font — a UA default applies unless asked.
+   Six controls below set font-size alone or an invalid `font:` shorthand, and
+   all of them rendered in 13.333px/400/Arial. This one line is what makes the
+   per-control rules that follow actually reach the element. */
+button,input,select,textarea{font:inherit;color:inherit}
+/* 문서 = 스크롤되는 본문(좌) + 상시 원문 마크다운 패널(우, sticky) — 이게 scv:deck 의
+   정체성이다: 렌더링과 원문이 늘 같은 화면에 나란히 있어야 서로 어긋나지 않았다는 게
+   보장된다. 인쇄 시에는 패널을 접고 본문 뒤에 원문을 부록으로 붙인다(.print-source). */
+/* Three rows over the viewport: header, content, footer. The header and the
+   footer are chrome and must not scroll away with the text — before this they
+   lived inside .wrap and pushed 268px of nav in front of the first sentence. */
+.shell{display:grid;grid-template-rows:auto 1fr auto;height:100svh;overflow:hidden}
+.shell-mid{display:flex;min-height:0;overflow:hidden}
+/* A container so a figure can measure the READING area and break out of the
+   840px text column. 100vw would count the source panel too and push the
+   diagram under it. */
+.scroll-main{flex:1;min-width:0;overflow-y:auto;container-type:inline-size}
+.wrap{--doc-pad:clamp(20px,5vw,56px);max-width:840px;margin:0 auto;min-height:100%;padding:0 var(--doc-pad) 96px}
+header.doc{display:flex;align-items:center;gap:16px;min-width:0;background:var(--bg);border-bottom:1px solid var(--border);padding:11px 20px}
+header.doc h1{font-size:15px;font-weight:600;margin:0;flex-shrink:0;max-width:34ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)}
+.header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.panel-toggle{flex-shrink:0;font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer}
+.panel-toggle:hover{background:var(--border);color:var(--fg)}
+.panel-toggle .kbd{opacity:.55;margin-left:4px}
+.source-panel{position:relative;width:min(440px,38vw);flex-shrink:0;border-left:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column}
+.source-panel.closed{display:none}
+.panel-resize-handle{position:absolute;left:0;top:0;bottom:0;width:7px;margin-left:-4px;cursor:col-resize;z-index:6}
+.panel-resize-handle:hover{background:rgba(127,137,160,.25)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-title{font-size:12px;color:var(--muted-foreground);font-weight:700;letter-spacing:.02em}
+.panel-close{border:none;background:none;color:var(--muted-foreground);cursor:pointer;font-size:14px;padding:2px 7px;border-radius:5px;line-height:1.4}
+.panel-close:hover{background:var(--border);color:var(--fg)}
+.panel-tabs{display:flex;gap:2px;padding:9px 12px 0;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.panel-tab{font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);padding:7px 10px;border:none;background:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.panel-tab.active{color:var(--fg);border-bottom-color:var(--primary)}
+.panel-body{flex:1;overflow-y:auto;padding:14px}
+.panel-body .src-doc{display:none;margin:0}
+.panel-body .src-doc.active{display:block}
+.print-source{display:none}
+/* 목차(nav.toc) 는 인쇄본 전용(펼친 전체 문서엔 목차가 자연스럽다). 화면에서는
+   deck-nav(아래) 가 같은 역할을 대신한다 — 페이지 번호 pill + 클릭 이동. */
+@media screen{nav.toc{display:none}}
+nav.toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:26px 0}
+nav.toc h3{margin:0 0 8px;font-size:12px;letter-spacing:.04em;color:var(--muted-foreground);text-transform:uppercase}
+nav.toc ol{margin:0;padding-left:20px;columns:2;gap:24px}
+nav.toc a{color:var(--fg);text-decoration:none}
+nav.toc a:hover{color:var(--primary);text-decoration:underline}
+section{padding:22px 0;border-top:1px solid var(--border)}
+section:first-of-type{border-top:none}
+/* 페이지 넘김(화면 전용) — 한 번에 한 섹션만. 인쇄 시엔 전부 펼쳐서 보여준다. */
+@media screen{.slide-page{display:none}.slide-page.active{display:block}}
+/* One scrolling row, never wrapped. The reference sets flex-wrap AND
+   overflow-x-auto together; flex-wrap wins, and fed 19 labels its own header
+   grows to three rows. nowrap is the one place this deliberately differs. */
+.deck-nav{display:flex;flex-wrap:nowrap;gap:4px;margin:0;flex:1;min-width:0;overflow-x:auto;scrollbar-width:thin}
+.deck-nav::-webkit-scrollbar{height:6px}
+.deck-nav::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.deck-nav-item{font-weight:400;font-size:12px;line-height:16px;color:var(--muted-foreground);background:none;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;white-space:nowrap}
+.deck-nav-item:hover{color:var(--fg)}
+.deck-nav-item.active{background:var(--primary-text);color:var(--bg);font-weight:500}
+.deck-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0;padding:11px 20px;border-top:1px solid var(--border);background:var(--bg)}
+.deck-arrow{font-weight:600;font-size:13px;line-height:1;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;cursor:pointer}
+.deck-arrow:disabled{opacity:.35;cursor:default}
+.deck-arrow:not(:disabled):hover{background:var(--panel)}
+.deck-dots{display:flex;align-items:center;gap:6px}
+.deck-dot{width:8px;height:8px;border-radius:999px;background:var(--border);border:none;cursor:pointer;padding:0}
+.deck-dot.active{background:var(--primary);width:20px;border-radius:5px}
+.deck-counter{font-size:12px;color:var(--muted-foreground);min-width:52px;text-align:center}
+mark.src-hl{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--fg);border-left:2px solid var(--warn);border-radius:0;padding:0 2px}
+h2{font-size:32px;line-height:1.15;letter-spacing:-.02em;margin:.1em 0 .5em;font-weight:700;color:var(--fg)}
+h4{margin:1.1em 0 .35em;font-size:17px;font-weight:600;color:var(--fg)}
+.subhead{font-size:20px;font-weight:600;margin:1.4em 0 .4em;color:var(--fg)}
+.kicker{font-size:14px;font-weight:600;letter-spacing:.02em;color:var(--primary-text);margin-bottom:6px}
+.sub{font-size:18px;line-height:1.55;color:var(--muted-foreground);margin:-.1em 0 1.3em;max-width:62ch}
+p{margin:.65em 0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul{margin:.6em 0;padding-left:0;list-style:none}
+ol{margin:.6em 0;padding-left:22px}
+li{margin:0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul>li{position:relative;padding-left:18px;margin:8px 0}
+ul>li::before{content:"";position:absolute;left:0;top:.62em;width:6px;height:6px;border-radius:50%;background:color-mix(in srgb,var(--primary-text) 70%,transparent)}
+ol>li{margin:8px 0}
+.tw{overflow-x:auto;margin:.8em 0}
+table{border-collapse:collapse;width:100%;font-size:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+th,td{border:none;border-bottom:1px solid var(--border);padding:10px 14px;text-align:left;vertical-align:top;color:var(--fg-body)}
+tbody tr:last-child td{border-bottom:none}
+thead th{background:var(--surface-3);font-weight:600;font-size:12px;letter-spacing:.02em;color:var(--muted-foreground)}
+table.kv th{background:none;width:30%;white-space:nowrap;font-weight:500;color:var(--muted-foreground)}
+.kpi{display:flex;flex-wrap:wrap;gap:12px;margin:.8em 0}
+.kpi-card{flex:1 1 160px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--panel)}
+.kpi-label{font-size:13px;color:var(--muted-foreground);margin-bottom:6px}
+.kpi-nums{display:flex;align-items:center;gap:8px;font-weight:700}
+.kpi-nums .base{color:var(--muted-foreground)}
+.kpi-nums .arrow{color:var(--primary)}
+.kpi-nums .target{color:var(--good)}
+.goals{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:.8em 0}
+.goal-col{border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+.goal-col.g{border-left:4px solid var(--good)}
+.goal-col.ng{border-left:4px solid var(--danger)}
+pre.code{background:var(--surface-3);color:var(--fg-body);border-radius:10px;padding:14px 16px;overflow-x:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;margin:.8em 0}
+/* mermaid 는 항상 라이트 카드에 그린다(테마 무관, pre.code 가 항상 다크인 것과 대칭) —
+   mermaid 렌더 테마를 다크로 다시 그리려면 이미 SVG 로 처리된 노드를 되돌려야 해서
+   토글마다 재처리가 필요해진다. 대신 다이어그램 카드 자체를 고정 라이트로 둬서
+   토글과 무관하게 항상 선명하게 읽힌다. */
+/* A figure, not a paragraph. The SVG now carries its natural width, so the
+   frame scrolls instead of shrinking it — a 1437px graph squeezed into an
+   840px column rendered its 16px labels at 7.7px, which was the single worst
+   readability defect in the deck. */
+/* Full bleed: the figure uses the whole reading area, not the 840px measure the
+   prose wants. A 1388px graph inside an 840px column left ~215px of dead gutter
+   on each side AND a scrollbar — the worst of both. */
+pre.mermaid{background:var(--surface-3);border:1px solid var(--border-strong);border-radius:10px;padding:14px;margin:1.1em 0;overflow-x:auto;text-align:left}
+@supports (width:100cqw){
+  pre.mermaid{
+    /* A 16px gutter, not the prose gutter. Text wants a comfortable measure; a
+       figure wants the glass. With the source panel open — which is the deck's
+       whole point and stays open — every pixel of the reading area counts. */
+    --bleed:calc(100cqw - 32px);
+    width:var(--bleed);
+    max-width:var(--bleed);
+    margin-inline:calc((100% - var(--bleed)) / 2);
+  }
+}
+/* Fit the frame when there is room; below 900px stop shrinking and scroll
+   instead. Scaling all the way down is what made 16px labels render at 7.7px,
+   and a scrollbar is better than text nobody can read. */
+pre.mermaid svg{max-width:100%;min-width:900px;height:auto}
+/* The diagram lives in a <pre>, whose UA default is white-space:pre, and that
+   inherits into every label. Mermaid sizes an edge label's box for TWO wrapped
+   lines (200x48.75) and the text then refused to wrap, so anything past 200px
+   was clipped mid-word — "BASE_REF, HEAD_REF, PR_TITLE" measured 230px of text
+   in a 200px box. Labels are prose, not preformatted text. */
+pre.mermaid foreignObject,pre.mermaid foreignObject *{white-space:normal}
+/* On a narrow window there is nothing to floor — let it fit rather than force
+   a scrollbar the reader cannot escape. */
+@media (max-width:900px){pre.mermaid svg{min-width:0}}
+pre.mermaid.mermaid-fallback{text-align:left;white-space:pre;overflow-x:auto;background:#0f1320;color:#e6e9f0;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:30px 16px 14px;position:relative}
+pre.mermaid.mermaid-fallback::before{content:"\29c9 \b2e4\c774\c5b4\adf8\b7a8 \c6d0\bcf8 (\c624\d504\b77c\c778 \b610\b294 CDN \bbf8\b85c\b4dc)";position:absolute;top:8px;left:16px;font:600 11px/1 -apple-system,sans-serif;color:var(--muted-foreground)}
+/* A tinted card, not a left rule — the reference's Callout. color-mix keeps one
+   hue per tone instead of a second hand-picked hex for the fill. */
+.callout{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:1em 0;background:var(--panel)}
+.callout-title{font-weight:600;font-size:16px;margin-bottom:4px;color:var(--fg)}
+.callout p,.callout li{font-size:14px;color:var(--fg-soft)}
+.callout.info{border-color:color-mix(in srgb,var(--primary-text) 30%,transparent);background:color-mix(in srgb,var(--primary-text) 10%,var(--bg))}
+.callout.good{border-color:color-mix(in srgb,var(--good) 30%,transparent);background:color-mix(in srgb,var(--good) 10%,var(--bg))}
+.callout.warn{border-color:color-mix(in srgb,var(--warn) 30%,transparent);background:color-mix(in srgb,var(--warn) 10%,var(--bg))}
+.callout.danger{border-color:color-mix(in srgb,var(--danger) 30%,transparent);background:color-mix(in srgb,var(--danger) 10%,var(--bg))}
+.callout.next{border-style:dashed;border-color:var(--border-strong);background:var(--surface-2)}
+.lint h2{color:var(--warn)}
+.lint-count{display:inline-block;background:var(--warn);color:var(--on-warn);border-radius:999px;font-size:12px;padding:1px 9px;vertical-align:middle}
+/* 화면목업(와이어프레임) 킷 — scv 자체 기본 스킨(2순위 폴백): DesignSystem 의 실제
+   다크 팔레트를 distill(무채색 표면 + 단일 로즈 악센트 + border-only depth + pill
+   배지, 글라스 없음 — DesignSystem 본체엔 글라스가 없다). 문서 자체의 라이트/다크
+   토글과는 독립적으로 항상 이 다크 스킨을 쓴다(--wf-* 로 스코프해 문서 테마 변수와
+   충돌하지 않음) — mermaid 카드를 항상 라이트로 고정하는 것과 같은 이유(재처리 없이
+   항상 또렷하게). 프로젝트 실제 토큰(1순위) 자동감지는 아직 없음 — 후속 작업.
+   버튼은 항상 disabled(정적 예시 그림이라 실제 인터랙션 없음). */
+.wf-screen{
+  margin:1em 0;
+  --wf-bg:#0a0a0b; --wf-fg:#fafafa; --wf-card:#1c1c1e; --wf-border:rgba(255,255,255,.1);
+  --wf-muted:#232326; --wf-muted-fg:#9a9a9f;
+  --wf-primary:#a53257; --wf-primary-fg:#fdf1f3;
+  --wf-success:#34d399; --wf-success-bg:rgba(16,185,129,.15); --wf-success-border:rgba(16,185,129,.4);
+  --wf-danger:#ef6b6b; --wf-danger-bg:rgba(239,107,107,.14);
+  --wf-info:#60a5fa; --wf-info-bg:rgba(96,165,250,.15);
+  --wf-warn:#e0ab48; --wf-warn-bg:rgba(224,171,72,.15);
+  --wf-radius:10px; --wf-radius-pill:999px;
+}
+.wf-chrome{display:flex;align-items:center;gap:7px;padding:9px 12px;border-bottom:1px solid var(--wf-border);background:var(--wf-card)}
+.wf-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;opacity:.7}
+.wf-dot-r{background:#fb2c36}.wf-dot-y{background:#fe9a00}.wf-dot-g{background:#00bc7d}
+.wf-url{margin-left:6px;padding:2px 8px;border-radius:5px;background:var(--wf-muted);color:var(--wf-muted-fg,var(--muted-foreground));font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wf-frame{border:1px solid var(--wf-border);border-radius:calc(var(--wf-radius) + 4px);background:var(--wf-bg);color:var(--wf-fg);overflow:hidden}
+.wf-nav{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--wf-border);background:var(--wf-bg);flex-wrap:wrap}
+.wf-nav-item{font-size:13px;color:var(--wf-muted-fg);padding:12px 11px;border-bottom:2px solid transparent}
+.wf-nav-item.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-primary)}
+.wf-body{padding:20px}
+.wf-header{margin-bottom:0}
+.wf-header-title{font-size:16px;font-weight:600;color:var(--wf-fg)}
+.wf-header-sub{font-size:12.5px;color:var(--wf-muted-fg);margin-top:3px}
+.wf-toolbar{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+.wf-tabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid var(--wf-border)}
+.wf-tab{font-size:12.5px;color:var(--wf-muted-fg);padding:7px 11px;border-bottom:2px solid transparent}
+.wf-tab.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-muted-fg)}
+.wf-btn{font-weight:500;font-size:12.5px;line-height:1;padding:8px 13px;border-radius:8px;border:1px solid transparent;background:var(--wf-muted);color:var(--wf-fg);cursor:default}
+.wf-btn-primary{background:var(--wf-primary);color:var(--wf-primary-fg)}
+.wf-btn-danger{background:var(--wf-danger-bg);color:var(--wf-danger)}
+.wf-input{display:inline-flex;align-items:center;font-size:12.5px;color:var(--wf-muted-fg);padding:8px 12px;border:1px solid var(--wf-border);border-radius:8px;background:var(--wf-card);min-width:120px}
+.wf-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.wf-table th,.wf-table td{border-bottom:1px solid var(--wf-border);padding:9px 10px;text-align:left}
+.wf-table th{color:var(--wf-muted-fg);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.02em}
+.wf-badge{display:inline-flex;align-items:center;height:20px;border-radius:var(--wf-radius-pill);padding:0 9px;font-size:10.5px;font-weight:500;border:1px solid transparent}
+.wf-badge-muted{background:var(--wf-muted);color:var(--wf-muted-fg);border-color:var(--wf-border)}
+.wf-badge-info{background:var(--wf-info-bg);color:var(--wf-info);border-color:rgba(96,165,250,.35)}
+.wf-badge-good{background:var(--wf-success-bg);color:var(--wf-success);border-color:var(--wf-success-border)}
+.wf-badge-warn{background:var(--wf-warn-bg);color:var(--wf-warn);border-color:rgba(224,171,72,.35)}
+.wf-badge-danger{background:var(--wf-danger-bg);color:var(--wf-danger);border-color:rgba(239,107,107,.35)}
+.wf-card{border-radius:var(--wf-radius);border:1px solid var(--wf-border);padding:14px 16px;margin-bottom:10px;background:var(--wf-card)}
+.wf-card-title{font-size:13px;font-weight:600;color:var(--wf-fg);margin-bottom:8px}
+.wf-list{list-style:none;margin:0;padding:0}
+.wf-list li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--wf-border);font-size:12.5px;color:var(--wf-fg)}
+.wf-list li:last-child{border-bottom:none}
+.wf-form{display:flex;flex-direction:column;gap:8px}
+.wf-field{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--wf-muted-fg)}
+.wf-text{font-size:12.5px;color:var(--wf-fg);margin:.3em 0}
+@media (max-width:900px){.source-panel{width:min(360px,44vw)}}
+@media (max-width:640px){.goals{grid-template-columns:1fr}nav.toc ol{columns:1}.shell{flex-direction:column;height:auto;overflow:visible}.scroll-main{overflow:visible}.source-panel{width:100%;height:60vh}}
+/* Paper is the one place the light values live. This is not a second theme the
+   reader can choose — @media print is unreachable on screen, persists nothing,
+   and shows no control. The screen deck stays dark only.
+   It has to redeclare the TOKENS, not just body: the old block set
+   background:#fff on body while every surface below it kept painting from
+   --bg, so the PDF was 20 pages of dark slabs on a white sheet. */
+@media print{
+  :root{
+    --bg:#ffffff; --panel:#f6f7f8; --surface-2:#fafafa; --surface-3:#f4f4f5;
+    --fg:#111418;                /* 17.74:1 on white */
+    --fg-body:#1c1f24;           /* 15.42:1 */
+    --fg-soft:#33373d;           /* 10.87:1 */
+    --muted-foreground:#565d6b;  /*  6.45:1 */
+    --border:rgba(0,0,0,.14); --border-strong:#8a8f98; --ring:#8a8f98;
+    --primary:#a50036;           /* the brand fill survives; white on it 7.58:1 */
+    --primary-text:#8f0030;      /*  8.75:1 on white — the light form of the rose */
+    --on-primary:#ffffff;
+    --good:#0f7a4d;              /*  5.24:1 */
+    --warn:#8a6100;              /*  5.40:1 */
+    --danger:#b32d1f;            /*  6.18:1 */
+    --on-warn:#fdf6e6;
+    --wf-bg:#ffffff; --wf-fg:#111418; --wf-card:#f6f6f7;
+    --wf-border:rgba(0,0,0,.16); --wf-muted:#f0f0f1; --wf-muted-fg:#565d6b;
+  }
+  @page{size:A4;margin:14mm 12mm}
+  body{background:#fff;display:block;height:auto}
+  .shell{display:block;height:auto;overflow:visible}
+  .shell-mid{display:block;overflow:visible}
+  .scroll-main{overflow:visible;height:auto}
+  .wrap{box-shadow:none;max-width:none;padding:0}
+  header.doc{position:static;border-bottom:1px solid var(--border);padding:0 0 8px}
+  .panel-toggle,.source-panel,.deck-nav,.deck-footer{display:none}
+  nav.toc{display:block;break-inside:avoid}
+  /* break-inside:avoid on a 3000px section dumps most of a page. Keep headings
+     with what follows and protect only the things that must not split. */
+  h2,h3,h4,.subhead{break-after:avoid}
+  figure,table,pre.code,.callout,.wf-screen{break-inside:avoid}
+  /* Paper cannot scroll, so a wide graph gets its own landscape sheet. */
+  @page dg{size:A4 landscape;margin:12mm}
+  pre.mermaid{page:dg;overflow:visible;break-inside:avoid;max-height:180mm}
+  pre.mermaid svg{max-width:100%;height:auto}
+  .print-source{display:block;break-before:page}
+  .print-source h3{margin-top:1.6em;font-size:14px}
+}
+</style>
+<style id="scv-mermaid-contrast">
+/* Diagram palette. static-mermaid.mjs strips the id-scoped rules, the
+   !important flags and the inline colour attributes first, so plain specificity
+   is enough here — before that, an author rule at (1,3,1) with !important still
+   lost to style="fill:#FFE082 !important" on a classDef node. */
+pre.mermaid .flowchart-link,pre.mermaid .edgePath .path,pre.mermaid path.flowchart-link{stroke:var(--fg-body);stroke-width:1.6px;fill:none}
+pre.mermaid .marker,pre.mermaid marker path,pre.mermaid .arrowMarkerPath{fill:var(--fg-body);stroke:var(--fg-body)}
+pre.mermaid .node rect,pre.mermaid .node circle,pre.mermaid .node polygon,pre.mermaid .node path{fill:var(--panel);stroke:var(--border-strong);stroke-width:1.2px}
+pre.mermaid .nodeLabel,pre.mermaid .nodeLabel p,pre.mermaid .label,pre.mermaid text{fill:var(--fg);color:var(--fg)}
+pre.mermaid .edgeLabel,pre.mermaid .edgeLabel p{background-color:var(--surface-3);color:var(--fg-body)}
+pre.mermaid .edgeLabel rect,pre.mermaid .labelBkg{fill:var(--surface-3);opacity:1}
+pre.mermaid .cluster rect{fill:var(--surface-2);stroke:var(--border-strong)}
+pre.mermaid .cluster text,pre.mermaid .cluster .nodeLabel{fill:var(--muted-foreground);color:var(--muted-foreground)}
+/* The two semantic highlights the protocol sanctions. Any other per-node colour
+   is stripped, so these are the only ones that survive — deck.md says so. */
+pre.mermaid .node.new rect,pre.mermaid g.new rect{fill:#5a4415;stroke:var(--warn);stroke-width:1.8px}
+pre.mermaid .node.new .nodeLabel,pre.mermaid g.new .nodeLabel{fill:#f6e8c8;color:#f6e8c8}
+pre.mermaid .node.changed rect,pre.mermaid g.changed rect{fill:#16324f;stroke:#6fb4f2;stroke-width:1.8px}
+pre.mermaid .node.changed .nodeLabel,pre.mermaid g.changed .nodeLabel{fill:#d9ecff;color:#d9ecff}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="doc"><h1>회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</h1><nav class="deck-nav"><button class="deck-nav-item active" data-idx="0" onclick="scvGoto(0)">1. Summary</button><button class="deck-nav-item" data-idx="1" onclick="scvGoto(1)">2. Goals / Non-Goals</button><button class="deck-nav-item" data-idx="2" onclick="scvGoto(2)">3. Approach Overview</button><button class="deck-nav-item" data-idx="3" onclick="scvGoto(3)">4. Guardrails</button><button class="deck-nav-item" data-idx="4" onclick="scvGoto(4)">5. Exit criteria</button><button class="deck-nav-item" data-idx="5" onclick="scvGoto(5)">6. Suggested path</button><button class="deck-nav-item" data-idx="6" onclick="scvGoto(6)">7. Related Documents</button><button class="deck-nav-item" data-idx="7" onclick="scvGoto(7)">8. Risks / Open Quest</button><button class="deck-nav-item" data-idx="8" onclick="scvGoto(8)">9. Links</button><button class="deck-nav-item" data-idx="9" onclick="scvGoto(9)">10. 📐 구조 · FEATURE_AR</button><button class="deck-nav-item" data-idx="10" onclick="scvGoto(10)">11. 1. Component data </button><button class="deck-nav-item" data-idx="11" onclick="scvGoto(11)">12. 2. Position in who</button><button class="deck-nav-item" data-idx="12" onclick="scvGoto(12)">13. ✅ 테스트 · 인수기준 (TEST</button><button class="deck-nav-item" data-idx="13" onclick="scvGoto(13)">14. Overview</button><button class="deck-nav-item" data-idx="14" onclick="scvGoto(14)">15. Test scenarios</button><button class="deck-nav-item" data-idx="15" onclick="scvGoto(15)">16. How to run</button><button class="deck-nav-item" data-idx="16" onclick="scvGoto(16)">17. Pass criteria</button><button class="deck-nav-item" data-idx="17" onclick="scvGoto(17)">18. Related Documents</button><button class="deck-nav-item" data-idx="18" onclick="scvGoto(18)">19. 품질 리포트</button></nav><div class="header-actions"><button class="panel-toggle" onclick="scvTogglePanel()" title="원문 패널 토글 (S)">기획서 원문 <span class="kbd">S</span></button></div></header>
+<div class="shell-mid">
+<div class="scroll-main">
+<div class="wrap">
+<nav class="toc"><h3>목차</h3><ol><li><a href="#s-0-summary">Summary</a></li><li><a href="#s-1-goals--non-goals">Goals / Non-Goals</a></li><li><a href="#s-2-approach-overview">Approach Overview</a></li><li><a href="#s-3-guardrails">Guardrails</a></li><li><a href="#s-4-exit-criteria">Exit criteria</a></li><li><a href="#s-5-suggested-path">Suggested path</a></li><li><a href="#s-6-related-documents">Related Documents</a></li><li><a href="#s-7-risks--open-questions">Risks / Open Questions</a></li><li><a href="#s-8-links">Links</a></li><li><a href="#s-9--구조--featurearchitecture">📐 구조 · FEATURE_ARCHITECTURE</a></li><li><a href="#s-10-1-component-data-flow">1. Component data flow</a></li><li><a href="#s-11-2-position-in-whole-architecture">2. Position in whole architecture</a></li><li><a href="#s-12--테스트--인수기준-tests">✅ 테스트 · 인수기준 (TESTS)</a></li><li><a href="#s-13-overview">Overview</a></li><li><a href="#s-14-test-scenarios">Test scenarios</a></li><li><a href="#s-15-how-to-run">How to run</a></li><li><a href="#s-16-pass-criteria">Pass criteria</a></li><li><a href="#s-17-related-documents">Related Documents</a></li></ol></nav>
+<section id="s-0-summary" class="slide-page active" data-idx="0"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>Summary</h2><p>회귀 러너는 시작할 때 "문서가 낡았나"를 한 번 확인하고, 같은 실행 안에서 중복
+확인을 막으려고 내부 표시(SCV_AUTOSYNC_RUNNING=1)를 켠다. 문제는 이 표시가
+러너가 실행하는 시험 대상(각 슬러그의 ## How to run)에까지 상속된다는 것 —
+autosync 훅 자체를 검증하는 계약이 러너 안에서만 죽는다 (러너 안 10/11 실패,
+깨끗한 환경 21/21). 러너가 시나리오를 실행할 때 그 표시 하나만 지우고 실행한다.</p></section>
+<section id="s-1-goals--non-goals" class="slide-page" data-idx="1"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>Goals / Non-Goals</h2><ul><li>Goals<ul><li>러너가 실행하는 시나리오의 환경에 SCV_AUTOSYNC_RUNNING이 존재하지 않는다.</li><li>20260818-wookiya1364-sync-autopilot 아카이브 계약이 러너 안에서 통과한다
+(누적 회귀 11/11 복원).</li><li>신규 스위트로 이 환경 위생 계약을 회귀로 고정한다.</li></ul></li><li>Non-Goals<ul><li>test-autosync.sh 등 스위트 쪽 방어 보강 — 스위트가 호출자의 누수를
+가려버리면 다른 곳의 같은 버그를 뒤늦게 발견하게 되므로 기각 (Risk에 맹점 기록).</li><li>core/scripts/lib/scvroot.sh 수정 — export 지점은 본래 목적대로 둔다.</li><li>러너의 다른 동작(스킵 그래프·판정·--ci·트리아지) 변경.</li></ul></li></ul></section>
+<section id="s-2-approach-overview" class="slide-page" data-idx="2"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>Approach Overview</h2><p>core/scripts/regression.sh의 시나리오 실행 지점에서, 자식 프로세스의 환경에서
+SCV_AUTOSYNC_RUNNING만 제거하고(env -u 상당) ## How to run을 실행한다.
+러너 프로세스 자신 안의 표시는 그대로라 재진입 방지는 살아 있고, 사용자가 직접
+설정한 다른 환경변수(SCV_AUTOSYNC=off 포함)는 전부 그대로 상속된다.
+비유: 건물 입구의 소독 완료 스티커는 유지하고, 방문객 이마에 붙이는 것만 멈춘다.</p></section>
+<section id="s-3-guardrails" class="slide-page" data-idx="3"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>Guardrails</h2><ul><li>수정 파일은 core/scripts/regression.sh (와 신규 테스트 스위트) 뿐이다.
+scvroot.sh·test-autosync.sh·아카이브된 TESTS 본문은 건드리지 않는다.</li><li>제거하는 환경변수는 SCV_AUTOSYNC_RUNNING 단 하나. 사용자 의도의 env
+(SCV_AUTOSYNC=off 등)는 시나리오에 그대로 전달한다.</li><li>러너 실행 자신의 재진입 방지(헬퍼 중복 체크 금지)는 유지한다.</li><li>--ci 비대화, supersede/obsolete 스킵 그래프, 성공·실패 판정 규칙 불변.</li><li>flaky 재시도 경로(--only &lt;slug&gt; 재귀 호출)에도 같은 위생이 적용되어야 한다.</li></ul></section>
+<section id="s-4-exit-criteria" class="slide-page" data-idx="4"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>Exit criteria</h2><ul><li>All TESTS.md scenarios pass</li><li>누적 회귀(무인자 실행)가 11/11 — sync-autopilot 계약이 러너 안에서 통과.</li><li>bash core/tests/test-autosync.sh 단독 실행이 무수정으로 계속 21/21.</li></ul></section>
+<section id="s-5-suggested-path" class="slide-page" data-idx="5"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>Suggested path</h2><ol><li>core/tests/test-regression-env.sh — TESTS.md 시나리오를 덮는 신규 스위트
+(TDD Red 확인 후 진행).</li><li>core/scripts/regression.sh — 시나리오 실행 지점에서 자식 환경의
+SCV_AUTOSYNC_RUNNING 제거.</li><li>누적 회귀 재실행 — 11/11 확인, 기존 스위트 전체 무손상 확인.</li></ol></section>
+<section id="s-6-related-documents" class="slide-page" data-idx="6"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>Related Documents</h2></section>
+<section id="s-7-risks--open-questions" class="slide-page" data-idx="7"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>Risks / Open Questions</h2><ul><li>스위트 맹점(의도된 채택): test-autosync.sh는 여전히 오염 환경에 취약하다.
+미래의 다른 호출자가 같은 플래그를 켠 채 스위트를 부르면 같은 오판이
+재발한다 — 그때는 그 호출자를 고친다.</li><li>부수 효과: 지금까지는 누수 때문에 시나리오 안의 autosync가 전부 눌려 있었다.
+누수를 걷어내면, 러너의 자체 autosync가 PARTIAL로 끝난 프로젝트에서 각
+시나리오가 새로고침을 재시도할 수 있다 (수렴 후에는 버전 일치로 무동작).
+구현 시 이 경로가 시나리오 출력을 오염시키지 않는지 확인한다.</li><li>regression.sh는 payload로 배포되므로 래퍼 전파는 다음 벤더링에 자동 포함.</li></ul></section>
+<section id="s-8-links" class="slide-page" data-idx="8"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>Links</h2><ul><li>Raw originals: (listed in frontmatter)</li><li>Related PRs:</li></ul></section>
+<section id="s-9--구조--featurearchitecture" class="slide-page" data-idx="9"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>📐 구조 · FEATURE_ARCHITECTURE</h2><div class="callout info"><div class="callout-title">참고</div><div>Two-diagram view of this feature. Review and edit before /scv:work —
+diagrams are LLM-generated and may have inaccuracies.</div></div></section>
+<section id="s-10-1-component-data-flow" class="slide-page" data-idx="10"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>1. Component data flow</h2><p>누수 인과 사슬과 이 계획이 끊는 지점.</p>
+<pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="806" height="780.375" class="scv-mmd" id="scv-mmd-1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 806 780.375" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePath .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}.scv-mmd .new&gt;*{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .new span{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .new tspan{fill:rgb(0, 0, 0);}</style><g><marker id="scv-mmd-1_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-1_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-1_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-1_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-1_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-1_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-1_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M334.857,86.75L324.131,92.948C313.405,99.146,291.952,111.542,281.226,123.271C270.5,135,270.5,146.063,270.5,151.594L270.5,157.125" id="scv-mmd-1-L_Runner_InitPaths_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Runner_InitPaths_0" data-points="W3sieCI6MzM0Ljg1NzE0Mjg1NzE0MjksInkiOjg2Ljc1fSx7IngiOjI3MC41LCJ5IjoxMjMuOTM3NX0seyJ4IjoyNzAuNSwieSI6MTYxLjEyNX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M270.5,215.5L270.5,221.698C270.5,227.896,270.5,240.292,270.5,252.021C270.5,263.75,270.5,274.813,270.5,280.344L270.5,285.875" id="scv-mmd-1-L_InitPaths_Autosync_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_InitPaths_Autosync_0" data-points="W3sieCI6MjcwLjUsInkiOjIxNS41fSx7IngiOjI3MC41LCJ5IjoyNTIuNjg3NX0seyJ4IjoyNzAuNSwieSI6Mjg5Ljg3NX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M218.813,368.625L205.344,378.885C191.875,389.146,164.938,409.667,151.469,429.521C138,449.375,138,468.563,138,478.156L138,487.75" id="scv-mmd-1-L_Autosync_Flag_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Autosync_Flag_0" data-points="W3sieCI6MjE4LjgxMjY5MzQ5ODQ1MiwieSI6MzY4LjYyNX0seyJ4IjoxMzgsInkiOjQzMC4xODc1fSx7IngiOjEzOCwieSI6NDkxLjc1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M138,570.5L138,580.76C138,591.021,138,611.542,164.315,631.825C190.629,652.109,243.258,672.155,269.573,682.178L295.887,692.201" id="scv-mmd-1-L_Flag_Scenario_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Flag_Scenario_0" data-points="W3sieCI6MTM4LCJ5Ijo1NzAuNX0seyJ4IjoxMzgsInkiOjYzMi4wNjI1fSx7IngiOjI5OS42MjUzODY5OTY5MDQsInkiOjY5My42MjV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M533,84.934L555.5,91.435C578,97.935,623,110.936,645.5,128.166C668,145.396,668,166.854,668,188.313C668,209.771,668,231.229,668,254.719C668,278.208,668,303.729,668,333.313C668,362.896,668,396.542,668,422.958C668,449.375,668,468.563,668,478.156L668,487.75" id="scv-mmd-1-L_Runner_CleanStep_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Runner_CleanStep_0" data-points="W3sieCI6NTMzLCJ5Ijo4NC45MzM5NjIyNjQxNTA5NX0seyJ4Ijo2NjgsInkiOjEyMy45Mzc1fSx7IngiOjY2OCwieSI6MTg4LjMxMjV9LHsieCI6NjY4LCJ5IjoyNTIuNjg3NX0seyJ4Ijo2NjgsInkiOjMyOS4yNX0seyJ4Ijo2NjgsInkiOjQzMC4xODc1fSx7IngiOjY2OCwieSI6NDkxLjc1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M668,570.5L668,580.76C668,591.021,668,611.542,641.685,631.825C615.371,652.109,562.742,672.155,536.427,682.178L510.113,692.201" id="scv-mmd-1-L_CleanStep_Scenario_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_CleanStep_Scenario_0" data-points="W3sieCI6NjY4LCJ5Ijo1NzAuNX0seyJ4Ijo2NjgsInkiOjYzMi4wNjI1fSx7IngiOjUwNi4zNzQ2MTMwMDMwOTYsInkiOjY5My42MjV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M403,693.625L403,683.365C403,673.104,403,652.583,403,625.5C403,598.417,403,564.771,403,531.125C403,497.479,403,463.833,390.062,437.154C377.123,410.475,351.246,390.762,338.308,380.905L325.369,371.049" id="scv-mmd-1-L_Scenario_Autosync_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Scenario_Autosync_0" data-points="W3sieCI6NDAzLCJ5Ijo2OTMuNjI1fSx7IngiOjQwMywieSI6NjMyLjA2MjV9LHsieCI6NDAzLCJ5Ijo1MzEuMTI1fSx7IngiOjQwMywieSI6NDMwLjE4NzV9LHsieCI6MzIyLjE4NzMwNjUwMTU0OCwieSI6MzY4LjYyNX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(270.5, 123.9375)"><g class="label" data-id="L_Runner_InitPaths_0" transform="translate(-87.609375, -12.1875)"><foreignObject width="175.21875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>scv_init_paths (실행 시작)</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(270.5, 252.6875)"><g class="label" data-id="L_InitPaths_Autosync_0" transform="translate(-63.2421875, -12.1875)"><foreignObject width="126.484375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>scv_autosync 호출</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(138, 430.1875)"><g class="label" data-id="L_Autosync_Flag_0" transform="translate(-102.2890625, -36.5625)"><foreignObject width="204.578125" height="73.125"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>export SCV_AUTOSYNC_RUNNING=1 (재진입 방지 — 유지)</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(138, 632.0625)"><g class="label" data-id="L_Flag_Scenario_0" transform="translate(-100, -24.375)"><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>자식 상속 누수 — 이 계획이 끊는 경로</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(668, 252.6875)"><g class="label" data-id="L_Runner_CleanStep_0" transform="translate(-50.40625, -12.1875)"><foreignObject width="100.8125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>슬러그마다 실행</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(668, 632.0625)"><g class="label" data-id="L_CleanStep_Scenario_0" transform="translate(-100, -36.5625)"><foreignObject width="200" height="73.125"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>SCV_AUTOSYNC_RUNNING 제외, 사용자 env 는 그대로 상속</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(403, 531.125)"><g class="label" data-id="L_Scenario_Autosync_0" transform="translate(-100, -24.375)"><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>시나리오 안의 scv_autosync 가 계약대로 동작 (무동작 아님)</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-1-flowchart-Runner-0" data-look="classic" transform="translate(403, 47.375)"><rect class="basic label-container"  x="-130" y="-39.375" width="260" height="78.75"></rect><g class="label"  transform="translate(-100, -24.375)"><rect></rect><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>core/scripts/regression.sh — 회귀 러너</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-1-flowchart-InitPaths-1" data-look="classic" transform="translate(270.5, 188.3125)"><rect class="basic label-container"  x="-80.7421875" y="-27.1875" width="161.484375" height="54.375"></rect><g class="label"  transform="translate(-50.7421875, -12.1875)"><rect></rect><foreignObject width="101.484375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>scv_init_paths</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-1-flowchart-Autosync-3" data-look="classic" transform="translate(270.5, 329.25)"><rect class="basic label-container"  x="-130" y="-39.375" width="260" height="78.75"></rect><g class="label"  transform="translate(-100, -24.375)"><rect></rect><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>scv_autosync — lib/scvroot.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-1-flowchart-Flag-5" data-look="classic" transform="translate(138, 531.125)"><rect class="basic label-container"  x="-130" y="-39.375" width="260" height="78.75"></rect><g class="label"  transform="translate(-100, -24.375)"><rect></rect><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>SCV_AUTOSYNC_RUNNING 내부 플래그</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-1-flowchart-Scenario-7" data-look="classic" transform="translate(403, 733)"><rect class="basic label-container"  x="-130" y="-39.375" width="260" height="78.75"></rect><g class="label"  transform="translate(-100, -24.375)"><rect></rect><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>각 슬러그의 How to run 자식 프로세스</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-1-flowchart-CleanStep-9" data-look="classic" transform="translate(668, 531.125)"><rect class="basic label-container" style="stroke-width:2px" x="-130" y="-39.375" width="260" height="78.75"></rect><g class="label"  transform="translate(-100, -24.375)"><rect></rect><foreignObject width="200" height="48.75"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>신규: 자식 환경에서 내부 플래그만 제거</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-1-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-1-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-1-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre></section>
+<section id="s-11-2-position-in-whole-architecture" class="slide-page" data-idx="11"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>2. Position in whole architecture</h2><p>Where this feature sits in the system. New components highlighted in yellow.</p>
+<div class="callout info"><div class="callout-title">참고</div><div>Source: graphify graph (built 2026-08-18)</div></div>
+<pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="1842.09375" height="230.21875" class="scv-mmd" id="scv-mmd-1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 1842.09375 230.21875" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePath .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}.scv-mmd .new&gt;*{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .new span{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .new tspan{fill:rgb(0, 0, 0);}</style><g><marker id="scv-mmd-1_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-1_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-1_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-1_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-1_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-1_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-1_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"></g><g class="edgeLabels"></g><g class="nodes"><g class="root" transform="translate(0, 44.921875)"><g class="clusters"><g class="cluster" id="scv-mmd-1-subGraph2" data-look="classic"><rect  x="8" y="8" width="286.625" height="124.375"></rect><g class="cluster-label" transform="translate(98.296875, 8)"><foreignObject width="106.03125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>문서-가드 일관성</p></span></div></foreignObject></g></g></g><g class="edgePaths"></g><g class="edgeLabels"></g><g class="nodes"><g class="node default" id="scv-mmd-1-flowchart-DocGuardTest-4" data-look="classic" transform="translate(151.3125, 70.1875)"><rect class="basic label-container"  x="-105.8125" y="-27.1875" width="211.625" height="54.375"></rect><g class="label"  transform="translate(-75.8125, -12.1875)"><rect></rect><foreignObject width="151.625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>문서-가드 일관성 테스트</p></span></div></foreignObject></g></g></g></g><g class="root" transform="translate(336.625, 44.921875)"><g class="clusters"><g class="cluster" id="scv-mmd-1-subGraph1" data-look="classic"><rect  x="8" y="8" width="306.171875" height="124.375"></rect><g class="cluster-label" transform="translate(115.484375, 8)"><foreignObject width="91.203125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>회귀 계약 보수</p></span></div></foreignObject></g></g></g><g class="edgePaths"></g><g class="edgeLabels"></g><g class="nodes"><g class="node default" id="scv-mmd-1-flowchart-Class1-3" data-look="classic" transform="translate(161.0859375, 70.1875)"><rect class="basic label-container"  x="-115.5859375" y="-27.1875" width="231.171875" height="54.375"></rect><g class="label"  transform="translate(-85.5859375, -12.1875)"><rect></rect><foreignObject width="171.171875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>부류 1 — 커밋 전 상태 단언</p></span></div></foreignObject></g></g></g></g><g class="root" transform="translate(692.796875, 0)"><g class="clusters"><g class="cluster" id="scv-mmd-1-subGraph0" data-look="classic"><rect  x="8" y="8" width="1133.296875" height="214.21875"></rect><g class="cluster-label" transform="translate(514.3046875, 8)"><foreignObject width="120.6875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>회귀 러너 env 누수</p></span></div></foreignObject></g></g></g><g class="edgePaths"><path d="M695.703,82.375L709.51,82.375C723.318,82.375,750.932,82.375,777.895,85.165C804.857,87.956,831.167,93.537,844.323,96.327L857.478,99.117" id="scv-mmd-1-L_FixDecision_EnvInheritance_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_FixDecision_EnvInheritance_0" data-points="W3sieCI6Njk1LjcwMzEyNSwieSI6ODIuMzc1fSx7IngiOjc3OC41NDY4NzUsInkiOjgyLjM3NX0seyJ4Ijo4NjEuMzkwNjI1LCJ5Ijo5OS45NDczMzk5NTcxMTc2OX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M305.5,96.817L316.35,94.41C327.201,92.003,348.901,87.189,369.935,84.782C390.969,82.375,411.336,82.375,421.52,82.375L431.703,82.375" id="scv-mmd-1-L_CleanStep_FixDecision_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_CleanStep_FixDecision_0" data-points="W3sieCI6MzA1LjUsInkiOjk2LjgxNzEwMzcyMjAxOTc4fSx7IngiOjM3MC42MDE1NjI1LCJ5Ijo4Mi4zNzV9LHsieCI6NDM1LjcwMzEyNSwieSI6ODIuMzc1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M305.5,154.495L316.35,156.902C327.201,159.309,348.901,164.123,392.268,166.53C435.635,168.938,500.669,168.938,568.66,168.938C636.651,168.938,707.599,168.938,756.228,166.147C804.857,163.357,831.167,157.776,844.323,154.986L857.478,152.195" id="scv-mmd-1-L_CleanStep_EnvInheritance_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_CleanStep_EnvInheritance_0" data-points="W3sieCI6MzA1LjUsInkiOjE1NC40OTUzOTYyNzc5ODAyfSx7IngiOjM3MC42MDE1NjI1LCJ5IjoxNjguOTM3NX0seyJ4Ijo1NjUuNzAzMTI1LCJ5IjoxNjguOTM3NX0seyJ4Ijo3NzguNTQ2ODc1LCJ5IjoxNjguOTM3NX0seyJ4Ijo4NjEuMzkwNjI1LCJ5IjoxNTEuMzY1MTYwMDQyODgyM31d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(778.546875, 82.375)"><g class="label" data-id="L_FixDecision_EnvInheritance_0" transform="translate(-45.34375, -12.1875)"><foreignObject width="90.6875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>rationale_for</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(370.6015625, 82.375)"><g class="label" data-id="L_CleanStep_FixDecision_0" transform="translate(-27.6015625, -12.1875)"><foreignObject width="55.203125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>구현한다</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(565.703125, 168.9375)"><g class="label" data-id="L_CleanStep_EnvInheritance_0" transform="translate(-20.703125, -12.1875)"><foreignObject width="41.40625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>끊는다</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-1-flowchart-EnvInheritance-0" data-look="classic" transform="translate(982.59375, 125.65625)"><rect class="basic label-container"  x="-121.203125" y="-27.1875" width="242.40625" height="54.375"></rect><g class="label"  transform="translate(-91.203125, -12.1875)"><rect></rect><foreignObject width="182.40625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>자식 프로세스 환경 상속 누수</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-1-flowchart-FixDecision-1" data-look="classic" transform="translate(565.703125, 82.375)"><rect class="basic label-container"  x="-130" y="-39.375" width="260" height="78.75"></rect><g class="label"  transform="translate(-100, -24.375)"><rect></rect><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>결정: 러너만 수정 — env -u 상당으로 내부 플래그 제거</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-1-flowchart-CleanStep-2" data-look="classic" transform="translate(175.5, 125.65625)"><rect class="basic label-container" style="stroke-width:2px" x="-130" y="-39.375" width="260" height="78.75"></rect><g class="label"  transform="translate(-100, -24.375)"><rect></rect><foreignObject width="200" height="48.75"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>신규: 시나리오 실행 전 플래그 제거 단계</p></span></div></foreignObject></g></g></g></g></g></g></g><defs><filter id="scv-mmd-1-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-1-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-1-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre></section>
+<section id="s-12--테스트--인수기준-tests" class="slide-page" data-idx="12"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>✅ 테스트 · 인수기준 (TESTS)</h2></section>
+<section id="s-13-overview" class="slide-page" data-idx="13"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>Overview</h2><p>러너가 시나리오를 깨끗한 환경에서 실행하는지, 그러면서 러너 자신의 재진입
+방지·사용자 env 통과·다른 계약이 전부 무손상인지를 검증한다. 픽스처는 실제
+hydrate된 임시 프로젝트에 가짜 아카이브 슬러그를 심어 러너를 실제로 돌린다
+(스텁 금지 — test-sync-dirty.sh 관례). 마지막으로 이 저장소의 진짜 아카이브
+계약(sync-autopilot)이 러너 안에서 통과하는지 직접 확인한다.</p></section>
+<section id="s-14-test-scenarios" class="slide-page" data-idx="14"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>Test scenarios</h2><h3 class="subhead">T1. 시나리오 환경에 러너의 내부 플래그가 없다</h3>
+<div class="tw"><table class="kv"><tbody><tr><th>Setup</th><td>hydrate된 픽스처 프로젝트의 scv/archive/에 가짜 슬러그를 만들고,
+그 TESTS.md의 ## How to run이 SCV_AUTOSYNC_RUNNING의 부재를 검사하게 한다
+([[ -z "${SCV_AUTOSYNC_RUNNING:-}" ]]).</td></tr><tr><th>Run</th><td>픽스처 프로젝트에서 러너 실행.</td></tr><tr><th>Expected</th><td>해당 슬러그 PASS.</td></tr><tr><th>Pass criterion</th><td>러너 요약에 FAILED_SLUGS: 0.</td></tr></tbody></table></div>
+<h3 class="subhead">T2. 사용자가 직접 설정한 환경변수는 시나리오에 전달된다</h3>
+<div class="tw"><table class="kv"><tbody><tr><th>Setup</th><td>가짜 슬러그의 ## How to run이 USER_CANARY=9f3a와
+SCV_AUTOSYNC=off의 존재를 검사한다.</td></tr><tr><th>Run</th><td>USER_CANARY=9f3a SCV_AUTOSYNC=off 환경으로 러너 실행.</td></tr><tr><th>Expected</th><td>해당 슬러그 PASS — 제거되는 것은 러너의 내부 플래그뿐이다.</td></tr><tr><th>Pass criterion</th><td>FAILED_SLUGS: 0.</td></tr></tbody></table></div>
+<h3 class="subhead">T3. 러너 자신의 autosync는 계약대로 수렴한다 (재진입 방지 유지)</h3>
+<div class="tw"><table class="kv"><tbody><tr><th>Setup</th><td>스탬프가 낡은(2.0.0) 픽스처 프로젝트 + 무해한 가짜 슬러그.</td></tr><tr><th>Run</th><td>같은 픽스처에서 러너를 2회 실행.</td></tr><tr><th>Expected</th><td>1차 실행 stderr에 새로고침 보고가 정확히 1회(헬퍼 중복 없음),
+스탬프 수렴. 2차 실행에는 새로고침 보고 없음(무동작).</td></tr><tr><th>Pass criterion</th><td>1차 'refreshed' 보고 1회 + 2차 0회 + 스탬프가 payload
+버전과 일치.</td></tr></tbody></table></div>
+<h3 class="subhead">T4. 진짜 계약이 러너 안에서 통과한다 — sync-autopilot</h3>
+<div class="tw"><table class="kv"><tbody><tr><th>Setup</th><td>이 저장소(scv-core) 자체. 별도 픽스처 없음.</td></tr><tr><th>Run</th><td>regression.sh --only 20260818-wookiya1364-sync-autopilot --quiet</td></tr><tr><th>Expected</th><td>PASS — 러너 안에서만 붉던 계약이 복원된다.</td></tr><tr><th>Pass criterion</th><td>러너 요약에 PASSED_SLUGS: 1, FAILED_SLUGS: 0.</td></tr></tbody></table></div>
+<h3 class="subhead">T5. --ci 비대화·판정 계약 불변</h3>
+<div class="tw"><table class="kv"><tbody><tr><th>Setup</th><td>(a) 전부 통과하는 가짜 슬러그 픽스처, (b) 실패하는 가짜 슬러그 픽스처.</td></tr><tr><th>Run</th><td>각 픽스처에서 --ci로 러너 실행 (stdin 차단).</td></tr><tr><th>Expected</th><td>(a) exit 0, (b) exit 2 — 어느 쪽도 질문·대기 없음.</td></tr><tr><th>Pass criterion</th><td>종료 코드 일치 + 입력 대기로 인한 타임아웃 없음.</td></tr></tbody></table></div>
+<h3 class="subhead">T6. 스위트·라이브러리 무수정 증명</h3>
+<div class="tw"><table class="kv"><tbody><tr><th>Setup</th><td>없음.</td></tr><tr><th>Run</th><td>bash core/tests/test-autosync.sh (깨끗한 환경, 단독 실행).</td></tr><tr><th>Expected</th><td>21/21 — 이 플랜이 스위트나 scvroot.sh를 건드리지 않았음을
+동작으로 증명한다.</td></tr><tr><th>Pass criterion</th><td>passed: 21 / failed: 0.</td></tr></tbody></table></div></section>
+<section id="s-15-how-to-run" class="slide-page" data-idx="15"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>How to run</h2><pre class="code"><code>bash core/tests/test-regression-env.sh</code></pre></section>
+<section id="s-16-pass-criteria" class="slide-page" data-idx="16"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>Pass criteria</h2><ul><li>T1~T6 전부 통과.</li><li>누적 회귀(무인자)가 11/11 (Exit criteria의 직접 확인 — T4가 그 핵심 슬러그).</li><li>기존 스위트 전체(35개) 무손상.</li></ul></section>
+<section id="s-17-related-documents" class="slide-page" data-idx="17"><div class="kicker">회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다</div><h2>Related Documents</h2></section>
+<section id="__lint" class="lint slide-page" data-idx="18"><h2>품질 리포트 <span class="lint-count">2</span></h2>
+     <p class="sub">원문에 없는 내용은 채우지 않음 — 전문 기획서가 보통 갖추는데 이 문서엔 빠진 항목입니다.</p>
+     <div class="callout warn"><div>성공지표(Metrics) 섹션이 없습니다 — baseline→target 지표를 권장합니다.</div></div><div class="callout warn"><div>예외처리(Edge cases) 섹션이 없습니다.</div></div></section>
+<section class="print-source"><h2>기획서 원문</h2><h3>PLAN.md</h3><pre class="code"><code>---
+title: 회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다
+slug: 20260818-wookiya1364-regression-runner-env-leak
+author: wookiya1364
+created_at: 2026-08-18
+status: planned
+kind: feature
+lang: korean
+tags: [regression, autosync, env, runner]
+raw_sources:
+  - scv/raw/20260818-wookiya1364-regression-runner-env-leak.md
+refs: []
+invariants:
+  - "러너 자신의 재진입 방지는 유지 — 한 번의 러너 실행 안에서 헬퍼들의 autosync 중복 체크 금지는 그대로"
+  - "아카이브된 TESTS 본문 무수정 — 수정은 러너 쪽에서만"
+  - "사용자가 직접 설정한 환경변수는 시나리오에 그대로 전달 — 제거 대상은 러너가 스스로 export한 내부 플래그뿐"
+  - "러너의 다른 계약 불변 — --ci 비대화, supersede/obsolete 스킵 그래프, 판정 규칙"
+---
+
+# 회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다
+
+## Summary
+
+회귀 러너는 시작할 때 "문서가 낡았나"를 한 번 확인하고, 같은 실행 안에서 중복
+확인을 막으려고 내부 표시(`SCV_AUTOSYNC_RUNNING=1`)를 켠다. 문제는 이 표시가
+러너가 실행하는 시험 대상(각 슬러그의 `## How to run`)에까지 상속된다는 것 —
+autosync 훅 자체를 검증하는 계약이 러너 안에서만 죽는다 (러너 안 10/11 실패,
+깨끗한 환경 21/21). 러너가 시나리오를 실행할 때 그 표시 하나만 지우고 실행한다.
+
+## Goals / Non-Goals
+
+- **Goals**
+  - 러너가 실행하는 시나리오의 환경에 `SCV_AUTOSYNC_RUNNING`이 존재하지 않는다.
+  - `20260818-wookiya1364-sync-autopilot` 아카이브 계약이 러너 안에서 통과한다
+    (누적 회귀 11/11 복원).
+  - 신규 스위트로 이 환경 위생 계약을 회귀로 고정한다.
+- **Non-Goals**
+  - test-autosync.sh 등 스위트 쪽 방어 보강 — 스위트가 호출자의 누수를
+    가려버리면 다른 곳의 같은 버그를 뒤늦게 발견하게 되므로 기각 (Risk에 맹점 기록).
+  - `core/scripts/lib/scvroot.sh` 수정 — export 지점은 본래 목적대로 둔다.
+  - 러너의 다른 동작(스킵 그래프·판정·--ci·트리아지) 변경.
+
+## Approach Overview
+
+`core/scripts/regression.sh`의 시나리오 실행 지점에서, 자식 프로세스의 환경에서
+`SCV_AUTOSYNC_RUNNING`만 제거하고(`env -u` 상당) `## How to run`을 실행한다.
+러너 프로세스 자신 안의 표시는 그대로라 재진입 방지는 살아 있고, 사용자가 직접
+설정한 다른 환경변수(`SCV_AUTOSYNC=off` 포함)는 전부 그대로 상속된다.
+비유: 건물 입구의 소독 완료 스티커는 유지하고, 방문객 이마에 붙이는 것만 멈춘다.
+
+## Guardrails
+
+- 수정 파일은 `core/scripts/regression.sh` (와 신규 테스트 스위트) 뿐이다.
+  `scvroot.sh`·`test-autosync.sh`·아카이브된 TESTS 본문은 건드리지 않는다.
+- 제거하는 환경변수는 `SCV_AUTOSYNC_RUNNING` 단 하나. 사용자 의도의 env
+  (`SCV_AUTOSYNC=off` 등)는 시나리오에 그대로 전달한다.
+- 러너 실행 자신의 재진입 방지(헬퍼 중복 체크 금지)는 유지한다.
+- `--ci` 비대화, supersede/obsolete 스킵 그래프, 성공·실패 판정 규칙 불변.
+- flaky 재시도 경로(`--only &lt;slug&gt;` 재귀 호출)에도 같은 위생이 적용되어야 한다.
+
+## Exit criteria
+
+- All TESTS.md scenarios pass
+- 누적 회귀(무인자 실행)가 11/11 — `sync-autopilot` 계약이 러너 안에서 통과.
+- `bash core/tests/test-autosync.sh` 단독 실행이 무수정으로 계속 21/21.
+
+## Suggested path
+
+1. `core/tests/test-regression-env.sh` — TESTS.md 시나리오를 덮는 신규 스위트
+   (TDD Red 확인 후 진행).
+2. `core/scripts/regression.sh` — 시나리오 실행 지점에서 자식 환경의
+   `SCV_AUTOSYNC_RUNNING` 제거.
+3. 누적 회귀 재실행 — 11/11 확인, 기존 스위트 전체 무손상 확인.
+
+## Related Documents
+
+## Risks / Open Questions
+
+- 스위트 맹점(의도된 채택): test-autosync.sh는 여전히 오염 환경에 취약하다.
+  미래의 다른 호출자가 같은 플래그를 켠 채 스위트를 부르면 같은 오판이
+  재발한다 — 그때는 그 호출자를 고친다.
+- 부수 효과: 지금까지는 누수 때문에 시나리오 안의 autosync가 전부 눌려 있었다.
+  누수를 걷어내면, 러너의 자체 autosync가 PARTIAL로 끝난 프로젝트에서 각
+  시나리오가 새로고침을 재시도할 수 있다 (수렴 후에는 버전 일치로 무동작).
+  구현 시 이 경로가 시나리오 출력을 오염시키지 않는지 확인한다.
+- `regression.sh`는 payload로 배포되므로 래퍼 전파는 다음 벤더링에 자동 포함.
+
+## Links
+
+- Raw originals: (listed in frontmatter)
+- Related PRs:</code></pre><h3>FEATURE_ARCHITECTURE.md</h3><pre class="code"><code>---
+title: 회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다
+slug: 20260818-wookiya1364-regression-runner-env-leak
+created_at: 2026-08-18
+status: planned
+---
+
+# Architecture — 회귀 러너의 autosync 가드 누수
+
+&gt; Two-diagram view of this feature. **Review and edit before `/scv:work`** —
+&gt; diagrams are LLM-generated and may have inaccuracies.
+
+## 1. Component data flow
+
+누수 인과 사슬과 이 계획이 끊는 지점.
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart TB
+  Runner[core/scripts/regression.sh — 회귀 러너] --&gt;|"scv_init_paths (실행 시작)"| InitPaths[scv_init_paths]
+  InitPaths --&gt;|"scv_autosync 호출"| Autosync[scv_autosync — lib/scvroot.sh]
+  Autosync --&gt;|"export SCV_AUTOSYNC_RUNNING=1 (재진입 방지 — 유지)"| Flag[SCV_AUTOSYNC_RUNNING 내부 플래그]
+  Flag -.-&gt;|"자식 상속 누수 — 이 계획이 끊는 경로"| Scenario[각 슬러그의 How to run 자식 프로세스]
+  Runner --&gt;|"슬러그마다 실행"| CleanStep[신규: 자식 환경에서 내부 플래그만 제거]:::new
+  CleanStep --&gt;|"SCV_AUTOSYNC_RUNNING 제외, 사용자 env 는 그대로 상속"| Scenario
+  Scenario --&gt;|"시나리오 안의 scv_autosync 가 계약대로 동작 (무동작 아님)"| Autosync
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```
+
+## 2. Position in whole architecture
+
+Where this feature sits in the system. New components highlighted in yellow.
+
+&gt; Source: graphify graph (built 2026-08-18)
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart TB
+  subgraph "회귀 러너 env 누수"
+    EnvInheritance[자식 프로세스 환경 상속 누수]
+    FixDecision[결정: 러너만 수정 — env -u 상당으로 내부 플래그 제거]
+    CleanStep[신규: 시나리오 실행 전 플래그 제거 단계]:::new
+  end
+  subgraph "회귀 계약 보수"
+    Class1[부류 1 — 커밋 전 상태 단언]
+  end
+  subgraph "문서-가드 일관성"
+    DocGuardTest[문서-가드 일관성 테스트]
+  end
+  FixDecision --&gt;|"rationale_for"| EnvInheritance
+  CleanStep -.-&gt;|"구현한다"| FixDecision
+  CleanStep -.-&gt;|"끊는다"| EnvInheritance
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```</code></pre><h3>TESTS.md</h3><pre class="code"><code># Test Plan — 회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다
+
+## Overview
+
+러너가 시나리오를 깨끗한 환경에서 실행하는지, 그러면서 러너 자신의 재진입
+방지·사용자 env 통과·다른 계약이 전부 무손상인지를 검증한다. 픽스처는 실제
+hydrate된 임시 프로젝트에 가짜 아카이브 슬러그를 심어 러너를 실제로 돌린다
+(스텁 금지 — test-sync-dirty.sh 관례). 마지막으로 이 저장소의 진짜 아카이브
+계약(sync-autopilot)이 러너 안에서 통과하는지 직접 확인한다.
+
+## Test scenarios
+
+### T1. 시나리오 환경에 러너의 내부 플래그가 없다
+
+- **Setup**: hydrate된 픽스처 프로젝트의 scv/archive/에 가짜 슬러그를 만들고,
+  그 TESTS.md의 `## How to run`이 `SCV_AUTOSYNC_RUNNING`의 부재를 검사하게 한다
+  (`[[ -z "${SCV_AUTOSYNC_RUNNING:-}" ]]`).
+- **Run**: 픽스처 프로젝트에서 러너 실행.
+- **Expected**: 해당 슬러그 PASS.
+- **Pass criterion**: 러너 요약에 FAILED_SLUGS: 0.
+
+### T2. 사용자가 직접 설정한 환경변수는 시나리오에 전달된다
+
+- **Setup**: 가짜 슬러그의 `## How to run`이 `USER_CANARY=9f3a`와
+  `SCV_AUTOSYNC=off`의 존재를 검사한다.
+- **Run**: `USER_CANARY=9f3a SCV_AUTOSYNC=off` 환경으로 러너 실행.
+- **Expected**: 해당 슬러그 PASS — 제거되는 것은 러너의 내부 플래그뿐이다.
+- **Pass criterion**: FAILED_SLUGS: 0.
+
+### T3. 러너 자신의 autosync는 계약대로 수렴한다 (재진입 방지 유지)
+
+- **Setup**: 스탬프가 낡은(2.0.0) 픽스처 프로젝트 + 무해한 가짜 슬러그.
+- **Run**: 같은 픽스처에서 러너를 2회 실행.
+- **Expected**: 1차 실행 stderr에 새로고침 보고가 정확히 1회(헬퍼 중복 없음),
+  스탬프 수렴. 2차 실행에는 새로고침 보고 없음(무동작).
+- **Pass criterion**: 1차 'refreshed' 보고 1회 + 2차 0회 + 스탬프가 payload
+  버전과 일치.
+
+### T4. 진짜 계약이 러너 안에서 통과한다 — sync-autopilot
+
+- **Setup**: 이 저장소(scv-core) 자체. 별도 픽스처 없음.
+- **Run**: `regression.sh --only 20260818-wookiya1364-sync-autopilot --quiet`
+- **Expected**: PASS — 러너 안에서만 붉던 계약이 복원된다.
+- **Pass criterion**: 러너 요약에 PASSED_SLUGS: 1, FAILED_SLUGS: 0.
+
+### T5. --ci 비대화·판정 계약 불변
+
+- **Setup**: (a) 전부 통과하는 가짜 슬러그 픽스처, (b) 실패하는 가짜 슬러그 픽스처.
+- **Run**: 각 픽스처에서 `--ci`로 러너 실행 (stdin 차단).
+- **Expected**: (a) exit 0, (b) exit 2 — 어느 쪽도 질문·대기 없음.
+- **Pass criterion**: 종료 코드 일치 + 입력 대기로 인한 타임아웃 없음.
+
+### T6. 스위트·라이브러리 무수정 증명
+
+- **Setup**: 없음.
+- **Run**: `bash core/tests/test-autosync.sh` (깨끗한 환경, 단독 실행).
+- **Expected**: 21/21 — 이 플랜이 스위트나 scvroot.sh를 건드리지 않았음을
+  동작으로 증명한다.
+- **Pass criterion**: passed: 21 / failed: 0.
+
+## How to run
+
+```bash
+bash core/tests/test-regression-env.sh
+```
+
+## Pass criteria
+
+- T1~T6 전부 통과.
+- 누적 회귀(무인자)가 11/11 (Exit criteria의 직접 확인 — T4가 그 핵심 슬러그).
+- 기존 스위트 전체(35개) 무손상.
+
+## Related Documents</code></pre></section>
+</div>
+</div>
+<aside class="source-panel" id="scvSourcePanel">
+      <div class="panel-resize-handle" id="scvResizeHandle" title="드래그해서 크기 조절"></div>
+      <div class="panel-head"><span class="panel-title">기획서 원문</span><button class="panel-close" onclick="scvTogglePanel()" title="숨기기 (S)">✕</button></div>
+      <div class="panel-tabs"><button class="panel-tab active" data-idx="0" onclick="scvSelectSource(0)">PLAN.md</button><button class="panel-tab" data-idx="1" onclick="scvSelectSource(1)">FEATURE_ARCHITECTURE.md</button><button class="panel-tab" data-idx="2" onclick="scvSelectSource(2)">TESTS.md</button></div>
+      <div class="panel-body"><pre class="code src-doc active" data-idx="0"><code>---
+title: 회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다
+slug: 20260818-wookiya1364-regression-runner-env-leak
+author: wookiya1364
+created_at: 2026-08-18
+status: planned
+kind: feature
+lang: korean
+tags: [regression, autosync, env, runner]
+raw_sources:
+  - scv/raw/20260818-wookiya1364-regression-runner-env-leak.md
+refs: []
+invariants:
+  - "러너 자신의 재진입 방지는 유지 — 한 번의 러너 실행 안에서 헬퍼들의 autosync 중복 체크 금지는 그대로"
+  - "아카이브된 TESTS 본문 무수정 — 수정은 러너 쪽에서만"
+  - "사용자가 직접 설정한 환경변수는 시나리오에 그대로 전달 — 제거 대상은 러너가 스스로 export한 내부 플래그뿐"
+  - "러너의 다른 계약 불변 — --ci 비대화, supersede/obsolete 스킵 그래프, 판정 규칙"
+---
+
+# 회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다
+
+<mark class="src-hl">## Summary
+
+회귀 러너는 시작할 때 "문서가 낡았나"를 한 번 확인하고, 같은 실행 안에서 중복
+확인을 막으려고 내부 표시(`SCV_AUTOSYNC_RUNNING=1`)를 켠다. 문제는 이 표시가
+러너가 실행하는 시험 대상(각 슬러그의 `## How to run`)에까지 상속된다는 것 —
+autosync 훅 자체를 검증하는 계약이 러너 안에서만 죽는다 (러너 안 10/11 실패,
+깨끗한 환경 21/21). 러너가 시나리오를 실행할 때 그 표시 하나만 지우고 실행한다.
+</mark>
+## Goals / Non-Goals
+
+- **Goals**
+  - 러너가 실행하는 시나리오의 환경에 `SCV_AUTOSYNC_RUNNING`이 존재하지 않는다.
+  - `20260818-wookiya1364-sync-autopilot` 아카이브 계약이 러너 안에서 통과한다
+    (누적 회귀 11/11 복원).
+  - 신규 스위트로 이 환경 위생 계약을 회귀로 고정한다.
+- **Non-Goals**
+  - test-autosync.sh 등 스위트 쪽 방어 보강 — 스위트가 호출자의 누수를
+    가려버리면 다른 곳의 같은 버그를 뒤늦게 발견하게 되므로 기각 (Risk에 맹점 기록).
+  - `core/scripts/lib/scvroot.sh` 수정 — export 지점은 본래 목적대로 둔다.
+  - 러너의 다른 동작(스킵 그래프·판정·--ci·트리아지) 변경.
+
+## Approach Overview
+
+`core/scripts/regression.sh`의 시나리오 실행 지점에서, 자식 프로세스의 환경에서
+`SCV_AUTOSYNC_RUNNING`만 제거하고(`env -u` 상당) `## How to run`을 실행한다.
+러너 프로세스 자신 안의 표시는 그대로라 재진입 방지는 살아 있고, 사용자가 직접
+설정한 다른 환경변수(`SCV_AUTOSYNC=off` 포함)는 전부 그대로 상속된다.
+비유: 건물 입구의 소독 완료 스티커는 유지하고, 방문객 이마에 붙이는 것만 멈춘다.
+
+## Guardrails
+
+- 수정 파일은 `core/scripts/regression.sh` (와 신규 테스트 스위트) 뿐이다.
+  `scvroot.sh`·`test-autosync.sh`·아카이브된 TESTS 본문은 건드리지 않는다.
+- 제거하는 환경변수는 `SCV_AUTOSYNC_RUNNING` 단 하나. 사용자 의도의 env
+  (`SCV_AUTOSYNC=off` 등)는 시나리오에 그대로 전달한다.
+- 러너 실행 자신의 재진입 방지(헬퍼 중복 체크 금지)는 유지한다.
+- `--ci` 비대화, supersede/obsolete 스킵 그래프, 성공·실패 판정 규칙 불변.
+- flaky 재시도 경로(`--only &lt;slug&gt;` 재귀 호출)에도 같은 위생이 적용되어야 한다.
+
+## Exit criteria
+
+- All TESTS.md scenarios pass
+- 누적 회귀(무인자 실행)가 11/11 — `sync-autopilot` 계약이 러너 안에서 통과.
+- `bash core/tests/test-autosync.sh` 단독 실행이 무수정으로 계속 21/21.
+
+## Suggested path
+
+1. `core/tests/test-regression-env.sh` — TESTS.md 시나리오를 덮는 신규 스위트
+   (TDD Red 확인 후 진행).
+2. `core/scripts/regression.sh` — 시나리오 실행 지점에서 자식 환경의
+   `SCV_AUTOSYNC_RUNNING` 제거.
+3. 누적 회귀 재실행 — 11/11 확인, 기존 스위트 전체 무손상 확인.
+
+## Related Documents
+
+## Risks / Open Questions
+
+- 스위트 맹점(의도된 채택): test-autosync.sh는 여전히 오염 환경에 취약하다.
+  미래의 다른 호출자가 같은 플래그를 켠 채 스위트를 부르면 같은 오판이
+  재발한다 — 그때는 그 호출자를 고친다.
+- 부수 효과: 지금까지는 누수 때문에 시나리오 안의 autosync가 전부 눌려 있었다.
+  누수를 걷어내면, 러너의 자체 autosync가 PARTIAL로 끝난 프로젝트에서 각
+  시나리오가 새로고침을 재시도할 수 있다 (수렴 후에는 버전 일치로 무동작).
+  구현 시 이 경로가 시나리오 출력을 오염시키지 않는지 확인한다.
+- `regression.sh`는 payload로 배포되므로 래퍼 전파는 다음 벤더링에 자동 포함.
+
+## Links
+
+- Raw originals: (listed in frontmatter)
+- Related PRs:</code></pre><pre class="code src-doc" data-idx="1"><code>---
+title: 회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다
+slug: 20260818-wookiya1364-regression-runner-env-leak
+created_at: 2026-08-18
+status: planned
+---
+
+# Architecture — 회귀 러너의 autosync 가드 누수
+
+&gt; Two-diagram view of this feature. **Review and edit before `/scv:work`** —
+&gt; diagrams are LLM-generated and may have inaccuracies.
+
+## 1. Component data flow
+
+누수 인과 사슬과 이 계획이 끊는 지점.
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart TB
+  Runner[core/scripts/regression.sh — 회귀 러너] --&gt;|"scv_init_paths (실행 시작)"| InitPaths[scv_init_paths]
+  InitPaths --&gt;|"scv_autosync 호출"| Autosync[scv_autosync — lib/scvroot.sh]
+  Autosync --&gt;|"export SCV_AUTOSYNC_RUNNING=1 (재진입 방지 — 유지)"| Flag[SCV_AUTOSYNC_RUNNING 내부 플래그]
+  Flag -.-&gt;|"자식 상속 누수 — 이 계획이 끊는 경로"| Scenario[각 슬러그의 How to run 자식 프로세스]
+  Runner --&gt;|"슬러그마다 실행"| CleanStep[신규: 자식 환경에서 내부 플래그만 제거]:::new
+  CleanStep --&gt;|"SCV_AUTOSYNC_RUNNING 제외, 사용자 env 는 그대로 상속"| Scenario
+  Scenario --&gt;|"시나리오 안의 scv_autosync 가 계약대로 동작 (무동작 아님)"| Autosync
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```
+
+## 2. Position in whole architecture
+
+Where this feature sits in the system. New components highlighted in yellow.
+
+&gt; Source: graphify graph (built 2026-08-18)
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart TB
+  subgraph "회귀 러너 env 누수"
+    EnvInheritance[자식 프로세스 환경 상속 누수]
+    FixDecision[결정: 러너만 수정 — env -u 상당으로 내부 플래그 제거]
+    CleanStep[신규: 시나리오 실행 전 플래그 제거 단계]:::new
+  end
+  subgraph "회귀 계약 보수"
+    Class1[부류 1 — 커밋 전 상태 단언]
+  end
+  subgraph "문서-가드 일관성"
+    DocGuardTest[문서-가드 일관성 테스트]
+  end
+  FixDecision --&gt;|"rationale_for"| EnvInheritance
+  CleanStep -.-&gt;|"구현한다"| FixDecision
+  CleanStep -.-&gt;|"끊는다"| EnvInheritance
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```</code></pre><pre class="code src-doc" data-idx="2"><code># Test Plan — 회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다
+
+## Overview
+
+러너가 시나리오를 깨끗한 환경에서 실행하는지, 그러면서 러너 자신의 재진입
+방지·사용자 env 통과·다른 계약이 전부 무손상인지를 검증한다. 픽스처는 실제
+hydrate된 임시 프로젝트에 가짜 아카이브 슬러그를 심어 러너를 실제로 돌린다
+(스텁 금지 — test-sync-dirty.sh 관례). 마지막으로 이 저장소의 진짜 아카이브
+계약(sync-autopilot)이 러너 안에서 통과하는지 직접 확인한다.
+
+## Test scenarios
+
+### T1. 시나리오 환경에 러너의 내부 플래그가 없다
+
+- **Setup**: hydrate된 픽스처 프로젝트의 scv/archive/에 가짜 슬러그를 만들고,
+  그 TESTS.md의 `## How to run`이 `SCV_AUTOSYNC_RUNNING`의 부재를 검사하게 한다
+  (`[[ -z "${SCV_AUTOSYNC_RUNNING:-}" ]]`).
+- **Run**: 픽스처 프로젝트에서 러너 실행.
+- **Expected**: 해당 슬러그 PASS.
+- **Pass criterion**: 러너 요약에 FAILED_SLUGS: 0.
+
+### T2. 사용자가 직접 설정한 환경변수는 시나리오에 전달된다
+
+- **Setup**: 가짜 슬러그의 `## How to run`이 `USER_CANARY=9f3a`와
+  `SCV_AUTOSYNC=off`의 존재를 검사한다.
+- **Run**: `USER_CANARY=9f3a SCV_AUTOSYNC=off` 환경으로 러너 실행.
+- **Expected**: 해당 슬러그 PASS — 제거되는 것은 러너의 내부 플래그뿐이다.
+- **Pass criterion**: FAILED_SLUGS: 0.
+
+### T3. 러너 자신의 autosync는 계약대로 수렴한다 (재진입 방지 유지)
+
+- **Setup**: 스탬프가 낡은(2.0.0) 픽스처 프로젝트 + 무해한 가짜 슬러그.
+- **Run**: 같은 픽스처에서 러너를 2회 실행.
+- **Expected**: 1차 실행 stderr에 새로고침 보고가 정확히 1회(헬퍼 중복 없음),
+  스탬프 수렴. 2차 실행에는 새로고침 보고 없음(무동작).
+- **Pass criterion**: 1차 'refreshed' 보고 1회 + 2차 0회 + 스탬프가 payload
+  버전과 일치.
+
+### T4. 진짜 계약이 러너 안에서 통과한다 — sync-autopilot
+
+- **Setup**: 이 저장소(scv-core) 자체. 별도 픽스처 없음.
+- **Run**: `regression.sh --only 20260818-wookiya1364-sync-autopilot --quiet`
+- **Expected**: PASS — 러너 안에서만 붉던 계약이 복원된다.
+- **Pass criterion**: 러너 요약에 PASSED_SLUGS: 1, FAILED_SLUGS: 0.
+
+### T5. --ci 비대화·판정 계약 불변
+
+- **Setup**: (a) 전부 통과하는 가짜 슬러그 픽스처, (b) 실패하는 가짜 슬러그 픽스처.
+- **Run**: 각 픽스처에서 `--ci`로 러너 실행 (stdin 차단).
+- **Expected**: (a) exit 0, (b) exit 2 — 어느 쪽도 질문·대기 없음.
+- **Pass criterion**: 종료 코드 일치 + 입력 대기로 인한 타임아웃 없음.
+
+### T6. 스위트·라이브러리 무수정 증명
+
+- **Setup**: 없음.
+- **Run**: `bash core/tests/test-autosync.sh` (깨끗한 환경, 단독 실행).
+- **Expected**: 21/21 — 이 플랜이 스위트나 scvroot.sh를 건드리지 않았음을
+  동작으로 증명한다.
+- **Pass criterion**: passed: 21 / failed: 0.
+
+## How to run
+
+```bash
+bash core/tests/test-regression-env.sh
+```
+
+## Pass criteria
+
+- T1~T6 전부 통과.
+- 누적 회귀(무인자)가 11/11 (Exit criteria의 직접 확인 — T4가 그 핵심 슬러그).
+- 기존 스위트 전체(35개) 무손상.
+
+## Related Documents</code></pre></div>
+    </aside>
+</div>
+<div class="deck-footer">
+      <button class="deck-arrow" id="scvPrev" disabled="" onclick="scvGoto(scvIdx()-1)">‹ 이전</button>
+      <div class="deck-dots"><button class="deck-dot active" data-idx="0" onclick="scvGoto(0)" aria-label="1"></button><button class="deck-dot" data-idx="1" onclick="scvGoto(1)" aria-label="2"></button><button class="deck-dot" data-idx="2" onclick="scvGoto(2)" aria-label="3"></button><button class="deck-dot" data-idx="3" onclick="scvGoto(3)" aria-label="4"></button><button class="deck-dot" data-idx="4" onclick="scvGoto(4)" aria-label="5"></button><button class="deck-dot" data-idx="5" onclick="scvGoto(5)" aria-label="6"></button><button class="deck-dot" data-idx="6" onclick="scvGoto(6)" aria-label="7"></button><button class="deck-dot" data-idx="7" onclick="scvGoto(7)" aria-label="8"></button><button class="deck-dot" data-idx="8" onclick="scvGoto(8)" aria-label="9"></button><button class="deck-dot" data-idx="9" onclick="scvGoto(9)" aria-label="10"></button><button class="deck-dot" data-idx="10" onclick="scvGoto(10)" aria-label="11"></button><button class="deck-dot" data-idx="11" onclick="scvGoto(11)" aria-label="12"></button><button class="deck-dot" data-idx="12" onclick="scvGoto(12)" aria-label="13"></button><button class="deck-dot" data-idx="13" onclick="scvGoto(13)" aria-label="14"></button><button class="deck-dot" data-idx="14" onclick="scvGoto(14)" aria-label="15"></button><button class="deck-dot" data-idx="15" onclick="scvGoto(15)" aria-label="16"></button><button class="deck-dot" data-idx="16" onclick="scvGoto(16)" aria-label="17"></button><button class="deck-dot" data-idx="17" onclick="scvGoto(17)" aria-label="18"></button><button class="deck-dot" data-idx="18" onclick="scvGoto(18)" aria-label="19"></button></div>
+      <span class="deck-counter" id="scvCounter">1 / 19</span>
+      <button class="deck-arrow" id="scvNext" onclick="scvGoto(scvIdx()+1)">다음 ›</button>
+    </div>
+</div>
+
+<script>
+  var SCV_ANCHORS = ["Summary","Goals / Non-Goals","Approach Overview","Guardrails","Exit criteria","Suggested path","Related Documents","Risks / Open Questions","Links","📐 구조 · FEATURE_ARCHITECTURE","1. Component data flow","2. Position in whole architecture","✅ 테스트 · 인수기준 (TESTS)","Overview","Test scenarios","How to run","Pass criteria","Related Documents",null];
+  var scvPageIdx = 0;
+  function scvIdx(){ return scvPageIdx; }
+  function scvEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function scvHighlight(anchor){
+    var docs = document.querySelectorAll('.src-doc');
+    docs.forEach(function(el){
+      var code = el.querySelector('code');
+      if(code) code.innerHTML = scvEsc(code.textContent);
+    });
+    if(!anchor) return;
+    for (var i=0;i<docs.length;i++){
+      var code = docs[i].querySelector('code');
+      if(!code) continue;
+      var raw = code.textContent;
+      var lines = raw.split('\n');
+      var start=-1, end=lines.length;
+      for (var j=0;j<lines.length;j++){
+        var m = lines[j].match(/^#{1,6}\s+(.*)$/);
+        if (m && m[1].trim() === String(anchor).trim()) { start = j; break; }
+      }
+      if (start < 0) continue;
+      for (var k=start+1;k<lines.length;k++){ if (/^#{1,6}\s+/.test(lines[k])) { end = k; break; } }
+      var before = lines.slice(0,start).join('\n'), hl = lines.slice(start,end).join('\n'), after = lines.slice(end).join('\n');
+      code.innerHTML = scvEsc(before) + (before ? '\n' : '') + '<mark class="src-hl">' + scvEsc(hl) + '</mark>' + (after ? '\n' + scvEsc(after) : '');
+      if (typeof scvSelectSource === 'function') scvSelectSource(i);
+      var markEl = docs[i].querySelector('mark.src-hl');
+      if (markEl && markEl.scrollIntoView) markEl.scrollIntoView({ block: 'center' });
+      return;
+    }
+  }
+  function scvGoto(n){
+    var total = 19;
+    n = Math.max(0, Math.min(total - 1, n));
+    scvPageIdx = n;
+    document.querySelectorAll('.slide-page').forEach(function(p){ p.classList.toggle('active', p.dataset.idx === String(n)); });
+    document.querySelectorAll('.deck-nav-item').forEach(function(el){
+      var on = el.dataset.idx === String(n);
+      el.classList.toggle('active', on);
+      // The nav is one scrolling row now, so the active pill can sit past the
+      // right edge. Scroll the STRIP, not the page — scrollIntoView on the
+      // element would also scroll .scroll-main and lose the reader's place.
+      if (on && el.parentElement) {
+        var strip = el.parentElement;
+        var left = el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2;
+        strip.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+      }
+    });
+    document.querySelectorAll('.deck-dot').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
+    if (typeof window.scvRunMermaid === 'function') { try { window.scvRunMermaid(); } catch (e) {} }
+    var prevBtn = document.getElementById('scvPrev'), nextBtn = document.getElementById('scvNext'), counter = document.getElementById('scvCounter');
+    if (prevBtn) prevBtn.disabled = (n === 0);
+    if (nextBtn) nextBtn.disabled = (n === total - 1);
+    if (counter) counter.textContent = (n + 1) + ' / ' + total;
+    scvHighlight(SCV_ANCHORS[n]);
+    var main = document.querySelector('.scroll-main');
+    if (main) main.scrollTop = 0;
+  }
+  function scvTogglePanel(){ var p=document.getElementById('scvSourcePanel'); if(p) p.classList.toggle('closed'); }
+  function scvSelectSource(i){
+    document.querySelectorAll('.panel-tab').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+    document.querySelectorAll('.src-doc').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+  }
+  (function(){
+    // 패널 좌측 경계 드래그 리사이즈 — 원본 SourcePanel 과 같은 산식(최소 320px,
+    // 본문에 최소 420px 남김).
+    var handle = document.getElementById('scvResizeHandle');
+    var panel = document.getElementById('scvSourcePanel');
+    if (!handle || !panel) return;
+    var MOBILE_BP = 640;
+    handle.addEventListener('mousedown', function(e){
+      e.preventDefault();
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+      function onMove(ev){
+        // 버튼을 놓친 채(창 밖 등) mouseup 을 못 받은 경우 — 버튼이 눌려있지 않으면 즉시 정리.
+        if (ev.buttons === 0) { onUp(); return; }
+        var raw = window.innerWidth - ev.clientX;
+        var max = Math.max(320, window.innerWidth - 420);
+        panel.style.width = Math.min(max, Math.max(320, raw)) + 'px';
+      }
+      function onUp(){
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        window.removeEventListener('blur', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('blur', onUp);
+    });
+    // 인라인 width 는 스타일시트의 반응형 브레이크포인트(640px 모바일 전체폭·900px 좁은폭)
+    // 보다 항상 우선한다 — 창 크기가 바뀔 때마다 다시 맞춰줘야 브레이크포인트가 살아난다.
+    window.addEventListener('resize', function(){
+      if (!panel.style.width) return;
+      if (window.innerWidth <= MOBILE_BP) { panel.style.width = ''; return; }
+      var max = Math.max(320, window.innerWidth - 420);
+      if (parseFloat(panel.style.width) > max) panel.style.width = max + 'px';
+    });
+  })();
+  document.addEventListener('keydown', function(e){
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') scvGoto(scvIdx() + 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') scvGoto(scvIdx() - 1);
+    else if (e.key === 'Home') scvGoto(0);
+    else if (e.key === 'End') scvGoto(19 - 1);
+    else if (e.key === 's' || e.key === 'S') scvTogglePanel();
+  });
+  scvGoto(0);
+</script>
+
+
+
+<div class="mermaidTooltip" style="opacity: 0; position: absolute; text-align: center; max-width: 200px; padding: 2px; font-size: 12px; background: rgb(255, 255, 222); border: 1px solid rgb(51, 51, 51); border-radius: 2px; pointer-events: none; z-index: 100;"></div></body></html>
