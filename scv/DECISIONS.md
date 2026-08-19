@@ -423,6 +423,38 @@ merge_policy: preserve
   T10 으로 고정.
 - refs: scv/archive/20260818-wookiya1364-effort-governor/PLAN.md
 
+## [2026-08-18 16:20] wookiya1364 — .env.example.scv 자동 최신화 — root 불가침의 명명된 예외
+
+- verdict: adopted
+- why: 옛날에 hydrate 한 프로젝트가 SCV_EFFORT_MODE 같은 새 .env 옵션의 문서
+  블록을 영영 못 받는 전파 공백. 예시 파일은 실사용 설정(.env)과 분리돼 있어
+  손실 표면이 작고, 0.28.0 의 HEAD 대조·DIRTY 거부 장치를 그대로 재사용하면
+  "git 이력이 유일한 복구 경로" 결정과도 일관된다. 무조건 최신 + autosync
+  자동 전파, 별도 마이그레이션 명령 없음.
+- discarded alternatives:
+  - /scv:help 진단이 구버전을 감지해 갱신 안내만: 발견 문제는 해결 못 하고
+    사용자 행동에 의존 — 강제 마이그레이션 결정에 미달.
+  - sync 가 차이를 감지해 비파괴 공지만: 같은 이유로 기각.
+  - 있는 파일만 갱신(부재 시 방치): 삭제로 예외를 회피하는 경로가 열리고
+    "무조건 최신" 결정과 어긋남 — 재생성으로 확정.
+  - 이 파일만 스탬프 예외 전진(거부 시 조용히 넘어감): 거부가 재시도되지 않아
+    낡은 파일이 영영 방치되는 false-convergence — 0.28.0 이 막은 바로 그 구멍.
+- refs: scv/promote/20260818-wookiya1364-env-example-autorefresh/PLAN.md
+
+## [2026-08-18 16:40] wookiya1364 — env-example-autorefresh archived
+
+- verdict: archived
+- why: sync 가 루트 .env.example.scv 를 최신 템플릿으로 갱신한다 — root 불가침의
+  단 하나 명명된 예외. 새 코드는 정책 case 한 줄과 process_template_file 호출
+  하나뿐, 거부·재생성·심볼링크 스킵·스탬프 게이트는 전부 기존 장치가 그대로
+  일했다. 앞으로 깨지면 안 되는 것: .env 불가침, 예외의 단일성(다른 루트 파일
+  확장 금지), 거부 시 스탬프 미전진.
+- path delta: as planned — Red 13건 → Green 1회 반복 23/23. 누적 회귀에서
+  sync-autopilot 계약이 러너 안에서만 붉었고, 원인은 이 변경이 아니라
+  regression.sh 가 scv_init_paths 를 타며 export 한 SCV_AUTOSYNC_RUNNING=1 이
+  자식 시나리오로 누수되는 기존 결함(오염 환경 주입으로 10/11 재현, 깨끗한
+  환경 21/21). regression 으로 트리아지, 러너 수정은 후속 플랜.
+- refs: scv/archive/20260818-wookiya1364-env-example-autorefresh/PLAN.md
 ## [2026-08-18 17:05] wookiya1364 — 회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다
 
 - verdict: adopted
