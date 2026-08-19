@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-08-18T05:52:26Z
+generated_at: 2026-08-19T00:19:25Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -67,6 +67,10 @@ archives:
     title: "회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현"
     kind: refactor
     status: done
+  - slug: 20260818-wookiya1364-regression-runner-env-leak
+    title: "회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다"
+    kind: feature
+    status: testing
   - slug: 20260818-wookiya1364-sync-autopilot
     title: "sync 자동화와 가드 실효 회복"
     kind: refactor
