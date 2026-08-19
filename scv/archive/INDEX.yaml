@@ -63,6 +63,10 @@ archives:
     title: "effort governor — 작업 무게에 맞춘 자동 실행 조절"
     kind: feature
     status: done
+  - slug: 20260818-wookiya1364-env-example-autorefresh
+    title: ".env.example.scv 자동 최신화 — root 불가침의 명명된 예외"
+    kind: feature
+    status: testing
   - slug: 20260818-wookiya1364-regression-contract-repair
     title: "회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현"
     kind: refactor
