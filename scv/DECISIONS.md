@@ -422,3 +422,65 @@ merge_policy: preserve
   우연히 안전해 보였던 것), 무효 선언이 소리 없이 사라졌다. 셋 다 수정 후
   T10 으로 고정.
 - refs: scv/archive/20260818-wookiya1364-effort-governor/PLAN.md
+
+## [2026-08-18 16:20] wookiya1364 — .env.example.scv 자동 최신화 — root 불가침의 명명된 예외
+
+- verdict: adopted
+- why: 옛날에 hydrate 한 프로젝트가 SCV_EFFORT_MODE 같은 새 .env 옵션의 문서
+  블록을 영영 못 받는 전파 공백. 예시 파일은 실사용 설정(.env)과 분리돼 있어
+  손실 표면이 작고, 0.28.0 의 HEAD 대조·DIRTY 거부 장치를 그대로 재사용하면
+  "git 이력이 유일한 복구 경로" 결정과도 일관된다. 무조건 최신 + autosync
+  자동 전파, 별도 마이그레이션 명령 없음.
+- discarded alternatives:
+  - /scv:help 진단이 구버전을 감지해 갱신 안내만: 발견 문제는 해결 못 하고
+    사용자 행동에 의존 — 강제 마이그레이션 결정에 미달.
+  - sync 가 차이를 감지해 비파괴 공지만: 같은 이유로 기각.
+  - 있는 파일만 갱신(부재 시 방치): 삭제로 예외를 회피하는 경로가 열리고
+    "무조건 최신" 결정과 어긋남 — 재생성으로 확정.
+  - 이 파일만 스탬프 예외 전진(거부 시 조용히 넘어감): 거부가 재시도되지 않아
+    낡은 파일이 영영 방치되는 false-convergence — 0.28.0 이 막은 바로 그 구멍.
+- refs: scv/promote/20260818-wookiya1364-env-example-autorefresh/PLAN.md
+
+## [2026-08-18 16:40] wookiya1364 — env-example-autorefresh archived
+
+- verdict: archived
+- why: sync 가 루트 .env.example.scv 를 최신 템플릿으로 갱신한다 — root 불가침의
+  단 하나 명명된 예외. 새 코드는 정책 case 한 줄과 process_template_file 호출
+  하나뿐, 거부·재생성·심볼링크 스킵·스탬프 게이트는 전부 기존 장치가 그대로
+  일했다. 앞으로 깨지면 안 되는 것: .env 불가침, 예외의 단일성(다른 루트 파일
+  확장 금지), 거부 시 스탬프 미전진.
+- path delta: as planned — Red 13건 → Green 1회 반복 23/23. 누적 회귀에서
+  sync-autopilot 계약이 러너 안에서만 붉었고, 원인은 이 변경이 아니라
+  regression.sh 가 scv_init_paths 를 타며 export 한 SCV_AUTOSYNC_RUNNING=1 이
+  자식 시나리오로 누수되는 기존 결함(오염 환경 주입으로 10/11 재현, 깨끗한
+  환경 21/21). regression 으로 트리아지, 러너 수정은 후속 플랜.
+- refs: scv/archive/20260818-wookiya1364-env-example-autorefresh/PLAN.md
+## [2026-08-18 17:05] wookiya1364 — 회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다
+
+- verdict: adopted
+- why: 러너가 재진입 방지용으로 export한 SCV_AUTOSYNC_RUNNING=1이 자식
+  시나리오에 상속되어, autosync 훅을 검증하는 계약이 러너 안에서만 죽는다
+  (오염 주입 10/11, 깨끗한 환경 21/21로 실증). 러너가 시나리오를 실행할 때
+  그 내부 플래그 하나만 지우고 실행한다 — 결함이 있는 곳만 고치는 최소 수정.
+- discarded alternatives:
+  - 러너 + 스위트 양쪽 보강(test-autosync call()도 자체 정화): 스위트가
+    호출자의 누수를 가리면 다른 곳의 같은 버그를 뒤늦게 발견한다 — 기각,
+    맹점은 Risk로 기록.
+  - scvroot.sh의 export 자체를 옮기거나 제거: 한 액션 안의 헬퍼 중복 체크
+    방지라는 본래 목적이 유효하다 — 기각 (불변 조건 1).
+- refs: scv/promote/20260818-wookiya1364-regression-runner-env-leak/PLAN.md
+
+## [2026-08-19 09:20] wookiya1364 — regression-runner-env-leak archived
+
+- verdict: archived
+- why: 러너가 시나리오를 깨끗한 환경에서 돌린다 — 자기가 켠 재진입 방지 플래그
+  하나만 지우고(env -u), 사용자 env·재진입 방지·--ci·스킵 그래프는 전부 그대로.
+  수정은 regression.sh 실행 지점 한 곳(+헬퍼 추출), 스위트·scvroot는 무수정.
+  앞으로 깨지면 안 되는 것: 시나리오 환경에 러너 내부 플래그 부재, 제거 대상의
+  단일성(사용자 env 통과), 러너 자신의 1회 수렴.
+- path delta: as planned — Red(T1 누수·T4 실계약 실패) → env -u 한 줄 수정으로
+  Green 9/9. 검증 중 식별한 사실 하나: 누적 회귀를 플러그인 캐시 runner로
+  돌리면 수정이 반영될 수 없다 — repo runner(core/scripts/regression.sh)로
+  재실행해 11/11 복원을 확인했다. 이 구분은 앞으로도 러너 자체를 고치는
+  플랜의 검증 함정이다.
+- refs: scv/archive/20260818-wookiya1364-regression-runner-env-leak/PLAN.md
