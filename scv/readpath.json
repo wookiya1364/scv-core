@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated_at": "2026-08-18T07:23:02Z",
+  "updated_at": "2026-08-18T08:10:09Z",
   "files": {
     "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "size": 4974, "mtime": "2026-08-12T08:39:19Z" },
     "scv/raw/stale/20260812-wookiya1364-forced-invocation.md": { "size": 9860, "mtime": "2026-08-12T08:39:19Z" },
@@ -9,6 +9,7 @@
     "scv/raw/stale/20260818-wookiya1364-effort-governor.md": { "size": 9604, "mtime": "2026-08-18T06:01:10Z" },
     "scv/raw/stale/20260818-wookiya1364-env-example-sync.md": { "size": 3302, "mtime": "2026-08-18T07:18:46Z" },
     "scv/raw/stale/20260818-wookiya1364-regression-contract-repair.md": { "size": 4310, "mtime": "2026-08-18T04:39:53Z" },
+    "scv/raw/stale/20260818-wookiya1364-regression-runner-env-leak.md": { "size": 3321, "mtime": "2026-08-18T08:01:45Z" },
     "scv/raw/stale/20260818-wookiya1364-sync-autopilot-guard-fixes.md": { "size": 11000, "mtime": "2026-08-18T03:23:14Z" }
   },
   "ref_docs": {
@@ -19,6 +20,7 @@
     "scv/raw/stale/20260818-wookiya1364-effort-governor.md": { "slugs": ["20260818-wookiya1364-effort-governor"], "ref_commit": "a09aa2b", "consumed_at": "2026-08-18T05:34:56Z", "origin": "scv/raw/20260818-wookiya1364-effort-governor.md" },
     "scv/raw/stale/20260818-wookiya1364-env-example-sync.md": { "slugs": ["20260818-wookiya1364-env-example-autorefresh"], "ref_commit": "2af43a4", "consumed_at": "2026-08-18T07:23:02Z", "origin": "scv/raw/20260818-wookiya1364-env-example-sync.md" },
     "scv/raw/stale/20260818-wookiya1364-regression-contract-repair.md": { "slugs": ["20260818-wookiya1364-regression-contract-repair"], "ref_commit": "762a77a", "consumed_at": "2026-08-18T04:17:57Z", "origin": "scv/raw/20260818-wookiya1364-regression-contract-repair.md" },
+    "scv/raw/stale/20260818-wookiya1364-regression-runner-env-leak.md": { "slugs": ["20260818-wookiya1364-regression-runner-env-leak"], "ref_commit": "2af43a4", "consumed_at": "2026-08-18T08:10:09Z", "origin": "scv/raw/20260818-wookiya1364-regression-runner-env-leak.md" },
     "scv/raw/stale/20260818-wookiya1364-sync-autopilot-guard-fixes.md": { "slugs": ["20260818-wookiya1364-sync-autopilot"], "ref_commit": "dd9a59b", "consumed_at": "2026-08-18T02:00:01Z", "origin": "scv/raw/20260818-wookiya1364-sync-autopilot-guard-fixes.md" }
   }
 }
