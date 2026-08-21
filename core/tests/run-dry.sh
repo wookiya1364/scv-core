@@ -3707,9 +3707,18 @@ assert_contains "$PL_TPL/scv/SCV.md" "SCV_PLAIN_MAX_SENTENCES"
 assert_contains "$PL_TPL/scv/SCV.md" "## How SCV talks to you"
 assert_contains "$PL_TPL/scv/SCV.md" "SCV_PLAIN_LANGUAGE"
 assert_contains "$PL_TPL/scv/SCV.md" "1–2 sentences"
-[[ "$(tr -d '[:space:]' < "$(dirname "$PROTOCOL_ROOT")/TEMPLATE_VERSION")" == "$(tr -d '[:space:]' < "$(dirname "$PROTOCOL_ROOT")/../TEMPLATE_VERSION")" ]] \
-  && pass "plain-language: core/TEMPLATE_VERSION and root TEMPLATE_VERSION agree" \
-  || fail "plain-language: TEMPLATE_VERSION files disagree"
+# The root copy exists only in the scv-core checkout and the exported payload;
+# a wrapper that materializes the payload at its own root has no parent copy
+# (a wrapper's core-sync validation ran this section there and failed
+# on 0.31.0). Compare when both exist, otherwise record the single-copy layout.
+PL_ROOT_TV="$(dirname "$PROTOCOL_ROOT")/../TEMPLATE_VERSION"
+if [[ -f "$PL_ROOT_TV" ]]; then
+  [[ "$(tr -d '[:space:]' < "$(dirname "$PROTOCOL_ROOT")/TEMPLATE_VERSION")" == "$(tr -d '[:space:]' < "$PL_ROOT_TV")" ]] \
+    && pass "plain-language: core/TEMPLATE_VERSION and root TEMPLATE_VERSION agree" \
+    || fail "plain-language: TEMPLATE_VERSION files disagree"
+else
+  pass "plain-language: single-copy payload layout — no root TEMPLATE_VERSION to compare"
+fi
 PL_RT="$PL_TPL/scv/routines/examples/plain-language-audit.md"
 [[ -f "$PL_RT" ]] && pass "plain-language: example routine plain-language-audit.md exists" \
   || fail "plain-language: example routine missing"
