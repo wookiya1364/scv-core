@@ -67,6 +67,10 @@ if command -v iconv >/dev/null 2>&1; then
   _scv_clean="$(printf '%s' "$SUMMARY" | iconv -c -f UTF-8 -t UTF-8 2>/dev/null || true)"
   [[ -n "${_scv_clean//[[:space:]]/}" ]] && SUMMARY="$_scv_clean"
 fi
+if command -v python3 >/dev/null 2>&1; then
+  _scv_clean="$(printf '%s' "$SUMMARY" | python3 -c 'import sys; sys.stdout.buffer.write(sys.stdin.buffer.read().decode("utf-8","ignore").encode("utf-8"))' 2>/dev/null || true)"
+  [[ -n "${_scv_clean//[[:space:]]/}" ]] && SUMMARY="$_scv_clean"
+fi
 [[ -n "${SUMMARY//[[:space:]]/}" ]] || exit 0
 
 printf '%s\n' "$SUMMARY" | bash "$JOURNAL_APPEND" --speaker assistant >/dev/null 2>&1 || true
