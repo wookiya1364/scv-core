@@ -607,3 +607,31 @@ merge_policy: preserve
   걸려 지웠다.
 - refs: scv/archive/20260821-wookiya1364-run-dry-layout-guard/PLAN.md
 - conversation: scv/conversations/archive/20260821-141947-run-dry-layout-guard.md
+
+## [2026-08-21 16:05] wookiya1364 — 기록 훅의 바이트 자르기가 한글을 반으로 — journal 은 항상 온전한 UTF-8
+
+- verdict: adopted
+- why: on-stop.sh 의 tail -c 4000 이 한글 한 글자 중간에서 끊겨 일지 첫머리에 깨진
+  바이트를 남기고, 편집기는 그 하나로 파일 전체를 잘못 읽었다(실제 프로젝트 실측:
+  59KB 중 1곳). 캡 뒤 반쪽 시퀀스를 떨어낸다 — iconv -c(출력으로 판단), 없으면
+  python3, 둘 다 없으면 원문.
+- discarded alternatives:
+  - 캡을 글자 단위로 다시 구현(awk/bash 로 UTF-8 경계 계산): 훅에 파서를 넣는 셈 —
+    기각, 표준 도구로 떨어내는 쪽이 단순하다.
+  - 캡 제거: 일지 비대화 — 기각.
+- refs: scv/promote/20260821-wookiya1364-journal-utf8-tail/PLAN.md
+- conversation: scv/conversations/20260821-154845-journal-utf8-tail.md
+
+## [2026-08-21 16:20] wookiya1364 — 기록 훅의 바이트 자르기가 한글을 반으로 — journal 은 항상 온전한 UTF-8 archived
+
+- verdict: archived
+- why: 바이트 단위 캡(tail -c)은 멀티바이트 글자를 반으로 자른다 — 일지 첫머리의
+  깨진 바이트 하나가 편집기에서 파일 전체를 깨진 것처럼 보이게 했다. 캡 뒤 반쪽
+  시퀀스를 떨어낸다(iconv -c 는 바이트를 버리면 exit 1 → 출력으로 판단; 없으면
+  python3; 둘 다 없으면 원문). 앞으로 깨지면 안 되는 것: 긴 다국어 답변 뒤 일지가
+  유효한 UTF-8, 꼬리 생존, 비차단.
+- path delta: as planned — 단, 첫 구현은 iconv 의 exit 1 을 실패로 보고 원문으로
+  되돌려 테스트가 빨간불이었다. 실제 일지 4건(ai_tm_center 1, DMN-prototype 3)은
+  반쪽 바이트(1·3·2·5개)만 지워 복구했다.
+- refs: scv/archive/20260821-wookiya1364-journal-utf8-tail/PLAN.md
+- conversation: scv/conversations/archive/20260821-154845-journal-utf8-tail.md

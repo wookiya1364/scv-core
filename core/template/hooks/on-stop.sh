@@ -51,6 +51,20 @@ SUMMARY="$(tail -n 200 "$TRANSCRIPT" 2>/dev/null \
   | jq -Rr 'fromjson? | select(.type? == "assistant")
             | (.message.content[]? | select(.type? == "text") | .text) // empty' 2>/dev/null \
   | tail -n 40 | tail -c 4000 || true)"
+# The byte cap above can land inside a multibyte character (Korean, Japanese,
+# emoji are 3–4 bytes each), leaving a broken lead byte at the head of the
+# journal entry — and one invalid byte is enough to make an editor misread the
+# whole file. Drop that partial sequence: iconv -c where available, python3
+# as the fallback; with neither, the text is appended as-is (best effort).
+# (GNU iconv -c exits 1 when it had to drop bytes — that is the success case
+# here, so judge by output, not by exit code.)
+_scv_clean=""
+if command -v iconv >/dev/null 2>&1; then
+  _scv_clean="$(printf '%s' "$SUMMARY" | iconv -c -f UTF-8 -t UTF-8 2>/dev/null || true)"
+elif command -v python3 >/dev/null 2>&1; then
+  _scv_clean="$(printf '%s' "$SUMMARY" | python3 -c 'import sys; sys.stdout.write(sys.stdin.buffer.read().decode("utf-8","ignore"))' 2>/dev/null || true)"
+fi
+[[ -n "${_scv_clean//[[:space:]]/}" ]] && SUMMARY="$_scv_clean"
 [[ -n "${SUMMARY//[[:space:]]/}" ]] || exit 0
 
 printf '%s\n' "$SUMMARY" | bash "$JOURNAL_APPEND" --speaker assistant >/dev/null 2>&1 || true
