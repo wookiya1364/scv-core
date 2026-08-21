@@ -48,3 +48,16 @@ setting now shows there. Want the exact lines?"
 
 This governs everything the user reads: answers, questions, plans, progress
 reports, summaries, and explanations of what went wrong.
+
+## Attachment scope (v0.32.0+)
+
+Attachments follow the plan, not the folder. By default the report uploads only
+the latest test-results file that belongs to one plan: pass `--slug <slug>` to
+name it; without it the helper uses the single active promote plan, and when
+there is none or several it falls back to the latest file of any slug and says
+so on stderr. `.env` `SCV_ATTACHMENTS_SCOPE=all` restores the old
+everything-in-test-results behaviour for the whole project.
+
+```!
+bash "${SCV_CORE_ROOT}/scripts/report.sh" "<phase>" <status> --slug <slug>
+```
