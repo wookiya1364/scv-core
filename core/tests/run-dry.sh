@@ -3676,7 +3676,7 @@ done
 # and help's conversation loop carries the per-turn rhythm.
 for a in "SCV_PLAIN_LANGUAGE=off" "1–2 sentences" "one example" \
          "No code values before the user asks" "stay exact, after the plain summary" \
-         "Bad:" "Good:"; do
+         "Bad:" "Good:" "SCV_PLAIN_MAX_SENTENCES"; do
   miss=$(printf '%s\n' "$PLAIN_TARGETS" | while read -r f; do grep -qF -- "$a" "$f" || echo "$f"; done)
   [[ -z "$miss" ]] && pass "plain-language: anchor [$a] in every protocol" \
     || fail "plain-language: anchor [$a] missing in: $(echo $miss)"
@@ -3700,6 +3700,10 @@ PL_TPL="$(dirname "$PROTOCOL_ROOT")/template"
 grep -q "^# SCV_PLAIN_LANGUAGE=on" "$PL_TPL/.env.example.scv" \
   && pass "plain-language: .env.example.scv documents SCV_PLAIN_LANGUAGE (default on)" \
   || fail "plain-language: .env.example.scv lacks the SCV_PLAIN_LANGUAGE block"
+grep -q "^# SCV_PLAIN_MAX_SENTENCES=2" "$PL_TPL/.env.example.scv" \
+  && pass "plain-language: .env.example.scv documents SCV_PLAIN_MAX_SENTENCES (default 2)" \
+  || fail "plain-language: .env.example.scv lacks the SCV_PLAIN_MAX_SENTENCES line"
+assert_contains "$PL_TPL/scv/SCV.md" "SCV_PLAIN_MAX_SENTENCES"
 assert_contains "$PL_TPL/scv/SCV.md" "## How SCV talks to you"
 assert_contains "$PL_TPL/scv/SCV.md" "SCV_PLAIN_LANGUAGE"
 assert_contains "$PL_TPL/scv/SCV.md" "1–2 sentences"
