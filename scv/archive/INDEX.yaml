@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by action:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-08-21T05:26:59Z
+generated_at: 2026-08-21T06:51:30Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -78,6 +78,10 @@ archives:
   - slug: 20260818-wookiya1364-sync-autopilot
     title: "sync 자동화와 가드 실효 회복"
     kind: refactor
+    status: done
+  - slug: 20260821-wookiya1364-journal-utf8-tail
+    title: "기록 훅의 바이트 자르기가 한글을 반으로 — journal 은 항상 온전한 UTF-8"
+    kind: feature
     status: done
   - slug: 20260821-wookiya1364-plain-answers-enforcement
     title: "쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치"
