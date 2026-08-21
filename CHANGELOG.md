@@ -2,6 +2,26 @@
 
 All notable changes to SCV Core are documented here.
 
+## [Unreleased]
+
+### PR·보고 첨부는 이번 슬러그 것만 — SCV_ATTACHMENTS_SCOPE (기본 slug)
+
+PR 과 Slack/Discord 보고에 붙던 영상·스크린샷은 테스트 결과 폴더의 "마지막 실행"
+전체였다 — archive 직전 누적 회귀를 돌리면 남의 기능 영상이 올라갔다. 기본을
+이번 슬러그의 것만(경로에 슬러그 포함)으로 바꾸고, `.env` `SCV_ATTACHMENTS_SCOPE=all`
+로만 옛 동작. 공통 로직은 `lib/attachment-scope.sh`.
+
+- pr-helper: 슬러그 범위 수집. 0건이면 그 계획의 `## How to run` 을 한 번 재실행해
+  이번 영상을 만든다(`--no-rerun` 로 끔, `--dry-run` 에서는 안 함; 타임아웃
+  `SCV_ATTACHMENTS_RERUN_TIMEOUT` 기본 600초). 그래도 0건이면 한 줄 알리고 첨부 없음.
+  `--dry-run` 은 `ATTACHMENTS_SCOPE:` / `ATTACHMENTS_FILES:` 줄을 찍는다.
+- report: `--slug <slug>`. 없으면 진행 중 계획이 딱 하나일 때 그 슬러그, 아니면
+  전부(옛 동작)+stderr 알림. collect-artifacts 가 슬러그 파일 중 최신 하나를 고른다.
+- 프로토콜 work.md Step 9d / report.md 한 단락, `.env.example.scv` 블록,
+  `core/tests/test-attachments-scope.sh`.
+- 덤으로 고친 것: collect-artifacts 의 `emit` 이 빈 슬롯(스크린샷 없음)에서 `set -e`
+  로 스크립트를 중단시켜 영상을 내지 못하던 잠복 결함 — 이제 빈 슬롯은 그냥 건너뛴다.
+
 ## [0.31.2] - 2026-08-21
 
 ### 기록 훅의 바이트 자르기가 한글을 반으로 — journal 은 항상 온전한 UTF-8

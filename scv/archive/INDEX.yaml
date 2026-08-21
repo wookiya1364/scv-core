@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by action:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-08-21T06:51:30Z
+generated_at: 2026-08-21T08:24:10Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -97,5 +97,9 @@ archives:
     status: done
   - slug: 20260821-wookiya1364-run-dry-layout-guard
     title: "run-dry 배치 가드 — 래퍼 투영에서도 TEMPLATE_VERSION 검사가 돈다"
+    kind: feature
+    status: done
+  - slug: 20260821-wookiya1364-slug-scoped-attachments
+    title: "PR·보고 첨부는 이번 슬러그 것만 — SCV_ATTACHMENTS_SCOPE (기본 slug)"
     kind: feature
     status: done
