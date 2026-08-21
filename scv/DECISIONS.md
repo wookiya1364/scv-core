@@ -580,3 +580,30 @@ merge_policy: preserve
   곳에 있다는 점은 Risk 로만 기록.
 - refs: scv/archive/20260821-wookiya1364-regression-runner-path-leak/PLAN.md
 - conversation: scv/conversations/archive/20260821-134035-regression-runner-path-leak.md
+
+## [2026-08-21 14:35] wookiya1364 — run-dry 배치 가드 — 래퍼 투영에서도 TEMPLATE_VERSION 검사가 돈다
+
+- verdict: adopted
+- why: 0.31.0 의 run-dry [15q] 가 저장소 배치(루트 TEMPLATE_VERSION 복사본)를 전제해
+  Claude 래퍼의 core-sync 검증이 실패, 봇 PR 이 안 열렸다. 루트 복사본이 있을 때만
+  비교하고 없으면 통과 — 테스트는 페이로드 배치를 전제해야 한다.
+- discarded alternatives:
+  - 래퍼 투영을 바꿔 루트 복사본을 두기: 래퍼 두 곳을 고쳐야 하고 원인은 core 의
+    단언이다 — 기각.
+  - 단언 삭제: scv-core 안에서의 일치 검사는 가치가 있다 — 기각(조건부 유지).
+- refs: scv/promote/20260821-wookiya1364-run-dry-layout-guard/PLAN.md
+
+## [2026-08-21 14:55] wookiya1364 — run-dry 배치 가드 — 래퍼 투영에서도 TEMPLATE_VERSION 검사가 돈다 archived
+
+- verdict: archived
+- why: Core 의 테스트는 래퍼가 그대로 돌린다 — 저장소 배치(루트 TEMPLATE_VERSION
+  복사본, `core/TEMPLATE_VERSION` 심볼릭 링크)를 전제한 단언 하나가 Claude 래퍼의
+  core-sync 검증을 막았다. 루트 복사본이 있을 때만 비교하고 없으면 단일 복사본
+  배치로 통과. 앞으로 깨지면 안 되는 것: 페이로드를 한 디렉터리에 펼친 배치
+  (cp -RL, 부모에 TEMPLATE_VERSION 없음)에서 run-dry FAIL 0.
+- path delta: as planned — 단, T2 하네스의 첫 판은 `cp -R` 이라 심볼릭 링크가
+  끊겨 35건 거짓 실패했다(`core/TEMPLATE_VERSION → ../TEMPLATE_VERSION`); `cp -RL`
+  로 역참조해야 래퍼 배치가 된다. 주석의 호스트 이름 한 단어도 host-neutral 검사에
+  걸려 지웠다.
+- refs: scv/archive/20260821-wookiya1364-run-dry-layout-guard/PLAN.md
+- conversation: scv/conversations/archive/20260821-141947-run-dry-layout-guard.md
