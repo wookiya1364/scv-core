@@ -2,7 +2,7 @@
 
 All notable changes to SCV Core are documented here.
 
-## [Unreleased]
+## [0.31.0] - 2026-08-21
 
 ### 쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치
 
