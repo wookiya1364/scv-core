@@ -197,8 +197,9 @@ Wrapper requirements:
    add this event's stdout to the model context — Claude Code and Codex both
    do — therefore deliver the rule on **every** turn, commands or not. Register
    the hook for that reason even where journaling alone did not justify it.
-   The reminder never enters the journal, and the non-blocking guarantee is
-   unchanged.
+   `SCV_PLAIN_MAX_SENTENCES=<n>` (positive integer) raises the first-answer
+   sentence cap from 2 to n; anything else means 2. The reminder never enters
+   the journal, and the non-blocking guarantee is unchanged.
 
 Hosts without hook support cannot capture free conversation — the session-end
 protocol summaries partially compensate; the gap is documented in the

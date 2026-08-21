@@ -32,12 +32,19 @@ set -u
 _scv_plain="$(sed -n 's/^SCV_PLAIN_LANGUAGE=[[:space:]]*//p' .env 2>/dev/null | head -n1 \
   | tr -d '"[:space:]' | tr -d "'" | tr '[:upper:]' '[:lower:]' || true)"
 if [[ "${_scv_plain:-on}" != "off" ]]; then
-  cat <<'PLAIN'
-[SCV plain language] Answer shape: (1) first, 1–2 sentences — lead with what
+  # Sentence cap (v0.31.0+): .env SCV_PLAIN_MAX_SENTENCES=<n>, positive integer
+  # only — absent or anything else means 2. Rendered into the first rule.
+  _scv_cap="$(sed -n 's/^SCV_PLAIN_MAX_SENTENCES=[[:space:]]*//p' .env 2>/dev/null | head -n1 \
+    | tr -d '"[:space:]' | tr -d "'" || true)"
+  [[ "$_scv_cap" =~ ^[1-9][0-9]*$ ]] || _scv_cap=2
+  if [[ "$_scv_cap" == "1" ]]; then _scv_first="one sentence"; else _scv_first="1–${_scv_cap} sentences"; fi
+  cat <<PLAIN
+[SCV plain language] Answer shape: (1) first, ${_scv_first} — lead with what
 the user gets; (2) then one example; (3) no code values (paths, variable names,
 versions, settings) before the user asks — use plain names; (4) detail after,
 only when wanted. Identifiers the user needs to act on stay exact, after the
-plain summary. Off switch: .env SCV_PLAIN_LANGUAGE=off.
+plain summary. Switches: .env SCV_PLAIN_LANGUAGE=off (silence),
+SCV_PLAIN_MAX_SENTENCES=<n> (sentence cap, default 2).
 PLAIN
 fi
 

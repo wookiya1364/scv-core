@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by action:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-08-21T03:56:43Z
+generated_at: 2026-08-21T04:56:01Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -82,4 +82,12 @@ archives:
   - slug: 20260821-wookiya1364-plain-answers-enforcement
     title: "쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치"
     kind: feature
-    status: testing
+    status: done
+  - slug: 20260821-wookiya1364-plain-sentence-cap
+    title: "쉬운 말 문장 수 스위치 — SCV_PLAIN_MAX_SENTENCES (기본 2)"
+    kind: feature
+    status: done
+  - slug: 20260821-wookiya1364-regression-runner-path-leak
+    title: "회귀 러너의 경로 표시 누수 — 시나리오는 자기 scv 경로를 본다"
+    kind: feature
+    status: done
