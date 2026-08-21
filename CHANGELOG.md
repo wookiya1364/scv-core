@@ -2,6 +2,39 @@
 
 All notable changes to SCV Core are documented here.
 
+## [Unreleased]
+
+### 쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치
+
+0812 의 "쉬운 말 먼저" 규칙은 문체 조언이라 지켜지지 않았다 — 답의 모양을
+정하지 않았고, `/scv:*` 명령 안에만 있어 일반 대화에는 한 줄도 전달되지
+않았으며, 어겨도 검사가 없었다. 세 가지를 한 번에 고친다.
+
+- 13개 프로토콜의 `## Plain language first` 본문을 **답의 모양**으로 교체
+  (제목 유지 — 누적 회귀 T4 호환, 13곳 바이트 동일): 먼저 1–2문장 → 예시
+  하나 → 묻기 전 코드값 금지 → 자세한 건 원할 때. 사용자가 행동에 필요한
+  식별자(다음 명령·생성 파일)는 요약 뒤에 그대로. 좋은 답/나쁜 답 예시 한 쌍
+  포함. help 대화 모드는 매 턴 "짧은 답 → 예시 → 질문 하나"(one question per
+  turn).
+- `core/template/hooks/on-user-prompt.sh` 가 SCV 프로젝트에서 매 턴 답의 모양
+  요약(5줄)을 stdout 으로 낸다 — Claude Code·Codex 모두 이 이벤트의 stdout 을
+  모델 컨텍스트에 넣는다(공식 문서 확인, 2026-08-21). 기록(journal)·비차단
+  보장은 그대로, 요약은 journal 에 쓰지 않는다. 등록은 래퍼 소유(§6): Claude
+  Code 래퍼는 이미 등록돼 Core 반영만으로 켜지고, Codex 래퍼는
+  `UserPromptSubmit` 등록이 따라붙는다.
+- `.env` `SCV_PLAIN_LANGUAGE` 스위치 — 없음/`on`/그 밖의 값 = 켜짐, `off`
+  (대소문자 무관)만 꺼짐. 꺼지면 훅은 침묵하고 프로토콜 절은 첫 줄 규칙으로
+  스스로 비켜선다. `.env.example.scv` 에 기본 on 으로 문서화. 템플릿
+  `scv/SCV.md` 에 "How SCV talks to you" 절. 예시 루틴 `plain-language-audit`
+  추가(내장 예시 8 → 9). TEMPLATE_VERSION 2.2.0 → 2.3.0 — 기존 프로젝트는 다음
+  액션 때 autosync 로 자동 수령.
+- 가드: run-dry [15p]/[15q] (앵커 7종·위치·옛 문구 부재·help 매 턴·템플릿·
+  버전 일치·루틴), test-journal [6p] (훅 on/off/OFF/따옴표/이상값/미적용/journal
+  오염 없음/비차단), test-routines (새 예시 lint). 어블레이션 재측정:
+  promote 241/917 (26.3%), work 222/676 (32.8%).
+- 한계(그대로): 모델이 실제로 쉽게 말하는지 자동 보장하는 테스트는 없다 —
+  archive 직전 사람 판정 3건으로 닫는다(TESTS T7).
+
 ## [0.30.0] - 2026-08-19
 
 ### .env.example.scv 자동 최신화 — root 불가침의 명명된 예외

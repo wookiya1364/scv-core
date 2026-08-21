@@ -100,11 +100,11 @@ SCV_GUIDANCE=minimal bash tools/vendor-core.sh --source . --target vendor/scv-co
 
 | 프로토콜 | GUIDANCE 줄 / 전체 줄 | 비율 |
 |---|---|---|
-| `core/protocols/promote.md` | 241 / 910 | 26.5% |
-| `core/protocols/work.md` | 222 / 609 | 36.5% |
+| `core/protocols/promote.md` | 241 / 917 | 26.3% |
+| `core/protocols/work.md` | 222 / 676 | 32.8% |
 
 (전체 줄 수는 마커 줄 제외 기준. `--lint` 출력과 동일.)
 
-> `work.md` 행은 0.23.0 에서 재측정했다. 직전 값 `203 / 521` 은 편집 이후
-> 갱신되지 않아 낡아 있었다 — 어떤 테스트도 이 표를 강제하지 않으므로,
-> 프로토콜을 편집할 때마다 `--lint` 실측으로 직접 갱신해야 한다.
+> 두 행 모두 0.31.0(쉬운 말 2단계 — `## Plain language first` 본문 교체)에서
+> `--lint` 로 재측정했다. 어떤 테스트도 이 표를 강제하지 않으므로, 프로토콜을
+> 편집할 때마다 실측으로 직접 갱신해야 한다.
