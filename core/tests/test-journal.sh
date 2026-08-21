@@ -242,10 +242,21 @@ if command -v jq >/dev/null 2>&1; then
   eq "on-stop long multibyte transcript: exit 0" "0" "$?"
   HUF="$HU/scv/journal/${DAY}-hook-user.md"
   [[ -f "$HUF" ]] && ok "on-stop journaled the multibyte answer" || fail "on-stop wrote nothing for the multibyte answer"
-  if command -v iconv >/dev/null 2>&1; then
-    iconv -f UTF-8 -t UTF-8 "$HUF" >/dev/null 2>&1 && ok "journal stays valid UTF-8 after the byte cap" || fail "journal contains a split multibyte character"
+  if python3 -c 'import sys; open(sys.argv[1],"rb").read().decode("utf-8")' "$HUF" 2>/dev/null \
+     || { ! command -v python3 >/dev/null 2>&1 && iconv -f UTF-8 -t UTF-8 "$HUF" >/dev/null 2>&1; }; then
+    ok "journal stays valid UTF-8 after the byte cap"
   else
-    python3 -c 'import sys; open(sys.argv[1],"rb").read().decode("utf-8")' "$HUF" 2>/dev/null && ok "journal stays valid UTF-8 after the byte cap" || fail "journal contains a split multibyte character"
+    fail "journal contains a split multibyte character"
+    # diagnostics for a host where the cleanup misbehaves: where and what
+    echo "    host: $(uname -s) bash=${BASH_VERSION} head=$(command -v head) od=$(command -v od) iconv=$(command -v iconv || echo none)"
+    python3 - "$HUF" <<'PYD' 2>/dev/null || true
+import sys
+b=open(sys.argv[1],"rb").read()
+try:
+    b.decode("utf-8"); print("    (decodes cleanly?)")
+except UnicodeDecodeError as e:
+    s=e.start; print("    invalid at byte", s, "of", len(b), "->", b[max(0,s-24):s+8])
+PYD
   fi
   grep -qF "END-UTF8-MARK" "$HUF" && ok "the tail of the answer survived the cap" || fail "the answer tail was lost"
 else
