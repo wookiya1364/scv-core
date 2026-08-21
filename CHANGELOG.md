@@ -2,6 +2,18 @@
 
 All notable changes to SCV Core are documented here.
 
+## [0.31.1] - 2026-08-21
+
+### run-dry 배치 가드 — 래퍼 투영에서도 TEMPLATE_VERSION 검사가 돈다
+
+0.31.0 의 run-dry [15q] 가 core/TEMPLATE_VERSION 과 루트 복사본을 비교했는데,
+Claude 래퍼는 페이로드를 자기 루트에 투영해 run-dry 를 돌리므로 부모 복사본이
+없다 — 래퍼의 core-sync 검증이 그 한 줄로 실패해 0.31.0 봇 PR 이 열리지 않았다
+(Codex 래퍼는 vendor/ 아래에서 돌려 통과). 루트 복사본이 있을 때만 비교하고 없으면
+단일 복사본 배치로 통과한다. 교훈: Core 의 테스트는 저장소 배치가 아니라 페이로드
+배치를 전제해야 한다(래퍼가 그대로 돌린다). 가드: 부모에 TEMPLATE_VERSION 없는
+복사본 배치에서 run-dry FAIL 0.
+
 ## [0.31.0] - 2026-08-21
 
 ### 쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치
