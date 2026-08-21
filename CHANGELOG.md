@@ -2,7 +2,7 @@
 
 All notable changes to SCV Core are documented here.
 
-## [Unreleased]
+## [0.31.2] - 2026-08-21
 
 ### 기록 훅의 바이트 자르기가 한글을 반으로 — journal 은 항상 온전한 UTF-8
 
