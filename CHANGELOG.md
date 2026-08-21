@@ -2,7 +2,7 @@
 
 All notable changes to SCV Core are documented here.
 
-## [Unreleased]
+## [0.31.1] - 2026-08-21
 
 ### run-dry 배치 가드 — 래퍼 투영에서도 TEMPLATE_VERSION 검사가 돈다
 
