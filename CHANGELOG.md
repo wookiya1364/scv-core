@@ -31,9 +31,24 @@ All notable changes to SCV Core are documented here.
 - 가드: run-dry [15p]/[15q] (앵커 7종·위치·옛 문구 부재·help 매 턴·템플릿·
   버전 일치·루틴), test-journal [6p] (훅 on/off/OFF/따옴표/이상값/미적용/journal
   오염 없음/비차단), test-routines (새 예시 lint). 어블레이션 재측정:
-  promote 241/917 (26.3%), work 222/676 (32.8%).
+  promote 241/919 (26.2%), work 222/678 (32.7%).
+- 문장 수 스위치 — `.env` `SCV_PLAIN_MAX_SENTENCES=<n>`(양의 정수)이 있으면
+  "먼저 1–2문장"의 상한이 n 이 된다. 없음/이상값은 2, `SCV_PLAIN_LANGUAGE=off`
+  가 우선. 13개 프로토콜 본문에 한 문장(제목·앵커·동일성 유지), 훅 요약은
+  숫자를 치환해 찍는다(`1` 은 "one sentence"). `.env.example.scv`·`SCV.md` 한
+  줄씩, TEMPLATE_VERSION 은 2.3.0 그대로(미출시 판, 같은 릴리스). 가드:
+  run-dry 앵커, test-journal [6p] 값별(4·1·abc·0·-3·2.5·빈값·off 우선).
 - 한계(그대로): 모델이 실제로 쉽게 말하는지 자동 보장하는 테스트는 없다 —
   archive 직전 사람 판정 3건으로 닫는다(TESTS T7).
+
+### 회귀 러너의 경로 표시 누수 — 시나리오는 자기 scv 경로를 본다
+
+위 계획의 보관 계약이 누적 회귀에서 처음 돌며 드러낸 러너 결함. 러너가 시작할
+때 export 하는 경로 표시(SCV_DIR·RAW_DIR·STATE_FILE·PROMOTE_DIR·ARCHIVE_DIR)가
+자식 시나리오에 상속돼, 임시 프로젝트 안의 헬퍼가 이 저장소의 scv/ 를 봤다
+(run-dry [19] 이 러너 안에서만 실패, 단독 972/972). 0818 의 SCV_AUTOSYNC_RUNNING
+누수와 같은 자리에서 같은 방식으로 — run_scenario_clean 이 자기 표시 5개를 더
+빼고 시나리오를 돌린다. 사용자 env 는 그대로. test-regression-env T5 추가.
 
 ## [0.30.0] - 2026-08-19
 

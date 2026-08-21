@@ -41,6 +41,8 @@ created file — stay exact, after the plain summary.
 - Switch: `.env` `SCV_PLAIN_LANGUAGE` — absent or `on` keeps it (default);
   `off` turns both the rule and the reminder off. `.env` is usually local, so
   each teammate can choose.
+- Cap: `.env` `SCV_PLAIN_MAX_SENTENCES=<n>` raises the first-answer sentence
+  cap from 2 to n (positive integer; anything else means 2).
 - Hosts without that hook: add the pointer line from the section above to your
   project-root instruction file, so casual conversation reads this file too.
 

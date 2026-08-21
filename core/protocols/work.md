@@ -46,6 +46,8 @@ Skip this section only when the project `.env` sets `SCV_PLAIN_LANGUAGE=off`
 Answer shape — every time you explain something to the user:
 
 1. First, 1–2 sentences. Lead with what the user gets.
+   The cap is 2 unless the project `.env` sets `SCV_PLAIN_MAX_SENTENCES=<n>`
+   (a positive integer) — then up to n.
 2. Then one example — from the user's situation, or an everyday comparison.
 3. No code values before the user asks: file paths, variable names, version
    numbers, setting values. Use the plain name instead ("the settings file",
