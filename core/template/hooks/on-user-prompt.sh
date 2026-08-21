@@ -23,6 +23,24 @@ set -u
 # Un-hydrated / non-SCV project → nothing to journal.
 [[ -d scv ]] || exit 0
 
+# Plain-language reminder (v0.31.0+). This hook's stdout is the one channel that
+# reaches the model on EVERY turn, commands or not — both hosts add it to the
+# model's context. Print the answer shape unless the project .env turns it off:
+# SCV_PLAIN_LANGUAGE absent / on / anything else = on; only off (any case) = off.
+# Read the one line with sed — never source .env (secrets, nounset). The text
+# goes to stdout only; it is never written into the journal.
+_scv_plain="$(sed -n 's/^SCV_PLAIN_LANGUAGE=[[:space:]]*//p' .env 2>/dev/null | head -n1 \
+  | tr -d '"[:space:]' | tr -d "'" | tr '[:upper:]' '[:lower:]' || true)"
+if [[ "${_scv_plain:-on}" != "off" ]]; then
+  cat <<'PLAIN'
+[SCV plain language] Answer shape: (1) first, 1–2 sentences — lead with what
+the user gets; (2) then one example; (3) no code values (paths, variable names,
+versions, settings) before the user asks — use plain names; (4) detail after,
+only when wanted. Identifiers the user needs to act on stay exact, after the
+plain summary. Off switch: .env SCV_PLAIN_LANGUAGE=off.
+PLAIN
+fi
+
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" 2>/dev/null && pwd )" || exit 0
 JOURNAL_APPEND="${SCV_CORE_ROOT:-$SCRIPT_DIR/../..}/scripts/journal-append.sh"
 [[ -f "$JOURNAL_APPEND" ]] || exit 0

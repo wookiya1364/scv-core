@@ -171,6 +171,34 @@ NOSCV="$WORK/noscv"; mkdir -p "$NOSCV"
 eq "no scv/: exit 0" "0" "$RC"
 [[ ! -e "$NOSCV/scv" ]] && ok "no scv/: nothing created" || fail "hook created scv/ in a non-SCV project"
 
+echo "── [6p] plain-language reminder on stdout (v0.31.0+) ──"
+
+# The hook's stdout reaches the model every turn. In a hydrated project it
+# prints the answer-shape reminder unless .env says SCV_PLAIN_LANGUAGE=off;
+# the reminder never enters the journal and never changes the exit code.
+PL="$WORK/plainproj"; mkdir -p "$PL/scv"
+run_pl() { (cd "$1" && printf '{"prompt":"hello"}' | env "${GIT_ISOLATE[@]}" GIT_AUTHOR_NAME="Hook User" bash "$HOOK_PROMPT"); }
+OUT="$(run_pl "$PL")"; RC=$?
+eq "reminder: exit 0" "0" "$RC"
+grep -qF "1–2 sentences" <<<"$OUT" && ok "reminder printed when .env is absent (default on)" || fail "reminder missing with no .env"
+grep -qF "SCV_PLAIN_LANGUAGE" <<<"$OUT" && ok "reminder names the off switch" || fail "reminder lacks the switch name"
+[[ "$(grep -c . <<<"$OUT")" -le 12 ]] && ok "reminder stays within 12 lines" || fail "reminder longer than 12 lines"
+[[ -d "$PL/scv/journal" ]] && ok "reminder path still journals the prompt" || fail "reminder path skipped journaling"
+grep -rqF "1–2 sentences" "$PL/scv/journal" && fail "reminder leaked into the journal" || ok "reminder never enters the journal"
+printf 'SCV_PLAIN_LANGUAGE=off\n' > "$PL/.env"
+[[ -z "$(run_pl "$PL")" ]] && ok "off: silent" || fail "off: still printed"
+printf 'SCV_PLAIN_LANGUAGE=OFF\n' > "$PL/.env"
+[[ -z "$(run_pl "$PL")" ]] && ok "OFF (any case): silent" || fail "OFF: still printed"
+printf 'SCV_PLAIN_LANGUAGE="off"\n' > "$PL/.env"
+[[ -z "$(run_pl "$PL")" ]] && ok "quoted off: silent" || fail "quoted off: still printed"
+printf 'SCV_PLAIN_LANGUAGE=maybe\n' > "$PL/.env"
+grep -qF "1–2 sentences" <<<"$(run_pl "$PL")" && ok "unknown value = on" || fail "unknown value silenced the reminder"
+printf 'OTHER=1\nSCV_PLAIN_LANGUAGE=off\n' > "$PL/.env"
+[[ -z "$(run_pl "$PL")" ]] && ok "off on a later line: silent" || fail "off on a later line: still printed"
+rm -f "$PL/.env"
+[[ -z "$(cd "$NOSCV" && printf '{"prompt":"hi"}' | bash "$HOOK_PROMPT")" ]] && ok "no scv/: no reminder" || fail "reminder printed outside an SCV project"
+(cd "$PL" && printf 'not json' | bash "$HOOK_PROMPT" >/dev/null); eq "reminder path: invalid JSON still exit 0" "0" "$?"
+
 echo "── [6+] on-stop.sh — non-blocking + transcript extraction ──"
 
 (cd "$HP" && printf 'garbage' | bash "$HOOK_STOP"); eq "on-stop garbage stdin: exit 0" "0" "$?"

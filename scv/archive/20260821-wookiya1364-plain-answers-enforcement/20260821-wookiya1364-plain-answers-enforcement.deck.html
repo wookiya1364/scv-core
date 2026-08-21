@@ -1,0 +1,1517 @@
+<!doctype html>
+<html lang="ko">
+<head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치</title>
+<style>
+/* Dark only — the light token set and its toggle were removed:
+   FE 프로젝트의 다크-기본+라이트-오버라이드 관례와 동일한 모양(속성 하나만 바뀌면
+   전체가 재테마된다). head 맨 앞 인라인 스크립트가 pre-paint 로 저장된 선택을 적용해
+   깜빡임(FOUC)이 없다. */
+/* Dark only. Ported from the owner's DesignSystem .dark block (shadcn oklch ->
+   sRGB, every neutral at chroma 0). The blue-cast greys this replaces
+   (#171922 / #1d2029 / #2c3040 / #9096a8) were the single loudest reason the
+   two decks read as different systems.
+
+   Contrast figures are WCAG 2.x, measured against the surface named. */
+:root{
+  /* surfaces */
+  --bg:#0a0a0a;                  /* the one ground */
+  --panel:#171717;               /* cards, aside, code */
+  --surface-2:#121212;           /* zebra rows, quiet fills */
+  --surface-3:#151515;           /* table head, code block */
+
+  /* text */
+  --fg:#fafafa;                  /* 18.97:1 on --bg */
+  --fg-body:#e2e2e2;             /* 15.28:1 on --bg  · body copy */
+  --fg-soft:#d6d6d6;             /* 13.62:1 on --bg  · text inside a tinted card */
+  --muted-foreground:#a1a1a1;    /*  7.66:1 on --bg  · 6.94:1 on --panel */
+
+  /* lines — alpha so ONE value composites correctly over bg and panel alike */
+  --border:rgba(255,255,255,.10);
+  --border-strong:#707070;       /* load-bearing rules. Measured where it actually
+                                    sits, not on --bg: 3.62:1 on --panel (node
+                                    fill), 3.69:1 on --surface-3 (figure ground),
+                                    5.87:1 on --bg. #4d4d4d cleared 3:1 against
+                                    --bg alone and failed at 2.12:1 on a node. */
+  --ring:#737373;                /*  4.18:1 on --bg */
+
+  /* brand — the owner's rose, kept for a public product on their say-so.
+     TWO values, because one cannot do both jobs: oklch(.455 .188 13.697)
+     = #a50036 measures 2.50:1 as text on --bg and is unreadable. The text
+     value is the same hue lifted in lightness only. */
+  --primary:#a50036;             /* fill · white on it 7.58:1 */
+  --primary-text:#fc7184;        /* text · 7.39:1 on --bg · 6.69:1 on --panel */
+  --on-primary:#fafafa;          /* 7.58:1 on the --primary plate */
+
+  /* status */
+  --good:#4bd39a;                /*  9.53:1 on --bg */
+  --warn:#e3b153;                /*  9.18:1 on --bg */
+  --danger:#f4837f;              /*  7.22:1 on --bg */
+  --on-warn:#241a06;             /*  8.72:1 on the --warn plate */
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+html{scroll-behavior:smooth}
+body{margin:0;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:var(--fg);background:var(--bg)}
+/* Controls do not inherit the document font — a UA default applies unless asked.
+   Six controls below set font-size alone or an invalid `font:` shorthand, and
+   all of them rendered in 13.333px/400/Arial. This one line is what makes the
+   per-control rules that follow actually reach the element. */
+button,input,select,textarea{font:inherit;color:inherit}
+/* 문서 = 스크롤되는 본문(좌) + 상시 원문 마크다운 패널(우, sticky) — 이게 scv:deck 의
+   정체성이다: 렌더링과 원문이 늘 같은 화면에 나란히 있어야 서로 어긋나지 않았다는 게
+   보장된다. 인쇄 시에는 패널을 접고 본문 뒤에 원문을 부록으로 붙인다(.print-source). */
+/* Three rows over the viewport: header, content, footer. The header and the
+   footer are chrome and must not scroll away with the text — before this they
+   lived inside .wrap and pushed 268px of nav in front of the first sentence. */
+.shell{display:grid;grid-template-rows:auto 1fr auto;height:100svh;overflow:hidden}
+.shell-mid{display:flex;min-height:0;overflow:hidden}
+/* A container so a figure can measure the READING area and break out of the
+   840px text column. 100vw would count the source panel too and push the
+   diagram under it. */
+.scroll-main{flex:1;min-width:0;overflow-y:auto;container-type:inline-size}
+.wrap{--doc-pad:clamp(20px,5vw,56px);max-width:840px;margin:0 auto;min-height:100%;padding:0 var(--doc-pad) 96px}
+header.doc{display:flex;align-items:center;gap:16px;min-width:0;background:var(--bg);border-bottom:1px solid var(--border);padding:11px 20px}
+header.doc h1{font-size:15px;font-weight:600;margin:0;flex-shrink:0;max-width:34ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)}
+.header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.panel-toggle{flex-shrink:0;font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer}
+.panel-toggle:hover{background:var(--border);color:var(--fg)}
+.panel-toggle .kbd{opacity:.55;margin-left:4px}
+.source-panel{position:relative;width:min(440px,38vw);flex-shrink:0;border-left:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column}
+.source-panel.closed{display:none}
+.panel-resize-handle{position:absolute;left:0;top:0;bottom:0;width:7px;margin-left:-4px;cursor:col-resize;z-index:6}
+.panel-resize-handle:hover{background:rgba(127,137,160,.25)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-title{font-size:12px;color:var(--muted-foreground);font-weight:700;letter-spacing:.02em}
+.panel-close{border:none;background:none;color:var(--muted-foreground);cursor:pointer;font-size:14px;padding:2px 7px;border-radius:5px;line-height:1.4}
+.panel-close:hover{background:var(--border);color:var(--fg)}
+.panel-tabs{display:flex;gap:2px;padding:9px 12px 0;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.panel-tab{font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);padding:7px 10px;border:none;background:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.panel-tab.active{color:var(--fg);border-bottom-color:var(--primary)}
+.panel-body{flex:1;overflow-y:auto;padding:14px}
+.panel-body .src-doc{display:none;margin:0}
+.panel-body .src-doc.active{display:block}
+.print-source{display:none}
+/* 목차(nav.toc) 는 인쇄본 전용(펼친 전체 문서엔 목차가 자연스럽다). 화면에서는
+   deck-nav(아래) 가 같은 역할을 대신한다 — 페이지 번호 pill + 클릭 이동. */
+@media screen{nav.toc{display:none}}
+nav.toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:26px 0}
+nav.toc h3{margin:0 0 8px;font-size:12px;letter-spacing:.04em;color:var(--muted-foreground);text-transform:uppercase}
+nav.toc ol{margin:0;padding-left:20px;columns:2;gap:24px}
+nav.toc a{color:var(--fg);text-decoration:none}
+nav.toc a:hover{color:var(--primary);text-decoration:underline}
+section{padding:22px 0;border-top:1px solid var(--border)}
+section:first-of-type{border-top:none}
+/* 페이지 넘김(화면 전용) — 한 번에 한 섹션만. 인쇄 시엔 전부 펼쳐서 보여준다. */
+@media screen{.slide-page{display:none}.slide-page.active{display:block}}
+/* One scrolling row, never wrapped. The reference sets flex-wrap AND
+   overflow-x-auto together; flex-wrap wins, and fed 19 labels its own header
+   grows to three rows. nowrap is the one place this deliberately differs. */
+.deck-nav{display:flex;flex-wrap:nowrap;gap:4px;margin:0;flex:1;min-width:0;overflow-x:auto;scrollbar-width:thin}
+.deck-nav::-webkit-scrollbar{height:6px}
+.deck-nav::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.deck-nav-item{font-weight:400;font-size:12px;line-height:16px;color:var(--muted-foreground);background:none;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;white-space:nowrap}
+.deck-nav-item:hover{color:var(--fg)}
+.deck-nav-item.active{background:var(--primary-text);color:var(--bg);font-weight:500}
+.deck-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0;padding:11px 20px;border-top:1px solid var(--border);background:var(--bg)}
+.deck-arrow{font-weight:600;font-size:13px;line-height:1;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;cursor:pointer}
+.deck-arrow:disabled{opacity:.35;cursor:default}
+.deck-arrow:not(:disabled):hover{background:var(--panel)}
+.deck-dots{display:flex;align-items:center;gap:6px}
+.deck-dot{width:8px;height:8px;border-radius:999px;background:var(--border);border:none;cursor:pointer;padding:0}
+.deck-dot.active{background:var(--primary);width:20px;border-radius:5px}
+.deck-counter{font-size:12px;color:var(--muted-foreground);min-width:52px;text-align:center}
+mark.src-hl{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--fg);border-left:2px solid var(--warn);border-radius:0;padding:0 2px}
+h2{font-size:32px;line-height:1.15;letter-spacing:-.02em;margin:.1em 0 .5em;font-weight:700;color:var(--fg)}
+h4{margin:1.1em 0 .35em;font-size:17px;font-weight:600;color:var(--fg)}
+.subhead{font-size:20px;font-weight:600;margin:1.4em 0 .4em;color:var(--fg)}
+.kicker{font-size:14px;font-weight:600;letter-spacing:.02em;color:var(--primary-text);margin-bottom:6px}
+.sub{font-size:18px;line-height:1.55;color:var(--muted-foreground);margin:-.1em 0 1.3em;max-width:62ch}
+p{margin:.65em 0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul{margin:.6em 0;padding-left:0;list-style:none}
+ol{margin:.6em 0;padding-left:22px}
+li{margin:0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul>li{position:relative;padding-left:18px;margin:8px 0}
+ul>li::before{content:"";position:absolute;left:0;top:.62em;width:6px;height:6px;border-radius:50%;background:color-mix(in srgb,var(--primary-text) 70%,transparent)}
+ol>li{margin:8px 0}
+.tw{overflow-x:auto;margin:.8em 0}
+table{border-collapse:collapse;width:100%;font-size:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+th,td{border:none;border-bottom:1px solid var(--border);padding:10px 14px;text-align:left;vertical-align:top;color:var(--fg-body)}
+tbody tr:last-child td{border-bottom:none}
+thead th{background:var(--surface-3);font-weight:600;font-size:12px;letter-spacing:.02em;color:var(--muted-foreground)}
+table.kv th{background:none;width:30%;white-space:nowrap;font-weight:500;color:var(--muted-foreground)}
+.kpi{display:flex;flex-wrap:wrap;gap:12px;margin:.8em 0}
+.kpi-card{flex:1 1 160px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--panel)}
+.kpi-label{font-size:13px;color:var(--muted-foreground);margin-bottom:6px}
+.kpi-nums{display:flex;align-items:center;gap:8px;font-weight:700}
+.kpi-nums .base{color:var(--muted-foreground)}
+.kpi-nums .arrow{color:var(--primary)}
+.kpi-nums .target{color:var(--good)}
+.goals{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:.8em 0}
+.goal-col{border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+.goal-col.g{border-left:4px solid var(--good)}
+.goal-col.ng{border-left:4px solid var(--danger)}
+pre.code{background:var(--surface-3);color:var(--fg-body);border-radius:10px;padding:14px 16px;overflow-x:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;margin:.8em 0}
+/* mermaid 는 항상 라이트 카드에 그린다(테마 무관, pre.code 가 항상 다크인 것과 대칭) —
+   mermaid 렌더 테마를 다크로 다시 그리려면 이미 SVG 로 처리된 노드를 되돌려야 해서
+   토글마다 재처리가 필요해진다. 대신 다이어그램 카드 자체를 고정 라이트로 둬서
+   토글과 무관하게 항상 선명하게 읽힌다. */
+/* A figure, not a paragraph. The SVG now carries its natural width, so the
+   frame scrolls instead of shrinking it — a 1437px graph squeezed into an
+   840px column rendered its 16px labels at 7.7px, which was the single worst
+   readability defect in the deck. */
+/* Full bleed: the figure uses the whole reading area, not the 840px measure the
+   prose wants. A 1388px graph inside an 840px column left ~215px of dead gutter
+   on each side AND a scrollbar — the worst of both. */
+pre.mermaid{background:var(--surface-3);border:1px solid var(--border-strong);border-radius:10px;padding:14px;margin:1.1em 0;overflow-x:auto;text-align:left}
+@supports (width:100cqw){
+  pre.mermaid{
+    /* A 16px gutter, not the prose gutter. Text wants a comfortable measure; a
+       figure wants the glass. With the source panel open — which is the deck's
+       whole point and stays open — every pixel of the reading area counts. */
+    --bleed:calc(100cqw - 32px);
+    width:var(--bleed);
+    max-width:var(--bleed);
+    margin-inline:calc((100% - var(--bleed)) / 2);
+  }
+}
+/* Fit the frame when there is room; below 900px stop shrinking and scroll
+   instead. Scaling all the way down is what made 16px labels render at 7.7px,
+   and a scrollbar is better than text nobody can read. */
+pre.mermaid svg{max-width:100%;min-width:900px;height:auto}
+/* The diagram lives in a <pre>, whose UA default is white-space:pre, and that
+   inherits into every label. Mermaid sizes an edge label's box for TWO wrapped
+   lines (200x48.75) and the text then refused to wrap, so anything past 200px
+   was clipped mid-word — "BASE_REF, HEAD_REF, PR_TITLE" measured 230px of text
+   in a 200px box. Labels are prose, not preformatted text. */
+pre.mermaid foreignObject,pre.mermaid foreignObject *{white-space:normal}
+/* On a narrow window there is nothing to floor — let it fit rather than force
+   a scrollbar the reader cannot escape. */
+@media (max-width:900px){pre.mermaid svg{min-width:0}}
+pre.mermaid.mermaid-fallback{text-align:left;white-space:pre;overflow-x:auto;background:#0f1320;color:#e6e9f0;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:30px 16px 14px;position:relative}
+pre.mermaid.mermaid-fallback::before{content:"\29c9 \b2e4\c774\c5b4\adf8\b7a8 \c6d0\bcf8 (\c624\d504\b77c\c778 \b610\b294 CDN \bbf8\b85c\b4dc)";position:absolute;top:8px;left:16px;font:600 11px/1 -apple-system,sans-serif;color:var(--muted-foreground)}
+/* A tinted card, not a left rule — the reference's Callout. color-mix keeps one
+   hue per tone instead of a second hand-picked hex for the fill. */
+.callout{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:1em 0;background:var(--panel)}
+.callout-title{font-weight:600;font-size:16px;margin-bottom:4px;color:var(--fg)}
+.callout p,.callout li{font-size:14px;color:var(--fg-soft)}
+.callout.info{border-color:color-mix(in srgb,var(--primary-text) 30%,transparent);background:color-mix(in srgb,var(--primary-text) 10%,var(--bg))}
+.callout.good{border-color:color-mix(in srgb,var(--good) 30%,transparent);background:color-mix(in srgb,var(--good) 10%,var(--bg))}
+.callout.warn{border-color:color-mix(in srgb,var(--warn) 30%,transparent);background:color-mix(in srgb,var(--warn) 10%,var(--bg))}
+.callout.danger{border-color:color-mix(in srgb,var(--danger) 30%,transparent);background:color-mix(in srgb,var(--danger) 10%,var(--bg))}
+.callout.next{border-style:dashed;border-color:var(--border-strong);background:var(--surface-2)}
+.lint h2{color:var(--warn)}
+.lint-count{display:inline-block;background:var(--warn);color:var(--on-warn);border-radius:999px;font-size:12px;padding:1px 9px;vertical-align:middle}
+/* 화면목업(와이어프레임) 킷 — scv 자체 기본 스킨(2순위 폴백): DesignSystem 의 실제
+   다크 팔레트를 distill(무채색 표면 + 단일 로즈 악센트 + border-only depth + pill
+   배지, 글라스 없음 — DesignSystem 본체엔 글라스가 없다). 문서 자체의 라이트/다크
+   토글과는 독립적으로 항상 이 다크 스킨을 쓴다(--wf-* 로 스코프해 문서 테마 변수와
+   충돌하지 않음) — mermaid 카드를 항상 라이트로 고정하는 것과 같은 이유(재처리 없이
+   항상 또렷하게). 프로젝트 실제 토큰(1순위) 자동감지는 아직 없음 — 후속 작업.
+   버튼은 항상 disabled(정적 예시 그림이라 실제 인터랙션 없음). */
+.wf-screen{
+  margin:1em 0;
+  --wf-bg:#0a0a0b; --wf-fg:#fafafa; --wf-card:#1c1c1e; --wf-border:rgba(255,255,255,.1);
+  --wf-muted:#232326; --wf-muted-fg:#9a9a9f;
+  --wf-primary:#a53257; --wf-primary-fg:#fdf1f3;
+  --wf-success:#34d399; --wf-success-bg:rgba(16,185,129,.15); --wf-success-border:rgba(16,185,129,.4);
+  --wf-danger:#ef6b6b; --wf-danger-bg:rgba(239,107,107,.14);
+  --wf-info:#60a5fa; --wf-info-bg:rgba(96,165,250,.15);
+  --wf-warn:#e0ab48; --wf-warn-bg:rgba(224,171,72,.15);
+  --wf-radius:10px; --wf-radius-pill:999px;
+}
+.wf-chrome{display:flex;align-items:center;gap:7px;padding:9px 12px;border-bottom:1px solid var(--wf-border);background:var(--wf-card)}
+.wf-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;opacity:.7}
+.wf-dot-r{background:#fb2c36}.wf-dot-y{background:#fe9a00}.wf-dot-g{background:#00bc7d}
+.wf-url{margin-left:6px;padding:2px 8px;border-radius:5px;background:var(--wf-muted);color:var(--wf-muted-fg,var(--muted-foreground));font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wf-frame{border:1px solid var(--wf-border);border-radius:calc(var(--wf-radius) + 4px);background:var(--wf-bg);color:var(--wf-fg);overflow:hidden}
+.wf-nav{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--wf-border);background:var(--wf-bg);flex-wrap:wrap}
+.wf-nav-item{font-size:13px;color:var(--wf-muted-fg);padding:12px 11px;border-bottom:2px solid transparent}
+.wf-nav-item.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-primary)}
+.wf-body{padding:20px}
+.wf-header{margin-bottom:0}
+.wf-header-title{font-size:16px;font-weight:600;color:var(--wf-fg)}
+.wf-header-sub{font-size:12.5px;color:var(--wf-muted-fg);margin-top:3px}
+.wf-toolbar{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+.wf-tabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid var(--wf-border)}
+.wf-tab{font-size:12.5px;color:var(--wf-muted-fg);padding:7px 11px;border-bottom:2px solid transparent}
+.wf-tab.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-muted-fg)}
+.wf-btn{font-weight:500;font-size:12.5px;line-height:1;padding:8px 13px;border-radius:8px;border:1px solid transparent;background:var(--wf-muted);color:var(--wf-fg);cursor:default}
+.wf-btn-primary{background:var(--wf-primary);color:var(--wf-primary-fg)}
+.wf-btn-danger{background:var(--wf-danger-bg);color:var(--wf-danger)}
+.wf-input{display:inline-flex;align-items:center;font-size:12.5px;color:var(--wf-muted-fg);padding:8px 12px;border:1px solid var(--wf-border);border-radius:8px;background:var(--wf-card);min-width:120px}
+.wf-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.wf-table th,.wf-table td{border-bottom:1px solid var(--wf-border);padding:9px 10px;text-align:left}
+.wf-table th{color:var(--wf-muted-fg);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.02em}
+.wf-badge{display:inline-flex;align-items:center;height:20px;border-radius:var(--wf-radius-pill);padding:0 9px;font-size:10.5px;font-weight:500;border:1px solid transparent}
+.wf-badge-muted{background:var(--wf-muted);color:var(--wf-muted-fg);border-color:var(--wf-border)}
+.wf-badge-info{background:var(--wf-info-bg);color:var(--wf-info);border-color:rgba(96,165,250,.35)}
+.wf-badge-good{background:var(--wf-success-bg);color:var(--wf-success);border-color:var(--wf-success-border)}
+.wf-badge-warn{background:var(--wf-warn-bg);color:var(--wf-warn);border-color:rgba(224,171,72,.35)}
+.wf-badge-danger{background:var(--wf-danger-bg);color:var(--wf-danger);border-color:rgba(239,107,107,.35)}
+.wf-card{border-radius:var(--wf-radius);border:1px solid var(--wf-border);padding:14px 16px;margin-bottom:10px;background:var(--wf-card)}
+.wf-card-title{font-size:13px;font-weight:600;color:var(--wf-fg);margin-bottom:8px}
+.wf-list{list-style:none;margin:0;padding:0}
+.wf-list li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--wf-border);font-size:12.5px;color:var(--wf-fg)}
+.wf-list li:last-child{border-bottom:none}
+.wf-form{display:flex;flex-direction:column;gap:8px}
+.wf-field{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--wf-muted-fg)}
+.wf-text{font-size:12.5px;color:var(--wf-fg);margin:.3em 0}
+@media (max-width:900px){.source-panel{width:min(360px,44vw)}}
+@media (max-width:640px){.goals{grid-template-columns:1fr}nav.toc ol{columns:1}.shell{flex-direction:column;height:auto;overflow:visible}.scroll-main{overflow:visible}.source-panel{width:100%;height:60vh}}
+/* Paper is the one place the light values live. This is not a second theme the
+   reader can choose — @media print is unreachable on screen, persists nothing,
+   and shows no control. The screen deck stays dark only.
+   It has to redeclare the TOKENS, not just body: the old block set
+   background:#fff on body while every surface below it kept painting from
+   --bg, so the PDF was 20 pages of dark slabs on a white sheet. */
+@media print{
+  :root{
+    --bg:#ffffff; --panel:#f6f7f8; --surface-2:#fafafa; --surface-3:#f4f4f5;
+    --fg:#111418;                /* 17.74:1 on white */
+    --fg-body:#1c1f24;           /* 15.42:1 */
+    --fg-soft:#33373d;           /* 10.87:1 */
+    --muted-foreground:#565d6b;  /*  6.45:1 */
+    --border:rgba(0,0,0,.14); --border-strong:#8a8f98; --ring:#8a8f98;
+    --primary:#a50036;           /* the brand fill survives; white on it 7.58:1 */
+    --primary-text:#8f0030;      /*  8.75:1 on white — the light form of the rose */
+    --on-primary:#ffffff;
+    --good:#0f7a4d;              /*  5.24:1 */
+    --warn:#8a6100;              /*  5.40:1 */
+    --danger:#b32d1f;            /*  6.18:1 */
+    --on-warn:#fdf6e6;
+    --wf-bg:#ffffff; --wf-fg:#111418; --wf-card:#f6f6f7;
+    --wf-border:rgba(0,0,0,.16); --wf-muted:#f0f0f1; --wf-muted-fg:#565d6b;
+  }
+  @page{size:A4;margin:14mm 12mm}
+  body{background:#fff;display:block;height:auto}
+  .shell{display:block;height:auto;overflow:visible}
+  .shell-mid{display:block;overflow:visible}
+  .scroll-main{overflow:visible;height:auto}
+  .wrap{box-shadow:none;max-width:none;padding:0}
+  header.doc{position:static;border-bottom:1px solid var(--border);padding:0 0 8px}
+  .panel-toggle,.source-panel,.deck-nav,.deck-footer{display:none}
+  nav.toc{display:block;break-inside:avoid}
+  /* break-inside:avoid on a 3000px section dumps most of a page. Keep headings
+     with what follows and protect only the things that must not split. */
+  h2,h3,h4,.subhead{break-after:avoid}
+  figure,table,pre.code,.callout,.wf-screen{break-inside:avoid}
+  /* Paper cannot scroll, so a wide graph gets its own landscape sheet. */
+  @page dg{size:A4 landscape;margin:12mm}
+  pre.mermaid{page:dg;overflow:visible;break-inside:avoid;max-height:180mm}
+  pre.mermaid svg{max-width:100%;height:auto}
+  .print-source{display:block;break-before:page}
+  .print-source h3{margin-top:1.6em;font-size:14px}
+}
+</style>
+<style id="scv-mermaid-contrast">
+/* Diagram palette. static-mermaid.mjs strips the id-scoped rules, the
+   !important flags and the inline colour attributes first, so plain specificity
+   is enough here — before that, an author rule at (1,3,1) with !important still
+   lost to style="fill:#FFE082 !important" on a classDef node. */
+pre.mermaid .flowchart-link,pre.mermaid .edgePath .path,pre.mermaid path.flowchart-link{stroke:var(--fg-body);stroke-width:1.6px;fill:none}
+pre.mermaid .marker,pre.mermaid marker path,pre.mermaid .arrowMarkerPath{fill:var(--fg-body);stroke:var(--fg-body)}
+pre.mermaid .node rect,pre.mermaid .node circle,pre.mermaid .node polygon,pre.mermaid .node path{fill:var(--panel);stroke:var(--border-strong);stroke-width:1.2px}
+pre.mermaid .nodeLabel,pre.mermaid .nodeLabel p,pre.mermaid .label,pre.mermaid text{fill:var(--fg);color:var(--fg)}
+pre.mermaid .edgeLabel,pre.mermaid .edgeLabel p{background-color:var(--surface-3);color:var(--fg-body)}
+pre.mermaid .edgeLabel rect,pre.mermaid .labelBkg{fill:var(--surface-3);opacity:1}
+pre.mermaid .cluster rect{fill:var(--surface-2);stroke:var(--border-strong)}
+pre.mermaid .cluster text,pre.mermaid .cluster .nodeLabel{fill:var(--muted-foreground);color:var(--muted-foreground)}
+/* The two semantic highlights the protocol sanctions. Any other per-node colour
+   is stripped, so these are the only ones that survive — deck.md says so. */
+pre.mermaid .node.new rect,pre.mermaid g.new rect{fill:#5a4415;stroke:var(--warn);stroke-width:1.8px}
+pre.mermaid .node.new .nodeLabel,pre.mermaid g.new .nodeLabel{fill:#f6e8c8;color:#f6e8c8}
+pre.mermaid .node.changed rect,pre.mermaid g.changed rect{fill:#16324f;stroke:#6fb4f2;stroke-width:1.8px}
+pre.mermaid .node.changed .nodeLabel,pre.mermaid g.changed .nodeLabel{fill:#d9ecff;color:#d9ecff}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="doc"><h1>쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치</h1><nav class="deck-nav"><button class="deck-nav-item active" data-idx="0" onclick="scvGoto(0)">1. Summary</button><button class="deck-nav-item" data-idx="1" onclick="scvGoto(1)">2. Goals / Non-Goals</button><button class="deck-nav-item" data-idx="2" onclick="scvGoto(2)">3. Approach Overview</button><button class="deck-nav-item" data-idx="3" onclick="scvGoto(3)">4. Guardrails</button><button class="deck-nav-item" data-idx="4" onclick="scvGoto(4)">5. Exit criteria</button><button class="deck-nav-item" data-idx="5" onclick="scvGoto(5)">6. Suggested path</button><button class="deck-nav-item" data-idx="6" onclick="scvGoto(6)">7. Related Documents</button><button class="deck-nav-item" data-idx="7" onclick="scvGoto(7)">8. Risks / Open Quest</button><button class="deck-nav-item" data-idx="8" onclick="scvGoto(8)">9. Links</button><button class="deck-nav-item" data-idx="9" onclick="scvGoto(9)">10. ✅ 테스트 · 인수기준 (TEST</button><button class="deck-nav-item" data-idx="10" onclick="scvGoto(10)">11. Overview</button><button class="deck-nav-item" data-idx="11" onclick="scvGoto(11)">12. Test scenarios</button><button class="deck-nav-item" data-idx="12" onclick="scvGoto(12)">13. How to run</button><button class="deck-nav-item" data-idx="13" onclick="scvGoto(13)">14. Pass criteria</button><button class="deck-nav-item" data-idx="14" onclick="scvGoto(14)">15. Related Documents</button><button class="deck-nav-item" data-idx="15" onclick="scvGoto(15)">16. 품질 리포트</button></nav><div class="header-actions"><button class="panel-toggle" onclick="scvTogglePanel()" title="원문 패널 토글 (S)">기획서 원문 <span class="kbd">S</span></button></div></header>
+<div class="shell-mid">
+<div class="scroll-main">
+<div class="wrap">
+<nav class="toc"><h3>목차</h3><ol><li><a href="#s-0-summary">Summary</a></li><li><a href="#s-1-goals--non-goals">Goals / Non-Goals</a></li><li><a href="#s-2-approach-overview">Approach Overview</a></li><li><a href="#s-3-guardrails">Guardrails</a></li><li><a href="#s-4-exit-criteria">Exit criteria</a></li><li><a href="#s-5-suggested-path">Suggested path</a></li><li><a href="#s-6-related-documents">Related Documents</a></li><li><a href="#s-7-risks--open-questions">Risks / Open Questions</a></li><li><a href="#s-8-links">Links</a></li><li><a href="#s-9--테스트--인수기준-tests">✅ 테스트 · 인수기준 (TESTS)</a></li><li><a href="#s-10-overview">Overview</a></li><li><a href="#s-11-test-scenarios">Test scenarios</a></li><li><a href="#s-12-how-to-run">How to run</a></li><li><a href="#s-13-pass-criteria">Pass criteria</a></li><li><a href="#s-14-related-documents">Related Documents</a></li></ol></nav>
+<section id="s-0-summary" class="slide-page active" data-idx="0"><div class="kicker">쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치</div><h2>Summary</h2><p>&quot;쉬운 말 먼저&quot; 규칙은 8월 12일에 넣었지만 지켜지지 않는다. 모델은 여전히
+길게, 코드값(파일 경로·버전·설정값)으로, 예시 없이 답한다.</p>
+<p>원인은 세 가지다. (1) 규칙이 문체 조언이라 답의 모양을 정하지 않았다.
+(2) 규칙이 /scv:* 명령 안에만 있어서 일반 대화에는 한 줄도 전달되지
+않는다. (3) 어겨도 아무 검사도 켜지지 않는다.</p>
+<p>고치는 방법: 규칙을 &quot;먼저 1~2문장 → 예시 하나 → 코드값은 묻기 전엔 금지 →
+자세한 건 원하면&quot;이라는 답의 모양으로 다시 쓰고, 매 메시지마다 도는 기록
+훅이 그 요약을 모델에게 보여주게 하며, SCV.md 에도 같은 안내를 싣는다.
+.env 의 SCV_PLAIN_LANGUAGE 로 켜고 끌 수 있다 — 기본은 켜짐, off 만 꺼짐.</p></section>
+<section id="s-1-goals--non-goals" class="slide-page" data-idx="1"><div class="kicker">쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치</div><h2>Goals / Non-Goals</h2><ul><li>Goals<ol><li>규칙 재작성 (A) — 13개 프로토콜의 ## Plain language first 절 본문을
+&quot;답의 모양&quot; 판으로 바꾼다. 제목은 그대로(누적 회귀 T4 호환), 본문은 13개
+파일에서 바이트 동일, 위치는 ## Language preference 바로 다음 H2.
+첫 줄이 스위치 안내(SCV_PLAIN_LANGUAGE=off 면 이 절은 적용하지 않음).
+좋은 답/나쁜 답 예시 한 쌍을 규칙 안에 넣는다.</li><li>help 대화 모드 매 턴 모양 (A) — help.md Step B2 에 &quot;매 턴: 짧은 답
+→ 예시 하나 → 질문 하나(one question per turn)&quot; 를 계약으로 넣는다.</li><li>매 턴 전달 (B1) — core/template/hooks/on-user-prompt.sh 가 SCV 를
+쓰는 프로젝트에서 규칙 요약(12줄 이내)을 stdout 으로 내보낸다. Claude
+Code 와 Codex 모두 이 훅의 stdout 을 모델 컨텍스트에 넣는다(공식 문서
+확인, 2026-08-21). 기록(journal) 동작과 비차단 보장은 그대로.</li><li>안내 (B2) — 템플릿 scv/SCV.md 에 &quot;SCV 는 이렇게 말한다&quot; 절을 넣고,
+루트 지침 파일에 한 줄 추가하는 안내를 붙인다. 훅을 등록하지 않은
+호스트는 이 경로로 규칙을 받는다.</li><li>스위치 — .env SCV_PLAIN_LANGUAGE. 없음/on → 켜짐, off 만 꺼짐.
+.env.example.scv 에 기본 on 으로 문서화(effort governor 블록과 같은 형식).
+TEMPLATE_VERSION 2.2.0 → 2.3.0 — 기존 프로젝트는 다음 액션 때 autosync 로
+.env.example.scv 와 SCV.md 를 자동 수령한다.</li><li>예시 루틴 (C, 작게) — core/template/scv/routines/examples/plain-language-audit.md
+한 개. journal 의 답변을 훑어 &quot;첫 문장이 길다 / 코드값이 섞였다&quot; 를 표시한다.
+자동 실행 없음, 복사해 쓰는 예시.</li><li>회귀 가드 — 위 전부를 core/tests/ 에 고정한다 (이 계획의 TESTS.md).</li></ol></li><li>Non-Goals<ul><li>모델 출력을 LLM 으로 채점하는 자동 테스트 (회귀 스위트에 넣지 않음 —
+사람 판정 3건으로 종료, Exit criteria 참조)</li><li>Language preference 절 수정, 새 action, core/actions.json 변경</li><li>promote·work 외 프로토콜에 SCV:GUIDANCE 마커 도입 (어블레이션 1단계 범위 유지)</li><li>/scv:help 첫 설정에 스위치 질문 추가 (기본 on 으로 충분 — .env.example.scv 가 안내)</li><li>루트 지침 파일(CLAUDE.md/AGENTS.md) 자동 수정 — SCV 는 건드리지 않는다</li></ul></li></ul></section>
+<section id="s-2-approach-overview" class="slide-page" data-idx="2"><div class="kicker">쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치</div><h2>Approach Overview</h2><p>규칙 본문(확정 초안, 영어 원문 — 13개 파일 공통). 제목 ## Plain language first
+는 유지한다. 본문:</p>
+<pre class="code"><code>Skip this section only when the project `.env` sets `SCV_PLAIN_LANGUAGE=off`
+(absent or any other value = on).
+
+Answer shape — every time you explain something to the user:
+
+1. First, 1–2 sentences. Lead with what the user gets.
+2. Then one example — from the user's situation, or an everyday comparison.
+3. No code values before the user asks: file paths, variable names, version
+   numbers, setting values. Use the plain name instead (&quot;the settings file&quot;,
+   &quot;last week's plan&quot;).
+4. Detail comes after, and only when wanted. Offer it in one line.
+
+Identifiers the user needs to act on — the next command to run, a file that
+was created — stay exact, after the plain summary.
+
+Bad: &quot;The block landed in `.env.example.scv:154-161` and the stamp advanced
+2.1.0 → 2.2.0.&quot;
+Good: &quot;Your settings example file is up to date. For example, the new 'effort'
+setting now shows there. Want the exact lines?&quot;
+
+This governs everything the user reads: answers, questions, plans, progress
+reports, summaries, and explanations of what went wrong.</code></pre>
+<p>훅 요약(초안, 영어, 12줄 이내). on-user-prompt.sh 가 scv/ 가 있고
+스위치가 켜져 있을 때 stdout 으로 낸다. 기록 성공 여부와 무관하게, 기록보다
+먼저 낸다. journal 파일에는 절대 섞이지 않는다 (stdout ≠ journal).</p>
+<pre class="code"><code>[SCV plain language] Answer shape: (1) first, 1–2 sentences — lead with what
+the user gets; (2) then one example; (3) no code values (paths, variable names,
+versions, settings) before the user asks — use plain names; (4) detail after,
+only when wanted. Identifiers the user needs to act on stay exact, after the
+plain summary. Off switch: .env SCV_PLAIN_LANGUAGE=off.</code></pre>
+<p>스위치 읽기. 훅은 cwd 의 .env 에서 ^SCV_PLAIN_LANGUAGE= 한 줄만 읽는다
+(source 금지 — 비밀값·nounset 위험). 값은 소문자로 비교해 off 일 때만
+꺼짐. 프로토콜 쪽은 절의 첫 줄이 스위치 규칙을 말하므로 모델이 .env 를 보고
+스스로 비켜선다. 중첩 모노레포 모듈은 루트 .env 를 따른다(이번 범위의 한계로
+Risks 에 적는다).</p>
+<p>위치와 분류. 13개 프로토콜에서 절은 마커 밖(CONTRACT)에 둔다 — 8월 12일
+결정 그대로(1단계 스코프 가드 때문). promote/work 의 --lint 측정표를
+docs/guidance-ablation.md 에 실측으로 갱신한다.</p>
+<p>래퍼 후속. Claude Code 래퍼는 이미 UserPromptSubmit 에 이 훅을 등록해
+두어 Core 반영만으로 켜진다. Codex 래퍼는 plugins/scv/hooks/hooks.json 에
+UserPromptSubmit(+ Stop) 등록이 없다 — 이번 배송 웨이브에서 등록 PR 을
+함께 낸다(사용자 결정). docs/wrapper-integration.md §6 에 &quot;훅 stdout 은
+컨텍스트로 들어간다 — 등록은 래퍼 소유&quot; 를 적는다.</p></section>
+<section id="s-3-guardrails" class="slide-page" data-idx="3"><div class="kicker">쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치</div><h2>Guardrails</h2><ul><li>절의 제목 ## Plain language first 는 바꾸지 않는다 — 누적 회귀(T4)가
+제목으로 찾는다. 본문만 바꾼다.</li><li>13개 파일의 절 본문은 바이트 동일. set-models.md·update.md(어댑터
+스텁)에는 넣지 않는다.</li><li>promote·work 외 프로토콜에 SCV:GUIDANCE 마커를 넣지 않는다. promote·work
+안에서도 이 절은 마커 밖에 둔다.</li><li>훅: 어떤 실패에도 exit 0, scv/journal/ 밖에 쓰지 않는다, .env 를
+source 하지 않는다, 요약은 12줄 이내, journal 에 요약을 쓰지 않는다.</li><li>훅·프로토콜·SCV.md 문구에 호스트 이름(Claude/Codex//scv:/모델명)을 넣지
+않는다 — Core 는 호스트 중립.</li><li>core/actions.json, core/scripts/*.sh 의 계약(액션 15개)은 건드리지 않는다.</li><li>템플릿 파일(SCV.md, .env.example.scv, 루틴 README)을 바꾸면 반드시
+TEMPLATE_VERSION 을 2.3.0 으로 올린다 — 안 올리면 기존 프로젝트가 못 받는다.</li><li>규칙 자체가 쉬운 말로 쓰여 있어야 한다. 어려운 문장으로 &quot;쉽게 쓰라&quot;고 하면
+그 자체가 반례다.</li><li>테스트에 git diff/git status 단언을 넣지 않는다 — 커밋 상태에 따라 판정이
+흔들린다(0818 회귀 계약 보수의 교훈). 내용 기반 단언만 쓴다.</li></ul></section>
+<section id="s-4-exit-criteria" class="slide-page" data-idx="4"><div class="kicker">쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치</div><h2>Exit criteria</h2><ul><li>TESTS.md 의 How-to-run 블록이 exit 0 (T1–T6 전부).</li><li>사람 판정 3건 통과(수동): 샘플 프로젝트에서 ① 명령 없는 일반 대화 질문
+1건 ② /scv:help 진단 1건 ③ /scv:help &quot;&lt;아이디어&gt;&quot; 대화 1턴. 각각 첫 답이
+&quot;2문장 이내 + 예시 1 + 코드값 없음&quot; 인지 대표님이 눈으로 판정해 통과/반려를
+결정한다. 결과는 archive 에 체크리스트로 남긴다. 이것이 자동 테스트가 못
+보장하는 부분을 닫는 유일한 문이다.</li><li>run-dry.sh · tests/run.sh · core/tests/test-*.sh 전부 green.
+guidance-filter.sh --lint OK, full 투영 원본과 바이트 동일.</li><li>CHANGELOG 기록 + docs/guidance-ablation.md 측정표 실측 갱신 +
+docs/wrapper-integration.md §6 갱신.</li><li>Codex 래퍼 훅 등록은 배송 웨이브의 별도 PR 로 기록된다 (이 플랜의 archive
+는 Core 기준으로 닫고, 래퍼 PR 번호를 DECISIONS 에 남긴다).</li></ul></section>
+<section id="s-5-suggested-path" class="slide-page" data-idx="5"><div class="kicker">쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치</div><h2>Suggested path</h2><ol><li>규칙 본문과 훅 요약 문구를 확정한다 (위 초안 기준, 영어, 앵커 문구 유지:
+SCV_PLAIN_LANGUAGE=off · 1–2 sentences · one example ·
+No code values before the user asks · stay exact, after the plain summary ·
+Bad: · Good:).</li><li>13개 프로토콜의 ## Plain language first 본문을 교체한다. help.md Step B2
+에 매 턴 모양(one question per turn)을 추가한다.</li><li>on-user-prompt.sh: scv/ 존재 + 스위치 on 이면 요약을 stdout 으로, 그
+다음 기존 기록 경로 그대로. core/tests/test-journal.sh 에 on/off/OFF/이상값/
+미적용 폴더/잘못된 입력 6경우를 추가한다.</li><li>템플릿: .env.example.scv 스위치 블록, SCV.md &quot;SCV 는 이렇게 말한다&quot; 절,
+예시 루틴 plain-language-audit.md, 루틴 README 의 예시 개수(8→9),
+TEMPLATE_VERSION 2.3.0 (core/ 와 루트 둘 다).</li><li>테스트 앵커: run-dry.sh plain-language 섹션(앵커·위치·옛 문구 부재),
+test-sync-env-example.sh(새 변수), test-routines.sh(새 예시 lint 대상).</li><li>문서: CHANGELOG, docs/guidance-ablation.md 측정표(--lint 실측),
+docs/wrapper-integration.md §6.</li><li>사람 판정 3건 → 체크리스트 기록 → archive → DECISIONS.</li><li>배송 웨이브: Core 릴리스 → 래퍼 두 곳 벤더링 + Codex hooks.json 등록 PR.</li></ol></section>
+<section id="s-6-related-documents" class="slide-page" data-idx="6"><div class="kicker">쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치</div><h2>Related Documents</h2><ul><li>대화: scv/conversations/20260821-103405-plain-answers-enforcement.md</li><li>이전 규칙: scv/archive/20260812-wookiya1364-plain-language/PLAN.md (본문 교체 대상)</li></ul></section>
+<section id="s-7-risks--open-questions" class="slide-page" data-idx="7"><div class="kicker">쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치</div><h2>Risks / Open Questions</h2><div class="tw"><table class="kv"><tbody><tr><th>여전히 &quot;진짜 쉽게 말하는지&quot; 를 기계가 보장하지 못한다.</th><td>보장되는 것은
+&quot;규칙이 매 턴 모델 눈앞에 있다 + 답의 모양이 구체적이다&quot; 까지. 사람 판정
+3건이 닫는다. 반려되면 문구를 고쳐 다시 3건.</td></tr><tr><th>매 턴 주입 비용.</th><td>12줄 이내 × 매 메시지. 미미하지만 off 로 끌 수 있다.</td></tr><tr><th>중첩 모노레포 모듈.</th><td>훅은 cwd 의 .env 만 본다. 모듈별 .env 는 이번
+범위 밖 — 필요해지면 별도 계획.</td></tr><tr><th>Codex 등록.</th><td>공식 문서상 UserPromptSubmit stdout 이 컨텍스트로 들어간다.
+실제 등록은 래퍼 PR 에서 실측한다 — 안 되면 SCV.md 안내 경로가 대신한다.</td></tr><tr><th>문구 13곳 복제.</th><td>어긋나면 run-dry 가 잡는다(동일성 단언). 토큰화는 2단계
+어블레이션 때 재검토.</td></tr></tbody></table></div></section>
+<section id="s-8-links" class="slide-page" data-idx="8"><div class="kicker">쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치</div><h2>Links</h2><ul><li>Raw originals: (frontmatter 참조 — 대화 파일)</li><li>Related PRs:</li></ul></section>
+<section id="s-9--테스트--인수기준-tests" class="slide-page" data-idx="9"><div class="kicker">쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치</div><h2>✅ 테스트 · 인수기준 (TESTS)</h2></section>
+<section id="s-10-overview" class="slide-page" data-idx="10"><div class="kicker">쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치</div><h2>Overview</h2><p>기계로 확인할 수 있는 것: 규칙이 13개 프로토콜에 같은 문구로 제자리에 있고,
+훅이 켜짐/꺼짐 규칙대로 요약을 내보내며 비차단을 지키고, 템플릿·스위치·
+예시 루틴이 자리에 있고, 어블레이션 규율이 깨지지 않았다는 것까지다.
+모델이 실제로 쉽게 말하는지는 자동으로 보장하지 못한다 — 그 부분은 T7
+(사람 판정 3건, 수동)이 닫는다. 숨기지 않고 판정 기준에 적는다.</p>
+<p>git diff/git status 단언은 쓰지 않는다 — 커밋 상태와 무관하게 트리
+내용만으로 판정이 성립해야 한다(0818 회귀 계약 보수 T5).</p></section>
+<section id="s-11-test-scenarios" class="slide-page" data-idx="11"><div class="kicker">쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치</div><h2>Test scenarios</h2><h3 class="subhead">T1. 13개 프로토콜 — 절 존재·동일 문구·위치·앵커·옛 문구 제거</h3>
+<div class="tw"><table class="kv"><tbody><tr><th>Setup</th><td>저장소 트리</td></tr><tr><th>Run</th><td>## Language preference 를 가진 프로토콜 전부를 대상으로 검사</td></tr><tr><th>Expected</th><td>대상 ≥ 13, 전부 ## Plain language first 절 보유, 절 본문
+해시가 하나(끝 빈 줄 무시), 절이 Language preference 바로 다음 H2, 앵커
+7개(SCV_PLAIN_LANGUAGE=off · 1–2 sentences · one example ·
+No code values before the user asks · stay exact, after the plain summary ·
+Bad: · Good:) 전부 존재, 옛 문구 Detail is not owed up front 는 어느
+프로토콜에도 없음, set-models.md·update.md 에는 절 없음</td></tr><tr><th>Pass criterion</th><td>OK [T1]</td></tr></tbody></table></div>
+<h3 class="subhead">T2. help 대화 모드 — 매 턴 모양</h3>
+<div class="tw"><table class="kv"><tbody><tr><th>Expected</th><td>core/protocols/help.md 에 one question per turn 앵커 존재
+(Step B2 대화 루프 안: 짧은 답 → 예시 하나 → 질문 하나)</td></tr><tr><th>Pass criterion</th><td>OK [T2]</td></tr></tbody></table></div>
+<h3 class="subhead">T3. 훅 — 켜짐/꺼짐/이상값/미적용/비차단, journal 오염 없음</h3>
+<div class="tw"><table class="kv"><tbody><tr><th>Setup</th><td>임시 폴더 5개 — on(scv/ 있음, .env 없음) · off(SCV_PLAIN_LANGUAGE=off)
+· up(=OFF) · odd(=maybe) · none(scv/ 없음). SCV_CORE_ROOT 는 저장소 core/.</td></tr><tr><th>Run</th><td>각 폴더를 cwd 로 {&quot;prompt&quot;:&quot;hello&quot;} 를 stdin 으로 on-user-prompt.sh 실행</td></tr><tr><th>Expected</th><td>on → exit 0, stdout 에 1–2 sentences 와 SCV_PLAIN_LANGUAGE
+포함, 12줄 이내, scv/journal/*.md 에 기록됨, journal 에 요약 문구 없음.
+off·up → stdout 비어 있음(exit 0). odd → 요약 출력(이상값은 켜짐).
+none → stdout 비어 있음. 잘못된 입력(not-json) → exit 0.</td></tr><tr><th>Pass criterion</th><td>OK [T3]</td></tr></tbody></table></div>
+<h3 class="subhead">T4. 템플릿 — .env 예시·SCV.md·TEMPLATE_VERSION·예시 루틴</h3>
+<div class="tw"><table class="kv"><tbody><tr><th>Expected</th><td>core/template/.env.example.scv 에 # SCV_PLAIN_LANGUAGE=on
+(기본 on 으로 주석 문서화), core/template/scv/SCV.md 에 SCV_PLAIN_LANGUAGE 와
+1–2 sentences 포함, core/TEMPLATE_VERSION 과 루트 TEMPLATE_VERSION 둘 다
+2.3.0, core/template/scv/routines/examples/plain-language-audit.md 존재 +
+frontmatter 5키(name/cadence/guardrails/exit/report)</td></tr><tr><th>Pass criterion</th><td>OK [T4]</td></tr></tbody></table></div>
+<h3 class="subhead">T5. 어블레이션 규율</h3>
+<div class="tw"><table class="kv"><tbody><tr><th>Expected</th><td>promote·work 외 프로토콜에 SCV:GUIDANCE 없음, promote·work
+--lint OK, full 투영이 원본과 바이트 동일, minimal 투영에도 절의 앵커
+(No code values before the user asks) 생존</td></tr><tr><th>Pass criterion</th><td>OK [T5]</td></tr></tbody></table></div>
+<h3 class="subhead">T6. 스코프·전체 스위트</h3>
+<div class="tw"><table class="kv"><tbody><tr><th>Expected</th><td>core/actions.json 의 액션 수 15 (내용 기반), run-dry.sh ·
+tests/run.sh · core/tests/test-*.sh 전부 exit 0</td></tr><tr><th>Pass criterion</th><td>ALL GATES OK</td></tr></tbody></table></div>
+<h3 class="subhead">T7. 사람 판정 3건 (수동 — 자동화 안 함)</h3>
+<div class="tw"><table class="kv"><tbody><tr><th>Setup</th><td>SCV 가 hydrate 된 샘플 프로젝트, 스위치 기본(on)</td></tr><tr><th>Run</th><td>① 명령 없이 일반 대화 질문 1건(예: &quot;SCV 가 뭐야?&quot;) ② /scv:help
+진단 1건 ③ /scv:help &quot;&lt;작은 아이디어&gt;&quot; 대화 1턴</td></tr><tr><th>Expected</th><td>각 첫 답이 &quot;2문장 이내 + 예시 1 + 코드값 없음(필수 식별자는
+요약 뒤에)&quot;. 대표님이 눈으로 판정.</td></tr><tr><th>Pass criterion</th><td>3건 모두 통과. 결과를 archive 의 ARCHIVED_AT.md 또는
+CHECK.md 에 체크리스트로 남긴다. 1건이라도 반려면 문구를 고쳐 다시 3건.</td></tr></tbody></table></div></section>
+<section id="s-12-how-to-run" class="slide-page" data-idx="12"><div class="kicker">쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치</div><h2>How to run</h2><p>bash 로 실행한다. (대화형 셸이 zsh 면 set -e 가 루프 안에서 bash 처럼
+동작하지 않는다.) T1–T6 만 기계 실행이다. T7 은 수동.</p>
+<pre class="code"><code>bash -euo pipefail -c '
+fail() { echo &quot;FAIL: $1&quot;; exit 1; }
+P=core/protocols; GF=core/scripts/guidance-filter.sh
+HEAD=&quot;## Plain language first&quot;
+
+# [T1] 13개 프로토콜
+targets=$(grep -l &quot;^## Language preference&quot; $P/*.md)
+n=$(printf &quot;%s\n&quot; &quot;$targets&quot; | grep -c .)
+have=$(grep -l &quot;^$HEAD$&quot; $P/*.md | grep -c .)
+[ &quot;$n&quot; -ge 13 ] || fail &quot;T1 대상이 ${n}개로 줄었다&quot;
+[ &quot;$n&quot; -eq &quot;$have&quot; ] || fail &quot;T1 절 누락 ($have/$n)&quot;
+hashes=$(printf &quot;%s\n&quot; &quot;$targets&quot; | while read -r f; do
+  awk &quot;/^$HEAD\$/{f=1} f&amp;&amp;/^## /&amp;&amp;!/^$HEAD\$/{exit} f&quot; &quot;$f&quot; \
+    | sed -e :a -e &quot;/^\\n*\$/{\$d;N;ba&quot; -e &quot;}&quot; | cksum
+done | sort -u | grep -c .)
+[ &quot;$hashes&quot; -eq 1 ] || fail &quot;T1 문구 판본 ${hashes}종&quot;
+for a in &quot;SCV_PLAIN_LANGUAGE=off&quot; &quot;1–2 sentences&quot; &quot;one example&quot; \
+         &quot;No code values before the user asks&quot; &quot;stay exact, after the plain summary&quot; \
+         &quot;Bad:&quot; &quot;Good:&quot;; do
+  for f in $targets; do grep -qF -- &quot;$a&quot; &quot;$f&quot; || fail &quot;T1 앵커 없음: [$a] in $f&quot;; done
+done
+for f in $targets; do
+  nxt=$(awk &quot;/^## Language preference/{f=1;next} f&amp;&amp;/^## /{print;exit}&quot; &quot;$f&quot;)
+  [ &quot;$nxt&quot; = &quot;$HEAD&quot; ] || fail &quot;T1 위치: $f → 다음 H2 가 [$nxt]&quot;
+done
+if grep -lF &quot;Detail is not owed up front&quot; $P/*.md &gt;/dev/null 2&gt;&amp;1; then fail &quot;T1 옛 문구 잔존&quot;; fi
+for stub in set-models update; do
+  grep -q &quot;^$HEAD$&quot; $P/$stub.md &amp;&amp; fail &quot;T1 어댑터 스텁에 절: $stub&quot; || true
+done
+echo &quot;OK [T1]&quot;
+
+# [T2] help 대화 모드
+grep -qF &quot;one question per turn&quot; $P/help.md || fail &quot;T2 help 대화 모드 앵커 없음&quot;
+echo &quot;OK [T2]&quot;
+
+# [T3] 훅
+TMP=$(mktemp -d); trap &quot;rm -rf $TMP&quot; EXIT
+CORE=&quot;$(pwd)/core&quot;
+run_hook() { ( cd &quot;$1&quot; &amp;&amp; printf &quot;%s&quot; &quot;$2&quot; | SCV_CORE_ROOT=&quot;$CORE&quot; bash &quot;$CORE/template/hooks/on-user-prompt.sh&quot; ); }
+mkdir -p &quot;$TMP/on/scv&quot; &quot;$TMP/off/scv&quot; &quot;$TMP/up/scv&quot; &quot;$TMP/odd/scv&quot; &quot;$TMP/none&quot;
+printf &quot;SCV_PLAIN_LANGUAGE=off\n&quot;   &gt; &quot;$TMP/off/.env&quot;
+printf &quot;SCV_PLAIN_LANGUAGE=OFF\n&quot;   &gt; &quot;$TMP/up/.env&quot;
+printf &quot;SCV_PLAIN_LANGUAGE=maybe\n&quot; &gt; &quot;$TMP/odd/.env&quot;
+out=$(run_hook &quot;$TMP/on&quot; &quot;{\&quot;prompt\&quot;:\&quot;hello\&quot;}&quot;) || fail &quot;T3 켜짐 exit≠0&quot;
+printf &quot;%s&quot; &quot;$out&quot; | grep -qF &quot;1–2 sentences&quot; || fail &quot;T3 켜짐: 요약 미출력&quot;
+printf &quot;%s&quot; &quot;$out&quot; | grep -qF &quot;SCV_PLAIN_LANGUAGE&quot; || fail &quot;T3 켜짐: 스위치 안내 없음&quot;
+[ &quot;$(printf &quot;%s\n&quot; &quot;$out&quot; | grep -c .)&quot; -le 12 ] || fail &quot;T3 요약이 12줄 초과&quot;
+ls &quot;$TMP/on/scv/journal/&quot;*.md &gt;/dev/null 2&gt;&amp;1 || fail &quot;T3 켜짐: journal 미기록&quot;
+if grep -rqF &quot;1–2 sentences&quot; &quot;$TMP/on/scv/journal/&quot;; then fail &quot;T3 요약이 journal 에 섞여 들어감&quot;; fi
+[ -z &quot;$(run_hook &quot;$TMP/off&quot; &quot;{\&quot;prompt\&quot;:\&quot;hello\&quot;}&quot;)&quot; ] || fail &quot;T3 off 인데 출력&quot;
+[ -z &quot;$(run_hook &quot;$TMP/up&quot; &quot;{\&quot;prompt\&quot;:\&quot;hello\&quot;}&quot;)&quot; ]  || fail &quot;T3 OFF(대문자) 인데 출력&quot;
+run_hook &quot;$TMP/odd&quot; &quot;{\&quot;prompt\&quot;:\&quot;hello\&quot;}&quot; | grep -qF &quot;1–2 sentences&quot; || fail &quot;T3 이상값은 켜짐이어야&quot;
+[ -z &quot;$(run_hook &quot;$TMP/none&quot; &quot;{\&quot;prompt\&quot;:\&quot;hello\&quot;}&quot;)&quot; ] || fail &quot;T3 SCV 없는 폴더에서 출력&quot;
+run_hook &quot;$TMP/on&quot; &quot;not-json&quot; &gt;/dev/null || fail &quot;T3 잘못된 입력에 exit≠0&quot;
+echo &quot;OK [T3]&quot;
+
+# [T4] 템플릿·스위치·버전·예시 루틴
+grep -q &quot;^# SCV_PLAIN_LANGUAGE=on&quot; core/template/.env.example.scv || fail &quot;T4 .env 예시에 스위치 없음&quot;
+grep -qF &quot;SCV_PLAIN_LANGUAGE&quot; core/template/scv/SCV.md || fail &quot;T4 SCV.md 템플릿에 스위치 안내 없음&quot;
+grep -qF &quot;1–2 sentences&quot; core/template/scv/SCV.md || fail &quot;T4 SCV.md 템플릿에 답의 모양 없음&quot;
+[ &quot;$(tr -d &quot;[:space:]&quot; &lt; core/TEMPLATE_VERSION)&quot; = &quot;2.3.0&quot; ] || fail &quot;T4 core/TEMPLATE_VERSION ≠ 2.3.0&quot;
+[ &quot;$(tr -d &quot;[:space:]&quot; &lt; TEMPLATE_VERSION)&quot; = &quot;2.3.0&quot; ] || fail &quot;T4 TEMPLATE_VERSION ≠ 2.3.0&quot;
+R=core/template/scv/routines/examples/plain-language-audit.md
+[ -f &quot;$R&quot; ] || fail &quot;T4 예시 루틴 없음&quot;
+for k in &quot;^name: plain-language-audit&quot; &quot;^cadence:&quot; &quot;^guardrails:&quot; &quot;^exit:&quot; &quot;^report:&quot;; do
+  grep -q &quot;$k&quot; &quot;$R&quot; || fail &quot;T4 루틴 키 없음: $k&quot;
+done
+echo &quot;OK [T4]&quot;
+
+# [T5] 어블레이션 규율
+for f in $P/*.md; do
+  case &quot;$(basename &quot;$f&quot;)&quot; in promote.md|work.md) continue;; esac
+  grep -qF &quot;SCV:GUIDANCE&quot; &quot;$f&quot; &amp;&amp; fail &quot;T5 마커 유출: $f&quot; || true
+done
+bash $GF --lint $P/promote.md $P/work.md &gt;/dev/null || fail &quot;T5 lint&quot;
+for p in promote work; do
+  bash $GF --mode full $P/$p.md | cmp -s - $P/$p.md || fail &quot;T5 full 불일치: $p&quot;
+  bash $GF --mode minimal $P/$p.md | grep -qF &quot;No code values before the user asks&quot; || fail &quot;T5 minimal 소실: $p&quot;
+done
+echo &quot;OK [T5]&quot;
+
+# [T6] 스코프·전체 스위트
+[ &quot;$(jq -r &quot;.actions | length&quot; core/actions.json)&quot; -eq 15 ] || fail &quot;T6 액션 수 ≠ 15&quot;
+bash core/tests/run-dry.sh &gt;/dev/null || fail &quot;T6 run-dry&quot;
+bash tests/run.sh &gt;/dev/null || fail &quot;T6 tests/run.sh&quot;
+for t in core/tests/test-*.sh; do bash &quot;$t&quot; &gt;/dev/null || fail &quot;T6 $t&quot;; done
+echo &quot;ALL GATES OK&quot;
+'</code></pre></section>
+<section id="s-13-pass-criteria" class="slide-page" data-idx="13"><div class="kicker">쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치</div><h2>Pass criteria</h2><ul><li>위 블록이 exit 0 (OK [T1]…OK [T5], ALL GATES OK).</li><li>T7 수동 3건 통과 — 체크리스트가 archive 에 남아 있어야 &quot;완료&quot; 라고 말한다.
+그 전에는 &quot;규칙은 배치됐지만 말투 검증은 미완&quot; 으로 보고한다.</li><li>명시할 한계: 모델이 실제로 쉽게 말하는지 자동 보장하는 테스트는 없다.
+보장되는 것은 &quot;규칙이 매 턴 모델 눈앞에 있고 답의 모양이 구체적&quot; 까지다.</li></ul></section>
+<section id="s-14-related-documents" class="slide-page" data-idx="14"><div class="kicker">쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치</div><h2>Related Documents</h2><ul><li>대화: scv/conversations/20260821-103405-plain-answers-enforcement.md</li></ul></section>
+<section id="__lint" class="lint slide-page" data-idx="15"><h2>품질 리포트 <span class="lint-count">2</span></h2>
+     <p class="sub">원문에 없는 내용은 채우지 않음 — 전문 기획서가 보통 갖추는데 이 문서엔 빠진 항목입니다.</p>
+     <div class="callout warn"><div>성공지표(Metrics) 섹션이 없습니다 — baseline→target 지표를 권장합니다.</div></div><div class="callout warn"><div>예외처리(Edge cases) 섹션이 없습니다.</div></div></section>
+<section class="print-source"><h2>기획서 원문</h2><h3>PLAN.md</h3><pre class="code"><code>---
+title: &quot;쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치&quot;
+slug: 20260821-wookiya1364-plain-answers-enforcement
+author: &quot;wookiya1364&quot;
+created_at: 2026-08-21
+status: testing
+kind: feature
+lang: korean
+tags: [protocols, hooks, template, ux, language]
+raw_sources:
+  - scv/conversations/20260821-103405-plain-answers-enforcement.md
+refs: []
+supersedes: []
+scope:
+  - &quot;core/protocols/*.md&quot;
+  - &quot;core/template/hooks/on-user-prompt.sh&quot;
+  - &quot;core/template/.env.example.scv&quot;
+  - &quot;core/template/scv/SCV.md&quot;
+  - &quot;core/template/scv/routines/**&quot;
+  - &quot;core/TEMPLATE_VERSION&quot;
+  - &quot;TEMPLATE_VERSION&quot;
+  - &quot;core/tests/**&quot;
+  - &quot;docs/guidance-ablation.md&quot;
+  - &quot;docs/wrapper-integration.md&quot;
+  - &quot;CHANGELOG.md&quot;
+invariants:
+  - &quot;SCV_PLAIN_LANGUAGE 없음/on → 켜짐, off(대소문자 무관)만 꺼짐 — 그 밖의 값은 켜짐&quot;
+  - &quot;기록 훅은 비차단 유지 — 어떤 실패에도 exit 0, scv/journal/ 밖에 쓰지 않는다&quot;
+  - &quot;기존 'Language preference' 절과 어블레이션 마커 범위(promote·work 외 마커 금지) 불변&quot;
+  - &quot;core/actions.json·액션 개수(15) 불변 — 래퍼 자동 벤더링 보호&quot;
+parallel_groups: [[2, 3, 4], [5, 6]]
+---
+
+# 쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치
+
+## Summary
+
+&quot;쉬운 말 먼저&quot; 규칙은 8월 12일에 넣었지만 지켜지지 않는다. 모델은 여전히
+길게, 코드값(파일 경로·버전·설정값)으로, 예시 없이 답한다.
+
+원인은 세 가지다. (1) 규칙이 문체 조언이라 **답의 모양**을 정하지 않았다.
+(2) 규칙이 `/scv:*` 명령 안에만 있어서 **일반 대화**에는 한 줄도 전달되지
+않는다. (3) 어겨도 아무 검사도 켜지지 않는다.
+
+고치는 방법: 규칙을 &quot;먼저 1~2문장 → 예시 하나 → 코드값은 묻기 전엔 금지 →
+자세한 건 원하면&quot;이라는 **답의 모양**으로 다시 쓰고, 매 메시지마다 도는 기록
+훅이 그 요약을 모델에게 보여주게 하며, SCV.md 에도 같은 안내를 싣는다.
+`.env` 의 `SCV_PLAIN_LANGUAGE` 로 켜고 끌 수 있다 — 기본은 켜짐, `off` 만 꺼짐.
+
+## Goals / Non-Goals
+
+- **Goals**
+  1. **규칙 재작성 (A)** — 13개 프로토콜의 `## Plain language first` 절 본문을
+     &quot;답의 모양&quot; 판으로 바꾼다. 제목은 그대로(누적 회귀 T4 호환), 본문은 13개
+     파일에서 바이트 동일, 위치는 `## Language preference` 바로 다음 H2.
+     첫 줄이 스위치 안내(`SCV_PLAIN_LANGUAGE=off` 면 이 절은 적용하지 않음).
+     좋은 답/나쁜 답 예시 한 쌍을 규칙 안에 넣는다.
+  2. **help 대화 모드 매 턴 모양 (A)** — `help.md` Step B2 에 &quot;매 턴: 짧은 답
+     → 예시 하나 → 질문 하나(one question per turn)&quot; 를 계약으로 넣는다.
+  3. **매 턴 전달 (B1)** — `core/template/hooks/on-user-prompt.sh` 가 SCV 를
+     쓰는 프로젝트에서 규칙 요약(12줄 이내)을 stdout 으로 내보낸다. Claude
+     Code 와 Codex 모두 이 훅의 stdout 을 모델 컨텍스트에 넣는다(공식 문서
+     확인, 2026-08-21). 기록(journal) 동작과 비차단 보장은 그대로.
+  4. **안내 (B2)** — 템플릿 `scv/SCV.md` 에 &quot;SCV 는 이렇게 말한다&quot; 절을 넣고,
+     루트 지침 파일에 한 줄 추가하는 안내를 붙인다. 훅을 등록하지 않은
+     호스트는 이 경로로 규칙을 받는다.
+  5. **스위치** — `.env` `SCV_PLAIN_LANGUAGE`. 없음/`on` → 켜짐, `off` 만 꺼짐.
+     `.env.example.scv` 에 기본 on 으로 문서화(effort governor 블록과 같은 형식).
+     `TEMPLATE_VERSION 2.2.0 → 2.3.0` — 기존 프로젝트는 다음 액션 때 autosync 로
+     `.env.example.scv` 와 `SCV.md` 를 자동 수령한다.
+  6. **예시 루틴 (C, 작게)** — `core/template/scv/routines/examples/plain-language-audit.md`
+     한 개. journal 의 답변을 훑어 &quot;첫 문장이 길다 / 코드값이 섞였다&quot; 를 표시한다.
+     자동 실행 없음, 복사해 쓰는 예시.
+  7. **회귀 가드** — 위 전부를 `core/tests/` 에 고정한다 (이 계획의 TESTS.md).
+
+- **Non-Goals**
+  - 모델 출력을 LLM 으로 채점하는 자동 테스트 (회귀 스위트에 넣지 않음 —
+    사람 판정 3건으로 종료, Exit criteria 참조)
+  - `Language preference` 절 수정, 새 action, `core/actions.json` 변경
+  - promote·work 외 프로토콜에 `SCV:GUIDANCE` 마커 도입 (어블레이션 1단계 범위 유지)
+  - `/scv:help` 첫 설정에 스위치 질문 추가 (기본 on 으로 충분 — `.env.example.scv` 가 안내)
+  - 루트 지침 파일(CLAUDE.md/AGENTS.md) 자동 수정 — SCV 는 건드리지 않는다
+
+## Approach Overview
+
+**규칙 본문(확정 초안, 영어 원문 — 13개 파일 공통).** 제목 `## Plain language first`
+는 유지한다. 본문:
+
+```
+Skip this section only when the project `.env` sets `SCV_PLAIN_LANGUAGE=off`
+(absent or any other value = on).
+
+Answer shape — every time you explain something to the user:
+
+1. First, 1–2 sentences. Lead with what the user gets.
+2. Then one example — from the user's situation, or an everyday comparison.
+3. No code values before the user asks: file paths, variable names, version
+   numbers, setting values. Use the plain name instead (&quot;the settings file&quot;,
+   &quot;last week's plan&quot;).
+4. Detail comes after, and only when wanted. Offer it in one line.
+
+Identifiers the user needs to act on — the next command to run, a file that
+was created — stay exact, after the plain summary.
+
+Bad: &quot;The block landed in `.env.example.scv:154-161` and the stamp advanced
+2.1.0 → 2.2.0.&quot;
+Good: &quot;Your settings example file is up to date. For example, the new 'effort'
+setting now shows there. Want the exact lines?&quot;
+
+This governs everything the user reads: answers, questions, plans, progress
+reports, summaries, and explanations of what went wrong.
+```
+
+**훅 요약(초안, 영어, 12줄 이내).** `on-user-prompt.sh` 가 `scv/` 가 있고
+스위치가 켜져 있을 때 stdout 으로 낸다. 기록 성공 여부와 무관하게, 기록보다
+먼저 낸다. journal 파일에는 절대 섞이지 않는다 (stdout ≠ journal).
+
+```
+[SCV plain language] Answer shape: (1) first, 1–2 sentences — lead with what
+the user gets; (2) then one example; (3) no code values (paths, variable names,
+versions, settings) before the user asks — use plain names; (4) detail after,
+only when wanted. Identifiers the user needs to act on stay exact, after the
+plain summary. Off switch: .env SCV_PLAIN_LANGUAGE=off.
+```
+
+**스위치 읽기.** 훅은 cwd 의 `.env` 에서 `^SCV_PLAIN_LANGUAGE=` 한 줄만 읽는다
+(`source` 금지 — 비밀값·nounset 위험). 값은 소문자로 비교해 `off` 일 때만
+꺼짐. 프로토콜 쪽은 절의 첫 줄이 스위치 규칙을 말하므로 모델이 `.env` 를 보고
+스스로 비켜선다. 중첩 모노레포 모듈은 루트 `.env` 를 따른다(이번 범위의 한계로
+Risks 에 적는다).
+
+**위치와 분류.** 13개 프로토콜에서 절은 마커 밖(CONTRACT)에 둔다 — 8월 12일
+결정 그대로(1단계 스코프 가드 때문). promote/work 의 `--lint` 측정표를
+`docs/guidance-ablation.md` 에 실측으로 갱신한다.
+
+**래퍼 후속.** Claude Code 래퍼는 이미 `UserPromptSubmit` 에 이 훅을 등록해
+두어 Core 반영만으로 켜진다. Codex 래퍼는 `plugins/scv/hooks/hooks.json` 에
+`UserPromptSubmit`(+ `Stop`) 등록이 없다 — 이번 배송 웨이브에서 등록 PR 을
+함께 낸다(사용자 결정). `docs/wrapper-integration.md` §6 에 &quot;훅 stdout 은
+컨텍스트로 들어간다 — 등록은 래퍼 소유&quot; 를 적는다.
+
+## Guardrails
+
+- 절의 **제목** `## Plain language first` 는 바꾸지 않는다 — 누적 회귀(T4)가
+  제목으로 찾는다. 본문만 바꾼다.
+- 13개 파일의 절 본문은 **바이트 동일**. `set-models.md`·`update.md`(어댑터
+  스텁)에는 넣지 않는다.
+- promote·work 외 프로토콜에 `SCV:GUIDANCE` 마커를 넣지 않는다. promote·work
+  안에서도 이 절은 마커 밖에 둔다.
+- 훅: 어떤 실패에도 `exit 0`, `scv/journal/` 밖에 쓰지 않는다, `.env` 를
+  `source` 하지 않는다, 요약은 12줄 이내, journal 에 요약을 쓰지 않는다.
+- 훅·프로토콜·SCV.md 문구에 호스트 이름(Claude/Codex/`/scv:`/모델명)을 넣지
+  않는다 — Core 는 호스트 중립.
+- `core/actions.json`, `core/scripts/*.sh` 의 계약(액션 15개)은 건드리지 않는다.
+- 템플릿 파일(`SCV.md`, `.env.example.scv`, 루틴 README)을 바꾸면 반드시
+  `TEMPLATE_VERSION` 을 2.3.0 으로 올린다 — 안 올리면 기존 프로젝트가 못 받는다.
+- 규칙 자체가 쉬운 말로 쓰여 있어야 한다. 어려운 문장으로 &quot;쉽게 쓰라&quot;고 하면
+  그 자체가 반례다.
+- 테스트에 `git diff`/`git status` 단언을 넣지 않는다 — 커밋 상태에 따라 판정이
+  흔들린다(0818 회귀 계약 보수의 교훈). 내용 기반 단언만 쓴다.
+
+## Exit criteria
+
+- TESTS.md 의 How-to-run 블록이 exit 0 (T1–T6 전부).
+- **사람 판정 3건 통과(수동)**: 샘플 프로젝트에서 ① 명령 없는 일반 대화 질문
+  1건 ② `/scv:help` 진단 1건 ③ `/scv:help &quot;&lt;아이디어&gt;&quot;` 대화 1턴. 각각 첫 답이
+  &quot;2문장 이내 + 예시 1 + 코드값 없음&quot; 인지 대표님이 눈으로 판정해 통과/반려를
+  결정한다. 결과는 archive 에 체크리스트로 남긴다. 이것이 자동 테스트가 못
+  보장하는 부분을 닫는 유일한 문이다.
+- `run-dry.sh` · `tests/run.sh` · `core/tests/test-*.sh` 전부 green.
+  `guidance-filter.sh --lint` OK, full 투영 원본과 바이트 동일.
+- CHANGELOG 기록 + `docs/guidance-ablation.md` 측정표 실측 갱신 +
+  `docs/wrapper-integration.md` §6 갱신.
+- Codex 래퍼 훅 등록은 **배송 웨이브의 별도 PR** 로 기록된다 (이 플랜의 archive
+  는 Core 기준으로 닫고, 래퍼 PR 번호를 DECISIONS 에 남긴다).
+
+## Suggested path
+
+1. 규칙 본문과 훅 요약 문구를 확정한다 (위 초안 기준, 영어, 앵커 문구 유지:
+   `SCV_PLAIN_LANGUAGE=off` · `1–2 sentences` · `one example` ·
+   `No code values before the user asks` · `stay exact, after the plain summary` ·
+   `Bad:` · `Good:`).
+2. 13개 프로토콜의 `## Plain language first` 본문을 교체한다. `help.md` Step B2
+   에 매 턴 모양(`one question per turn`)을 추가한다.
+3. `on-user-prompt.sh`: `scv/` 존재 + 스위치 on 이면 요약을 stdout 으로, 그
+   다음 기존 기록 경로 그대로. `core/tests/test-journal.sh` 에 on/off/OFF/이상값/
+   미적용 폴더/잘못된 입력 6경우를 추가한다.
+4. 템플릿: `.env.example.scv` 스위치 블록, `SCV.md` &quot;SCV 는 이렇게 말한다&quot; 절,
+   예시 루틴 `plain-language-audit.md`, 루틴 README 의 예시 개수(8→9),
+   `TEMPLATE_VERSION` 2.3.0 (core/ 와 루트 둘 다).
+5. 테스트 앵커: `run-dry.sh` plain-language 섹션(앵커·위치·옛 문구 부재),
+   `test-sync-env-example.sh`(새 변수), `test-routines.sh`(새 예시 lint 대상).
+6. 문서: CHANGELOG, `docs/guidance-ablation.md` 측정표(`--lint` 실측),
+   `docs/wrapper-integration.md` §6.
+7. 사람 판정 3건 → 체크리스트 기록 → archive → DECISIONS.
+8. 배송 웨이브: Core 릴리스 → 래퍼 두 곳 벤더링 + Codex `hooks.json` 등록 PR.
+
+## Related Documents
+
+- 대화: `scv/conversations/20260821-103405-plain-answers-enforcement.md`
+- 이전 규칙: `scv/archive/20260812-wookiya1364-plain-language/PLAN.md` (본문 교체 대상)
+
+## Risks / Open Questions
+
+- **여전히 &quot;진짜 쉽게 말하는지&quot; 를 기계가 보장하지 못한다.** 보장되는 것은
+  &quot;규칙이 매 턴 모델 눈앞에 있다 + 답의 모양이 구체적이다&quot; 까지. 사람 판정
+  3건이 닫는다. 반려되면 문구를 고쳐 다시 3건.
+- **매 턴 주입 비용.** 12줄 이내 × 매 메시지. 미미하지만 `off` 로 끌 수 있다.
+- **중첩 모노레포 모듈.** 훅은 cwd 의 `.env` 만 본다. 모듈별 `.env` 는 이번
+  범위 밖 — 필요해지면 별도 계획.
+- **Codex 등록.** 공식 문서상 `UserPromptSubmit` stdout 이 컨텍스트로 들어간다.
+  실제 등록은 래퍼 PR 에서 실측한다 — 안 되면 SCV.md 안내 경로가 대신한다.
+- **문구 13곳 복제.** 어긋나면 run-dry 가 잡는다(동일성 단언). 토큰화는 2단계
+  어블레이션 때 재검토.
+
+## Links
+
+- Raw originals: (frontmatter 참조 — 대화 파일)
+- Related PRs:</code></pre><h3>TESTS.md</h3><pre class="code"><code># Test Plan — 쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치
+
+## Overview
+
+기계로 확인할 수 있는 것: 규칙이 13개 프로토콜에 같은 문구로 제자리에 있고,
+훅이 켜짐/꺼짐 규칙대로 요약을 내보내며 비차단을 지키고, 템플릿·스위치·
+예시 루틴이 자리에 있고, 어블레이션 규율이 깨지지 않았다는 것까지다.
+**모델이 실제로 쉽게 말하는지는 자동으로 보장하지 못한다** — 그 부분은 T7
+(사람 판정 3건, 수동)이 닫는다. 숨기지 않고 판정 기준에 적는다.
+
+`git diff`/`git status` 단언은 쓰지 않는다 — 커밋 상태와 무관하게 트리
+내용만으로 판정이 성립해야 한다(0818 회귀 계약 보수 T5).
+
+## Test scenarios
+
+### T1. 13개 프로토콜 — 절 존재·동일 문구·위치·앵커·옛 문구 제거
+
+- **Setup**: 저장소 트리
+- **Run**: `## Language preference` 를 가진 프로토콜 전부를 대상으로 검사
+- **Expected**: 대상 ≥ 13, 전부 `## Plain language first` 절 보유, 절 본문
+  해시가 하나(끝 빈 줄 무시), 절이 Language preference 바로 다음 H2, 앵커
+  7개(`SCV_PLAIN_LANGUAGE=off` · `1–2 sentences` · `one example` ·
+  `No code values before the user asks` · `stay exact, after the plain summary` ·
+  `Bad:` · `Good:`) 전부 존재, 옛 문구 `Detail is not owed up front` 는 어느
+  프로토콜에도 없음, `set-models.md`·`update.md` 에는 절 없음
+- **Pass criterion**: `OK [T1]`
+
+### T2. help 대화 모드 — 매 턴 모양
+
+- **Expected**: `core/protocols/help.md` 에 `one question per turn` 앵커 존재
+  (Step B2 대화 루프 안: 짧은 답 → 예시 하나 → 질문 하나)
+- **Pass criterion**: `OK [T2]`
+
+### T3. 훅 — 켜짐/꺼짐/이상값/미적용/비차단, journal 오염 없음
+
+- **Setup**: 임시 폴더 5개 — `on`(scv/ 있음, .env 없음) · `off`(`SCV_PLAIN_LANGUAGE=off`)
+  · `up`(`=OFF`) · `odd`(`=maybe`) · `none`(scv/ 없음). `SCV_CORE_ROOT` 는 저장소 `core/`.
+- **Run**: 각 폴더를 cwd 로 `{&quot;prompt&quot;:&quot;hello&quot;}` 를 stdin 으로 `on-user-prompt.sh` 실행
+- **Expected**: `on` → exit 0, stdout 에 `1–2 sentences` 와 `SCV_PLAIN_LANGUAGE`
+  포함, 12줄 이내, `scv/journal/*.md` 에 기록됨, journal 에 요약 문구 없음.
+  `off`·`up` → stdout 비어 있음(exit 0). `odd` → 요약 출력(이상값은 켜짐).
+  `none` → stdout 비어 있음. 잘못된 입력(`not-json`) → exit 0.
+- **Pass criterion**: `OK [T3]`
+
+### T4. 템플릿 — .env 예시·SCV.md·TEMPLATE_VERSION·예시 루틴
+
+- **Expected**: `core/template/.env.example.scv` 에 `# SCV_PLAIN_LANGUAGE=on`
+  (기본 on 으로 주석 문서화), `core/template/scv/SCV.md` 에 `SCV_PLAIN_LANGUAGE` 와
+  `1–2 sentences` 포함, `core/TEMPLATE_VERSION` 과 루트 `TEMPLATE_VERSION` 둘 다
+  `2.3.0`, `core/template/scv/routines/examples/plain-language-audit.md` 존재 +
+  frontmatter 5키(name/cadence/guardrails/exit/report)
+- **Pass criterion**: `OK [T4]`
+
+### T5. 어블레이션 규율
+
+- **Expected**: promote·work 외 프로토콜에 `SCV:GUIDANCE` 없음, promote·work
+  `--lint` OK, full 투영이 원본과 바이트 동일, minimal 투영에도 절의 앵커
+  (`No code values before the user asks`) 생존
+- **Pass criterion**: `OK [T5]`
+
+### T6. 스코프·전체 스위트
+
+- **Expected**: `core/actions.json` 의 액션 수 15 (내용 기반), `run-dry.sh` ·
+  `tests/run.sh` · `core/tests/test-*.sh` 전부 exit 0
+- **Pass criterion**: `ALL GATES OK`
+
+### T7. 사람 판정 3건 (수동 — 자동화 안 함)
+
+- **Setup**: SCV 가 hydrate 된 샘플 프로젝트, 스위치 기본(on)
+- **Run**: ① 명령 없이 일반 대화 질문 1건(예: &quot;SCV 가 뭐야?&quot;) ② `/scv:help`
+  진단 1건 ③ `/scv:help &quot;&lt;작은 아이디어&gt;&quot;` 대화 1턴
+- **Expected**: 각 첫 답이 &quot;2문장 이내 + 예시 1 + 코드값 없음(필수 식별자는
+  요약 뒤에)&quot;. 대표님이 눈으로 판정.
+- **Pass criterion**: 3건 모두 통과. 결과를 archive 의 `ARCHIVED_AT.md` 또는
+  `CHECK.md` 에 체크리스트로 남긴다. 1건이라도 반려면 문구를 고쳐 다시 3건.
+
+## How to run
+
+**`bash` 로 실행한다.** (대화형 셸이 zsh 면 `set -e` 가 루프 안에서 bash 처럼
+동작하지 않는다.) T1–T6 만 기계 실행이다. T7 은 수동.
+
+```bash
+bash -euo pipefail -c '
+fail() { echo &quot;FAIL: $1&quot;; exit 1; }
+P=core/protocols; GF=core/scripts/guidance-filter.sh
+HEAD=&quot;## Plain language first&quot;
+
+# [T1] 13개 프로토콜
+targets=$(grep -l &quot;^## Language preference&quot; $P/*.md)
+n=$(printf &quot;%s\n&quot; &quot;$targets&quot; | grep -c .)
+have=$(grep -l &quot;^$HEAD$&quot; $P/*.md | grep -c .)
+[ &quot;$n&quot; -ge 13 ] || fail &quot;T1 대상이 ${n}개로 줄었다&quot;
+[ &quot;$n&quot; -eq &quot;$have&quot; ] || fail &quot;T1 절 누락 ($have/$n)&quot;
+hashes=$(printf &quot;%s\n&quot; &quot;$targets&quot; | while read -r f; do
+  awk &quot;/^$HEAD\$/{f=1} f&amp;&amp;/^## /&amp;&amp;!/^$HEAD\$/{exit} f&quot; &quot;$f&quot; \
+    | sed -e :a -e &quot;/^\\n*\$/{\$d;N;ba&quot; -e &quot;}&quot; | cksum
+done | sort -u | grep -c .)
+[ &quot;$hashes&quot; -eq 1 ] || fail &quot;T1 문구 판본 ${hashes}종&quot;
+for a in &quot;SCV_PLAIN_LANGUAGE=off&quot; &quot;1–2 sentences&quot; &quot;one example&quot; \
+         &quot;No code values before the user asks&quot; &quot;stay exact, after the plain summary&quot; \
+         &quot;Bad:&quot; &quot;Good:&quot;; do
+  for f in $targets; do grep -qF -- &quot;$a&quot; &quot;$f&quot; || fail &quot;T1 앵커 없음: [$a] in $f&quot;; done
+done
+for f in $targets; do
+  nxt=$(awk &quot;/^## Language preference/{f=1;next} f&amp;&amp;/^## /{print;exit}&quot; &quot;$f&quot;)
+  [ &quot;$nxt&quot; = &quot;$HEAD&quot; ] || fail &quot;T1 위치: $f → 다음 H2 가 [$nxt]&quot;
+done
+if grep -lF &quot;Detail is not owed up front&quot; $P/*.md &gt;/dev/null 2&gt;&amp;1; then fail &quot;T1 옛 문구 잔존&quot;; fi
+for stub in set-models update; do
+  grep -q &quot;^$HEAD$&quot; $P/$stub.md &amp;&amp; fail &quot;T1 어댑터 스텁에 절: $stub&quot; || true
+done
+echo &quot;OK [T1]&quot;
+
+# [T2] help 대화 모드
+grep -qF &quot;one question per turn&quot; $P/help.md || fail &quot;T2 help 대화 모드 앵커 없음&quot;
+echo &quot;OK [T2]&quot;
+
+# [T3] 훅
+TMP=$(mktemp -d); trap &quot;rm -rf $TMP&quot; EXIT
+CORE=&quot;$(pwd)/core&quot;
+run_hook() { ( cd &quot;$1&quot; &amp;&amp; printf &quot;%s&quot; &quot;$2&quot; | SCV_CORE_ROOT=&quot;$CORE&quot; bash &quot;$CORE/template/hooks/on-user-prompt.sh&quot; ); }
+mkdir -p &quot;$TMP/on/scv&quot; &quot;$TMP/off/scv&quot; &quot;$TMP/up/scv&quot; &quot;$TMP/odd/scv&quot; &quot;$TMP/none&quot;
+printf &quot;SCV_PLAIN_LANGUAGE=off\n&quot;   &gt; &quot;$TMP/off/.env&quot;
+printf &quot;SCV_PLAIN_LANGUAGE=OFF\n&quot;   &gt; &quot;$TMP/up/.env&quot;
+printf &quot;SCV_PLAIN_LANGUAGE=maybe\n&quot; &gt; &quot;$TMP/odd/.env&quot;
+out=$(run_hook &quot;$TMP/on&quot; &quot;{\&quot;prompt\&quot;:\&quot;hello\&quot;}&quot;) || fail &quot;T3 켜짐 exit≠0&quot;
+printf &quot;%s&quot; &quot;$out&quot; | grep -qF &quot;1–2 sentences&quot; || fail &quot;T3 켜짐: 요약 미출력&quot;
+printf &quot;%s&quot; &quot;$out&quot; | grep -qF &quot;SCV_PLAIN_LANGUAGE&quot; || fail &quot;T3 켜짐: 스위치 안내 없음&quot;
+[ &quot;$(printf &quot;%s\n&quot; &quot;$out&quot; | grep -c .)&quot; -le 12 ] || fail &quot;T3 요약이 12줄 초과&quot;
+ls &quot;$TMP/on/scv/journal/&quot;*.md &gt;/dev/null 2&gt;&amp;1 || fail &quot;T3 켜짐: journal 미기록&quot;
+if grep -rqF &quot;1–2 sentences&quot; &quot;$TMP/on/scv/journal/&quot;; then fail &quot;T3 요약이 journal 에 섞여 들어감&quot;; fi
+[ -z &quot;$(run_hook &quot;$TMP/off&quot; &quot;{\&quot;prompt\&quot;:\&quot;hello\&quot;}&quot;)&quot; ] || fail &quot;T3 off 인데 출력&quot;
+[ -z &quot;$(run_hook &quot;$TMP/up&quot; &quot;{\&quot;prompt\&quot;:\&quot;hello\&quot;}&quot;)&quot; ]  || fail &quot;T3 OFF(대문자) 인데 출력&quot;
+run_hook &quot;$TMP/odd&quot; &quot;{\&quot;prompt\&quot;:\&quot;hello\&quot;}&quot; | grep -qF &quot;1–2 sentences&quot; || fail &quot;T3 이상값은 켜짐이어야&quot;
+[ -z &quot;$(run_hook &quot;$TMP/none&quot; &quot;{\&quot;prompt\&quot;:\&quot;hello\&quot;}&quot;)&quot; ] || fail &quot;T3 SCV 없는 폴더에서 출력&quot;
+run_hook &quot;$TMP/on&quot; &quot;not-json&quot; &gt;/dev/null || fail &quot;T3 잘못된 입력에 exit≠0&quot;
+echo &quot;OK [T3]&quot;
+
+# [T4] 템플릿·스위치·버전·예시 루틴
+grep -q &quot;^# SCV_PLAIN_LANGUAGE=on&quot; core/template/.env.example.scv || fail &quot;T4 .env 예시에 스위치 없음&quot;
+grep -qF &quot;SCV_PLAIN_LANGUAGE&quot; core/template/scv/SCV.md || fail &quot;T4 SCV.md 템플릿에 스위치 안내 없음&quot;
+grep -qF &quot;1–2 sentences&quot; core/template/scv/SCV.md || fail &quot;T4 SCV.md 템플릿에 답의 모양 없음&quot;
+[ &quot;$(tr -d &quot;[:space:]&quot; &lt; core/TEMPLATE_VERSION)&quot; = &quot;2.3.0&quot; ] || fail &quot;T4 core/TEMPLATE_VERSION ≠ 2.3.0&quot;
+[ &quot;$(tr -d &quot;[:space:]&quot; &lt; TEMPLATE_VERSION)&quot; = &quot;2.3.0&quot; ] || fail &quot;T4 TEMPLATE_VERSION ≠ 2.3.0&quot;
+R=core/template/scv/routines/examples/plain-language-audit.md
+[ -f &quot;$R&quot; ] || fail &quot;T4 예시 루틴 없음&quot;
+for k in &quot;^name: plain-language-audit&quot; &quot;^cadence:&quot; &quot;^guardrails:&quot; &quot;^exit:&quot; &quot;^report:&quot;; do
+  grep -q &quot;$k&quot; &quot;$R&quot; || fail &quot;T4 루틴 키 없음: $k&quot;
+done
+echo &quot;OK [T4]&quot;
+
+# [T5] 어블레이션 규율
+for f in $P/*.md; do
+  case &quot;$(basename &quot;$f&quot;)&quot; in promote.md|work.md) continue;; esac
+  grep -qF &quot;SCV:GUIDANCE&quot; &quot;$f&quot; &amp;&amp; fail &quot;T5 마커 유출: $f&quot; || true
+done
+bash $GF --lint $P/promote.md $P/work.md &gt;/dev/null || fail &quot;T5 lint&quot;
+for p in promote work; do
+  bash $GF --mode full $P/$p.md | cmp -s - $P/$p.md || fail &quot;T5 full 불일치: $p&quot;
+  bash $GF --mode minimal $P/$p.md | grep -qF &quot;No code values before the user asks&quot; || fail &quot;T5 minimal 소실: $p&quot;
+done
+echo &quot;OK [T5]&quot;
+
+# [T6] 스코프·전체 스위트
+[ &quot;$(jq -r &quot;.actions | length&quot; core/actions.json)&quot; -eq 15 ] || fail &quot;T6 액션 수 ≠ 15&quot;
+bash core/tests/run-dry.sh &gt;/dev/null || fail &quot;T6 run-dry&quot;
+bash tests/run.sh &gt;/dev/null || fail &quot;T6 tests/run.sh&quot;
+for t in core/tests/test-*.sh; do bash &quot;$t&quot; &gt;/dev/null || fail &quot;T6 $t&quot;; done
+echo &quot;ALL GATES OK&quot;
+'
+```
+
+## Pass criteria
+
+- 위 블록이 exit 0 (`OK [T1]`…`OK [T5]`, `ALL GATES OK`).
+- **T7 수동 3건 통과** — 체크리스트가 archive 에 남아 있어야 &quot;완료&quot; 라고 말한다.
+  그 전에는 &quot;규칙은 배치됐지만 말투 검증은 미완&quot; 으로 보고한다.
+- **명시할 한계**: 모델이 실제로 쉽게 말하는지 자동 보장하는 테스트는 없다.
+  보장되는 것은 &quot;규칙이 매 턴 모델 눈앞에 있고 답의 모양이 구체적&quot; 까지다.
+
+## Related Documents
+
+- 대화: `scv/conversations/20260821-103405-plain-answers-enforcement.md`</code></pre></section>
+</div>
+</div>
+<aside class="source-panel" id="scvSourcePanel">
+      <div class="panel-resize-handle" id="scvResizeHandle" title="드래그해서 크기 조절"></div>
+      <div class="panel-head"><span class="panel-title">기획서 원문</span><button class="panel-close" onclick="scvTogglePanel()" title="숨기기 (S)">✕</button></div>
+      <div class="panel-tabs"><button class="panel-tab active" data-idx="0" onclick="scvSelectSource(0)">PLAN.md</button><button class="panel-tab" data-idx="1" onclick="scvSelectSource(1)">TESTS.md</button></div>
+      <div class="panel-body"><pre class="code src-doc active" data-idx="0"><code>---
+title: &quot;쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치&quot;
+slug: 20260821-wookiya1364-plain-answers-enforcement
+author: &quot;wookiya1364&quot;
+created_at: 2026-08-21
+status: testing
+kind: feature
+lang: korean
+tags: [protocols, hooks, template, ux, language]
+raw_sources:
+  - scv/conversations/20260821-103405-plain-answers-enforcement.md
+refs: []
+supersedes: []
+scope:
+  - &quot;core/protocols/*.md&quot;
+  - &quot;core/template/hooks/on-user-prompt.sh&quot;
+  - &quot;core/template/.env.example.scv&quot;
+  - &quot;core/template/scv/SCV.md&quot;
+  - &quot;core/template/scv/routines/**&quot;
+  - &quot;core/TEMPLATE_VERSION&quot;
+  - &quot;TEMPLATE_VERSION&quot;
+  - &quot;core/tests/**&quot;
+  - &quot;docs/guidance-ablation.md&quot;
+  - &quot;docs/wrapper-integration.md&quot;
+  - &quot;CHANGELOG.md&quot;
+invariants:
+  - &quot;SCV_PLAIN_LANGUAGE 없음/on → 켜짐, off(대소문자 무관)만 꺼짐 — 그 밖의 값은 켜짐&quot;
+  - &quot;기록 훅은 비차단 유지 — 어떤 실패에도 exit 0, scv/journal/ 밖에 쓰지 않는다&quot;
+  - &quot;기존 'Language preference' 절과 어블레이션 마커 범위(promote·work 외 마커 금지) 불변&quot;
+  - &quot;core/actions.json·액션 개수(15) 불변 — 래퍼 자동 벤더링 보호&quot;
+parallel_groups: [[2, 3, 4], [5, 6]]
+---
+
+# 쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치
+
+## Summary
+
+&quot;쉬운 말 먼저&quot; 규칙은 8월 12일에 넣었지만 지켜지지 않는다. 모델은 여전히
+길게, 코드값(파일 경로·버전·설정값)으로, 예시 없이 답한다.
+
+원인은 세 가지다. (1) 규칙이 문체 조언이라 **답의 모양**을 정하지 않았다.
+(2) 규칙이 `/scv:*` 명령 안에만 있어서 **일반 대화**에는 한 줄도 전달되지
+않는다. (3) 어겨도 아무 검사도 켜지지 않는다.
+
+고치는 방법: 규칙을 &quot;먼저 1~2문장 → 예시 하나 → 코드값은 묻기 전엔 금지 →
+자세한 건 원하면&quot;이라는 **답의 모양**으로 다시 쓰고, 매 메시지마다 도는 기록
+훅이 그 요약을 모델에게 보여주게 하며, SCV.md 에도 같은 안내를 싣는다.
+`.env` 의 `SCV_PLAIN_LANGUAGE` 로 켜고 끌 수 있다 — 기본은 켜짐, `off` 만 꺼짐.
+
+## Goals / Non-Goals
+
+- **Goals**
+  1. **규칙 재작성 (A)** — 13개 프로토콜의 `## Plain language first` 절 본문을
+     &quot;답의 모양&quot; 판으로 바꾼다. 제목은 그대로(누적 회귀 T4 호환), 본문은 13개
+     파일에서 바이트 동일, 위치는 `## Language preference` 바로 다음 H2.
+     첫 줄이 스위치 안내(`SCV_PLAIN_LANGUAGE=off` 면 이 절은 적용하지 않음).
+     좋은 답/나쁜 답 예시 한 쌍을 규칙 안에 넣는다.
+  2. **help 대화 모드 매 턴 모양 (A)** — `help.md` Step B2 에 &quot;매 턴: 짧은 답
+     → 예시 하나 → 질문 하나(one question per turn)&quot; 를 계약으로 넣는다.
+  3. **매 턴 전달 (B1)** — `core/template/hooks/on-user-prompt.sh` 가 SCV 를
+     쓰는 프로젝트에서 규칙 요약(12줄 이내)을 stdout 으로 내보낸다. Claude
+     Code 와 Codex 모두 이 훅의 stdout 을 모델 컨텍스트에 넣는다(공식 문서
+     확인, 2026-08-21). 기록(journal) 동작과 비차단 보장은 그대로.
+  4. **안내 (B2)** — 템플릿 `scv/SCV.md` 에 &quot;SCV 는 이렇게 말한다&quot; 절을 넣고,
+     루트 지침 파일에 한 줄 추가하는 안내를 붙인다. 훅을 등록하지 않은
+     호스트는 이 경로로 규칙을 받는다.
+  5. **스위치** — `.env` `SCV_PLAIN_LANGUAGE`. 없음/`on` → 켜짐, `off` 만 꺼짐.
+     `.env.example.scv` 에 기본 on 으로 문서화(effort governor 블록과 같은 형식).
+     `TEMPLATE_VERSION 2.2.0 → 2.3.0` — 기존 프로젝트는 다음 액션 때 autosync 로
+     `.env.example.scv` 와 `SCV.md` 를 자동 수령한다.
+  6. **예시 루틴 (C, 작게)** — `core/template/scv/routines/examples/plain-language-audit.md`
+     한 개. journal 의 답변을 훑어 &quot;첫 문장이 길다 / 코드값이 섞였다&quot; 를 표시한다.
+     자동 실행 없음, 복사해 쓰는 예시.
+  7. **회귀 가드** — 위 전부를 `core/tests/` 에 고정한다 (이 계획의 TESTS.md).
+
+- **Non-Goals**
+  - 모델 출력을 LLM 으로 채점하는 자동 테스트 (회귀 스위트에 넣지 않음 —
+    사람 판정 3건으로 종료, Exit criteria 참조)
+  - `Language preference` 절 수정, 새 action, `core/actions.json` 변경
+  - promote·work 외 프로토콜에 `SCV:GUIDANCE` 마커 도입 (어블레이션 1단계 범위 유지)
+  - `/scv:help` 첫 설정에 스위치 질문 추가 (기본 on 으로 충분 — `.env.example.scv` 가 안내)
+  - 루트 지침 파일(CLAUDE.md/AGENTS.md) 자동 수정 — SCV 는 건드리지 않는다
+
+## Approach Overview
+
+**규칙 본문(확정 초안, 영어 원문 — 13개 파일 공통).** 제목 `## Plain language first`
+는 유지한다. 본문:
+
+```
+Skip this section only when the project `.env` sets `SCV_PLAIN_LANGUAGE=off`
+(absent or any other value = on).
+
+Answer shape — every time you explain something to the user:
+
+1. First, 1–2 sentences. Lead with what the user gets.
+2. Then one example — from the user's situation, or an everyday comparison.
+3. No code values before the user asks: file paths, variable names, version
+   numbers, setting values. Use the plain name instead (&quot;the settings file&quot;,
+   &quot;last week's plan&quot;).
+4. Detail comes after, and only when wanted. Offer it in one line.
+
+Identifiers the user needs to act on — the next command to run, a file that
+was created — stay exact, after the plain summary.
+
+Bad: &quot;The block landed in `.env.example.scv:154-161` and the stamp advanced
+2.1.0 → 2.2.0.&quot;
+Good: &quot;Your settings example file is up to date. For example, the new 'effort'
+setting now shows there. Want the exact lines?&quot;
+
+This governs everything the user reads: answers, questions, plans, progress
+reports, summaries, and explanations of what went wrong.
+```
+
+**훅 요약(초안, 영어, 12줄 이내).** `on-user-prompt.sh` 가 `scv/` 가 있고
+스위치가 켜져 있을 때 stdout 으로 낸다. 기록 성공 여부와 무관하게, 기록보다
+먼저 낸다. journal 파일에는 절대 섞이지 않는다 (stdout ≠ journal).
+
+```
+[SCV plain language] Answer shape: (1) first, 1–2 sentences — lead with what
+the user gets; (2) then one example; (3) no code values (paths, variable names,
+versions, settings) before the user asks — use plain names; (4) detail after,
+only when wanted. Identifiers the user needs to act on stay exact, after the
+plain summary. Off switch: .env SCV_PLAIN_LANGUAGE=off.
+```
+
+**스위치 읽기.** 훅은 cwd 의 `.env` 에서 `^SCV_PLAIN_LANGUAGE=` 한 줄만 읽는다
+(`source` 금지 — 비밀값·nounset 위험). 값은 소문자로 비교해 `off` 일 때만
+꺼짐. 프로토콜 쪽은 절의 첫 줄이 스위치 규칙을 말하므로 모델이 `.env` 를 보고
+스스로 비켜선다. 중첩 모노레포 모듈은 루트 `.env` 를 따른다(이번 범위의 한계로
+Risks 에 적는다).
+
+**위치와 분류.** 13개 프로토콜에서 절은 마커 밖(CONTRACT)에 둔다 — 8월 12일
+결정 그대로(1단계 스코프 가드 때문). promote/work 의 `--lint` 측정표를
+`docs/guidance-ablation.md` 에 실측으로 갱신한다.
+
+**래퍼 후속.** Claude Code 래퍼는 이미 `UserPromptSubmit` 에 이 훅을 등록해
+두어 Core 반영만으로 켜진다. Codex 래퍼는 `plugins/scv/hooks/hooks.json` 에
+`UserPromptSubmit`(+ `Stop`) 등록이 없다 — 이번 배송 웨이브에서 등록 PR 을
+함께 낸다(사용자 결정). `docs/wrapper-integration.md` §6 에 &quot;훅 stdout 은
+컨텍스트로 들어간다 — 등록은 래퍼 소유&quot; 를 적는다.
+
+## Guardrails
+
+- 절의 **제목** `## Plain language first` 는 바꾸지 않는다 — 누적 회귀(T4)가
+  제목으로 찾는다. 본문만 바꾼다.
+- 13개 파일의 절 본문은 **바이트 동일**. `set-models.md`·`update.md`(어댑터
+  스텁)에는 넣지 않는다.
+- promote·work 외 프로토콜에 `SCV:GUIDANCE` 마커를 넣지 않는다. promote·work
+  안에서도 이 절은 마커 밖에 둔다.
+- 훅: 어떤 실패에도 `exit 0`, `scv/journal/` 밖에 쓰지 않는다, `.env` 를
+  `source` 하지 않는다, 요약은 12줄 이내, journal 에 요약을 쓰지 않는다.
+- 훅·프로토콜·SCV.md 문구에 호스트 이름(Claude/Codex/`/scv:`/모델명)을 넣지
+  않는다 — Core 는 호스트 중립.
+- `core/actions.json`, `core/scripts/*.sh` 의 계약(액션 15개)은 건드리지 않는다.
+- 템플릿 파일(`SCV.md`, `.env.example.scv`, 루틴 README)을 바꾸면 반드시
+  `TEMPLATE_VERSION` 을 2.3.0 으로 올린다 — 안 올리면 기존 프로젝트가 못 받는다.
+- 규칙 자체가 쉬운 말로 쓰여 있어야 한다. 어려운 문장으로 &quot;쉽게 쓰라&quot;고 하면
+  그 자체가 반례다.
+- 테스트에 `git diff`/`git status` 단언을 넣지 않는다 — 커밋 상태에 따라 판정이
+  흔들린다(0818 회귀 계약 보수의 교훈). 내용 기반 단언만 쓴다.
+
+## Exit criteria
+
+- TESTS.md 의 How-to-run 블록이 exit 0 (T1–T6 전부).
+- **사람 판정 3건 통과(수동)**: 샘플 프로젝트에서 ① 명령 없는 일반 대화 질문
+  1건 ② `/scv:help` 진단 1건 ③ `/scv:help &quot;&lt;아이디어&gt;&quot;` 대화 1턴. 각각 첫 답이
+  &quot;2문장 이내 + 예시 1 + 코드값 없음&quot; 인지 대표님이 눈으로 판정해 통과/반려를
+  결정한다. 결과는 archive 에 체크리스트로 남긴다. 이것이 자동 테스트가 못
+  보장하는 부분을 닫는 유일한 문이다.
+- `run-dry.sh` · `tests/run.sh` · `core/tests/test-*.sh` 전부 green.
+  `guidance-filter.sh --lint` OK, full 투영 원본과 바이트 동일.
+- CHANGELOG 기록 + `docs/guidance-ablation.md` 측정표 실측 갱신 +
+  `docs/wrapper-integration.md` §6 갱신.
+- Codex 래퍼 훅 등록은 **배송 웨이브의 별도 PR** 로 기록된다 (이 플랜의 archive
+  는 Core 기준으로 닫고, 래퍼 PR 번호를 DECISIONS 에 남긴다).
+
+## Suggested path
+
+1. 규칙 본문과 훅 요약 문구를 확정한다 (위 초안 기준, 영어, 앵커 문구 유지:
+   `SCV_PLAIN_LANGUAGE=off` · `1–2 sentences` · `one example` ·
+   `No code values before the user asks` · `stay exact, after the plain summary` ·
+   `Bad:` · `Good:`).
+2. 13개 프로토콜의 `## Plain language first` 본문을 교체한다. `help.md` Step B2
+   에 매 턴 모양(`one question per turn`)을 추가한다.
+3. `on-user-prompt.sh`: `scv/` 존재 + 스위치 on 이면 요약을 stdout 으로, 그
+   다음 기존 기록 경로 그대로. `core/tests/test-journal.sh` 에 on/off/OFF/이상값/
+   미적용 폴더/잘못된 입력 6경우를 추가한다.
+4. 템플릿: `.env.example.scv` 스위치 블록, `SCV.md` &quot;SCV 는 이렇게 말한다&quot; 절,
+   예시 루틴 `plain-language-audit.md`, 루틴 README 의 예시 개수(8→9),
+   `TEMPLATE_VERSION` 2.3.0 (core/ 와 루트 둘 다).
+5. 테스트 앵커: `run-dry.sh` plain-language 섹션(앵커·위치·옛 문구 부재),
+   `test-sync-env-example.sh`(새 변수), `test-routines.sh`(새 예시 lint 대상).
+6. 문서: CHANGELOG, `docs/guidance-ablation.md` 측정표(`--lint` 실측),
+   `docs/wrapper-integration.md` §6.
+7. 사람 판정 3건 → 체크리스트 기록 → archive → DECISIONS.
+8. 배송 웨이브: Core 릴리스 → 래퍼 두 곳 벤더링 + Codex `hooks.json` 등록 PR.
+
+## Related Documents
+
+- 대화: `scv/conversations/20260821-103405-plain-answers-enforcement.md`
+- 이전 규칙: `scv/archive/20260812-wookiya1364-plain-language/PLAN.md` (본문 교체 대상)
+
+## Risks / Open Questions
+
+- **여전히 &quot;진짜 쉽게 말하는지&quot; 를 기계가 보장하지 못한다.** 보장되는 것은
+  &quot;규칙이 매 턴 모델 눈앞에 있다 + 답의 모양이 구체적이다&quot; 까지. 사람 판정
+  3건이 닫는다. 반려되면 문구를 고쳐 다시 3건.
+- **매 턴 주입 비용.** 12줄 이내 × 매 메시지. 미미하지만 `off` 로 끌 수 있다.
+- **중첩 모노레포 모듈.** 훅은 cwd 의 `.env` 만 본다. 모듈별 `.env` 는 이번
+  범위 밖 — 필요해지면 별도 계획.
+- **Codex 등록.** 공식 문서상 `UserPromptSubmit` stdout 이 컨텍스트로 들어간다.
+  실제 등록은 래퍼 PR 에서 실측한다 — 안 되면 SCV.md 안내 경로가 대신한다.
+- **문구 13곳 복제.** 어긋나면 run-dry 가 잡는다(동일성 단언). 토큰화는 2단계
+  어블레이션 때 재검토.
+
+## Links
+
+- Raw originals: (frontmatter 참조 — 대화 파일)
+- Related PRs:</code></pre><pre class="code src-doc" data-idx="1"><code># Test Plan — 쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치
+
+## Overview
+
+기계로 확인할 수 있는 것: 규칙이 13개 프로토콜에 같은 문구로 제자리에 있고,
+훅이 켜짐/꺼짐 규칙대로 요약을 내보내며 비차단을 지키고, 템플릿·스위치·
+예시 루틴이 자리에 있고, 어블레이션 규율이 깨지지 않았다는 것까지다.
+**모델이 실제로 쉽게 말하는지는 자동으로 보장하지 못한다** — 그 부분은 T7
+(사람 판정 3건, 수동)이 닫는다. 숨기지 않고 판정 기준에 적는다.
+
+`git diff`/`git status` 단언은 쓰지 않는다 — 커밋 상태와 무관하게 트리
+내용만으로 판정이 성립해야 한다(0818 회귀 계약 보수 T5).
+
+## Test scenarios
+
+### T1. 13개 프로토콜 — 절 존재·동일 문구·위치·앵커·옛 문구 제거
+
+- **Setup**: 저장소 트리
+- **Run**: `## Language preference` 를 가진 프로토콜 전부를 대상으로 검사
+- **Expected**: 대상 ≥ 13, 전부 `## Plain language first` 절 보유, 절 본문
+  해시가 하나(끝 빈 줄 무시), 절이 Language preference 바로 다음 H2, 앵커
+  7개(`SCV_PLAIN_LANGUAGE=off` · `1–2 sentences` · `one example` ·
+  `No code values before the user asks` · `stay exact, after the plain summary` ·
+  `Bad:` · `Good:`) 전부 존재, 옛 문구 `Detail is not owed up front` 는 어느
+  프로토콜에도 없음, `set-models.md`·`update.md` 에는 절 없음
+- **Pass criterion**: `OK [T1]`
+
+### T2. help 대화 모드 — 매 턴 모양
+
+- **Expected**: `core/protocols/help.md` 에 `one question per turn` 앵커 존재
+  (Step B2 대화 루프 안: 짧은 답 → 예시 하나 → 질문 하나)
+- **Pass criterion**: `OK [T2]`
+
+### T3. 훅 — 켜짐/꺼짐/이상값/미적용/비차단, journal 오염 없음
+
+- **Setup**: 임시 폴더 5개 — `on`(scv/ 있음, .env 없음) · `off`(`SCV_PLAIN_LANGUAGE=off`)
+  · `up`(`=OFF`) · `odd`(`=maybe`) · `none`(scv/ 없음). `SCV_CORE_ROOT` 는 저장소 `core/`.
+- **Run**: 각 폴더를 cwd 로 `{&quot;prompt&quot;:&quot;hello&quot;}` 를 stdin 으로 `on-user-prompt.sh` 실행
+- **Expected**: `on` → exit 0, stdout 에 `1–2 sentences` 와 `SCV_PLAIN_LANGUAGE`
+  포함, 12줄 이내, `scv/journal/*.md` 에 기록됨, journal 에 요약 문구 없음.
+  `off`·`up` → stdout 비어 있음(exit 0). `odd` → 요약 출력(이상값은 켜짐).
+  `none` → stdout 비어 있음. 잘못된 입력(`not-json`) → exit 0.
+- **Pass criterion**: `OK [T3]`
+
+### T4. 템플릿 — .env 예시·SCV.md·TEMPLATE_VERSION·예시 루틴
+
+- **Expected**: `core/template/.env.example.scv` 에 `# SCV_PLAIN_LANGUAGE=on`
+  (기본 on 으로 주석 문서화), `core/template/scv/SCV.md` 에 `SCV_PLAIN_LANGUAGE` 와
+  `1–2 sentences` 포함, `core/TEMPLATE_VERSION` 과 루트 `TEMPLATE_VERSION` 둘 다
+  `2.3.0`, `core/template/scv/routines/examples/plain-language-audit.md` 존재 +
+  frontmatter 5키(name/cadence/guardrails/exit/report)
+- **Pass criterion**: `OK [T4]`
+
+### T5. 어블레이션 규율
+
+- **Expected**: promote·work 외 프로토콜에 `SCV:GUIDANCE` 없음, promote·work
+  `--lint` OK, full 투영이 원본과 바이트 동일, minimal 투영에도 절의 앵커
+  (`No code values before the user asks`) 생존
+- **Pass criterion**: `OK [T5]`
+
+### T6. 스코프·전체 스위트
+
+- **Expected**: `core/actions.json` 의 액션 수 15 (내용 기반), `run-dry.sh` ·
+  `tests/run.sh` · `core/tests/test-*.sh` 전부 exit 0
+- **Pass criterion**: `ALL GATES OK`
+
+### T7. 사람 판정 3건 (수동 — 자동화 안 함)
+
+- **Setup**: SCV 가 hydrate 된 샘플 프로젝트, 스위치 기본(on)
+- **Run**: ① 명령 없이 일반 대화 질문 1건(예: &quot;SCV 가 뭐야?&quot;) ② `/scv:help`
+  진단 1건 ③ `/scv:help &quot;&lt;작은 아이디어&gt;&quot;` 대화 1턴
+- **Expected**: 각 첫 답이 &quot;2문장 이내 + 예시 1 + 코드값 없음(필수 식별자는
+  요약 뒤에)&quot;. 대표님이 눈으로 판정.
+- **Pass criterion**: 3건 모두 통과. 결과를 archive 의 `ARCHIVED_AT.md` 또는
+  `CHECK.md` 에 체크리스트로 남긴다. 1건이라도 반려면 문구를 고쳐 다시 3건.
+
+## How to run
+
+**`bash` 로 실행한다.** (대화형 셸이 zsh 면 `set -e` 가 루프 안에서 bash 처럼
+동작하지 않는다.) T1–T6 만 기계 실행이다. T7 은 수동.
+
+```bash
+bash -euo pipefail -c '
+fail() { echo &quot;FAIL: $1&quot;; exit 1; }
+P=core/protocols; GF=core/scripts/guidance-filter.sh
+HEAD=&quot;## Plain language first&quot;
+
+# [T1] 13개 프로토콜
+targets=$(grep -l &quot;^## Language preference&quot; $P/*.md)
+n=$(printf &quot;%s\n&quot; &quot;$targets&quot; | grep -c .)
+have=$(grep -l &quot;^$HEAD$&quot; $P/*.md | grep -c .)
+[ &quot;$n&quot; -ge 13 ] || fail &quot;T1 대상이 ${n}개로 줄었다&quot;
+[ &quot;$n&quot; -eq &quot;$have&quot; ] || fail &quot;T1 절 누락 ($have/$n)&quot;
+hashes=$(printf &quot;%s\n&quot; &quot;$targets&quot; | while read -r f; do
+  awk &quot;/^$HEAD\$/{f=1} f&amp;&amp;/^## /&amp;&amp;!/^$HEAD\$/{exit} f&quot; &quot;$f&quot; \
+    | sed -e :a -e &quot;/^\\n*\$/{\$d;N;ba&quot; -e &quot;}&quot; | cksum
+done | sort -u | grep -c .)
+[ &quot;$hashes&quot; -eq 1 ] || fail &quot;T1 문구 판본 ${hashes}종&quot;
+for a in &quot;SCV_PLAIN_LANGUAGE=off&quot; &quot;1–2 sentences&quot; &quot;one example&quot; \
+         &quot;No code values before the user asks&quot; &quot;stay exact, after the plain summary&quot; \
+         &quot;Bad:&quot; &quot;Good:&quot;; do
+  for f in $targets; do grep -qF -- &quot;$a&quot; &quot;$f&quot; || fail &quot;T1 앵커 없음: [$a] in $f&quot;; done
+done
+for f in $targets; do
+  nxt=$(awk &quot;/^## Language preference/{f=1;next} f&amp;&amp;/^## /{print;exit}&quot; &quot;$f&quot;)
+  [ &quot;$nxt&quot; = &quot;$HEAD&quot; ] || fail &quot;T1 위치: $f → 다음 H2 가 [$nxt]&quot;
+done
+if grep -lF &quot;Detail is not owed up front&quot; $P/*.md &gt;/dev/null 2&gt;&amp;1; then fail &quot;T1 옛 문구 잔존&quot;; fi
+for stub in set-models update; do
+  grep -q &quot;^$HEAD$&quot; $P/$stub.md &amp;&amp; fail &quot;T1 어댑터 스텁에 절: $stub&quot; || true
+done
+echo &quot;OK [T1]&quot;
+
+# [T2] help 대화 모드
+grep -qF &quot;one question per turn&quot; $P/help.md || fail &quot;T2 help 대화 모드 앵커 없음&quot;
+echo &quot;OK [T2]&quot;
+
+# [T3] 훅
+TMP=$(mktemp -d); trap &quot;rm -rf $TMP&quot; EXIT
+CORE=&quot;$(pwd)/core&quot;
+run_hook() { ( cd &quot;$1&quot; &amp;&amp; printf &quot;%s&quot; &quot;$2&quot; | SCV_CORE_ROOT=&quot;$CORE&quot; bash &quot;$CORE/template/hooks/on-user-prompt.sh&quot; ); }
+mkdir -p &quot;$TMP/on/scv&quot; &quot;$TMP/off/scv&quot; &quot;$TMP/up/scv&quot; &quot;$TMP/odd/scv&quot; &quot;$TMP/none&quot;
+printf &quot;SCV_PLAIN_LANGUAGE=off\n&quot;   &gt; &quot;$TMP/off/.env&quot;
+printf &quot;SCV_PLAIN_LANGUAGE=OFF\n&quot;   &gt; &quot;$TMP/up/.env&quot;
+printf &quot;SCV_PLAIN_LANGUAGE=maybe\n&quot; &gt; &quot;$TMP/odd/.env&quot;
+out=$(run_hook &quot;$TMP/on&quot; &quot;{\&quot;prompt\&quot;:\&quot;hello\&quot;}&quot;) || fail &quot;T3 켜짐 exit≠0&quot;
+printf &quot;%s&quot; &quot;$out&quot; | grep -qF &quot;1–2 sentences&quot; || fail &quot;T3 켜짐: 요약 미출력&quot;
+printf &quot;%s&quot; &quot;$out&quot; | grep -qF &quot;SCV_PLAIN_LANGUAGE&quot; || fail &quot;T3 켜짐: 스위치 안내 없음&quot;
+[ &quot;$(printf &quot;%s\n&quot; &quot;$out&quot; | grep -c .)&quot; -le 12 ] || fail &quot;T3 요약이 12줄 초과&quot;
+ls &quot;$TMP/on/scv/journal/&quot;*.md &gt;/dev/null 2&gt;&amp;1 || fail &quot;T3 켜짐: journal 미기록&quot;
+if grep -rqF &quot;1–2 sentences&quot; &quot;$TMP/on/scv/journal/&quot;; then fail &quot;T3 요약이 journal 에 섞여 들어감&quot;; fi
+[ -z &quot;$(run_hook &quot;$TMP/off&quot; &quot;{\&quot;prompt\&quot;:\&quot;hello\&quot;}&quot;)&quot; ] || fail &quot;T3 off 인데 출력&quot;
+[ -z &quot;$(run_hook &quot;$TMP/up&quot; &quot;{\&quot;prompt\&quot;:\&quot;hello\&quot;}&quot;)&quot; ]  || fail &quot;T3 OFF(대문자) 인데 출력&quot;
+run_hook &quot;$TMP/odd&quot; &quot;{\&quot;prompt\&quot;:\&quot;hello\&quot;}&quot; | grep -qF &quot;1–2 sentences&quot; || fail &quot;T3 이상값은 켜짐이어야&quot;
+[ -z &quot;$(run_hook &quot;$TMP/none&quot; &quot;{\&quot;prompt\&quot;:\&quot;hello\&quot;}&quot;)&quot; ] || fail &quot;T3 SCV 없는 폴더에서 출력&quot;
+run_hook &quot;$TMP/on&quot; &quot;not-json&quot; &gt;/dev/null || fail &quot;T3 잘못된 입력에 exit≠0&quot;
+echo &quot;OK [T3]&quot;
+
+# [T4] 템플릿·스위치·버전·예시 루틴
+grep -q &quot;^# SCV_PLAIN_LANGUAGE=on&quot; core/template/.env.example.scv || fail &quot;T4 .env 예시에 스위치 없음&quot;
+grep -qF &quot;SCV_PLAIN_LANGUAGE&quot; core/template/scv/SCV.md || fail &quot;T4 SCV.md 템플릿에 스위치 안내 없음&quot;
+grep -qF &quot;1–2 sentences&quot; core/template/scv/SCV.md || fail &quot;T4 SCV.md 템플릿에 답의 모양 없음&quot;
+[ &quot;$(tr -d &quot;[:space:]&quot; &lt; core/TEMPLATE_VERSION)&quot; = &quot;2.3.0&quot; ] || fail &quot;T4 core/TEMPLATE_VERSION ≠ 2.3.0&quot;
+[ &quot;$(tr -d &quot;[:space:]&quot; &lt; TEMPLATE_VERSION)&quot; = &quot;2.3.0&quot; ] || fail &quot;T4 TEMPLATE_VERSION ≠ 2.3.0&quot;
+R=core/template/scv/routines/examples/plain-language-audit.md
+[ -f &quot;$R&quot; ] || fail &quot;T4 예시 루틴 없음&quot;
+for k in &quot;^name: plain-language-audit&quot; &quot;^cadence:&quot; &quot;^guardrails:&quot; &quot;^exit:&quot; &quot;^report:&quot;; do
+  grep -q &quot;$k&quot; &quot;$R&quot; || fail &quot;T4 루틴 키 없음: $k&quot;
+done
+echo &quot;OK [T4]&quot;
+
+# [T5] 어블레이션 규율
+for f in $P/*.md; do
+  case &quot;$(basename &quot;$f&quot;)&quot; in promote.md|work.md) continue;; esac
+  grep -qF &quot;SCV:GUIDANCE&quot; &quot;$f&quot; &amp;&amp; fail &quot;T5 마커 유출: $f&quot; || true
+done
+bash $GF --lint $P/promote.md $P/work.md &gt;/dev/null || fail &quot;T5 lint&quot;
+for p in promote work; do
+  bash $GF --mode full $P/$p.md | cmp -s - $P/$p.md || fail &quot;T5 full 불일치: $p&quot;
+  bash $GF --mode minimal $P/$p.md | grep -qF &quot;No code values before the user asks&quot; || fail &quot;T5 minimal 소실: $p&quot;
+done
+echo &quot;OK [T5]&quot;
+
+# [T6] 스코프·전체 스위트
+[ &quot;$(jq -r &quot;.actions | length&quot; core/actions.json)&quot; -eq 15 ] || fail &quot;T6 액션 수 ≠ 15&quot;
+bash core/tests/run-dry.sh &gt;/dev/null || fail &quot;T6 run-dry&quot;
+bash tests/run.sh &gt;/dev/null || fail &quot;T6 tests/run.sh&quot;
+for t in core/tests/test-*.sh; do bash &quot;$t&quot; &gt;/dev/null || fail &quot;T6 $t&quot;; done
+echo &quot;ALL GATES OK&quot;
+'
+```
+
+## Pass criteria
+
+- 위 블록이 exit 0 (`OK [T1]`…`OK [T5]`, `ALL GATES OK`).
+- **T7 수동 3건 통과** — 체크리스트가 archive 에 남아 있어야 &quot;완료&quot; 라고 말한다.
+  그 전에는 &quot;규칙은 배치됐지만 말투 검증은 미완&quot; 으로 보고한다.
+- **명시할 한계**: 모델이 실제로 쉽게 말하는지 자동 보장하는 테스트는 없다.
+  보장되는 것은 &quot;규칙이 매 턴 모델 눈앞에 있고 답의 모양이 구체적&quot; 까지다.
+
+## Related Documents
+
+- 대화: `scv/conversations/20260821-103405-plain-answers-enforcement.md`</code></pre></div>
+    </aside>
+</div>
+<div class="deck-footer">
+      <button class="deck-arrow" id="scvPrev" disabled onclick="scvGoto(scvIdx()-1)">‹ 이전</button>
+      <div class="deck-dots"><button class="deck-dot active" data-idx="0" onclick="scvGoto(0)" aria-label="1"></button><button class="deck-dot" data-idx="1" onclick="scvGoto(1)" aria-label="2"></button><button class="deck-dot" data-idx="2" onclick="scvGoto(2)" aria-label="3"></button><button class="deck-dot" data-idx="3" onclick="scvGoto(3)" aria-label="4"></button><button class="deck-dot" data-idx="4" onclick="scvGoto(4)" aria-label="5"></button><button class="deck-dot" data-idx="5" onclick="scvGoto(5)" aria-label="6"></button><button class="deck-dot" data-idx="6" onclick="scvGoto(6)" aria-label="7"></button><button class="deck-dot" data-idx="7" onclick="scvGoto(7)" aria-label="8"></button><button class="deck-dot" data-idx="8" onclick="scvGoto(8)" aria-label="9"></button><button class="deck-dot" data-idx="9" onclick="scvGoto(9)" aria-label="10"></button><button class="deck-dot" data-idx="10" onclick="scvGoto(10)" aria-label="11"></button><button class="deck-dot" data-idx="11" onclick="scvGoto(11)" aria-label="12"></button><button class="deck-dot" data-idx="12" onclick="scvGoto(12)" aria-label="13"></button><button class="deck-dot" data-idx="13" onclick="scvGoto(13)" aria-label="14"></button><button class="deck-dot" data-idx="14" onclick="scvGoto(14)" aria-label="15"></button><button class="deck-dot" data-idx="15" onclick="scvGoto(15)" aria-label="16"></button></div>
+      <span class="deck-counter" id="scvCounter">1 / 16</span>
+      <button class="deck-arrow" id="scvNext" onclick="scvGoto(scvIdx()+1)">다음 ›</button>
+    </div>
+</div>
+
+<script>
+  var SCV_ANCHORS = ["Summary","Goals / Non-Goals","Approach Overview","Guardrails","Exit criteria","Suggested path","Related Documents","Risks / Open Questions","Links","✅ 테스트 · 인수기준 (TESTS)","Overview","Test scenarios","How to run","Pass criteria","Related Documents",null];
+  var scvPageIdx = 0;
+  function scvIdx(){ return scvPageIdx; }
+  function scvEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function scvHighlight(anchor){
+    var docs = document.querySelectorAll('.src-doc');
+    docs.forEach(function(el){
+      var code = el.querySelector('code');
+      if(code) code.innerHTML = scvEsc(code.textContent);
+    });
+    if(!anchor) return;
+    for (var i=0;i<docs.length;i++){
+      var code = docs[i].querySelector('code');
+      if(!code) continue;
+      var raw = code.textContent;
+      var lines = raw.split('\n');
+      var start=-1, end=lines.length;
+      for (var j=0;j<lines.length;j++){
+        var m = lines[j].match(/^#{1,6}\s+(.*)$/);
+        if (m && m[1].trim() === String(anchor).trim()) { start = j; break; }
+      }
+      if (start < 0) continue;
+      for (var k=start+1;k<lines.length;k++){ if (/^#{1,6}\s+/.test(lines[k])) { end = k; break; } }
+      var before = lines.slice(0,start).join('\n'), hl = lines.slice(start,end).join('\n'), after = lines.slice(end).join('\n');
+      code.innerHTML = scvEsc(before) + (before ? '\n' : '') + '<mark class="src-hl">' + scvEsc(hl) + '</mark>' + (after ? '\n' + scvEsc(after) : '');
+      if (typeof scvSelectSource === 'function') scvSelectSource(i);
+      var markEl = docs[i].querySelector('mark.src-hl');
+      if (markEl && markEl.scrollIntoView) markEl.scrollIntoView({ block: 'center' });
+      return;
+    }
+  }
+  function scvGoto(n){
+    var total = 16;
+    n = Math.max(0, Math.min(total - 1, n));
+    scvPageIdx = n;
+    document.querySelectorAll('.slide-page').forEach(function(p){ p.classList.toggle('active', p.dataset.idx === String(n)); });
+    document.querySelectorAll('.deck-nav-item').forEach(function(el){
+      var on = el.dataset.idx === String(n);
+      el.classList.toggle('active', on);
+      // The nav is one scrolling row now, so the active pill can sit past the
+      // right edge. Scroll the STRIP, not the page — scrollIntoView on the
+      // element would also scroll .scroll-main and lose the reader's place.
+      if (on && el.parentElement) {
+        var strip = el.parentElement;
+        var left = el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2;
+        strip.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+      }
+    });
+    document.querySelectorAll('.deck-dot').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
+    if (typeof window.scvRunMermaid === 'function') { try { window.scvRunMermaid(); } catch (e) {} }
+    var prevBtn = document.getElementById('scvPrev'), nextBtn = document.getElementById('scvNext'), counter = document.getElementById('scvCounter');
+    if (prevBtn) prevBtn.disabled = (n === 0);
+    if (nextBtn) nextBtn.disabled = (n === total - 1);
+    if (counter) counter.textContent = (n + 1) + ' / ' + total;
+    scvHighlight(SCV_ANCHORS[n]);
+    var main = document.querySelector('.scroll-main');
+    if (main) main.scrollTop = 0;
+  }
+  function scvTogglePanel(){ var p=document.getElementById('scvSourcePanel'); if(p) p.classList.toggle('closed'); }
+  function scvSelectSource(i){
+    document.querySelectorAll('.panel-tab').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+    document.querySelectorAll('.src-doc').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+  }
+  (function(){
+    // 패널 좌측 경계 드래그 리사이즈 — 원본 SourcePanel 과 같은 산식(최소 320px,
+    // 본문에 최소 420px 남김).
+    var handle = document.getElementById('scvResizeHandle');
+    var panel = document.getElementById('scvSourcePanel');
+    if (!handle || !panel) return;
+    var MOBILE_BP = 640;
+    handle.addEventListener('mousedown', function(e){
+      e.preventDefault();
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+      function onMove(ev){
+        // 버튼을 놓친 채(창 밖 등) mouseup 을 못 받은 경우 — 버튼이 눌려있지 않으면 즉시 정리.
+        if (ev.buttons === 0) { onUp(); return; }
+        var raw = window.innerWidth - ev.clientX;
+        var max = Math.max(320, window.innerWidth - 420);
+        panel.style.width = Math.min(max, Math.max(320, raw)) + 'px';
+      }
+      function onUp(){
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        window.removeEventListener('blur', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('blur', onUp);
+    });
+    // 인라인 width 는 스타일시트의 반응형 브레이크포인트(640px 모바일 전체폭·900px 좁은폭)
+    // 보다 항상 우선한다 — 창 크기가 바뀔 때마다 다시 맞춰줘야 브레이크포인트가 살아난다.
+    window.addEventListener('resize', function(){
+      if (!panel.style.width) return;
+      if (window.innerWidth <= MOBILE_BP) { panel.style.width = ''; return; }
+      var max = Math.max(320, window.innerWidth - 420);
+      if (parseFloat(panel.style.width) > max) panel.style.width = max + 'px';
+    });
+  })();
+  document.addEventListener('keydown', function(e){
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') scvGoto(scvIdx() + 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') scvGoto(scvIdx() - 1);
+    else if (e.key === 'Home') scvGoto(0);
+    else if (e.key === 'End') scvGoto(16 - 1);
+    else if (e.key === 's' || e.key === 'S') scvTogglePanel();
+  });
+  scvGoto(0);
+</script>
+
+</body>
+</html>
