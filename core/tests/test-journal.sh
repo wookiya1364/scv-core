@@ -229,6 +229,25 @@ if command -v jq >/dev/null 2>&1; then
   grep -qF "assistant summary line" "$HF" && ok "on-stop appended assistant text" || fail "on-stop did not append assistant text"
   grep -qE '^### \[[0-9:]+\] assistant$' "$HF" && ok "on-stop records speaker=assistant" || fail "on-stop speaker wrong"
   grep -qF "user turn" "$HF" && fail "on-stop leaked non-assistant turns" || ok "on-stop extracts assistant turns only"
+
+  # [6u] the byte cap must not split a multibyte character (v0.31.2): a long
+  # Korean answer (3 bytes per character) forces the 4000-byte cut mid-character;
+  # the journal must still be valid UTF-8 and carry the tail intact.
+  TRU="$WORK/transcript-utf8.jsonl"
+  KO="$(python3 -c 'print("가나다라마바사아자차카타파하" * 150)' 2>/dev/null || printf '가나다라마바사아자차카타파하%.0s' $(seq 1 150))"
+  printf '{"type":"assistant","message":{"content":[{"type":"text","text":"%s END-UTF8-MARK"}]}}\n' "$KO" > "$TRU"
+  HU="$WORK/utf8proj"; mkdir -p "$HU/scv"
+  (cd "$HU" && printf '{"transcript_path":"%s"}' "$TRU" \
+    | env "${GIT_ISOLATE[@]}" GIT_AUTHOR_NAME="Hook User" bash "$HOOK_STOP")
+  eq "on-stop long multibyte transcript: exit 0" "0" "$?"
+  HUF="$HU/scv/journal/${DAY}-hook-user.md"
+  [[ -f "$HUF" ]] && ok "on-stop journaled the multibyte answer" || fail "on-stop wrote nothing for the multibyte answer"
+  if command -v iconv >/dev/null 2>&1; then
+    iconv -f UTF-8 -t UTF-8 "$HUF" >/dev/null 2>&1 && ok "journal stays valid UTF-8 after the byte cap" || fail "journal contains a split multibyte character"
+  else
+    python3 -c 'import sys; open(sys.argv[1],"rb").read().decode("utf-8")' "$HUF" 2>/dev/null && ok "journal stays valid UTF-8 after the byte cap" || fail "journal contains a split multibyte character"
+  fi
+  grep -qF "END-UTF8-MARK" "$HUF" && ok "the tail of the answer survived the cap" || fail "the answer tail was lost"
 else
   ok "jq absent — on-stop extraction skipped (quiet-skip contract already verified)"
 fi
