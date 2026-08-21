@@ -1,6 +1,6 @@
-# scv/archive/INDEX.yaml — auto-managed by /scv:work --archive (v0.11.0+).
+# scv/archive/INDEX.yaml — auto-managed by action:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-08-19T00:19:25Z
+generated_at: 2026-08-21T04:56:01Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -66,7 +66,7 @@ archives:
   - slug: 20260818-wookiya1364-env-example-autorefresh
     title: ".env.example.scv 자동 최신화 — root 불가침의 명명된 예외"
     kind: feature
-    status: testing
+    status: done
   - slug: 20260818-wookiya1364-regression-contract-repair
     title: "회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현"
     kind: refactor
@@ -74,8 +74,20 @@ archives:
   - slug: 20260818-wookiya1364-regression-runner-env-leak
     title: "회귀 러너의 autosync 가드 누수 — 시나리오는 깨끗한 환경에서 돈다"
     kind: feature
-    status: testing
+    status: done
   - slug: 20260818-wookiya1364-sync-autopilot
     title: "sync 자동화와 가드 실효 회복"
     kind: refactor
+    status: done
+  - slug: 20260821-wookiya1364-plain-answers-enforcement
+    title: "쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치"
+    kind: feature
+    status: done
+  - slug: 20260821-wookiya1364-plain-sentence-cap
+    title: "쉬운 말 문장 수 스위치 — SCV_PLAIN_MAX_SENTENCES (기본 2)"
+    kind: feature
+    status: done
+  - slug: 20260821-wookiya1364-regression-runner-path-leak
+    title: "회귀 러너의 경로 표시 누수 — 시나리오는 자기 scv 경로를 본다"
+    kind: feature
     status: done

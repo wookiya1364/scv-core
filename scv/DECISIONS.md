@@ -484,3 +484,99 @@ merge_policy: preserve
   재실행해 11/11 복원을 확인했다. 이 구분은 앞으로도 러너 자체를 고치는
   플랜의 검증 함정이다.
 - refs: scv/archive/20260818-wookiya1364-regression-runner-env-leak/PLAN.md
+
+## [2026-08-21 10:58] wookiya1364 — 쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치
+
+- verdict: adopted
+- why: 0812 의 "쉬운 말 먼저" 규칙은 문체 조언이라 답의 모양을 정하지 않았고,
+  /scv:* 명령 안에만 있어 일반 대화에는 전달되지 않았으며, 어겨도 검사가 없었다.
+  규칙을 "1~2문장 → 예시 → 코드값 금지 → 자세한 건 원하면" 의 답의 모양으로
+  다시 쓰고, 매 메시지마다 도는 기록 훅이 요약을 모델에게 보여주며(Claude Code·
+  Codex 모두 훅 stdout 을 컨텍스트로 넣는다 — 공식 문서 확인), SCV.md 안내를
+  더한다. `.env` `SCV_PLAIN_LANGUAGE` 로 끌 수 있다 — 기본 on, off 만 꺼짐.
+- discarded alternatives:
+  - 명령 안에서만 규칙 유지(훅 주입 없음): 일반 대화가 그대로 빠진다 — 기각.
+  - 훅 없이 루트 지침 파일 안내 한 줄만: SCV 가 CLAUDE.md/AGENTS.md 를 안
+    건드리는 경계상 사용자가 직접 넣어야 해 전달이 보장되지 않는다 — 훅과
+    병행(둘 다)으로 채택, 단독은 기각.
+  - 코드값 전면 금지(다음 명령·생성 파일 경로까지 숨김): 명령 흐름이 느려진다
+    — 기각. 설명은 쉬운 말, 필수 식별자는 요약 뒤에 그대로.
+  - claude -p 자동 스모크를 회귀 스위트에 포함: 모델 호출이 느리고 흔들린다 —
+    기각. 사람 판정 3건으로 닫는다.
+  - Codex 래퍼 등록을 뒤로 미루기: 기각 — 양쪽 래퍼를 같은 웨이브에 켠다.
+- refs: scv/promote/20260821-wookiya1364-plain-answers-enforcement/PLAN.md
+- conversation: scv/conversations/20260821-103405-plain-answers-enforcement.md
+
+## [2026-08-21 13:05] wookiya1364 — 쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치 archived
+
+- verdict: archived
+- why: "쉬운 말" 규칙이 지켜지지 않던 세 원인을 한 번에 닫았다 — 규칙을 답의
+  모양(먼저 1–2문장 → 예시 → 묻기 전 코드값 금지 → 자세한 건 원할 때)으로
+  다시 쓰고(13개 프로토콜, 제목 유지·본문 동일), 매 턴 도는 기록 훅이 그 요약을
+  stdout 으로 내 모델 컨텍스트에 넣으며(Claude Code·Codex 공식 문서 확인),
+  SCV.md 안내와 `.env` `SCV_PLAIN_LANGUAGE`(기본 on, off 만 꺼짐)를 더했다.
+  앞으로 깨지면 안 되는 것: 절 제목 불변(누적 회귀 T4), 13곳 본문 동일, 훅의
+  비차단·journal 비오염, off 의 단일 의미, TEMPLATE_VERSION 동반 상승.
+  사람 판정 3/3 통과(CHECK.md) — 단, 샘플 3건이지 자동 보장이 아니다.
+- path delta: 거의 계획대로. 두 가지 이탈 — (1) `core/contracts/guard.md` 의
+  예외 앵커 3개(줄 번호 기준)가 본문이 7줄 길어지며 어긋나 옮겼다(scope 밖 파일,
+  기능 변경 아님; 줄 번호 앵커는 프로토콜을 늘릴 때마다 따라 움직여야 한다).
+  (2) 누적 회귀 1건(deck-redesign)이 저장소 루트의 `.env` `SCV_LANG` 에 오염돼
+  실패했다 — 치우니 통과. scv-core 자신은 `.env` 없이 두는 편이 안전하다.
+  effort: orchestration 판정이었지만 단일 구현자 + 단일 검증으로 충분했다(승격 0).
+- refs: scv/archive/20260821-wookiya1364-plain-answers-enforcement/PLAN.md
+- conversation: scv/conversations/archive/20260821-103405-plain-answers-enforcement.md
+
+## [2026-08-21 13:10] wookiya1364 — 쉬운 말 문장 수 스위치 — SCV_PLAIN_MAX_SENTENCES (기본 2)
+
+- verdict: adopted
+- why: "먼저 1–2문장" 의 2 가 고정돼 있어 팀마다 다른 선호를 담을 수 없다.
+  `.env` `SCV_PLAIN_MAX_SENTENCES=<n>` 로 상한을 정하고, 없음/이상값은 2 —
+  같은 0.31.0 판으로 함께 배송한다.
+- discarded alternatives:
+  - 줄 수 단위: 화면 폭에 따라 달라져 모델이 지킬 수 없다 — 기각, 문장 수로.
+  - 어제 PR(#103)에 끼워 넣기: 이미 CI 중이라 그대로 머지하고 작은 후속 계획으로 —
+    기각(별도 계획).
+  - TEMPLATE_VERSION 2.4.0: 2.3.0 이 미출시라 같은 판 — 기각(어제 계약 T4 가 2.3.0 고정).
+- refs: scv/promote/20260821-wookiya1364-plain-sentence-cap/PLAN.md
+- conversation: scv/conversations/20260821-130311-plain-sentence-cap.md
+
+## [2026-08-21 13:40] wookiya1364 — 회귀 러너의 경로 표시 누수 — 시나리오는 자기 scv 경로를 본다
+
+- verdict: adopted
+- why: 어제 보관한 plain-answers-enforcement 계약이 누적 회귀에서 처음 돌며
+  러너 안에서만 T6(run-dry [19]) 실패 — 러너가 export 한 SCV_DIR·RAW_DIR·
+  STATE_FILE·PROMOTE_DIR·ARCHIVE_DIR 가 시나리오의 임시 프로젝트에 상속된 탓.
+  0818 의 SCV_AUTOSYNC_RUNNING 누수와 같은 자리·같은 방식(env -u)으로 러너만 고친다.
+- discarded alternatives:
+  - scvroot 의 export 제거: 한 액션 안의 헬퍼 중복 체크 방지가 유효 — 기각(0818 결정 유지).
+  - 별도 PR 로 나중에: 그동안 누적 회귀가 1건 빨간불 — 기각, 같은 PR 에 함께.
+- refs: scv/promote/20260821-wookiya1364-regression-runner-path-leak/PLAN.md
+
+## [2026-08-21 13:55] wookiya1364 — 쉬운 말 문장 수 스위치 — SCV_PLAIN_MAX_SENTENCES (기본 2) archived
+
+- verdict: archived
+- why: "먼저 1–2문장"의 상한을 `.env` `SCV_PLAIN_MAX_SENTENCES=<n>` 로 정할 수
+  있다 — 없음/이상값은 2, `off` 가 우선. 13개 프로토콜 본문에 한 문장(제목·앵커·
+  동일성 유지), 훅은 숫자를 치환해 찍고(`1` 은 "one sentence"), 템플릿 두 곳 한 줄,
+  TEMPLATE_VERSION 2.3.0 유지(같은 판). 앞으로 깨지면 안 되는 것: 양의 정수만
+  유효, 기본 2, off 우선, 어제 계약의 앵커 `1–2 sentences` 는 기본값 출력에 남는다.
+- path delta: as planned — guard.md 앵커 3개를 +2줄 옮긴 것까지 계획에 적힌
+  대로. 동시 실행(테스트 블록 ∥ 누적 회귀)에서 git worktree 가 겹쳐 T4 가 한 번
+  거짓 실패했다 — 단독 재실행으로 통과 확인. 무거운 검증 두 개는 같은 저장소에서
+  동시에 돌리지 않는다.
+- refs: scv/archive/20260821-wookiya1364-plain-sentence-cap/PLAN.md
+- conversation: scv/conversations/archive/20260821-130311-plain-sentence-cap.md
+
+## [2026-08-21 13:56] wookiya1364 — 회귀 러너의 경로 표시 누수 — 시나리오는 자기 scv 경로를 본다 archived
+
+- verdict: archived
+- why: 러너가 export 한 경로 표시 5개가 시나리오에 상속돼 임시 프로젝트 안 헬퍼가
+  이 저장소의 scv/ 를 봤다 — 보관 계약이 run-dry 를 품으면 러너 안에서만 죽는
+  조건. run_scenario_clean 이 자기 표시 6개(autosync 가드 + 경로 5개)만 빼고
+  시나리오를 돌린다. 사용자 env 는 그대로. 앞으로 깨지면 안 되는 것: 제거 목록의
+  단일성(러너 자신의 표시뿐), 러너 프로세스 자신은 표시를 유지.
+- path delta: as planned. scvroot 가 표시를 더 export 하면 재발한다 — 목록이 두
+  곳에 있다는 점은 Risk 로만 기록.
+- refs: scv/archive/20260821-wookiya1364-regression-runner-path-leak/PLAN.md
+- conversation: scv/conversations/archive/20260821-134035-regression-runner-path-leak.md
