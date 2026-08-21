@@ -195,6 +195,17 @@ printf 'SCV_PLAIN_LANGUAGE=maybe\n' > "$PL/.env"
 grep -qF "1–2 sentences" <<<"$(run_pl "$PL")" && ok "unknown value = on" || fail "unknown value silenced the reminder"
 printf 'OTHER=1\nSCV_PLAIN_LANGUAGE=off\n' > "$PL/.env"
 [[ -z "$(run_pl "$PL")" ]] && ok "off on a later line: silent" || fail "off on a later line: still printed"
+# sentence cap (v0.31.0+): positive integer → rendered; anything else → 2; off wins
+printf 'SCV_PLAIN_MAX_SENTENCES=4\n' > "$PL/.env"
+grep -qF "1–4 sentences" <<<"$(run_pl "$PL")" && ok "cap 4 → 1–4 sentences" || fail "cap 4 not rendered"
+printf 'SCV_PLAIN_MAX_SENTENCES=1\n' > "$PL/.env"
+grep -qF "one sentence" <<<"$(run_pl "$PL")" && ok "cap 1 → one sentence" || fail "cap 1 not rendered"
+for bad in abc 0 -3 2.5 ""; do
+  printf 'SCV_PLAIN_MAX_SENTENCES=%s\n' "$bad" > "$PL/.env"
+  grep -qF "1–2 sentences" <<<"$(run_pl "$PL")" && ok "cap [$bad] → default 2" || fail "cap [$bad] did not fall back to 2"
+done
+printf 'SCV_PLAIN_LANGUAGE=off\nSCV_PLAIN_MAX_SENTENCES=4\n' > "$PL/.env"
+[[ -z "$(run_pl "$PL")" ]] && ok "off wins over a cap" || fail "cap printed despite off"
 rm -f "$PL/.env"
 [[ -z "$(cd "$NOSCV" && printf '{"prompt":"hi"}' | bash "$HOOK_PROMPT")" ]] && ok "no scv/: no reminder" || fail "reminder printed outside an SCV project"
 (cd "$PL" && printf 'not json' | bash "$HOOK_PROMPT" >/dev/null); eq "reminder path: invalid JSON still exit 0" "0" "$?"
