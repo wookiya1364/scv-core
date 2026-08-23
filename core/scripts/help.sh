@@ -27,6 +27,8 @@ PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib/workspace.sh"
 # shellcheck source=lib/scvroot.sh
 source "$SCRIPT_DIR/lib/scvroot.sh"
+# shellcheck source=lib/settings.sh
+source "$SCRIPT_DIR/lib/settings.sh"
 # Help is usually the first action a session runs, so it is the first honest
 # chance to close a template-version gap (see scv_autosync's header). It does
 # not use scv_init_paths, hence the explicit call.
@@ -265,14 +267,18 @@ else
   echo "  [✗] hydrate not done ($SCV_INDEX_PATH / scv/PROMOTE.md missing)"
 fi
 
-# .env check
+# 설정 확인. 값은 settings_get 으로만 읽는다 — 직접 파일을 뒤지지 않는다.
+# (파일이 있는지는 안내 문구를 고르기 위해 따로 본다.)
 if [[ -f ".env" ]]; then
-  if grep -q "^NOTIFIER_PROVIDER=" .env 2>/dev/null; then
-    prov=$(grep "^NOTIFIER_PROVIDER=" .env | head -1 | cut -d= -f2)
+  prov="$(settings_get NOTIFIER_PROVIDER)"
+  if [[ -n "$prov" ]]; then
     token_ok=0
     case "$prov" in
-      slack)   grep -q "^SLACK_BOT_TOKEN=xoxb-" .env 2>/dev/null && token_ok=1 ;;
-      discord) grep -q "^DISCORD_BOT_TOKEN=.\+" .env 2>/dev/null && ! grep -q "^DISCORD_BOT_TOKEN=REPLACE" .env && token_ok=1 ;;
+      slack)
+        [[ "$(settings_get SLACK_BOT_TOKEN)" == xoxb-* ]] && token_ok=1 ;;
+      discord)
+        dtok="$(settings_get DISCORD_BOT_TOKEN)"
+        [[ -n "$dtok" && "$dtok" != REPLACE* ]] && token_ok=1 ;;
     esac
     if [[ $token_ok -eq 1 ]]; then
       ENV_SET=1
