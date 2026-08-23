@@ -119,3 +119,7 @@ archives:
     title: "저널 색인 — 의미 있는 것만 표시하고, 훑지 않고 바로 읽는다"
     kind: feature
     status: done
+  - slug: 20260824-wookiya1364-decision-index
+    title: "결정이 스스로 색인된다 — 그리고 비운 뒤 되찾는 한 줄"
+    kind: feature
+    status: done
