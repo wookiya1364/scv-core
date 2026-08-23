@@ -635,3 +635,34 @@ merge_policy: preserve
   반쪽 바이트(1·3·2·5개)만 지워 복구했다.
 - refs: scv/archive/20260821-wookiya1364-journal-utf8-tail/PLAN.md
 - conversation: scv/conversations/archive/20260821-154845-journal-utf8-tail.md
+
+## [2026-08-21 16:50] wookiya1364 — PR·보고 첨부는 이번 슬러그 것만 — SCV_ATTACHMENTS_SCOPE (기본 slug)
+
+- verdict: adopted
+- why: PR·Slack 에 붙는 영상이 테스트 결과 폴더의 "마지막 실행" 전체라 남의 기능
+  영상이 올라갔다(사용자 실측, 스크립트 확인). 기본을 이번 슬러그 것만으로 바꾸고
+  `.env` `SCV_ATTACHMENTS_SCOPE=all` 로만 옛 동작. 0건이면 그 계획의 테스트를 한 번
+  재실행해 이번 영상을 만든다. 보고는 `--slug`, 없으면 진행 중 계획 1개 추론,
+  아니면 전부+알림.
+- discarded alternatives:
+  - 프로토콜 문구로만 "PR 직전에 슬러그 spec 재실행" 지시: 모델이 잊으면 그대로
+    재발 — 기각, 스크립트가 결정론적으로 거른다.
+  - 0건이면 첨부 없이 알림만: 영상 없는 PR 이 생긴다 — 기각(사용자 선택: 재실행).
+  - 0건이면 예전처럼 전부: 지금 불편의 원인 — 기각.
+  - 보고는 `--slug` 필수: 명령이 길어진다 — 기각, 추론 + 안전 폴백.
+- refs: scv/promote/20260821-wookiya1364-slug-scoped-attachments/PLAN.md
+
+## [2026-08-21 17:40] wookiya1364 — PR·보고 첨부는 이번 슬러그 것만 — SCV_ATTACHMENTS_SCOPE (기본 slug) archived
+
+- verdict: archived
+- why: 첨부는 폴더가 아니라 계획을 따른다 — 기본 slug 범위(경로에 슬러그 포함),
+  0건이면 그 계획의 How-to-run 을 한 번 재실행, 보고는 --slug/진행 중 계획 1개 추론/
+  전부+알림 폴백, `all` 로만 옛 동작. 공통 로직은 lib 한 곳. 앞으로 깨지면 안 되는
+  것: all 모드 = 옛 출력 그대로, 재실행은 1회·타임아웃·dry-run 제외, 업로드·보관
+  정책 불변.
+- path delta: as planned — 두 가지 덤. (1) run-dry 의 옛 pr-helper 픽스처(일반 파일명)는
+  명시적 all 로 돌리고 slug 기본값 단언 4개를 더했다. (2) collect-artifacts 의 emit 이
+  빈 슬롯(스크린샷 없음)에서 set -e 로 중단돼 영상을 못 내던 잠복 결함을 발견·수정 —
+  새 테스트가 그 경로를 처음 밟았다. lib 의 필터 함수도 `read` 의 EOF 반환값 때문에
+  set -e 호출자에서 죽어 `return 0` 을 명시했다.
+- refs: scv/archive/20260821-wookiya1364-slug-scoped-attachments/PLAN.md
