@@ -38,10 +38,10 @@ created file — stay exact, after the plain summary.
 
 - The rule lives in every SCV action, and a per-turn hook reminds the host
   agent of it in SCV projects, commands or not.
-- Switch: `.env` `SCV_PLAIN_LANGUAGE` — absent or `on` keeps it (default);
-  `off` turns both the rule and the reminder off. `.env` is usually local, so
+- Switch: `scv/scv_settings.json` `SCV_PLAIN_LANGUAGE` — absent or `on` keeps it (default);
+  `off` turns both the rule and the reminder off. `scv/scv_settings.json` is committed, so
   each teammate can choose.
-- Cap: `.env` `SCV_PLAIN_MAX_SENTENCES=<n>` raises the first-answer sentence
+- Cap: `scv/scv_settings.json` `SCV_PLAIN_MAX_SENTENCES=<n>` raises the first-answer sentence
   cap from 2 to n (positive integer; anything else means 2).
 - Hosts without that hook: add the pointer line from the section above to your
   project-root instruction file, so casual conversation reads this file too.
@@ -77,11 +77,45 @@ project-root/
 │   └── raw/                      # Free-input space (notes, sketches, PDFs, recordings)
 │       ├── README.md
 │       └── stale/                # Consumed docs — moved here by action:promote; ref_docs records which slugs used each
-├── .env, .env.example, .gitignore
+├── .gitignore  (scv/scv_settings.json holds SCV settings)
 └── (project-specific code: src/, packages/, apps/, etc.)
 ```
 
 **The big picture**: drop material into `scv/raw/` → `action:promote` refines it into `scv/promote/<slug>/` → `action:work <slug>` implements + tests → on pass, moves to `scv/archive/`.
+
+## Settings
+
+SCV settings live in two files under `scv/`, and nowhere else. The project's
+`.env` is **not read** — that is the point of the split: your app's variables and
+SCV's settings stopped sharing one file.
+
+| File | What goes in it | Committed? |
+|---|---|---|
+| `scv/scv_settings.json` | language, notifier provider, PR platform, attachment and GIF options — 23 keys | yes |
+| `scv/scv_settings.secret.json` | bot tokens, repo tokens, channel IDs — 13 keys | **no** (git-ignored) |
+
+Start from `scv/scv_settings.example.json`. Nothing breaks without a settings
+file — SCV runs on defaults.
+
+**Always write settings through the script.** It puts each key in the right file
+on its own, so a token cannot land in the committed one by accident:
+
+```bash
+bash "<core>/scripts/settings-set.sh" SCV_LANG=korean
+bash "<core>/scripts/settings-set.sh" SLACK_BOT_TOKEN=xoxb-...   # → secret file
+```
+
+**Coming from `.env`?** Run this once. It copies only the keys SCV knows, splits
+secrets out, and **does not touch your `.env`**:
+
+```bash
+bash "<core>/scripts/settings-migrate.sh"
+```
+
+Until you do, SCV runs on defaults and says so once per action.
+
+**Updates never overwrite your values.** When SCV ships a new setting, sync adds
+only the missing key. A value you set — or deliberately left empty — stays as it is.
 
 ## Work procedure
 
@@ -121,4 +155,4 @@ workspace:
 - Template version: <!-- STANDARD:VERSION -->2.0.0<!-- /STANDARD:VERSION -->
 - Last sync: <!-- STANDARD:SYNCED_AT -->UNSET<!-- /STANDARD:SYNCED_AT -->
 - Template digest: <!-- STANDARD:DIGEST -->UNSET<!-- /STANDARD:DIGEST -->
-- Collab tool: `.env`'s `NOTIFIER_PROVIDER` (slack | discord)
+- Collab tool: `scv/scv_settings.json`'s `NOTIFIER_PROVIDER` (slack | discord)
