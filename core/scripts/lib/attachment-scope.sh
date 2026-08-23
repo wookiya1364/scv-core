@@ -34,6 +34,7 @@ attachment_scope_mode() {
   if [[ "$v" == "all" ]]; then echo all; else echo slug; fi
 }
 
+# @pure
 attachment_scope_filter() {
   local slug="$1" line
   if [[ -z "$slug" ]]; then cat; return 0; fi
