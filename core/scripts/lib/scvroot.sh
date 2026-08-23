@@ -134,14 +134,24 @@ source "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/template-digest.sh"
 _scv_ver_lt() { scv_ver_lt "$@"; }
 
 scv_autosync() {
-  [[ "${SCV_AUTOSYNC:-on}" == "off" ]] && return 0
   [[ -n "${SCV_AUTOSYNC_RUNNING:-}" ]] && return 0
   # Claim the whole process tree, not just the sync invocation: one action
   # script spawns several helpers (status → readpath ×4), each of which
   # sources this library. Without the export every helper re-ran the check —
   # and when the refresh could not complete, re-ran the refresh — turning one
   # action into N attempts and N stderr reports. One action, one check.
+  #
+  # 이 선언이 opt-out 검사보다 먼저 온다는 것이 중요하다. 끈 상태에서도 한 번은
+  # 판단해서 어긋남을 알려야 하는데, 가드를 여기서 잡지 않으면 그 한 줄이 한
+  # 액션에 여러 번 찍힌다.
   export SCV_AUTOSYNC_RUNNING=1
+
+  # 자동 갱신을 껐다 — 파일은 건드리지 않는다. 다만 판단은 해서, 정말로 어긋나
+  # 있으면 한 줄로 알린다. 껐다는 사실을 잊으면 영원히 모르는 것이 지금까지의
+  # 가장 큰 구멍이었다. 어긋나지 않았으면 아무 말도 하지 않는다.
+  local muted=0
+  [[ "${SCV_AUTOSYNC:-on}" == "off" ]] && muted=1
+
   local root="${1:-}"
   [[ -n "$root" ]] || root="$(scv_root_dir)"
   [[ -d "$root" ]] || return 0
@@ -149,10 +159,18 @@ scv_autosync() {
   local lib_dir payload_root
   lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   payload_root="$(cd "$lib_dir/../.." && pwd)"
-  [[ -f "$payload_root/TEMPLATE_VERSION" && -f "$payload_root/scripts/sync.sh" ]] || return 0
+  # 배포본이 불완전하다 — 예전에는 조용히 넘어갔다. 갱신이 영영 안 도는데 아무도
+  # 모르는 상태라, 이름을 대고 말한다.
+  if [[ ! -f "$payload_root/TEMPLATE_VERSION" || ! -f "$payload_root/scripts/sync.sh" ]]; then
+    echo "scv: this SCV payload is incomplete (no TEMPLATE_VERSION or scripts/sync.sh at $payload_root) — template refresh cannot run; reinstall or update the plugin." >&2
+    return 0
+  fi
   local remote
   remote="$(tr -d '[:space:]' < "$payload_root/TEMPLATE_VERSION")"
-  [[ -n "$remote" ]] || return 0
+  if [[ -z "$remote" ]]; then
+    echo "scv: this SCV payload's TEMPLATE_VERSION is empty — template refresh cannot run; reinstall or update the plugin." >&2
+    return 0
+  fi
 
   # 배포본의 템플릿 지문. 갱신 여부는 번호가 아니라 이 값으로 판단한다 —
   # 번호를 올리는 것을 잊어도 내용이 바뀌었으면 반드시 갱신된다.
@@ -200,7 +218,12 @@ scv_autosync() {
       echo "scv: this project's template ($local_v) is newer than this payload's ($remote) — update the plugin; nothing was changed." >&2
       return 0 ;;
     refresh|refresh:version|refresh:unstamped)
-      : ;;
+      if (( muted )); then
+        local gap="$local_v → $remote"
+        [[ "$local_v" == "$remote" ]] && gap="content changed, version still $remote"
+        echo "scv: workflow docs are OUT OF DATE [$gap] — automatic refresh is off (SCV_AUTOSYNC=off); run the sync action to close it." >&2
+        return 0
+      fi ;;
     *)
       echo "scv: unexpected template decision [$decision] — nothing was changed; run the sync action by hand." >&2
       return 0 ;;
@@ -231,6 +254,56 @@ scv_autosync() {
     echo "scv: automatic template refresh $local_v → $remote failed — run the sync action by hand; the current action continues." >&2
   fi
   return 0
+}
+
+# scv_template_drift — 템플릿이 어긋나 있으면 한 줄로 설명하고, 아니면 아무것도
+# 내지 않는다. 읽기만 한다 — 고치지 않는다.
+#
+# 왜 필요한가: 자동 갱신이 스스로 닫는 경우는 이 함수가 호출될 즈음 이미 닫혀
+# 있다. 그래서 여기서 무언가 나온다는 것은 "자동으로는 못 닫는 상태" 라는 뜻이다 —
+# 껐거나, 배포본이 더 오래됐거나, 편집 중인 파일에 막혔거나. 사용자가 "왜 아직
+# 옛날 문서지?" 라고 물을 때 답이 되는 자리다.
+scv_template_drift() {
+  local root="${1:-}"
+  [[ -n "$root" ]] || root="$(scv_root_dir)"
+  [[ -d "$root" ]] || return 0
+
+  local lib_dir payload_root
+  lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  payload_root="$(cd "$lib_dir/../.." && pwd)"
+  [[ -f "$payload_root/TEMPLATE_VERSION" ]] || return 0
+
+  local remote remote_digest="" index local_v="" local_d=""
+  remote="$(tr -d '[:space:]' < "$payload_root/TEMPLATE_VERSION")"
+  [[ -n "$remote" ]] || return 0
+  [[ -f "$payload_root/TEMPLATE_DIGEST" ]] \
+    && remote_digest="$(tr -d '[:space:]' < "$payload_root/TEMPLATE_DIGEST")"
+
+  index="$root/SCV.md"
+  [[ -f "$index" ]] || return 0
+  local_v="$(sed -n 's/.*<!-- STANDARD:VERSION -->\(.*\)<!-- \/STANDARD:VERSION -->.*/\1/p' "$index" | head -n 1 | tr -d '[:space:]')"
+  local_d="$(sed -n 's/.*<!-- STANDARD:DIGEST -->\(.*\)<!-- \/STANDARD:DIGEST -->.*/\1/p' "$index" | head -n 1 | tr -d '[:space:]')"
+  [[ "$local_d" == "UNSET" ]] && local_d=""
+  [[ -n "$local_v" ]] || return 0
+
+  local decision
+  decision="$(scv_template_decide "$local_d" "$remote_digest" "$local_v" "$remote")"
+  case "$decision" in
+    skip:same) return 0 ;;
+    skip:backward)
+      echo "  template: project ($local_v) is NEWER than this payload ($remote) — update the plugin" ;;
+    refresh:unstamped)
+      echo "  template: not yet digest-stamped — the next SCV action stamps it" ;;
+    refresh)
+      echo "  template: OUT OF DATE — content changed, version still $remote" ;;
+    refresh:version)
+      echo "  template: OUT OF DATE — $local_v → $remote" ;;
+  esac
+  if [[ "${SCV_AUTOSYNC:-on}" == "off" ]]; then
+    echo "            automatic refresh is off (SCV_AUTOSYNC=off) — run the sync action"
+  else
+    echo "            the refresh could not complete on its own — run the sync action"
+  fi
 }
 
 scv_init_paths() {
