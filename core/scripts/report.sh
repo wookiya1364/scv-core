@@ -30,6 +30,8 @@ Options:
   --summary "TEXT"   Human-readable summary (failure cause or success highlights)
   --attempt N        Attempt count (default 1)
   --event EVENT      Force a specific event (phase-complete | e2e-failure | daily-summary | error-alert)
+  --slug SLUG        Attach only this plan's test-results files (v0.32.0+; default scope
+                     is slug — without --slug, the single active promote plan is used)
 
 Settings (from scv/scv_settings.json + .secret.json):
   NOTIFIER_PROVIDER            slack | discord (required)
@@ -66,6 +68,7 @@ while [[ $# -gt 0 ]]; do
     --summary) SUMMARY="$2"; shift 2 ;;
     --attempt) ATTEMPT="$2"; shift 2 ;;
     --event)   EVENT="$2"; shift 2 ;;
+    --slug)    export SCV_ATTACHMENTS_SLUG="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "✖ Unknown flag: $1" >&2; exit 1 ;;
   esac
