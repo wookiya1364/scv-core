@@ -117,35 +117,64 @@ Until you do, SCV runs on defaults and says so once per action.
 **Updates never overwrite your values.** When SCV ships a new setting, sync adds
 only the missing key. A value you set — or deliberately left empty — stays as it is.
 
-## Journal — mark what matters, read it back cheaply
+## Four places things get written — and which is which
 
-Every turn lands in `scv/journal/`. That file only grows, so finding an old
-decision by reading it costs you the whole file — and the context that goes
-with it.
+They overlap enough to be confusing, so here is the split. Only one of them
+asks anything of you.
 
-Mark the turns that matter as you write them, and read them back by name:
+| Where | What lives there | Who writes it |
+|---|---|---|
+| `scv/conversations/` | An idea still being shaped. It grows across turns and gets promoted into a plan. | you, deliberately |
+| `scv/promote/` · `scv/archive/` | The plan itself, and what actually happened. | the promote and work actions |
+| `scv/DECISIONS.md` | The decision — what won, why, what was discarded. Append-only. | **automatic**, at three moments |
+| `scv/journal/` | Every turn, verbatim. | the hooks, always |
+
+One line: **a conversation is a draft of something not yet decided; a decision
+is the thing once it is.** The journal is the raw tape underneath both.
+
+### Decisions write themselves
+
+Three moments already decide something, so those are the three that record it:
+a plan is approved, a plan is archived, a scenario is ruled obsolete. Nothing
+there is a judgement call — the actions call the script:
 
 ```bash
-# writing — the mark and the name are chosen by whoever writes, not guessed later
-bash "<core>/scripts/journal-append.sh" --mark decision --key retry-policy "…"
-
-# reading — the journal itself is never scanned
-bash "<core>/scripts/journal-read.sh" --list            # what is marked
-bash "<core>/scripts/journal-read.sh" --key retry-policy
+bash "<core>/scripts/decisions-append.sh" --title "…" --verdict adopted --why "…"
 ```
 
-Four marks: `decision` (a direction was set), `plan` (a plan was made or
-archived), `blocker` (something was stuck, and why), `pivot` (something was
-dropped or changed). Anything else is ignored — the journal write still happens,
-and it says so.
+The script keeps the format identical across all three and records **where** the
+entry sits, so one decision can be read back without opening a log that is
+already hundreds of lines:
 
-The index (`scv/journal/INDEX.tsv`) stores each marked turn's byte position, so
-reading one costs that entry, not the file. Same name twice? The newest wins.
+```bash
+bash "<core>/scripts/record-read.sh" --key <name>
+```
 
-**Nothing depends on it.** No index, a broken index, an unknown mark — the
-journal write goes through either way. And if someone edits the journal file
-directly, the read says the position no longer lines up instead of handing you
-the wrong text.
+### After clearing context
+
+```bash
+bash "<core>/scripts/recap.sh"
+```
+
+What is in flight, the last few decisions, what is blocked, what is still open —
+assembled from what is already on disk. **It writes nothing.** Under 40 lines by
+design: a recap you skim is a recap you read.
+
+Reach for the status action instead when you want the full picture, including
+raw-material changes.
+
+### Marking a journal turn yourself
+
+Decisions cover the moments that go through the actions. For the ones that do
+not — you got unstuck, or you dropped an approach mid-conversation — mark the
+turn as you write it:
+
+```bash
+bash "<core>/scripts/journal-append.sh" --mark blocker --key <name> "…"
+```
+
+`blocker`, `pivot`, `plan`. This is the one part that asks something of you, and
+it is optional: the journal records the turn either way.
 
 ## Work procedure
 
