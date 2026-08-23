@@ -415,6 +415,21 @@ append to `<SCV_DIR>/DECISIONS.md` and write `refs: <SCV_DIR>/archive/<slug>/PLA
 Unlike `refs:` / `conversation:`, the `path delta:` line is **never omitted** —
 when the route matched the plan, write `as planned` on one line and move on.
 
+**Write it with the script, never by editing the file:**
+
+```bash
+bash "${SCV_CORE_ROOT}/scripts/decisions-append.sh" \
+  --title "<제목>" --verdict <adopted|archived|obsolete|needed|maybe|not-needed|lesson> \
+  --why "<1–3줄 근거>" [--discarded "…"] [--path-delta "…"] [--refs "…"] [--conversation "…"]
+```
+
+The script keeps the format identical across the three append points and records
+the entry's position in `scv/INDEX.tsv`, so a single decision can later be read
+back by name without opening the whole log — it is already hundreds of lines in
+mature projects. Nothing here is a judgement call: the three points are the
+three moments a decision is already being made.
+
+
 The entry reuses the handoff decision format. **author is mandatory — never
 write an anonymous entry** (resolve it the same way as `action:promote`'s
 AUTHOR: `git config user.name` → `GIT_AUTHOR_NAME` → `USER`):
