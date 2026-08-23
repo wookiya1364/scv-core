@@ -16,6 +16,7 @@
 
 # scv_ver_lt A B — A 가 B 보다 앞 세 자리 기준으로 오래됐으면 참.
 # 순수 bash. `sort -V` 는 이 스크립트가 도는 모든 곳에 있지는 않다.
+# @pure
 scv_ver_lt() {
   local a1 a2 a3 arest b1 b2 b3 brest
   IFS='.-' read -r a1 a2 a3 arest <<< "$1."
@@ -53,6 +54,7 @@ scv_ver_lt() {
 # 2번과 3번이 **둘 다** 산다는 것이 중요하다. 지문은 번호를 대체하지 않고 더한다.
 # 지문만 보게 만들면, 번호 스탬프만 낡고 내용은 같은 프로젝트가 영영 안 고쳐진다 —
 # 그 번호를 읽는 다른 코드들이 계속 틀린 값을 본다.
+# @pure
 scv_template_decide() {
   local stamped_digest="${1:-}" payload_digest="${2:-}"
   local stamped_ver="${3:-}"    payload_ver="${4:-}"
@@ -103,6 +105,7 @@ scv_template_decide() {
 # 같은 지문이 나온다.
 #
 # 디스크를 만지지 않는다 — 표준입력을 받아 표준출력을 낸다.
+# @deterministic
 scv_digest_fold() {
   LC_ALL=C sort | {
     if command -v sha256sum >/dev/null 2>&1; then
