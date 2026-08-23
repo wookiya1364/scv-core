@@ -120,4 +120,5 @@ workspace:
 
 - Template version: <!-- STANDARD:VERSION -->2.0.0<!-- /STANDARD:VERSION -->
 - Last sync: <!-- STANDARD:SYNCED_AT -->UNSET<!-- /STANDARD:SYNCED_AT -->
+- Template digest: <!-- STANDARD:DIGEST -->UNSET<!-- /STANDARD:DIGEST -->
 - Collab tool: `.env`'s `NOTIFIER_PROVIDER` (slack | discord)
