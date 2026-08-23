@@ -1,28 +1,41 @@
 #!/usr/bin/env bash
-# journal-index.sh — 저널에서 의미 있는 항목만 찾아 읽기 위한 색인. 순수부.
+# record-index.sh — 기록을 이름으로 찾아 그 구간만 읽기 위한 색인. 순수부.
 #
-# 저널은 모든 턴을 그대로 쌓는다. 지난 이야기를 찾으려고 파일 전체를 읽으면
-# 컨텍스트가 그만큼 찬다. 표시된 항목의 **위치**를 따로 적어 두고, 읽을 때는
-# 저널을 훑지 않고 그 구간만 읽는다.
+# SCV 의 기록은 append-only 로 자란다. 저널은 모든 턴을, DECISIONS 는 모든
+# 결정을 쌓는다. 지난 것을 찾으려고 파일 전체를 읽으면 컨텍스트가 그만큼 찬다.
+#
+# 이름과 **위치**(파일·오프셋·길이)를 따로 적어 두고, 읽을 때는 파일을 훑지 않고
+# 그 구간만 읽는다. 레코드가 파일 경로를 들고 있으므로 저널이든 결정 로그든
+# 같은 색인이 담는다.
 #
 # 이 파일의 함수는 전부 순수하다 — 색인 텍스트와 문자열만 다루고 파일을 열지
 # 않는다. 파일을 여는 것은 journal-append.sh 와 journal-read.sh 가 맡는다.
 # core/contracts/purity.md 의 계약이고, check-purity.sh 가 기계로 강제한다.
 #
-# 색인 형식: 탭 구분 한 줄에 하나. append-only.
-#   <표시>\t<키>\t<파일>\t<오프셋>\t<길이>\t<시각>\t<한 줄 요약>
+# 색인 형식: 탭 구분 한 줄에 하나. append-only. 자리는 scv/INDEX.tsv.
+#   <종류>\t<키>\t<파일>\t<오프셋>\t<길이>\t<시각>\t<한 줄 요약>
 
-# 알려진 표시. 이 밖의 값은 조용히 무시한다 — 저널 기록 자체는 막지 않는다.
-SCV_JOURNAL_MARKS="decision plan blocker pivot"
+# 알려진 종류. 이 밖의 값은 조용히 무시한다 — 기록 자체는 막지 않는다.
+#
+#   decision  결정 로그(scv/DECISIONS.md)의 엔트리. **세 지점에서 자동으로 붙는다**
+#             — 계획 승인 · 보관 · 폐기 판정. 사람이 판단하지 않는다.
+#   plan      계획이 만들어지거나 보관된 순간
+#   blocker   막혔고 그 이유를 알아낸 순간
+#   pivot     하던 것을 접거나 바꾼 순간
+#
+# decision 만 자동이고 나머지 셋은 부르는 쪽이 붙인다. 자동인 것과 아닌 것을
+# 섞어 두는 이유: 읽는 쪽은 구분할 필요가 없다.
+SCV_RECORD_KINDS="decision plan blocker pivot"
+SCV_JOURNAL_MARKS="$SCV_RECORD_KINDS"   # 예전 이름 — 0.32.0 호환
 
-# journal_mark_normalize <표시>
+# record_kind_normalize <표시>
 #
 # 알려진 표시면 소문자로 정규화해 낸다. 아니면 빈 값.
 #
 # 대소문자와 앞뒤 공백만 허용 오차로 둔다. 오타를 알아서 고쳐 주지 않는다 —
 # 그러면 무엇이 기록됐는지 부르는 쪽이 모르게 된다.
 # @pure
-journal_mark_normalize() {
+record_kind_normalize() {
   local m="${1:-}" k
   # 앞뒤 공백만 떼어 낸다. 가운데 공백까지 지우면 "de cision" 이 조용히
   # "decision" 이 되어, 무엇이 기록됐는지 부르는 쪽이 모르게 된다.
@@ -30,13 +43,13 @@ journal_mark_normalize() {
   m="${m%"${m##*[![:space:]]}"}"
   m="${m,,}"          # bash 4+ 소문자 확장 — 외부 도구가 필요 없다
   [[ -n "$m" ]] || return 0
-  for k in $SCV_JOURNAL_MARKS; do
+  for k in $SCV_RECORD_KINDS; do
     [[ "$k" == "$m" ]] && { printf '%s\n' "$k"; return 0; }
   done
   return 0
 }
 
-# journal_index_record <표시> <키> <파일> <오프셋> <길이> <시각> <요약>
+# record_index_entry <표시> <키> <파일> <오프셋> <길이> <시각> <요약>
 #
 # 색인 한 줄을 만든다. 필드에 탭이나 줄바꿈이 들어가면 공백으로 바꾼다 —
 # 한 줄 한 레코드라는 형식이 깨지면 색인 전체를 못 읽는다.
@@ -44,9 +57,9 @@ journal_mark_normalize() {
 # 표시가 알려진 것이 아니거나 오프셋·길이가 숫자가 아니면 빈 값을 낸다.
 # 부르는 쪽은 빈 값이면 색인에 적지 않는다.
 # @pure
-journal_index_record() {
+record_index_entry() {
   local mark key file off len ts summary
-  mark="$(journal_mark_normalize "${1:-}")"
+  mark="$(record_kind_normalize "${1:-}")"
   [[ -n "$mark" ]] || return 0
   key="${2:-}"; file="${3:-}"; off="${4:-}"; len="${5:-}"; ts="${6:-}"; summary="${7:-}"
   [[ -n "$key" && -n "$file" ]] || return 0
@@ -60,14 +73,14 @@ journal_index_record() {
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$mark" "$key" "$file" "$off" "$len" "$ts" "$summary"
 }
 
-# journal_index_lookup <색인텍스트> <키>
+# record_index_lookup <색인텍스트> <키>
 #
 # 그 키의 레코드를 낸다. 없으면 빈 값.
 #
 # 같은 키가 여러 번 나오면 **마지막 것이 이긴다** — 나중 기록이 그 주제의 최신
 # 상태다. 색인은 append-only 이므로 옛 기록도 남아 있지만 읽히는 것은 최신이다.
 # @pure
-journal_index_lookup() {
+record_index_lookup() {
   local index="${1:-}" want="${2:-}" line found=""
   [[ -n "$index" && -n "$want" ]] || return 0
   while IFS= read -r line; do
@@ -80,15 +93,15 @@ journal_index_lookup() {
   return 0
 }
 
-# journal_index_filter <색인텍스트> <표시>
+# record_index_filter <색인텍스트> <표시>
 #
 # 그 표시가 붙은 레코드들을 낸다. 표시가 비어 있으면 전부.
 # 같은 키의 옛 레코드는 걸러 낸다 — 최신 하나만 남는다.
 # @pure
-journal_index_filter() {
+record_index_filter() {
   local index="${1:-}" want="${2:-}" line
   [[ -n "$index" ]] || return 0
-  want="$(journal_mark_normalize "$want")"
+  want="$(record_kind_normalize "$want")"
 
   local keys="" out=""
   # 뒤에서 앞으로 볼 수 없으므로, 최신이 이기도록 두 번 지난다.
@@ -121,12 +134,12 @@ journal_index_filter() {
   return 0
 }
 
-# journal_index_fields <레코드>
+# record_index_fields <레코드>
 #
 # 레코드를 개행 구분 필드로 낸다: 표시·키·파일·오프셋·길이·시각·요약.
 # 부르는 쪽이 `read -r` 로 받아 쓴다.
 # @pure
-journal_index_fields() {
+record_index_fields() {
   local line="${1:-}"
   [[ -n "$line" ]] || return 0
   local IFS=$'\t'
@@ -137,3 +150,11 @@ journal_index_fields() {
     printf '%s\n' "${f[$i]:-}"
   done
 }
+
+# ------------------------------------------------- 0.32.0 이름 호환 (얇은 별칭)
+# 0.32.0 이 journal_* 이름으로 나갔다. 부르는 쪽이 남아 있을 수 있으므로 남긴다.
+journal_mark_normalize() { record_kind_normalize "$@"; }
+journal_index_record()   { record_index_entry "$@"; }
+journal_index_lookup()   { record_index_lookup "$@"; }
+journal_index_filter()   { record_index_filter "$@"; }
+journal_index_fields()   { record_index_fields "$@"; }
