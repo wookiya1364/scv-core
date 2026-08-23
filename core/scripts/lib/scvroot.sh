@@ -125,22 +125,13 @@ scv_root_dir() {
 #   brick the action that tripped it. Opt out with SCV_AUTOSYNC=off (process
 #   environment only, same reasoning as SCV_GUARD). All reporting goes to
 #   stderr: callers parse this library's users' stdout.
-# _scv_ver_lt A B — true when A is numerically older than B on the first three
-# dot-separated fields. Pure bash: `sort -V` is not everywhere this ships.
-_scv_ver_lt() {
-  local a1 a2 a3 arest b1 b2 b3 brest
-  IFS='.-' read -r a1 a2 a3 arest <<< "$1."
-  IFS='.-' read -r b1 b2 b3 brest <<< "$2."
-  a1="${a1//[!0-9]/}"; a2="${a2//[!0-9]/}"; a3="${a3//[!0-9]/}"
-  b1="${b1//[!0-9]/}"; b2="${b2//[!0-9]/}"; b3="${b3//[!0-9]/}"
-  local a=$(( ${a1:-0}*1000000 + ${a2:-0}*1000 + ${a3:-0} ))
-  local b=$(( ${b1:-0}*1000000 + ${b2:-0}*1000 + ${b3:-0} ))
-  (( a < b )) && return 0
-  (( a > b )) && return 1
-  # Numeric tie: semver orders a prerelease below its release, so
-  # 2.1.0-rc1 < 2.1.0. Two prereleases tie conservatively (not older).
-  [[ -n "${arest%.}" && -z "${brest%.}" ]]
-}
+# 번호 비교와 갱신 판단은 순수 라이브러리가 맡는다. 이 파일은 파일을 읽어 그
+# 함수들에 넘기는 바깥층이다 — 경계를 넘지 말 것.
+# shellcheck source=template-digest.sh
+source "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/template-digest.sh"
+
+# 예전 이름을 쓰는 호출부가 남아 있어도 깨지지 않게 남겨 둔다.
+_scv_ver_lt() { scv_ver_lt "$@"; }
 
 scv_autosync() {
   [[ "${SCV_AUTOSYNC:-on}" == "off" ]] && return 0
@@ -163,9 +154,18 @@ scv_autosync() {
   remote="$(tr -d '[:space:]' < "$payload_root/TEMPLATE_VERSION")"
   [[ -n "$remote" ]] || return 0
 
-  local index="$root/SCV.md" local_v=""
+  # 배포본의 템플릿 지문. 갱신 여부는 번호가 아니라 이 값으로 판단한다 —
+  # 번호를 올리는 것을 잊어도 내용이 바뀌었으면 반드시 갱신된다.
+  local remote_digest=""
+  [[ -f "$payload_root/TEMPLATE_DIGEST" ]] \
+    && remote_digest="$(tr -d '[:space:]' < "$payload_root/TEMPLATE_DIGEST")"
+
+  local index="$root/SCV.md" local_v="" local_d=""
   if [[ -f "$index" ]]; then
     local_v="$(sed -n 's/.*<!-- STANDARD:VERSION -->\(.*\)<!-- \/STANDARD:VERSION -->.*/\1/p' "$index" | head -n 1 | tr -d '[:space:]')"
+    local_d="$(sed -n 's/.*<!-- STANDARD:DIGEST -->\(.*\)<!-- \/STANDARD:DIGEST -->.*/\1/p' "$index" | head -n 1 | tr -d '[:space:]')"
+    # 템플릿 기본값이 그대로면 아직 안 찍힌 것이다.
+    [[ "$local_d" == "UNSET" ]] && local_d=""
   fi
   if [[ -z "$local_v" ]]; then
     if [[ -f "$index" ]]; then
@@ -179,20 +179,32 @@ scv_autosync() {
     fi
     return 0
   fi
-  [[ "$local_v" == "$remote" ]] && return 0
   case "$local_v" in
     [2-9].*|[1-9][0-9]*.*) : ;;
     *) echo "scv: template $local_v predates 2.0 — run the sync action once for the interactive migration." >&2
        return 0 ;;
   esac
-  # Direction matters: refresh only UPWARD. A session holding an older payload
-  # than the one that stamped the project (a teammate updated first, this
-  # plugin has not reloaded yet) must not "refresh" the docs backward — that
-  # would be two machines silently reverting each other's templates forever.
-  if ! _scv_ver_lt "$local_v" "$remote"; then
-    echo "scv: this project's template ($local_v) is newer than this payload's ($remote) — update the plugin; nothing was changed." >&2
-    return 0
-  fi
+
+  # 판단은 순수 함수 한 번이다. 규칙은 세 줄 —
+  #   1. 배포본이 프로젝트보다 오래된 번호면 절대 되돌리지 않는다. 없애면 두 대의
+  #      기계가 서로의 템플릿을 무한히 뒤집는다.
+  #   2. 지문이 다르면 갱신한다. 번호가 같아도 갱신한다.   (이번에 생긴 경로)
+  #   3. 번호가 다르면 갱신한다. 지문이 같아도 갱신한다.   (예전 경로 그대로)
+  # 지문은 번호를 대체하지 않고 더한다.
+  local decision
+  decision="$(scv_template_decide "$local_d" "$remote_digest" "$local_v" "$remote")"
+  case "$decision" in
+    skip:same)
+      return 0 ;;
+    skip:backward)
+      echo "scv: this project's template ($local_v) is newer than this payload's ($remote) — update the plugin; nothing was changed." >&2
+      return 0 ;;
+    refresh|refresh:version|refresh:unstamped)
+      : ;;
+    *)
+      echo "scv: unexpected template decision [$decision] — nothing was changed; run the sync action by hand." >&2
+      return 0 ;;
+  esac
 
   local proj out
   proj="$(dirname "$root")"
@@ -202,10 +214,17 @@ scv_autosync() {
     # stamp did not advance, so "will retry" is a fact, not a hope.
     local refused=0
     printf '%s\n' "$out" | grep -qE '^  (DIRTY|WARN|UNKNOWN)' && refused=1
+    # 무엇 때문에 갱신했는지 말한다. 번호가 같은데 갱신되는 경우가 이제 정상이라
+    # "2.3.0 → 2.3.0" 만 찍으면 사용자가 오해한다. 번호가 실제로 다를 때의 문구는
+    # 그대로 둔다 — 기존 계약이고 테스트가 그 모양을 검사한다.
+    local what="$local_v → $remote"
+    if [[ "$local_v" == "$remote" ]]; then
+      what="content changed at $remote (version unchanged)"
+    fi
     if [[ $refused -eq 0 ]]; then
-      echo "scv: workflow docs refreshed $local_v → $remote (automatic; the sync action re-runs this by hand)" >&2
+      echo "scv: workflow docs refreshed $what (automatic; the sync action re-runs this by hand)" >&2
     else
-      echo "scv: template refresh $local_v → $remote was PARTIAL — the files below were skipped, and the next action retries:" >&2
+      echo "scv: template refresh $what was PARTIAL — the files below were skipped, and the next action retries:" >&2
       printf '%s\n' "$out" | grep -E '^  (DIRTY|WARN|UNKNOWN)' >&2 || true
     fi
   else
