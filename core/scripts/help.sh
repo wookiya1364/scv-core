@@ -268,31 +268,37 @@ else
 fi
 
 # 설정 확인. 값은 settings_get 으로만 읽는다 — 직접 파일을 뒤지지 않는다.
-# (파일이 있는지는 안내 문구를 고르기 위해 따로 본다.)
-if [[ -f ".env" ]]; then
-  prov="$(settings_get NOTIFIER_PROVIDER)"
+SETTINGS_FILE="${SCV_SETTINGS_FILE:-scv/scv_settings.json}"
+SECRET_FILE="${SCV_SETTINGS_SECRET_FILE:-scv/scv_settings.secret.json}"
+
+if [[ -f "$SETTINGS_FILE" || -f "$SECRET_FILE" ]]; then
+  prov="$(settings_get NOTIFIER_PROVIDER 2>/dev/null)"
   if [[ -n "$prov" ]]; then
     token_ok=0
     case "$prov" in
       slack)
-        [[ "$(settings_get SLACK_BOT_TOKEN)" == xoxb-* ]] && token_ok=1 ;;
+        [[ "$(settings_get SLACK_BOT_TOKEN 2>/dev/null)" == xoxb-* ]] && token_ok=1 ;;
       discord)
-        dtok="$(settings_get DISCORD_BOT_TOKEN)"
+        dtok="$(settings_get DISCORD_BOT_TOKEN 2>/dev/null)"
         [[ -n "$dtok" && "$dtok" != REPLACE* ]] && token_ok=1 ;;
     esac
     if [[ $token_ok -eq 1 ]]; then
       ENV_SET=1
-      echo "  [✓] .env configured (NOTIFIER_PROVIDER=$prov, token present)"
+      echo "  [✓] settings configured (NOTIFIER_PROVIDER=$prov, token present)"
     else
-      echo "  [△] .env present but token unset (NOTIFIER_PROVIDER=$prov)"
+      echo "  [△] settings present but token unset (NOTIFIER_PROVIDER=$prov) — put it in $SECRET_FILE"
     fi
   else
-    echo "  [△] .env present but NOTIFIER_PROVIDER missing"
+    echo "  [△] settings present but NOTIFIER_PROVIDER missing in $SETTINGS_FILE"
   fi
-elif [[ -f ".env.example.scv" ]]; then
-  echo "  [✗] .env missing — run 'cp .env.example.scv .env' (or 'cat .env.example.scv >> .env' to append) and fill in values"
+elif [[ -f ".env" ]]; then
+  # 이사하지 않은 프로젝트. .env 는 더 이상 읽히지 않으므로 지금 기본값으로 돌고 있다.
+  echo "  [✗] settings not migrated — .env is NO LONGER read; SCV is on defaults"
+  echo "        run once: bash \"\$SCV_CORE_ROOT/scripts/settings-migrate.sh\""
+elif [[ -f "scv/scv_settings.example.json" ]]; then
+  echo "  [✗] $SETTINGS_FILE missing — copy scv/scv_settings.example.json and fill it in"
 else
-  echo "  [✗] .env.example.scv also missing (hydrate required)"
+  echo "  [✗] settings example also missing (hydrate required)"
 fi
 
 # --- Dependency check (v0.5.1+) ----------------------------------------------

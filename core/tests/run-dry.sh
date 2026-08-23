@@ -192,15 +192,23 @@ fi
 
 echo
 echo "=== [5] report dry-run (Slack) ==="
-cat > "$APP/.env" <<'ENV'
-PROJECT_NAME=test-proj
-NOTIFIER_PROVIDER=slack
-SLACK_BOT_TOKEN=xoxb-fake
-SLACK_CHANNEL_ID=C0DEFAULT
-SLACK_CHANNEL_ID_PHASE_COMPLETE=C0PASS
-SLACK_CHANNEL_ID_E2E_FAILURE=C0FAIL
-NOTIFIER_DRY_RUN=1
-ENV
+mkdir -p "$APP/scv"
+cat > "$APP/scv/scv_settings.json" <<'SJ'
+{
+  "PROJECT_NAME": "test-proj",
+  "NOTIFIER_PROVIDER": "slack",
+  "NOTIFIER_DRY_RUN": "1"
+}
+SJ
+cat > "$APP/scv/scv_settings.secret.json" <<'SJ'
+{
+  "SLACK_BOT_TOKEN": "xoxb-fake",
+  "SLACK_CHANNEL_ID": "C0DEFAULT",
+  "SLACK_CHANNEL_ID_PHASE_COMPLETE": "C0PASS",
+  "SLACK_CHANNEL_ID_E2E_FAILURE": "C0FAIL"
+}
+SJ
+rm -f "$APP/.env"
 mkdir -p "$APP/test-results/E2E-001" "$APP/test-results/logs"
 printf 'PNG' > "$APP/test-results/E2E-001/ss.png"
 printf 'WEBM' > "$APP/test-results/E2E-001/video.webm"
@@ -225,12 +233,20 @@ yes "log line" 2>/dev/null | head -c 25000 > "$APP/test-results/logs/run.log"
 
 echo
 echo "=== [6] report dry-run (Discord switch) ==="
-sed 's/^NOTIFIER_PROVIDER=.*/NOTIFIER_PROVIDER=discord/' "$APP/.env" > "$APP/.env.tmp" && mv "$APP/.env.tmp" "$APP/.env"
-cat >> "$APP/.env" <<'ENV'
-DISCORD_BOT_TOKEN=fake-discord
-DISCORD_CHANNEL_ID=111111111111111111
-DISCORD_CHANNEL_ID_PHASE_COMPLETE=222222222222222222
-ENV
+cat > "$APP/scv/scv_settings.json" <<'SJ'
+{
+  "PROJECT_NAME": "test-proj",
+  "NOTIFIER_PROVIDER": "discord",
+  "NOTIFIER_DRY_RUN": "1"
+}
+SJ
+cat > "$APP/scv/scv_settings.secret.json" <<'SJ'
+{
+  "DISCORD_BOT_TOKEN": "fake-discord",
+  "DISCORD_CHANNEL_ID": "111111111111111111",
+  "DISCORD_CHANNEL_ID_PHASE_COMPLETE": "222222222222222222"
+}
+SJ
 
 (
   cd "$APP"
@@ -245,7 +261,13 @@ echo
 echo "=== [7] Error handling ==="
 (
   cd "$APP"
-  grep -v "^NOTIFIER_PROVIDER=" "$APP/.env" > "$APP/.env.tmp" && mv "$APP/.env.tmp" "$APP/.env"
+  # 알림 제공자만 지운다 — 나머지 설정은 그대로 두어야 이 검사가 그것 하나만 본다.
+  cat > "$APP/scv/scv_settings.json" <<'SJ'
+{
+  "PROJECT_NAME": "test-proj",
+  "NOTIFIER_DRY_RUN": "1"
+}
+SJ
   OUT=$(bash "$REPORT" "X" passed 2>&1)
   rc=$?
   [[ "$rc" -ne 0 ]] && pass "missing NOTIFIER_PROVIDER: non-zero exit" || fail "missing NOTIFIER_PROVIDER should have failed"
@@ -798,10 +820,15 @@ echo '=== [11h] action:help stage-aware recommendations ==='
 # raw-changes > active-plans > all-clean (the draft-docs gate is gone in v2.0.0).
 HA=$(mktemp -d)
 bash "$HYDRATE" init "$HA" >/dev/null 2>&1
-# Mark env as configured to pass that gate
-cp "$HA/.env.example.scv" "$HA/.env"
-sed 's/^NOTIFIER_PROVIDER=.*/NOTIFIER_PROVIDER=slack/' "$HA/.env" > "$HA/.env.tmp" && mv "$HA/.env.tmp" "$HA/.env"
-sed 's|^SLACK_BOT_TOKEN=.*|SLACK_BOT_TOKEN=xoxb-fake|' "$HA/.env" > "$HA/.env.tmp" && mv "$HA/.env.tmp" "$HA/.env"
+# 설정을 채워 그 관문을 통과시킨다. 설정은 이제 scv/ 아래 두 파일에 있다 —
+# 프로젝트 루트의 .env 는 더 이상 읽지 않는다.
+mkdir -p "$HA/scv"
+cat > "$HA/scv/scv_settings.json" <<'SJ'
+{"NOTIFIER_PROVIDER": "slack"}
+SJ
+cat > "$HA/scv/scv_settings.secret.json" <<'SJ'
+{"SLACK_BOT_TOKEN": "xoxb-fake", "SLACK_CHANNEL_ID": "C0DEFAULT"}
+SJ
 
 (
   cd "$HA"

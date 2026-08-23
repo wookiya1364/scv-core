@@ -553,6 +553,16 @@ if [[ $DRY_RUN -eq 0 && $REFUSALS -eq 0 && -f "$PROJECT_DIR/scv/SCV.md" \
   fi
 fi
 
+# 새로 생긴 설정 키를 프로젝트 설정에 더한다. 사용자가 이미 정한 값은 절대
+# 바꾸지 않는다 — 업데이트할 때마다 설정이 되돌아가면 곤란하다. 설정 파일이
+# 아직 없으면 아무것도 하지 않는다.
+if [[ $DRY_RUN -eq 0 && -f "$STANDARD_ROOT/scripts/settings-merge.sh" ]]; then
+  MERGE_OUT="$(bash "$STANDARD_ROOT/scripts/settings-merge.sh" --project-dir "$PROJECT_DIR" 2>&1 || true)"
+  if printf '%s' "$MERGE_OUT" | grep -q '^added '; then
+    CHANGES+=("SETTINGS  $(printf '%s' "$MERGE_OUT" | head -n 1)")
+  fi
+fi
+
 echo "Changes:"
 if [[ ${#CHANGES[@]} -eq 0 ]]; then
   echo "  (none)"
