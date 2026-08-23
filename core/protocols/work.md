@@ -640,6 +640,14 @@ options:
 bash ${SCV_CORE_ROOT}/scripts/pr-helper.sh [<SCV_DIR>] <slug>
 ```
 
+**Attachment scope (v0.32.0+).** The helper attaches only test-results files
+whose path contains this slug — Playwright keeps just the last run there, and
+after the Step 9a regression that run is usually another feature's. When it
+finds none, it re-runs this plan's `## How to run` once to produce this slug's
+evidence (pass `--no-rerun` to skip), and with still nothing it says so and
+attaches no evidence rather than someone else's. `scv/scv_settings.json`
+`SCV_ATTACHMENTS_SCOPE=all` restores the everything-in-test-results behaviour.
+
 The helper reads `archive/<slug>/PLAN.md`'s `epic:` / `kind:` to determine the base branch and performs commit + push + gh pr create. The last line of the output should be `PR created: <URL>` — report that URL to the user.
 
 Failure cases:

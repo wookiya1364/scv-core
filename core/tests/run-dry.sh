@@ -1545,7 +1545,9 @@ echo "fakepng" > "$PR_APP/test-results/screenshot.png"
 
 (
   cd "$PR_APP"
-  OUT=$(bash "$PR_HELPER" 20260424-tester-feat --dry-run 2>&1)
+  # These fixtures use generic artifact names (no slug in the path); they test
+  # body assembly, so run them in the legacy all-files scope (v0.32.0 default is slug).
+  OUT=$(SCV_ATTACHMENTS_SCOPE=all bash "$PR_HELPER" 20260424-tester-feat --dry-run 2>&1)
   assert_out_contains "feat: Sample feature" "$OUT"            "pr-helper: title prefix=feat"
   assert_out_contains "epic/epic-sample" "$OUT"                "pr-helper: base branch is epic/<slug>"
   assert_out_contains "screenshot.png" "$OUT"                  "pr-helper: screenshot listed"
@@ -1663,13 +1665,22 @@ echo "fakepng" > "$PR_APP/test-results/screenshot.png"
   cd "$PR_APP"
   git init -q -b main
   git remote add origin https://github.com/test/test.git
-  OUT=$(bash "$PR_HELPER" 20260429-test-feat --dry-run 2>&1)
+  OUT=$(SCV_ATTACHMENTS_SCOPE=all bash "$PR_HELPER" 20260429-test-feat --dry-run 2>&1)
   assert_out_contains "Videos to attach" "$OUT"            "pr-helper: Videos section in dry-run"
   assert_out_contains "recording.webm" "$OUT"              "pr-helper: lists .webm"
   assert_out_contains "demo.mp4" "$OUT"                    "pr-helper: lists .mp4"
   assert_out_contains "scv-attachments" "$OUT"             "pr-helper: mentions orphan branch"
   assert_out_contains "SCV_VIDEO_PLACEHOLDER" "$OUT"       "pr-helper: body has video placeholder"
   assert_out_contains "screenshot.png" "$OUT"              "pr-helper: still lists screenshots"
+  # v0.32.0 default scope = slug: files whose path lacks the slug are not attached
+  OUT=$(bash "$PR_HELPER" 20260429-test-feat --dry-run 2>&1)
+  assert_out_contains "ATTACHMENTS_SCOPE: slug" "$OUT"      "pr-helper: default scope is slug"
+  assert_out_contains "ATTACHMENTS_FILES: 0" "$OUT"        "pr-helper: slug scope drops files of other slugs"
+  mkdir -p test-results/20260429-test-feat-flow-chromium
+  echo "fakewebm" > test-results/20260429-test-feat-flow-chromium/video.webm
+  OUT=$(bash "$PR_HELPER" 20260429-test-feat --dry-run 2>&1)
+  assert_out_contains "ATTACHMENTS_FILES: 1" "$OUT"        "pr-helper: slug scope keeps this slug's file"
+  assert_out_contains "20260429-test-feat-flow-chromium/video.webm" "$OUT" "pr-helper: slug file listed"
 )
 rm -rf "$PR_APP"
 
