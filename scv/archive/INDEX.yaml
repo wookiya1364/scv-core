@@ -99,3 +99,7 @@ archives:
     title: "run-dry 배치 가드 — 래퍼 투영에서도 TEMPLATE_VERSION 검사가 돈다"
     kind: feature
     status: done
+  - slug: 20260823-wookiya1364-template-refresh
+    title: "템플릿 갱신을 번호가 아니라 내용으로도 판단 — 그리고 조용한 실패 없애기"
+    kind: fix
+    status: done
