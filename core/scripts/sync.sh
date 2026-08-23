@@ -165,6 +165,12 @@ if [[ -n "$JOIN_ROOT" ]]; then
 fi
 
 REMOTE_VERSION=$(tr -d '[:space:]' < "$STANDARD_ROOT/TEMPLATE_VERSION")
+# 템플릿 내용의 지문. 자동 갱신은 번호가 아니라 이 값으로 판단하고, 동기화가 끝나면
+# 이 값을 프로젝트 인덱스에 찍는다. 배포본에 없으면(구형 배포본) 빈 값으로 두고,
+# 판단 쪽이 예전처럼 번호로만 보게 한다.
+REMOTE_DIGEST=""
+[[ -f "$STANDARD_ROOT/TEMPLATE_DIGEST" ]] \
+  && REMOTE_DIGEST=$(tr -d '[:space:]' < "$STANDARD_ROOT/TEMPLATE_DIGEST")
 LOCAL_VERSION=$(extract_simple_marker "$LOCAL_STATE_INDEX" "<!-- STANDARD:VERSION -->" "<!-- /STANDARD:VERSION -->" 2>/dev/null | tr -d '[:space:]' || true)
 [[ -z "$LOCAL_VERSION" ]] && LOCAL_VERSION="unknown"
 
@@ -240,7 +246,8 @@ is_dirty() {
 # a portability trap. Callers redirect.
 _stamp_neutral() {
   sed -e 's|<!-- STANDARD:VERSION -->.*<!-- /STANDARD:VERSION -->|@STAMP@|' \
-      -e 's|<!-- STANDARD:SYNCED_AT -->.*<!-- /STANDARD:SYNCED_AT -->|@STAMP@|'
+      -e 's|<!-- STANDARD:SYNCED_AT -->.*<!-- /STANDARD:SYNCED_AT -->|@STAMP@|' \
+      -e 's|<!-- STANDARD:DIGEST -->.*<!-- /STANDARD:DIGEST -->|@STAMP@|'
 }
 
 # refuse_if_dirty <dst> <display> — returns 0 (and records the refusal) when
@@ -534,6 +541,16 @@ if [[ $DRY_RUN -eq 0 && $REFUSALS -eq 0 && -f "$PROJECT_DIR/scv/SCV.md" \
     "<!-- STANDARD:VERSION -->" "<!-- /STANDARD:VERSION -->" "$REMOTE_VERSION"
   replace_simple_marker "$PROJECT_DIR/scv/SCV.md" \
     "<!-- STANDARD:SYNCED_AT -->" "<!-- /STANDARD:SYNCED_AT -->" "$(date +%Y-%m-%d)"
+  # 지문은 배포본이 실제로 들고 있을 때만 찍는다. 구형 배포본이 빈 값을 찍어
+  # 프로젝트의 멀쩡한 지문을 지우면, 다음 갱신이 "지문 없음" 으로 오인한다.
+  if [[ -n "$REMOTE_DIGEST" ]]; then
+    CURRENT_DIGEST="$(extract_simple_marker "$PROJECT_DIR/scv/SCV.md" "<!-- STANDARD:DIGEST -->" "<!-- /STANDARD:DIGEST -->" 2>/dev/null | tr -d '[:space:]' || true)"
+    if [[ "$CURRENT_DIGEST" != "$REMOTE_DIGEST" ]]; then
+      CHANGES+=("STAMP     scv/SCV.md  (template digest ${CURRENT_DIGEST:-unset} → ${REMOTE_DIGEST:0:12}…)")
+    fi
+    replace_simple_marker "$PROJECT_DIR/scv/SCV.md" \
+      "<!-- STANDARD:DIGEST -->" "<!-- /STANDARD:DIGEST -->" "$REMOTE_DIGEST"
+  fi
 fi
 
 echo "Changes:"
