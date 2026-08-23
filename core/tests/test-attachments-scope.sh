@@ -2,7 +2,7 @@
 # test-attachments-scope.sh — attachments follow the plan, not the folder (v0.32.0+).
 #
 # Covers TESTS.md T1–T3 of 20260821-wookiya1364-slug-scoped-attachments:
-#   T1 lib — mode (env > .env > default slug; only `all` turns it off), path
+#   T1 lib — mode (env > settings file > default slug; only `all` turns it off), path
 #      filter, slug resolution (explicit > env > single active promote plan > "")
 #   T2 pr-helper --dry-run — slug scope lists only this slug's files; all lists
 #      everything; the re-run helper extracts the How-to-run block
@@ -29,9 +29,14 @@ echo "── [T1] lib — mode ──"
 ( cd "$WORK" && SCV_ATTACHMENTS_SCOPE=all attachment_scope_mode | grep -qx all ) && ok "env all → all" || fail "env all ignored"
 ( cd "$WORK" && SCV_ATTACHMENTS_SCOPE=ALL attachment_scope_mode | grep -qx all ) && ok "env ALL (any case) → all" || fail "env ALL ignored"
 ( cd "$WORK" && SCV_ATTACHMENTS_SCOPE=maybe attachment_scope_mode | grep -qx slug ) && ok "unknown value → slug" || fail "unknown value not slug"
-mkdir -p "$WORK/envproj"; printf 'SCV_ATTACHMENTS_SCOPE="all"\n' > "$WORK/envproj/.env"
-( cd "$WORK/envproj" && unset SCV_ATTACHMENTS_SCOPE; attachment_scope_mode | grep -qx all ) && ok ".env all (quoted) → all" || fail ".env not read"
-( cd "$WORK/envproj" && SCV_ATTACHMENTS_SCOPE=slug attachment_scope_mode | grep -qx slug ) && ok "env wins over .env" || fail "env did not win over .env"
+# 설정은 scv/ 아래 파일에서 읽는다 — 프로젝트 루트의 .env 는 더 이상 설정이 아니다.
+mkdir -p "$WORK/envproj/scv"
+printf '{"SCV_ATTACHMENTS_SCOPE": "all"}\n' > "$WORK/envproj/scv/scv_settings.json"
+( cd "$WORK/envproj" && unset SCV_ATTACHMENTS_SCOPE; attachment_scope_mode | grep -qx all ) && ok "settings all → all" || fail "settings file not read"
+( cd "$WORK/envproj" && SCV_ATTACHMENTS_SCOPE=slug attachment_scope_mode | grep -qx slug ) && ok "환경변수가 설정 파일을 이긴다" || fail "env did not win over the settings file"
+# 옛 파일에 적어두면 무시된다 — 조용히 읽히면 이사한 의미가 없다
+mkdir -p "$WORK/oldenv"; printf 'SCV_ATTACHMENTS_SCOPE=all\n' > "$WORK/oldenv/.env"
+( cd "$WORK/oldenv" && unset SCV_ATTACHMENTS_SCOPE; attachment_scope_mode 2>/dev/null | grep -qx slug ) && ok ".env 의 값은 읽히지 않는다" || fail ".env still read"
 
 echo "── [T1] lib — filter ──"
 OUT="$(printf 'test-results/A-x/video.webm\ntest-results/B-y/video.webm\ntest-results/A-z/shot.png\n' | attachment_scope_filter A)"
