@@ -111,3 +111,11 @@ archives:
     title: "설정을 .env 에서 scv/scv_settings.json 두 벌로 — 읽는 입구는 순수함수 하나"
     kind: feature
     status: done
+  - slug: 20260823-wookiya1364-purity-contract
+    title: "순수부와 효과부 — 원칙을 규칙으로, 검사로 강제한다"
+    kind: feature
+    status: done
+  - slug: 20260823-wookiya1364-journal-index
+    title: "저널 색인 — 의미 있는 것만 표시하고, 훑지 않고 바로 읽는다"
+    kind: feature
+    status: done

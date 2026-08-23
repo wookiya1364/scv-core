@@ -45,6 +45,7 @@ SCV_EFFORT_MODE SCV_FAST_PATH_LINE_THRESHOLD SCV_STATUS_CACHE_TTL
 JIRA_BASE_URL LINEAR_BASE_URL CONFLUENCE_BASE_URL"
 
 # settings_is_secret <key> — 비밀 키면 0, 아니면 1. 순수하다 (문자열 비교뿐).
+# @pure
 settings_is_secret() {
   local key="${1:-}" k
   [[ -n "$key" ]] || return 1
@@ -64,6 +65,7 @@ settings_is_secret() {
 # 이고 일부는 순서가 다르다.
 #
 # 순수하다 — 파일도 시각도 무작위도 네트워크도 만지지 않는다.
+# @pure
 settings_resolve() {
   local e="${1:-}" s="${2:-}" p="${3:-}" d="${4:-}"
   if [[ -n "$e" ]]; then printf '%s\n' "$e"; return 0; fi
@@ -87,6 +89,7 @@ settings_resolve() {
 # 디스크를 만지지 않는다 — 텍스트 둘을 받아 텍스트 하나를 낸다.
 # 어느 쪽이 깨져 있으면 사용자 원본을 그대로 낸다. 병합하다 설정을 잃느니
 # 아무것도 안 하는 편이 낫다.
+# @deterministic
 settings_merge_defaults() {
   local user="${1:-}" defaults="${2:-}"
   [[ -n "$defaults" ]] || { printf '%s' "$user"; return 0; }
@@ -135,6 +138,7 @@ print(json.dumps(merged, indent=2, ensure_ascii=False))
 # 설정 하나 때문에 진행 중인 명령이 멈추면 안 된다.
 #
 # 디스크를 만지지 않는다 — 인자로 받은 텍스트만 본다.
+# @deterministic
 settings_lookup_json() {
   local json="${1:-}" key="${2:-}"
   [[ -n "$json" && -n "$key" ]] || return 0
