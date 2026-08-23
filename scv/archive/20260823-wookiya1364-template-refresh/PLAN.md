@@ -4,7 +4,7 @@ slug: 20260823-wookiya1364-template-refresh
 author: "wookiya1364"
 created_at: 2026-08-23
 status: done
-kind: fix
+kind: feature
 lang: korean
 tags: [sync, autosync, template, versioning, pure-function, wrappers]
 raw_sources: []
