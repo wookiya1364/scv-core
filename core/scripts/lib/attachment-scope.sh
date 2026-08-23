@@ -14,17 +14,23 @@
 #                                           the single active promote plan > ""
 #   attachment_scope_read_test_command <TESTS.md> → the `## How to run` block
 #
-# Mode: $SCV_ATTACHMENTS_SCOPE (exported, or loaded from .env by env_load),
-# else one line read from ./.env (never sourced), else `slug`. Only `all`
-# (any case) turns the filter off; anything else means `slug`.
+# Mode: read through the one settings entrance (environment → secret → plain →
+# default), never by reaching into a file here. `.env` is not a settings store
+# any more — settings live in scv/scv_settings.json. Only `all` (any case) turns
+# the filter off; anything else means `slug`.
 
 attachment_scope_mode() {
   local v="${SCV_ATTACHMENTS_SCOPE:-}"
-  if [[ -z "$v" && -f ./.env ]]; then
-    v="$(sed -n 's/^SCV_ATTACHMENTS_SCOPE=[[:space:]]*//p' ./.env 2>/dev/null | head -n1 \
-        | tr -d '"[:space:]' | tr -d "'")"
+  if [[ -z "$v" ]]; then
+    if ! declare -F settings_get >/dev/null 2>&1; then
+      local _d
+      _d="$( cd "$( dirname "${BASH_SOURCE[0]}" )" 2>/dev/null && pwd )" || _d=""
+      # shellcheck source=settings.sh
+      [[ -n "$_d" && -f "$_d/settings.sh" ]] && source "$_d/settings.sh"
+    fi
+    declare -F settings_get >/dev/null 2>&1 && v="$(settings_get SCV_ATTACHMENTS_SCOPE 2>/dev/null)"
   fi
-  v="$(printf '%s' "$v" | tr '[:upper:]' '[:lower:]')"
+  v="$(printf '%s' "$v" | tr -d '"[:space:]' | tr -d "'" | tr '[:upper:]' '[:lower:]')"
   if [[ "$v" == "all" ]]; then echo all; else echo slug; fi
 }
 

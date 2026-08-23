@@ -8,8 +8,8 @@ All notable changes to SCV Core are documented here.
 
 PR 과 Slack/Discord 보고에 붙던 영상·스크린샷은 테스트 결과 폴더의 "마지막 실행"
 전체였다 — archive 직전 누적 회귀를 돌리면 남의 기능 영상이 올라갔다. 기본을
-이번 슬러그의 것만(경로에 슬러그 포함)으로 바꾸고, `.env` `SCV_ATTACHMENTS_SCOPE=all`
-로만 옛 동작. 공통 로직은 `lib/attachment-scope.sh`.
+이번 슬러그의 것만(경로에 슬러그 포함)으로 바꾸고, `scv/scv_settings.json` 의
+`SCV_ATTACHMENTS_SCOPE=all` 로만 옛 동작. 공통 로직은 `lib/attachment-scope.sh`.
 
 - pr-helper: 슬러그 범위 수집. 0건이면 그 계획의 `## How to run` 을 한 번 재실행해
   이번 영상을 만든다(`--no-rerun` 로 끔, `--dry-run` 에서는 안 함; 타임아웃

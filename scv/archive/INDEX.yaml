@@ -103,3 +103,11 @@ archives:
     title: "PR·보고 첨부는 이번 슬러그 것만 — SCV_ATTACHMENTS_SCOPE (기본 slug)"
     kind: feature
     status: done
+  - slug: 20260823-wookiya1364-template-refresh
+    title: "템플릿 갱신을 번호가 아니라 내용으로도 판단 — 그리고 조용한 실패 없애기"
+    kind: feature
+    status: done
+  - slug: 20260823-wookiya1364-settings-json
+    title: "설정을 .env 에서 scv/scv_settings.json 두 벌로 — 읽는 입구는 순수함수 하나"
+    kind: feature
+    status: done

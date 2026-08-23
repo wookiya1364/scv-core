@@ -33,7 +33,7 @@ Options:
   --slug SLUG        Attach only this plan's test-results files (v0.32.0+; default scope
                      is slug — without --slug, the single active promote plan is used)
 
-Env (from project .env):
+Settings (from scv/scv_settings.json + .secret.json):
   NOTIFIER_PROVIDER            slack | discord (required)
   <PROVIDER>_BOT_TOKEN         authentication
   <PROVIDER>_CHANNEL_ID*       channel routing
@@ -78,7 +78,7 @@ done
 env_load
 
 if [[ -z "${NOTIFIER_PROVIDER:-}" ]]; then
-  echo "✖ NOTIFIER_PROVIDER not set in .env (use: slack | discord)" >&2
+  echo "✖ NOTIFIER_PROVIDER not set in scv/scv_settings.json (use: slack | discord)" >&2
   exit 1
 fi
 
