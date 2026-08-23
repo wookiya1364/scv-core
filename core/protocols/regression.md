@@ -130,7 +130,12 @@ Answer handling:
      `scv/DECISIONS.md` (append-only — never edit existing entries; seed the
      file via `action:sync` if missing). The entry reuses the handoff decision
      format. **author is mandatory — never write an anonymous entry** (resolve
-     via `git config user.name` → `GIT_AUTHOR_NAME` → `USER`):
+     via `git config user.name` → `GIT_AUTHOR_NAME` → `USER`).
+
+     Write it with `scripts/decisions-append.sh` (see the promote protocol's
+     decision-log section) — never by editing the file. The script keeps the
+     format identical across the three append points and indexes the entry so
+     it can be read back by name later.
 
      ```markdown
      ## [<YYYY-MM-DD HH:MM>] <author> — <slug> marked obsolete
