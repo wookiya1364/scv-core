@@ -75,8 +75,8 @@ APP="$TMP/app"
 echo "=== [1] Hydration ==="
 "$HYDRATE" init "$APP" >/dev/null 2>&1
 
-# Root files — SCV only creates scv/ + .env.example.scv + .gitignore merge
-for f in .env.example.scv .gitignore; do
+# Root files — SCV only creates scv/ + .gitignore merge (설정은 scv/ 아래에 있다)
+for f in .gitignore; do
   assert_file "$APP/$f"
 done
 for root_instruction in PROJECT_INSTRUCTIONS.md SCV.md; do
@@ -84,13 +84,15 @@ for root_instruction in PROJECT_INSTRUCTIONS.md SCV.md; do
     && pass "root $root_instruction NOT created (pure separation)" \
     || fail "root $root_instruction was created — should be user-owned"
 done
-[[ ! -f "$APP/.env.example" ]] && pass "root .env.example NOT created (was never in template)" || fail "root .env.example leaked — should be .env.example.scv only"
+[[ ! -f "$APP/.env.example" && ! -f "$APP/.env.example.scv" ]] \
+  && pass "root holds no SCV env example (settings live under scv/)" \
+  || fail "an SCV env example leaked into the project root"
 UNEXPECTED_ROOT="$(
   find "$APP" -mindepth 1 -maxdepth 1 \
-    ! -name scv ! -name .env.example.scv ! -name .gitignore -print
+    ! -name scv ! -name .gitignore -print
 )"
 [[ -z "$UNEXPECTED_ROOT" ]] \
-  && pass "hydrate root contains only scv/, .env.example.scv, and .gitignore" \
+  && pass "hydrate root contains only scv/ and .gitignore" \
   || fail "hydrate leaked unexpected root entries: $UNEXPECTED_ROOT"
 
 # Non-destructive over existing user .env.example
@@ -104,14 +106,18 @@ USEREX
 grep -qF "DATABASE_URL=postgresql" "$EXIST_APP/.env.example" \
   && pass "hydrate: existing user .env.example preserved (non-destructive)" \
   || fail "hydrate overwrote user's .env.example"
-assert_file "$EXIST_APP/.env.example.scv"
-grep -qF "NOTIFIER_PROVIDER" "$EXIST_APP/.env.example.scv" \
-  && pass "hydrate: SCV env template created at .env.example.scv" \
-  || fail "hydrate: .env.example.scv missing SCV vars"
+assert_file "$EXIST_APP/scv/scv_settings.example.json"
+assert_file "$EXIST_APP/scv/scv_settings.secret.example.json"
+grep -qF "NOTIFIER_PROVIDER" "$EXIST_APP/scv/scv_settings.example.json" \
+  && pass "hydrate: settings example created under scv/" \
+  || fail "hydrate: settings example missing SCV keys"
+[[ ! -f "$EXIST_APP/scv/scv_settings.json" ]] \
+  && pass "hydrate does NOT create the real settings file (it is user data)" \
+  || fail "hydrate created scv/scv_settings.json — that hides the migration notice"
 # SCV env file must NOT reference the legacy /standard-report command name
-grep -qF "/standard-report" "$EXIST_APP/.env.example.scv" \
-  && fail ".env.example.scv still references legacy /standard-report" \
-  || pass ".env.example.scv no longer references legacy /standard-report"
+grep -qF "/standard-report" "$EXIST_APP/scv/scv_settings.example.json" \
+  && fail "settings example still references legacy /standard-report" \
+  || pass "settings example no longer references legacy /standard-report"
 
 # scv/ hierarchy (v2.0.0: only the workflow docs — no standard-doc scaffolding)
 for f in SCV.md PROMOTE.md REPORTING.md; do
@@ -2084,8 +2090,8 @@ assert_contains "$HELP_CMD" "日本語 (Japanese)"
 assert_contains "$HELP_CMD" "Other — type a language"
 assert_contains "$HELP_CMD" "Which language do you prefer for SCV output?"
 
-# .env.example.scv 에 SCV_LANG 주석 존재
-assert_contains "$STANDARD_ROOT/template/.env.example.scv" "SCV_LANG"
+# 설정 예시 파일에 SCV_LANG 존재
+assert_contains "$STANDARD_ROOT/template/scv/scv_settings.example.json" "SCV_LANG"
 
 echo
 echo "=== [11rr] render-template.sh — SCV_LANG dynamic branching (v0.4+) ==="
@@ -2255,7 +2261,7 @@ INNER_EOF
 assert_out_contains "Dependency check:" "$HELP_DEP_OUT"            "help.sh: 'Dependency check' section header present"
 assert_out_contains "git operations (core)"   "$HELP_DEP_OUT"      "help.sh: git deps row present"
 assert_out_contains "GitHub PR auto-create"   "$HELP_DEP_OUT"      "help.sh: gh deps row present"
-assert_out_contains "GitLab MR auth (preferred over GITLAB_TOKEN" "$HELP_DEP_OUT" "help.sh: glab deps row present (v0.5.2+)"
+assert_out_contains "GitLab MR auth (preferred over a stored GITLAB_TOKEN" "$HELP_DEP_OUT" "help.sh: glab deps row present (v0.5.2+)"
 assert_out_contains "GitLab MR + Slack/Discord HTTP" "$HELP_DEP_OUT" "help.sh: curl deps row present"
 assert_out_contains "JSON parsing for GitLab MR" "$HELP_DEP_OUT"   "help.sh: jq deps row present"
 assert_out_contains "PR video → GIF inline preview" "$HELP_DEP_OUT" "help.sh: ffmpeg deps row present"
@@ -2285,9 +2291,9 @@ assert_contains "$PROMOTE_DOC" "single function or block"
 assert_contains "$PROMOTE_DOC" "SCV_FAST_PATH_LINE_THRESHOLD"
 assert_contains "$PROMOTE_DOC" "Team override"
 assert_contains "$PROMOTE_DOC" "single-function/block rule is **not** overridable"
-ENV_EXAMPLE="$STANDARD_ROOT/template/.env.example.scv"
+ENV_EXAMPLE="$STANDARD_ROOT/template/scv/scv_settings.example.json"
 assert_contains "$ENV_EXAMPLE" "SCV_FAST_PATH_LINE_THRESHOLD"
-assert_contains "$ENV_EXAMPLE" "Fast-path threshold"
+assert_contains "$ENV_EXAMPLE" "SCV_FAST_PATH_LINE_THRESHOLD"
 
 echo
 echo "=== [11ww] lib/pr-platform.sh — _pr_gitlab_token glab→env fallback (v0.5.2+) ==="
@@ -2366,9 +2372,9 @@ printf '%s' "$S4_BLOCK" | grep -q "no GitLab token available" \
 printf '%s' "$S4_BLOCK" | grep -q "glab auth login" \
   && pass "_pr_gitlab_token: error suggests 'glab auth login'" \
   || fail "_pr_gitlab_token: error doesn't mention glab auth login"
-printf '%s' "$S4_BLOCK" | grep -q "GITLAB_TOKEN in .env" \
-  && pass "_pr_gitlab_token: error suggests GITLAB_TOKEN in .env fallback" \
-  || fail "_pr_gitlab_token: error doesn't mention GITLAB_TOKEN .env"
+printf '%s' "$S4_BLOCK" | grep -q "settings-set.sh GITLAB_TOKEN=" \
+  && pass "_pr_gitlab_token: error points at settings-set.sh for the token" \
+  || fail "_pr_gitlab_token: error doesn't show how to store GITLAB_TOKEN"
 printf '%s' "$S4_BLOCK" | grep -q "S4-EXIT=1" \
   && pass "_pr_gitlab_token: returns exit 1 when no source available" \
   || fail "_pr_gitlab_token: should exit 1 (got: $S4_BLOCK)"
@@ -2558,12 +2564,12 @@ assert_contains "$PROMOTE_CMD" "notion.so"
 assert_contains "$PROMOTE_CMD" "Source attribution after writing"
 assert_contains "$PROMOTE_CMD" "auto-detected"
 
-# --- .env.example.scv BASE_URL placeholders ---
-ENV_EXAMPLE="$STANDARD_ROOT/template/.env.example.scv"
-assert_contains "$ENV_EXAMPLE" "JIRA_BASE_URL=https://company.atlassian.net"
-assert_contains "$ENV_EXAMPLE" "LINEAR_BASE_URL=https://linear.app/company"
-assert_contains "$ENV_EXAMPLE" "CONFLUENCE_BASE_URL=https://confluence.example.com"
-assert_contains "$ENV_EXAMPLE" "External refs base URLs"
+# --- 설정 예시의 BASE_URL 자리 ---
+ENV_EXAMPLE="$STANDARD_ROOT/template/scv/scv_settings.example.json"
+assert_contains "$ENV_EXAMPLE" "JIRA_BASE_URL"
+assert_contains "$ENV_EXAMPLE" "LINEAR_BASE_URL"
+assert_contains "$ENV_EXAMPLE" "CONFLUENCE_BASE_URL"
+assert_contains "$ENV_EXAMPLE" "CONFLUENCE_BASE_URL"
 
 echo
 echo "=== [11aaa] FEATURE_ARCHITECTURE.md auto-generation (v0.7.0+) ==="
@@ -3030,13 +3036,13 @@ PROMOTE_CMD="$PROTOCOL_ROOT/promote.md"
 WORK_CMD="$PROTOCOL_ROOT/work.md"
 PR_HELPER="$STANDARD_ROOT/scripts/pr-helper.sh"
 PROMOTE_DOC="$STANDARD_ROOT/template/scv/PROMOTE.md"
-ENV_EX="$STANDARD_ROOT/template/.env.example.scv"
+ENV_EX="$STANDARD_ROOT/template/scv/scv_settings.example.json"
 
 # promote.md Step 0 — Language alignment
 assert_contains "$PROMOTE_CMD" "Step 0 — Language alignment"
 assert_contains "$PROMOTE_CMD" "SCV_PROMOTE_LANG"
-assert_contains "$PROMOTE_CMD" 'Use `.env` `SCV_PROMOTE_LANG` when present'
-assert_contains "$PROMOTE_CMD" 'Otherwise use `.env` `SCV_LANG`'
+assert_contains "$PROMOTE_CMD" 'Use `scv/scv_settings.json` `SCV_PROMOTE_LANG` when present'
+assert_contains "$PROMOTE_CMD" 'Otherwise use `scv/scv_settings.json` `SCV_LANG`'
 assert_contains "$PROMOTE_CMD" "detect the user's latest message language"
 assert_contains "$PROMOTE_CMD" 'Ask whether to persist it as `SCV_PROMOTE_LANG`'
 assert_contains "$PROMOTE_CMD" "do not"
@@ -3074,9 +3080,9 @@ assert_contains "$PR_HELPER" 'echo "🗂  $L_ARCHIVED'
 assert_contains "$PROMOTE_DOC" '`lang` |'
 assert_contains "$PROMOTE_DOC" "(v0.7.3+) The resolved language"
 
-# template/.env.example.scv — SCV_PROMOTE_LANG section
-assert_contains "$ENV_EX" "Promote-time language cache (v0.7.3+)"
-assert_contains "$ENV_EX" "# SCV_PROMOTE_LANG=korean"
+# 설정 예시 — SCV_PROMOTE_LANG
+assert_contains "$ENV_EX" "SCV_PROMOTE_LANG"
+assert_contains "$ENV_EX" "SCV_PROMOTE_LANG"
 
 # Isolated test — pr-helper.sh actually emits the right labels per lang
 TMP_PRH=$(mktemp -d)
@@ -3724,12 +3730,12 @@ assert_contains "$PROTOCOL_ROOT/help.md" "one question per turn"
 echo
 echo "=== [15q] v0.31.0 — plain-language switch: .env example, SCV.md template, version, routine ==="
 PL_TPL="$(dirname "$PROTOCOL_ROOT")/template"
-grep -q "^# SCV_PLAIN_LANGUAGE=on" "$PL_TPL/.env.example.scv" \
-  && pass "plain-language: .env.example.scv documents SCV_PLAIN_LANGUAGE (default on)" \
-  || fail "plain-language: .env.example.scv lacks the SCV_PLAIN_LANGUAGE block"
-grep -q "^# SCV_PLAIN_MAX_SENTENCES=2" "$PL_TPL/.env.example.scv" \
-  && pass "plain-language: .env.example.scv documents SCV_PLAIN_MAX_SENTENCES (default 2)" \
-  || fail "plain-language: .env.example.scv lacks the SCV_PLAIN_MAX_SENTENCES line"
+grep -q '"SCV_PLAIN_LANGUAGE"' "$PL_TPL/scv/scv_settings.example.json" \
+  && pass "plain-language: settings example documents SCV_PLAIN_LANGUAGE (default on)" \
+  || fail "plain-language: settings example lacks the SCV_PLAIN_LANGUAGE block"
+grep -q '"SCV_PLAIN_MAX_SENTENCES"' "$PL_TPL/scv/scv_settings.example.json" \
+  && pass "plain-language: settings example documents SCV_PLAIN_MAX_SENTENCES (default 2)" \
+  || fail "plain-language: settings example lacks the SCV_PLAIN_MAX_SENTENCES line"
 assert_contains "$PL_TPL/scv/SCV.md" "SCV_PLAIN_MAX_SENTENCES"
 assert_contains "$PL_TPL/scv/SCV.md" "## How SCV talks to you"
 assert_contains "$PL_TPL/scv/SCV.md" "SCV_PLAIN_LANGUAGE"

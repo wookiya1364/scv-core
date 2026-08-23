@@ -86,7 +86,7 @@ fi
 
 echo "→ Copying template to $TARGET"
 # `cp -R -p` is supported by both BSD and GNU implementations. dotglob makes
-# `*` include dotfiles (.env.example.scv, .gitignore.fragment).
+# `*` include dotfiles (.gitignore.fragment).
 # template/hooks/ is deliberately EXCLUDED: host hook templates are
 # wrapper-installed (registration is host-owned — see docs/wrapper-integration.md
 # §"Hook seam"), never seeded into user projects.

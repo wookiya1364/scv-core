@@ -31,7 +31,7 @@ Options:
   --attempt N        Attempt count (default 1)
   --event EVENT      Force a specific event (phase-complete | e2e-failure | daily-summary | error-alert)
 
-Env (from project .env):
+Settings (from scv/scv_settings.json + .secret.json):
   NOTIFIER_PROVIDER            slack | discord (required)
   <PROVIDER>_BOT_TOKEN         authentication
   <PROVIDER>_CHANNEL_ID*       channel routing
@@ -75,7 +75,7 @@ done
 env_load
 
 if [[ -z "${NOTIFIER_PROVIDER:-}" ]]; then
-  echo "✖ NOTIFIER_PROVIDER not set in .env (use: slack | discord)" >&2
+  echo "✖ NOTIFIER_PROVIDER not set in scv/scv_settings.json (use: slack | discord)" >&2
   exit 1
 fi
 

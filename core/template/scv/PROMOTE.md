@@ -91,16 +91,16 @@ This is the whole difference between the sanctioned exception and the failure mo
 
 ### Team override — `SCV_FAST_PATH_LINE_THRESHOLD`
 
-The 5-line ceiling is a default, not dogma. Teams shipping mostly to mature codebases can raise it; teams in security-sensitive domains can lower it. Set in the project's `.env`:
+The 5-line ceiling is a default, not dogma. Teams shipping mostly to mature codebases can raise it; teams in security-sensitive domains can lower it. Set in `scv/scv_settings.json`:
 
 ```bash
-# .env
+// scv/scv_settings.json
 SCV_FAST_PATH_LINE_THRESHOLD=3   # stricter — only ≤3 lines qualify
 # or
 SCV_FAST_PATH_LINE_THRESHOLD=10  # looser — ≤10 lines OK if other 4 criteria still hold
 ```
 
-Locking the threshold per team in `.env` removes the per-PR negotiation ("is this 6-line change really fast-path-able?"). When unset, default is 5. The single-function/block rule is **not** overridable — multi-function changes always take the formal loop regardless of line count.
+Locking the threshold per team in the settings file removes the per-PR negotiation ("is this 6-line change really fast-path-able?"). When unset, default is 5. The single-function/block rule is **not** overridable — multi-function changes always take the formal loop regardless of line count.
 
 ### Fast-path examples
 
@@ -301,7 +301,7 @@ a better path when it finds one. (Legacy PLANs titled `## Steps` remain valid �
 | `supersedes_scenarios` | — | **Scenario-level** retirement. Array of `<slug>:T<n>` strings, e.g., `["20260115-sspark-auth-v1:T2"]` |
 | `epic` | — | When splitting a large user request into multiple features, group them under the same epic slug (count is content-driven — SCV proposes + user adjusts). `action:status` shows epic progress; `action:work`'s PR auto-creation uses the epic branch as base. See §8d |
 | `kind` | — | `feature` (default) / `refactor` (epic-closing integration cleanup) / `retirement` (pure removal — §8c). Used by SCV for epic flow / refactor guidance |
-| `lang` | — | (v0.7.3+) The resolved language for this promote's content + diagrams + commit/PR text. Set by `action:promote` Step 0 — auto-resolved from `settings.json language` and `.env SCV_LANG`, or via user confirmation when those mismatch. Read by `action:work` Step 9d and `pr-helper.sh` for full localization (PR title, body labels like `## Summary` / `## 요약` / `## 概要`, footer `🗂 Archived` / `🗂 보관됨` / `🗂 アーカイブ済み`). Values: `english` / `korean` / `japanese` / free-form. Empty / unknown → English fallback. |
+| `lang` | — | (v0.7.3+) The resolved language for this promote's content + diagrams + commit/PR text. Set by `action:promote` Step 0 — auto-resolved from `settings.json language` and `scv/scv_settings.json SCV_LANG`, or via user confirmation when those mismatch. Read by `action:work` Step 9d and `pr-helper.sh` for full localization (PR title, body labels like `## Summary` / `## 요약` / `## 概要`, footer `🗂 Archived` / `🗂 보관됨` / `🗂 アーカイブ済み`). Values: `english` / `korean` / `japanese` / free-form. Empty / unknown → English fallback. |
 | `scope` | — | (v0.11.0+) Optional file-path glob array this plan is allowed to touch. Used by `action:codegen` Step 7 as a guard — Edit/Write outside these globs emits a warning (does not block). If omitted, the natural scope from PLAN.md Suggested path (legacy: Steps) applies (current `action:work` behavior, unchanged). Example: `["src/auth/**", "tests/auth/**"]`. |
 | `invariants` | — | (v0.11.0+) Optional string array of *existing behaviors this plan must NOT break*. Used by `action:codegen` Step 7 as a per-iteration self-check (LLM re-reads each item after every Green iteration; user confirmation if unsure). Targets T5 logic-skip — the cheat pattern where a focused change silently omits an unrelated invariant. Capture only what's easy to violate; not a general regression list. Example: `["기존 결제 한도 체크 유지", "음수 환불 금지"]`. `action:work` does not enforce this field. |
 | `parallel_groups` | — | (v0.22.0+) Optional array of arrays of `## Suggested path` step numbers — each inner array is a group of mutually independent steps a subagent-capable host MAY run concurrently (groups run in declaration order; each TESTS scenario is still verified independently — see `action:work` Step 5d, `action:regression` allows the analogous slug-level fan-out). Absent field, or a host without parallel capability → behavior identical to sequential execution. Example: `[[1, 2], [3]]`. |
@@ -313,7 +313,7 @@ Instead of hard-coding vendor-specific frontmatter keys, use a **typed array** t
 ```yaml
 refs:
   - type: jira          # Free-form type string (jira / linear / asana / notion / confluence / pr / slack-thread / ...)
-    id: PAY-1234        # Ticket ID — `.env`'s <TYPE>_BASE_URL infers URL
+    id: PAY-1234        # Ticket ID — the settings file's <TYPE>_BASE_URL infers URL
   - type: jira
     id: PAY-1235        # Multiple of the same type are fine
   - type: confluence
@@ -326,12 +326,12 @@ refs:
 
 - **No constraints between array elements** — multiple of the same `type`, any order.
 - Each element can have **`id` only, `url` only, or both**.
-  - `id` only with no `url` → infer URL by combining with `.env`'s `<TYPE>_BASE_URL` (if unset, just show ID).
+  - `id` only with no `url` → infer URL by combining with the settings file's `<TYPE>_BASE_URL` (if unset, just show ID).
   - `url` present → use as-is.
 - `type` is free-form. SCV provides rendering hints for known types; unknown types pass through as plain links.
 - **On archive, `refs:` is preserved verbatim in `ARCHIVED_AT.md`** (audit trail).
 
-**`.env` base URL configuration example:**
+**Base URL configuration example:**
 
 ```bash
 JIRA_BASE_URL=https://company.atlassian.net

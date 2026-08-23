@@ -167,7 +167,7 @@ Core idea (S·C·V)
 
 Workflow
   ① hydrate         → copy the empty template into the project
-  ② .env setup      → NOTIFIER_PROVIDER=slack|discord, tokens/channels
+  ② settings setup  → scv/scv_settings.json + .secret.json (provider, tokens)
   ③ scv/raw/        → drop existing material (notes, sketches, PDFs) — optional
   ④ action:promote    → raw → scv/promote/<YYYYMMDD>-<author>-<slug>/ (PLAN + TESTS)
   ⑤ action:work       → implement · test · move to archive on pass
@@ -329,7 +329,7 @@ _scv_check_dep() {
 
 _scv_check_dep git     required    "git operations (core)"
 _scv_check_dep gh      recommended "GitHub PR auto-create (SCV_PR_PLATFORM=github)"
-_scv_check_dep glab    recommended "GitLab MR auth (preferred over GITLAB_TOKEN .env)"
+_scv_check_dep glab    recommended "GitLab MR auth (preferred over a stored GITLAB_TOKEN)"
 _scv_check_dep curl    recommended "GitLab MR + Slack/Discord HTTP"
 _scv_check_dep jq      recommended "JSON parsing for GitLab MR + Notifier"
 _scv_check_dep ffmpeg  optional    "PR video → GIF inline preview"
@@ -449,10 +449,11 @@ elif [[ $HYDRATED -eq 0 ]]; then
 EOF
 elif [[ $ENV_SET -eq 0 ]]; then
   cat <<'EOF'
-  Configure .env. The SCV Notifier variables live in `.env.example.scv`.
+  Configure settings. Copy `scv/scv_settings.example.json` and fill it in.
 
-  1. If no .env yet:    cp .env.example.scv .env
-     If .env exists:    cat .env.example.scv >> .env   (append SCV vars only)
+  1. cp scv/scv_settings.example.json scv/scv_settings.json
+     Tokens and channel IDs go in scv/scv_settings.secret.json (git-ignored).
+     Coming from .env? run: bash <core>/scripts/settings-migrate.sh
   2. Set NOTIFIER_PROVIDER (slack or discord)
   3. Fill in the matching Bot token and SLACK_CHANNEL_ID_* (or DISCORD_*)
   4. Run action:help again

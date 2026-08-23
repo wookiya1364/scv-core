@@ -36,12 +36,11 @@ if [[ -f "$_scv_settings_lib" ]]; then
   # shellcheck disable=SC1090
   source "$_scv_settings_lib" 2>/dev/null || true
 fi
-_scv_read() {  # <KEY> — 라이브러리가 있으면 그것으로, 없으면 예전 방식으로
-  if declare -F settings_get >/dev/null 2>&1; then
-    settings_get "$1" 2>/dev/null || true
-  else
-    sed -n "s/^[[:space:]]*$1=[[:space:]]*//p" .env 2>/dev/null | tail -n1 || true
-  fi
+_scv_read() {  # <KEY> — 라이브러리가 없으면 기본값으로 간다.
+  # .env 로 되돌아가지 않는다: 설정은 scv/ 아래 두 파일에만 있다. 옛 파일을 몰래
+  # 읽으면 "이 값이 어디서 왔지" 가 그대로 남는다.
+  declare -F settings_get >/dev/null 2>&1 || return 0
+  settings_get "$1" 2>/dev/null || true
 }
 
 _scv_plain="$(_scv_read SCV_PLAIN_LANGUAGE | tr -d '"[:space:]' | tr -d "'" | tr '[:upper:]' '[:lower:]' || true)"
@@ -56,7 +55,7 @@ if [[ "${_scv_plain:-on}" != "off" ]]; then
 the user gets; (2) then one example; (3) no code values (paths, variable names,
 versions, settings) before the user asks — use plain names; (4) detail after,
 only when wanted. Identifiers the user needs to act on stay exact, after the
-plain summary. Switches: .env SCV_PLAIN_LANGUAGE=off (silence),
+plain summary. Switches: scv/scv_settings.json SCV_PLAIN_LANGUAGE=off (silence),
 SCV_PLAIN_MAX_SENTENCES=<n> (sentence cap, default 2).
 PLAIN
 fi
