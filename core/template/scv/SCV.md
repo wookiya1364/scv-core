@@ -117,6 +117,36 @@ Until you do, SCV runs on defaults and says so once per action.
 **Updates never overwrite your values.** When SCV ships a new setting, sync adds
 only the missing key. A value you set — or deliberately left empty — stays as it is.
 
+## Journal — mark what matters, read it back cheaply
+
+Every turn lands in `scv/journal/`. That file only grows, so finding an old
+decision by reading it costs you the whole file — and the context that goes
+with it.
+
+Mark the turns that matter as you write them, and read them back by name:
+
+```bash
+# writing — the mark and the name are chosen by whoever writes, not guessed later
+bash "<core>/scripts/journal-append.sh" --mark decision --key retry-policy "…"
+
+# reading — the journal itself is never scanned
+bash "<core>/scripts/journal-read.sh" --list            # what is marked
+bash "<core>/scripts/journal-read.sh" --key retry-policy
+```
+
+Four marks: `decision` (a direction was set), `plan` (a plan was made or
+archived), `blocker` (something was stuck, and why), `pivot` (something was
+dropped or changed). Anything else is ignored — the journal write still happens,
+and it says so.
+
+The index (`scv/journal/INDEX.tsv`) stores each marked turn's byte position, so
+reading one costs that entry, not the file. Same name twice? The newest wins.
+
+**Nothing depends on it.** No index, a broken index, an unknown mark — the
+journal write goes through either way. And if someone edits the journal file
+directly, the read says the position no longer lines up instead of handing you
+the wrong text.
+
 ## Work procedure
 
 1. Understand the requirement → read the plan docs under `scv/promote/` (and their Related Documents).
