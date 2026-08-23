@@ -490,6 +490,21 @@ append-only).
 The entry reuses the handoff decision format. **author is mandatory — never
 write an anonymous entry** (use the same `AUTHOR` the helper printed):
 
+**Write it with the script, never by editing the file:**
+
+```bash
+bash "${SCV_CORE_ROOT}/scripts/decisions-append.sh" \
+  --title "<제목>" --verdict <adopted|archived|obsolete|needed|maybe|not-needed|lesson> \
+  --why "<1–3줄 근거>" [--discarded "…"] [--path-delta "…"] [--refs "…"] [--conversation "…"]
+```
+
+The script keeps the format identical across the three append points and records
+the entry's position in `scv/INDEX.tsv`, so a single decision can later be read
+back by name without opening the whole log — it is already hundreds of lines in
+mature projects. Nothing here is a judgement call: the three points are the
+three moments a decision is already being made.
+
+
 ```markdown
 ## [<YYYY-MM-DD HH:MM>] <author> — <plan title>
 
