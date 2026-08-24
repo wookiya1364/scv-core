@@ -3,7 +3,9 @@ title: .env.example.scv 자동 최신화 — root 불가침의 명명된 예외
 slug: 20260818-wookiya1364-env-example-autorefresh
 author: wookiya1364
 created_at: 2026-08-18
-status: done
+status: obsolete
+obsoleted_at: 2026-08-24
+obsoleted_by: 20260824-wookiya1364-regression-contract-repair-2
 kind: feature
 lang: korean
 tags: [sync, autosync, env, migration]
