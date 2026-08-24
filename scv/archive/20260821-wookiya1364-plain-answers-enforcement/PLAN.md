@@ -3,7 +3,9 @@ title: "쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치"
 slug: 20260821-wookiya1364-plain-answers-enforcement
 author: "wookiya1364"
 created_at: 2026-08-21
-status: done
+status: obsolete
+obsoleted_at: 2026-08-24
+obsoleted_by: 20260824-wookiya1364-regression-contract-repair-2
 kind: feature
 lang: korean
 tags: [protocols, hooks, template, ux, language]

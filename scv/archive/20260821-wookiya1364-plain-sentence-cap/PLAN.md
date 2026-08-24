@@ -3,7 +3,9 @@ title: "쉬운 말 문장 수 스위치 — SCV_PLAIN_MAX_SENTENCES (기본 2)"
 slug: 20260821-wookiya1364-plain-sentence-cap
 author: "wookiya1364"
 created_at: 2026-08-21
-status: done
+status: obsolete
+obsoleted_at: 2026-08-24
+obsoleted_by: 20260824-wookiya1364-regression-contract-repair-2
 kind: feature
 lang: korean
 tags: [protocols, hooks, template, ux, language]
