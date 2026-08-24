@@ -3,7 +3,9 @@ title: "템플릿 갱신을 번호가 아니라 내용으로 판단 — 그리�
 slug: 20260823-wookiya1364-template-refresh
 author: "wookiya1364"
 created_at: 2026-08-23
-status: done
+status: obsolete
+obsoleted_at: 2026-08-24
+obsoleted_by: 20260824-wookiya1364-regression-contract-repair-2
 kind: feature
 lang: korean
 tags: [sync, autosync, template, versioning, pure-function, wrappers]
