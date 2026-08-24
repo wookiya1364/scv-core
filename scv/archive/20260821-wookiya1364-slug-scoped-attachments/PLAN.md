@@ -3,7 +3,9 @@ title: "PR·보고 첨부는 이번 슬러그 것만 — SCV_ATTACHMENTS_SCOPE (
 slug: 20260821-wookiya1364-slug-scoped-attachments
 author: "wookiya1364"
 created_at: 2026-08-21
-status: done
+status: obsolete
+obsoleted_at: 2026-08-24
+obsoleted_by: 20260824-wookiya1364-regression-contract-repair-2
 kind: feature
 lang: korean
 tags: [attachments, pr, report, playwright]
