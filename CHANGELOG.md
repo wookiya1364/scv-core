@@ -2,7 +2,7 @@
 
 All notable changes to SCV Core are documented here.
 
-## [Unreleased]
+## [0.34.0] - 2026-08-24
 
 ### 설정 파일은 항상 있고, 모든 키가 보인다
 
