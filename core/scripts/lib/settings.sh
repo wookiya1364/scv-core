@@ -403,4 +403,3 @@ settings_ensure() {
   )
   return 0
 }
-

@@ -2,6 +2,19 @@
 
 All notable changes to SCV Core are documented here.
 
+## [0.34.1] - 2026-08-24
+
+### 래퍼 전파를 막던 빈 줄 하나
+
+0.34.0 은 코어 계약 984건을 전부 통과했지만 래퍼 두 곳의 core-sync 가 `git diff
+--check` 에서 멈췄다 — `core/scripts/lib/settings.sh` 파일 끝에 빈 줄이 하나 더
+있었다. 고정 PR 이 만들어지지 않아 래퍼는 0.33.0 에 머물렀다.
+
+- `settings.sh` 파일 끝 빈 줄 제거.
+- `core/tests/test-whitespace.sh` 신설: core/ 아래 추적 파일의 파일 끝 빈 줄·줄끝
+  공백을 릴리스 전에 잡는다(래퍼가 돌리는 검사와 같은 기준). 마크다운 줄끝 두 칸은
+  허용.
+
 ## [0.34.0] - 2026-08-24
 
 ### 설정 파일은 항상 있고, 모든 키가 보인다
