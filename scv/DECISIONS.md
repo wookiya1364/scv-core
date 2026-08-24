@@ -666,3 +666,45 @@ merge_policy: preserve
   새 테스트가 그 경로를 처음 밟았다. lib 의 필터 함수도 `read` 의 EOF 반환값 때문에
   set -e 호출자에서 죽어 `return 0` 을 명시했다.
 - refs: scv/archive/20260821-wookiya1364-slug-scoped-attachments/PLAN.md
+
+## [2026-08-24 09:49] wookiya1364 — 설정 파일은 항상 있고, 모든 키가 보인다
+
+- verdict: adopted
+- why: 0.32.0 이 설정 파일 생성을 사람 몫으로 남겨 업데이트해도 파일이 안 생기고, .env 가 비었던 사람은 빈 파일을 받아 무엇을 설정할 수 있는지 몰랐다(팀 피드백). 액션 시작 때 파일이 없으면 전체 키+기본값+설명(+.env 값)으로 만들고, 있으면 없는 키만 더한다. 비밀 파일은 git 이 무시할 때만.
+- discarded alternatives: 예시 파일만 심기: 여전히 복사가 사람 몫 — 기각. 비밀 파일 무조건 생성: 무시 안 되면 토큰이 커밋될 수 있다 — 기각(무시 확인 후에만). 자동 감지 키에 기본값 채우기: 언어 자동 감지가 깨진다 — 기각(빈 값 + 설명).
+- refs: scv/promote/20260824-wookiya1364-settings-always-present/PLAN.md
+
+## [2026-08-24 10:39] wookiya1364 — 회귀 계약 보수 2 — 설정 이사 뒤 성립 불가 6건의 내구성 있는 재표현
+
+- verdict: adopted
+- why: 0.32.0 설정 이사로 .env 기반 계약 4건이 성립 불가가 되고, 같은 날의 두 계약은 없는 테스트 파일 이름을 불러 exit 127 — 누적 회귀 24 실행 / 7 실패. 0818 과 같은 방식으로 옛 6건을 obsolete 표시하고 살아 있는 검증을 실제 파일 이름으로 다시 적는다.
+- discarded alternatives: 옛 TESTS 본문 수정: 아카이브 불변 원칙 — 기각. 그냥 두기: 회귀가 계속 빨간불이라 새 결함을 못 본다 — 기각.
+- refs: scv/promote/20260824-wookiya1364-regression-contract-repair-2/PLAN.md
+
+## [2026-08-24 11:12] wookiya1364 — 회귀 러너 — 같은 스위트 호출은 한 번만 (suite-gate memoization)
+
+- verdict: adopted
+- why: 보관 계약 28개 중 22개가 스위트 전량을 부르므로 같은 2~3분 작업이 20번 넘게 반복돼 회귀 한 번에 15분 이상. 한 run 안에서 같은 관문 호출은 결과가 같으니 한 번만 돌리고 종료 코드를 재사용한다. 계약 파일은 불변.
+- discarded alternatives: 계약 TESTS 를 전부 다시 써서 전체 스위트 호출을 빼기: 아카이브 불변 원칙에 어긋나고 22건 — 기각. 임의 명령 일반 캐시: 사용자 블록을 임의로 바꾸게 된다 — 기각(정확히 세 호출만).
+- refs: scv/promote/20260824-wookiya1364-regression-runner-memo/PLAN.md
+
+## [2026-08-24 11:20] wookiya1364 — 설정 파일은 항상 있고, 모든 키가 보인다 archived
+
+- verdict: archived
+- why: 액션 시작(autosync 자리, 2.x 프로젝트만, SCV_AUTOSYNC=off 제외)에 설정 파일을 보장한다 — 없으면 26키+기본값+_doc(+.env 값), 있으면 없는 키만, 비밀 파일은 git 이 무시할 때만(무시 줄 자동 추가). hydrate 도 실파일. 자동 감지 키는 빈 값이어야 한다(채우면 언어 감지가 깨진다). .env 알림은 값이 다를 때만.
+- path delta: 두 번 이탈: (1) 첫 구현은 legacy(2.0 이전) 프로젝트의 진단에서도 파일을 만들어 '진단은 읽기 전용' 계약(test-legacy-state)을 깼다 → 2.x 스탬프 확인 뒤로 이동. (2) 템플릿을 바꾸면 TEMPLATE_DIGEST 를 다시 계산해야 한다(test-template-digest) — scope 에 추가.
+- refs: scv/archive/20260824-wookiya1364-settings-always-present/PLAN.md
+
+## [2026-08-24 11:20] wookiya1364 — 회귀 계약 보수 2 archived
+
+- verdict: archived
+- why: 0.32.0 설정 이사로 성립 불가가 된 옛 계약 6건(.env 스위치 4·없는 파일 이름 2)을 obsolete 표시하고, 살아 있는 검증을 실제 파일 이름으로 다시 적었다. 앞으로 깨지면 안 되는 것: 계약의 How-to-run 은 존재하는 파일만.
+- path delta: as planned — 단, obsolete 표시는 PLAN frontmatter 만으로는 러너가 못 본다(INDEX.yaml 빠른 경로가 우선) → archive 가 INDEX 를 재생성해야 반영된다. 보관 순서를 그렇게 잡았다.
+- refs: scv/archive/20260824-wookiya1364-regression-contract-repair-2/PLAN.md
+
+## [2026-08-24 11:20] wookiya1364 — 회귀 러너 suite-gate memoization archived
+
+- verdict: archived
+- why: 관문 세 호출(run-dry·tests/run.sh·core 테스트 루프)만 한 run 에 1회 실행하고 종료 코드를 재사용한다. 계약 단언은 매번. 실측 438초/0 실패(직전 15분+). 새 규칙: 계약의 How-to-run 은 자기 테스트 파일만.
+- path delta: 첫 구현은 캐시를 command substitution 안에서 채워 서브셸로 새어 나갔다(관문이 슬러그마다 돌았다) → 준비(메인 셸)와 치환(순수)을 분리.
+- refs: scv/archive/20260824-wookiya1364-regression-runner-memo/PLAN.md

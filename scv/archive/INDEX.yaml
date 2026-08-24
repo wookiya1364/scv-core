@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by action:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-08-21T08:24:10Z
+generated_at: 2026-08-24T02:20:38Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -66,7 +66,8 @@ archives:
   - slug: 20260818-wookiya1364-env-example-autorefresh
     title: ".env.example.scv 자동 최신화 — root 불가침의 명명된 예외"
     kind: feature
-    status: done
+    status: obsolete
+    obsoleted_by: 20260824-wookiya1364-regression-contract-repair-2
   - slug: 20260818-wookiya1364-regression-contract-repair
     title: "회귀 계약 보수 — 성립 불가 4건의 내구성 있는 재표현"
     kind: refactor
@@ -86,11 +87,13 @@ archives:
   - slug: 20260821-wookiya1364-plain-answers-enforcement
     title: "쉬운 말 2단계 — 답의 모양, 매 턴 전달, .env 스위치"
     kind: feature
-    status: done
+    status: obsolete
+    obsoleted_by: 20260824-wookiya1364-regression-contract-repair-2
   - slug: 20260821-wookiya1364-plain-sentence-cap
     title: "쉬운 말 문장 수 스위치 — SCV_PLAIN_MAX_SENTENCES (기본 2)"
     kind: feature
-    status: done
+    status: obsolete
+    obsoleted_by: 20260824-wookiya1364-regression-contract-repair-2
   - slug: 20260821-wookiya1364-regression-runner-path-leak
     title: "회귀 러너의 경로 표시 누수 — 시나리오는 자기 scv 경로를 본다"
     kind: feature
@@ -102,24 +105,39 @@ archives:
   - slug: 20260821-wookiya1364-slug-scoped-attachments
     title: "PR·보고 첨부는 이번 슬러그 것만 — SCV_ATTACHMENTS_SCOPE (기본 slug)"
     kind: feature
-    status: done
-  - slug: 20260823-wookiya1364-template-refresh
-    title: "템플릿 갱신을 번호가 아니라 내용으로도 판단 — 그리고 조용한 실패 없애기"
-    kind: feature
-    status: done
-  - slug: 20260823-wookiya1364-settings-json
-    title: "설정을 .env 에서 scv/scv_settings.json 두 벌로 — 읽는 입구는 순수함수 하나"
+    status: obsolete
+    obsoleted_by: 20260824-wookiya1364-regression-contract-repair-2
+  - slug: 20260823-wookiya1364-journal-index
+    title: "저널 색인 — 의미 있는 것만 표시하고, 훑지 않고 바로 읽는다"
     kind: feature
     status: done
   - slug: 20260823-wookiya1364-purity-contract
     title: "순수부와 효과부 — 원칙을 규칙으로, 검사로 강제한다"
     kind: feature
     status: done
-  - slug: 20260823-wookiya1364-journal-index
-    title: "저널 색인 — 의미 있는 것만 표시하고, 훑지 않고 바로 읽는다"
+  - slug: 20260823-wookiya1364-settings-json
+    title: "설정을 .env 에서 scv/scv_settings.json 으로 — 읽는 입구를 순수함수 하나로"
     kind: feature
-    status: done
+    status: obsolete
+    obsoleted_by: 20260824-wookiya1364-regression-contract-repair-2
+  - slug: 20260823-wookiya1364-template-refresh
+    title: "템플릿 갱신을 번호가 아니라 내용으로 판단 — 그리고 조용한 실패 없애기"
+    kind: feature
+    status: obsolete
+    obsoleted_by: 20260824-wookiya1364-regression-contract-repair-2
   - slug: 20260824-wookiya1364-decision-index
     title: "결정이 스스로 색인된다 — 그리고 비운 뒤 되찾는 한 줄"
+    kind: feature
+    status: done
+  - slug: 20260824-wookiya1364-regression-contract-repair-2
+    title: "회귀 계약 보수 2 — 설정 이사 뒤 성립 불가 6건의 내구성 있는 재표현"
+    kind: refactor
+    status: done
+  - slug: 20260824-wookiya1364-regression-runner-memo
+    title: "회귀 러너 — 같은 스위트 호출은 한 번만 (suite-gate memoization)"
+    kind: feature
+    status: done
+  - slug: 20260824-wookiya1364-settings-always-present
+    title: "설정 파일은 항상 있고, 모든 키가 보인다"
     kind: feature
     status: done

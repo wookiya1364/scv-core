@@ -3,7 +3,9 @@ title: "설정을 .env 에서 scv/scv_settings.json 으로 — 읽는 입구를 
 slug: 20260823-wookiya1364-settings-json
 author: "wookiya1364"
 created_at: 2026-08-23
-status: done
+status: obsolete
+obsoleted_at: 2026-08-24
+obsoleted_by: 20260824-wookiya1364-regression-contract-repair-2
 kind: feature
 lang: korean
 tags: [settings, config, pure-function, breaking, template, wrappers]
