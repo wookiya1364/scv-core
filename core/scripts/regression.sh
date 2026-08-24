@@ -314,9 +314,9 @@ memo_prepare_block() {
   while IFS= read -r line || [[ -n "$line" ]]; do
     if [[ "$line" =~ ^[[:space:]]*for[[:space:]]+t[[:space:]]+in[[:space:]]+core/tests/test-\*\.sh\;[[:space:]]*do[[:space:]]+bash[[:space:]]+\"\$t\".*done[[:space:]]*$ ]]; then
       memo_gate_run core-tests 'for t in core/tests/test-*.sh; do bash "$t" >/dev/null 2>&1 || exit 1; done'
-    elif [[ "$line" =~ ^[[:space:]]*bash[[:space:]]+core/tests/run-dry\.sh([[:space:]].*|)$ ]]; then
+    elif [[ "$line" =~ ^[[:space:]]*bash[[:space:]]+core/tests/run-dry\.sh([[:space:]].*)?$ ]]; then
       memo_gate_run run-dry 'bash core/tests/run-dry.sh'
-    elif [[ "$line" =~ ^[[:space:]]*bash[[:space:]]+tests/run\.sh([[:space:]].*|)$ ]]; then
+    elif [[ "$line" =~ ^[[:space:]]*bash[[:space:]]+tests/run\.sh([[:space:]].*)?$ ]]; then
       memo_gate_run tests-run 'bash tests/run.sh'
     fi
   done <<< "$1"
@@ -330,10 +330,10 @@ memo_rewrite_block() {  # stdin: block → stdout: block with memoized gates rep
         tail="${BASH_REMATCH[2]}"; tail="${tail%%;*}"
         printf '%s( exit %s )%s\n' "${BASH_REMATCH[1]}" "$rc" "${tail//\$t/core/tests}"; continue
       fi
-    elif [[ "$line" =~ ^([[:space:]]*)bash[[:space:]]+core/tests/run-dry\.sh([[:space:]].*|)$ ]]; then
+    elif [[ "$line" =~ ^([[:space:]]*)bash[[:space:]]+core/tests/run-dry\.sh([[:space:]].*)?$ ]]; then
       rc="${MEMO_RC[run-dry]:-}"
       if [[ -n "$rc" ]]; then printf '%s( exit %s )%s\n' "${BASH_REMATCH[1]}" "$rc" "${BASH_REMATCH[2]}"; continue; fi
-    elif [[ "$line" =~ ^([[:space:]]*)bash[[:space:]]+tests/run\.sh([[:space:]].*|)$ ]]; then
+    elif [[ "$line" =~ ^([[:space:]]*)bash[[:space:]]+tests/run\.sh([[:space:]].*)?$ ]]; then
       rc="${MEMO_RC[tests-run]:-}"
       if [[ -n "$rc" ]]; then printf '%s( exit %s )%s\n' "${BASH_REMATCH[1]}" "$rc" "${BASH_REMATCH[2]}"; continue; fi
     fi
