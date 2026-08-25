@@ -4,3 +4,7 @@ decision	회귀-러너-같은-스위트-호출은-한-번만-suite-gate-memoizat
 decision	설정-파일은-항상-있고-모든-키가-보인다-archived	scv/DECISIONS.md	52324	939	2026-08-24 11:20	[archived] 설정 파일은 항상 있고, 모든 키가 보인다 archived
 decision	회귀-계약-보수-2-archived	scv/DECISIONS.md	53263	694	2026-08-24 11:20	[archived] 회귀 계약 보수 2 archived
 decision	회귀-러너-suite-gate-memoization-archived	scv/DECISIONS.md	53957	640	2026-08-24 11:20	[archived] 회귀 러너 suite-gate memoization archived
+decision	첨부는-실행-기록을-따른다-attachments-run-manifest-채택	scv/DECISIONS.md	54597	421	2026-08-25 09:25	[adopted] 첨부는 실행 기록을 따른다 — attachments-run-manifest 채택
+decision	일반-대화에도-scv-가-끼어든다-scv-always-on-채택-기본-on	scv/DECISIONS.md	55018	392	2026-08-25 09:39	[adopted] 일반 대화에도 SCV 가 끼어든다 — SCV_ALWAYS_ON 채택 (기본 ON)
+decision	첨부는-실행-기록을-따른다-보관	scv/DECISIONS.md	55410	384	2026-08-25 09:51	[archived] 첨부는 실행 기록을 따른다 — 보관
+decision	일반-대화에도-scv-가-끼어든다-보관	scv/DECISIONS.md	55794	392	2026-08-25 09:51	[archived] 일반 대화에도 SCV 가 끼어든다 — 보관
