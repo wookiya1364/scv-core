@@ -2,7 +2,7 @@
 
 All notable changes to SCV Core are documented here.
 
-## [Unreleased]
+## [0.35.2] - 2026-08-25
 
 ### 문서 뼈대를 다시 세우다 — README 전면 재구성
 
