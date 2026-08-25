@@ -8,3 +8,7 @@ decision	첨부는-실행-기록을-따른다-attachments-run-manifest-채택	sc
 decision	일반-대화에도-scv-가-끼어든다-scv-always-on-채택-기본-on	scv/DECISIONS.md	55018	392	2026-08-25 09:39	[adopted] 일반 대화에도 SCV 가 끼어든다 — SCV_ALWAYS_ON 채택 (기본 ON)
 decision	첨부는-실행-기록을-따른다-보관	scv/DECISIONS.md	55410	384	2026-08-25 09:51	[archived] 첨부는 실행 기록을 따른다 — 보관
 decision	일반-대화에도-scv-가-끼어든다-보관	scv/DECISIONS.md	55794	392	2026-08-25 09:51	[archived] 일반 대화에도 SCV 가 끼어든다 — 보관
+decision	pr-증적을-slack-에도-pr-evidence-notify-채택	scv/DECISIONS.md	56186	413	2026-08-25 16:13	[adopted] PR 증적을 Slack 에도 — pr-evidence-notify 채택
+decision	증적-영상은-사람-속도로-evidence-pacing-채택	scv/DECISIONS.md	56599	439	2026-08-25 16:18	[adopted] 증적 영상은 사람 속도로 — evidence-pacing 채택
+decision	pr-증적을-slack-에도-보관	scv/DECISIONS.md	57038	424	2026-08-25 16:30	[archived] PR 증적을 Slack 에도 — 보관
+decision	증적-영상은-사람-속도로-보관	scv/DECISIONS.md	57462	291	2026-08-25 16:30	[archived] 증적 영상은 사람 속도로 — 보관

@@ -734,3 +734,29 @@ merge_policy: preserve
 - why: test-always-on 15/15, 저널 82/82, run-dry 980, 회귀 21/21. 기본 ON 은 사용자 결정.
 - path delta: 계획대로 + test-journal.sh 계약 갱신(off 는 자기 블록만, 둘 다 off 면 완전 침묵).
 - refs: scv/archive/20260825-wookiya1364-scv-always-on
+
+## [2026-08-25 16:13] scv-core-sync-bot — PR 증적을 Slack 에도 — pr-evidence-notify 채택
+
+- verdict: adopted
+- why: CI 는 실패만, pr-helper 는 PR 본문만 — 성공 slug 증적을 채널에 올리는 주체가 없었다(실측). pr-helper 가 PR 성공 후 best-effort 로 게시. 스레드 정밀 부착은 프로젝트 몫(합의).
+- refs: scv/promote/20260825-wookiya1364-pr-evidence-notify
+
+## [2026-08-25 16:18] scv-core-sync-bot — 증적 영상은 사람 속도로 — evidence-pacing 채택
+
+- verdict: adopted
+- why: slug 영상이 전환당 2초 미만으로 지나가 사람이 인지 불가(실사용 보고). 스펙 작성 규칙(전환 후 ≥2초 유지)과 영상 길이 기계 검사(경고, ffprobe 있을 때)를 함께 넣는다. 임계는 설정 키로.
+- refs: scv/promote/20260825-wookiya1364-evidence-pacing
+
+## [2026-08-25 16:30] scv-core-sync-bot — PR 증적을 Slack 에도 — 보관
+
+- verdict: archived
+- why: test-pr-notify 15/15, run-dry 980, 회귀 23/23. 스크린샷은 저장소로 mv 된 사본을 따라가는 처리 포함.
+- path delta: 계획대로. 테스트 하니스의 local a=$1 b=$a 한 줄 선언이 set -u 에서 죽는 bash 함정 1회 수습.
+- refs: scv/archive/20260825-wookiya1364-pr-evidence-notify
+
+## [2026-08-25 16:30] scv-core-sync-bot — 증적 영상은 사람 속도로 — 보관
+
+- verdict: archived
+- why: test-evidence-pacing 14/14(ffmpeg 환경), 경고 전용·ffprobe 부재 침묵 확인.
+- path delta: 계획대로.
+- refs: scv/archive/20260825-wookiya1364-evidence-pacing
