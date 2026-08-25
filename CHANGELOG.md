@@ -2,7 +2,7 @@
 
 All notable changes to SCV Core are documented here.
 
-## [Unreleased]
+## [0.35.0] - 2026-08-25
 
 ### 첨부는 실행 기록을 따른다 — 이름이 잘려도, PR 은 하나만
 
