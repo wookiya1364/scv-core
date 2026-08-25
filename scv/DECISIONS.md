@@ -708,3 +708,29 @@ merge_policy: preserve
 - why: 관문 세 호출(run-dry·tests/run.sh·core 테스트 루프)만 한 run 에 1회 실행하고 종료 코드를 재사용한다. 계약 단언은 매번. 실측 438초/0 실패(직전 15분+). 새 규칙: 계약의 How-to-run 은 자기 테스트 파일만.
 - path delta: 첫 구현은 캐시를 command substitution 안에서 채워 서브셸로 새어 나갔다(관문이 슬러그마다 돌았다) → 준비(메인 셸)와 치환(순수)을 분리.
 - refs: scv/archive/20260824-wookiya1364-regression-runner-memo/PLAN.md
+
+## [2026-08-25 09:25] scv-core-sync-bot — 첨부는 실행 기록을 따른다 — attachments-run-manifest 채택
+
+- verdict: adopted
+- why: 이름 매칭은 Playwright 폴더명 절단에 깨진다(ai_tm_center 실측). 실행 시점 기록(run manifest)을 1순위로, 이름 매칭은 폴백, 0건은 알림, 같은 브랜치 열린 PR 은 갱신.
+- refs: scv/promote/20260825-wookiya1364-attachments-run-manifest
+
+## [2026-08-25 09:39] scv-core-sync-bot — 일반 대화에도 SCV 가 끼어든다 — SCV_ALWAYS_ON 채택 (기본 ON)
+
+- verdict: adopted
+- why: 명령 없는 대화는 스킬 권고를 모델이 무시한다(실측). 매 턴 닿는 훅 stdout 으로 help 라우팅 지시를 싣고, off 만 끈다. 기본 ON 은 사용자 결정.
+- refs: scv/promote/20260825-wookiya1364-scv-always-on
+
+## [2026-08-25 09:51] scv-core-sync-bot — 첨부는 실행 기록을 따른다 — 보관
+
+- verdict: archived
+- why: test-run-manifest 18/18, 기존 첨부 계약 26/26, 회귀 21/21. 잘린 이름 재현에서 0→N 첨부 실증.
+- path delta: 계획대로. GitLab find_open 은 모의 수준(Non-Goals 명시).
+- refs: scv/archive/20260825-wookiya1364-attachments-run-manifest
+
+## [2026-08-25 09:51] scv-core-sync-bot — 일반 대화에도 SCV 가 끼어든다 — 보관
+
+- verdict: archived
+- why: test-always-on 15/15, 저널 82/82, run-dry 980, 회귀 21/21. 기본 ON 은 사용자 결정.
+- path delta: 계획대로 + test-journal.sh 계약 갱신(off 는 자기 블록만, 둘 다 off 면 완전 침묵).
+- refs: scv/archive/20260825-wookiya1364-scv-always-on
