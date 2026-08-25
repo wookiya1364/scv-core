@@ -2,7 +2,7 @@
 
 All notable changes to SCV Core are documented here.
 
-## [Unreleased]
+## [0.36.0] - 2026-08-25
 
 ### PR 을 만들면 증적이 Slack 에도 간다 — 성공이어도
 
