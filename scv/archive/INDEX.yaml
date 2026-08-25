@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by action:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-08-25T00:51:23Z
+generated_at: 2026-08-25T07:30:17Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -143,6 +143,14 @@ archives:
     status: done
   - slug: 20260825-wookiya1364-attachments-run-manifest
     title: "첨부는 실행 기록을 따른다 — 이름이 잘려도, PR 은 하나만"
+    kind: feature
+    status: done
+  - slug: 20260825-wookiya1364-evidence-pacing
+    title: "증적 영상은 사람 속도로 — 전환당 2초, 짧으면 경고"
+    kind: feature
+    status: done
+  - slug: 20260825-wookiya1364-pr-evidence-notify
+    title: "PR 을 만들면 증적이 Slack 에도 간다 — 성공이어도"
     kind: feature
     status: done
   - slug: 20260825-wookiya1364-scv-always-on
