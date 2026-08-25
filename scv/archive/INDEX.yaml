@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by action:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-08-24T02:20:38Z
+generated_at: 2026-08-25T00:51:23Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -139,5 +139,13 @@ archives:
     status: done
   - slug: 20260824-wookiya1364-settings-always-present
     title: "설정 파일은 항상 있고, 모든 키가 보인다"
+    kind: feature
+    status: done
+  - slug: 20260825-wookiya1364-attachments-run-manifest
+    title: "첨부는 실행 기록을 따른다 — 이름이 잘려도, PR 은 하나만"
+    kind: feature
+    status: done
+  - slug: 20260825-wookiya1364-scv-always-on
+    title: "일반 대화에도 SCV 가 끼어든다 — SCV_ALWAYS_ON 스위치"
     kind: feature
     status: done
