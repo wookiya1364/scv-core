@@ -10,6 +10,38 @@ on:
 permissions:
   contents: read
 
+# A superseded run has nothing left to prove. Without this, editing a PR (or
+# reopening it to re-fire a gate) leaves the previous run grinding through the
+# full matrix for a tree nobody will merge.
+concurrency:
+  group: core-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # WHERE THE SUITE ACTUALLY EARNS ITS TIME.
+  #
+  # The permanent branches are a chain — develop → stage → main — and a promotion
+  # PR carries a tree develop already proved. Re-running the whole matrix at every
+  # hop cost ~8 full runs per release and proved the same thing three times.
+  #
+  # So the suite runs where a tree is NEW, and is skipped where it is a copy:
+  #   • any PR into develop        — new code enters here
+  #   • fix/* → main               — a hotfix legitimately bypasses develop/stage,
+  #                                  so this tree was never proved anywhere else
+  #   • push to develop            — two independently-green PRs can still combine
+  #                                  badly; this is the integration signal
+  #   • workflow_dispatch          — asked for by hand
+  # Skipped: develop → stage, stage → main, and the pushes those merges produce.
+  #
+  # The JOBS still run and still report — the branch ruleset lists them as required
+  # checks, and a job that never reports blocks the merge forever. Only the heavy
+  # STEPS are gated, so a skipped run finishes in seconds instead of minutes.
+  SCV_CI_FULL: >-
+    ${{ github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'pull_request' && github.base_ref == 'develop')
+      || (github.event_name == 'pull_request' && github.base_ref == 'main' && startsWith(github.head_ref, 'fix/'))
+      || (github.event_name == 'push' && github.ref == 'refs/heads/develop') }}
+
 jobs:
   contracts:
     name: Contracts (${{ matrix.os }})
@@ -30,26 +62,32 @@ jobs:
           echo "$(brew --prefix)/bin" >> "$GITHUB_PATH"
 
       - name: Shell syntax
+        if: env.SCV_CI_FULL == 'true'
         run: |
           find core/scripts core/tests tests tools -type f -name '*.sh' \
             -exec bash -n {} +
 
       - name: Core contracts and transition transcript
+        if: env.SCV_CI_FULL == 'true'
         run: bash tests/run.sh
 
       - name: Frontmatter — this repository's own plans
+        if: env.SCV_CI_FULL == 'true'
         # run-dry.sh exercises this script against synthetic fixtures in a temp
         # dir. Nothing ran it against the repository itself, so every plan the
         # project has ever shipped went unchecked while CI stayed green.
         run: bash core/scripts/check-frontmatter.sh --project-dir .
 
       - name: Guard and documents agree
+        if: env.SCV_CI_FULL == 'true'
         run: bash tests/test-guard-consistency.sh
 
       - name: Shared regression
+        if: env.SCV_CI_FULL == 'true'
         run: bash core/tests/run-dry.sh
 
       - name: Focused suites
+        if: env.SCV_CI_FULL == 'true'
         run: |
           for test_file in core/tests/test-*.sh; do
             bash "$test_file"
@@ -72,16 +110,19 @@ jobs:
             core/DeckUI/scripts/deckdoc/pnpm-lock.yaml
 
       - name: Install DeckUI dependencies
+        if: env.SCV_CI_FULL == 'true'
         run: |
           pnpm -C core/DeckUI install --frozen-lockfile
           pnpm -C core/DeckUI/scripts/deckdoc install --frozen-lockfile
 
       - name: Typecheck and build
+        if: env.SCV_CI_FULL == 'true'
         run: |
           pnpm -C core/DeckUI typecheck
           pnpm -C core/DeckUI build:deck
 
       - name: Deck document regression
+        if: env.SCV_CI_FULL == 'true'
         run: bash core/tests/test-deck-doc.sh
 
   artifact:
