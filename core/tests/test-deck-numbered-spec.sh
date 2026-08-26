@@ -433,7 +433,17 @@ has "$RENDER" 'svg .actor'       "T29 참여자 상자 색 규칙"
 
 # ── T13. an archived plan still builds, gains no empty sidebar ───────────────
 echo "T13. 아카이브된 기획서를 다시 만들어도 지금과 같이 열린다"
-ARCH="$(ls -d "$REPO"/scv/archive/*/ 2>/dev/null | tail -1)"
+# Pick a plan from BEFORE this format existed — one whose docs carry no screen
+# block at all. `tail -1` used to mean that and silently stopped meaning it the
+# moment this very feature was archived: the newest folder became a plan that
+# legitimately renders a sidebar, and the "no empty sidebar" assertion started
+# failing on correct output. The property under test is "an old plan still builds
+# and gains nothing it did not ask for", so select for that property, not for age.
+ARCH=""
+for d in $(ls -dr "$REPO"/scv/archive/*/ 2>/dev/null); do
+  grep -rqlF '```screen' "$d" 2>/dev/null && continue
+  ARCH="$d"; break
+done
 if [[ -n "$ARCH" && -f "$ARCH/PLAN.md" ]]; then
   if node "$DOC" "$ARCH" --out "$TMP/arch.html" --lang korean --no-source >"$TMP/log" 2>&1; then
     pass=$((pass+1))
