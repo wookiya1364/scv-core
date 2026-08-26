@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated_at": "2026-08-24T02:12:08Z",
+  "updated_at": "2026-08-26T01:08:36Z",
   "files": {
     "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "size": 4974, "mtime": "2026-08-12T08:39:19Z" },
     "scv/raw/stale/20260812-wookiya1364-forced-invocation.md": { "size": 9860, "mtime": "2026-08-12T08:39:19Z" },
@@ -12,9 +12,16 @@
     "scv/raw/stale/20260818-wookiya1364-regression-runner-env-leak.md": { "size": 3321, "mtime": "2026-08-19T00:27:39Z" },
     "scv/raw/stale/20260818-wookiya1364-sync-autopilot-guard-fixes.md": { "size": 11000, "mtime": "2026-08-18T03:23:14Z" },
     "scv/raw/stale/20260821-wookiya1364-slug-scoped-attachments.md": { "size": 1907, "mtime": "2026-08-24T00:03:51Z" },
-    "scv/raw/stale/20260824-wookiya1364-regression-contract-repair-2.md": { "size": 1230, "mtime": "2026-08-24T01:38:31Z" },
-    "scv/raw/stale/20260824-wookiya1364-regression-runner-memo.md": { "size": 770, "mtime": "2026-08-24T02:12:08Z" },
-    "scv/raw/stale/20260824-wookiya1364-settings-always-present.md": { "size": 1652, "mtime": "2026-08-24T00:44:34Z" }
+    "scv/raw/stale/20260824-wookiya1364-regression-contract-repair-2.md": { "size": 1230, "mtime": "2026-08-24T03:52:34Z" },
+    "scv/raw/stale/20260824-wookiya1364-regression-runner-memo.md": { "size": 770, "mtime": "2026-08-24T03:52:34Z" },
+    "scv/raw/stale/20260824-wookiya1364-settings-always-present.md": { "size": 1652, "mtime": "2026-08-24T03:52:34Z" },
+    "scv/raw/stale/20260825-wookiya1364-attachments-run-manifest.md": { "size": 1745, "mtime": "2026-08-25T01:48:56Z" },
+    "scv/raw/stale/20260825-wookiya1364-evidence-pacing.md": { "size": 880, "mtime": "2026-08-25T08:36:40Z" },
+    "scv/raw/stale/20260825-wookiya1364-pr-evidence-notify.md": { "size": 1114, "mtime": "2026-08-25T08:36:40Z" },
+    "scv/raw/stale/20260825-wookiya1364-scv-always-on.md": { "size": 1149, "mtime": "2026-08-25T01:48:56Z" },
+    "scv/raw/stale/20260826-wookiya1364-deck-density.md": { "size": 4345, "mtime": "2026-08-26T00:37:34Z" },
+    "scv/raw/stale/20260826-wookiya1364-deck-format-sample.png": { "size": 195974, "mtime": "2026-08-26T00:48:29Z" },
+    "scv/raw/stale/20260826-wookiya1364-deck-screen-spec-format.md": { "size": 3512, "mtime": "2026-08-26T00:49:02Z" }
   },
   "ref_docs": {
     "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "slugs": ["20260812-wookiya1364-ci-provenance-gate"], "ref_commit": "1f766d4", "consumed_at": "2026-08-12T06:09:37Z", "origin": "scv/raw/20260812-wookiya1364-ci-provenance-gate.md" },
@@ -29,6 +36,9 @@
     "scv/raw/stale/20260821-wookiya1364-slug-scoped-attachments.md": { "slugs": ["20260821-wookiya1364-slug-scoped-attachments"], "ref_commit": "8597d03", "consumed_at": "2026-08-21T07:58:12Z", "origin": "scv/raw/20260821-wookiya1364-slug-scoped-attachments.md" },
     "scv/raw/stale/20260824-wookiya1364-regression-contract-repair-2.md": { "slugs": ["20260824-wookiya1364-regression-contract-repair-2"], "ref_commit": "3ac3800", "consumed_at": "2026-08-24T01:39:46Z", "origin": "scv/raw/20260824-wookiya1364-regression-contract-repair-2.md" },
     "scv/raw/stale/20260824-wookiya1364-regression-runner-memo.md": { "slugs": ["20260824-wookiya1364-regression-runner-memo"], "ref_commit": "3ac3800", "consumed_at": "2026-08-24T02:12:08Z", "origin": "scv/raw/20260824-wookiya1364-regression-runner-memo.md" },
-    "scv/raw/stale/20260824-wookiya1364-settings-always-present.md": { "slugs": ["20260824-wookiya1364-settings-always-present"], "ref_commit": "3ac3800", "consumed_at": "2026-08-24T00:49:10Z", "origin": "scv/raw/20260824-wookiya1364-settings-always-present.md" }
+    "scv/raw/stale/20260824-wookiya1364-settings-always-present.md": { "slugs": ["20260824-wookiya1364-settings-always-present"], "ref_commit": "3ac3800", "consumed_at": "2026-08-24T00:49:10Z", "origin": "scv/raw/20260824-wookiya1364-settings-always-present.md" },
+    "scv/raw/stale/20260826-wookiya1364-deck-density.md": { "slugs": ["20260826-wookiya1364-numbered-spec-deck"], "ref_commit": "778f1ee", "consumed_at": "2026-08-26T01:08:36Z", "origin": "scv/raw/20260826-wookiya1364-deck-density.md" },
+    "scv/raw/stale/20260826-wookiya1364-deck-format-sample.png": { "slugs": ["20260826-wookiya1364-numbered-spec-deck"], "ref_commit": "778f1ee", "consumed_at": "2026-08-26T01:08:36Z", "origin": "scv/raw/20260826-wookiya1364-deck-format-sample.png" },
+    "scv/raw/stale/20260826-wookiya1364-deck-screen-spec-format.md": { "slugs": ["20260826-wookiya1364-numbered-spec-deck"], "ref_commit": "778f1ee", "consumed_at": "2026-08-26T01:08:36Z", "origin": "scv/raw/20260826-wookiya1364-deck-screen-spec-format.md" }
   }
 }
