@@ -3,8 +3,6 @@ name: SCV Core CI
 on:
   pull_request:
     branches: [main, stage, develop]
-  push:
-    branches: [main, stage, develop]
   workflow_dispatch:
 
 permissions:
@@ -28,10 +26,16 @@ env:
   #   • any PR into develop        — new code enters here
   #   • fix/* → main               — a hotfix legitimately bypasses develop/stage,
   #                                  so this tree was never proved anywhere else
-  #   • push to develop            — two independently-green PRs can still combine
-  #                                  badly; this is the integration signal
   #   • workflow_dispatch          — asked for by hand
-  # Skipped: develop → stage, stage → main, and the pushes those merges produce.
+  # Skipped: develop → stage and stage → main, which carry a proved tree.
+  #
+  # There is no push trigger. A PR check runs against the MERGE RESULT, and the
+  # branch ruleset now requires a PR to be up to date with its base before it can
+  # merge — so the tree a PR proved is the tree that lands. Re-running on the push
+  # afterwards proved the same commit a second time. (While "up to date" was off,
+  # two independently-green PRs could merge back to back and leave a tree nobody
+  # had tested; that hole is what the push run used to cover, and it is now closed
+  # at the source instead.)
   #
   # The JOBS still run and still report — the branch ruleset lists them as required
   # checks, and a job that never reports blocks the merge forever. Only the heavy
@@ -39,8 +43,7 @@ env:
   SCV_CI_FULL: >-
     ${{ github.event_name == 'workflow_dispatch'
       || (github.event_name == 'pull_request' && github.base_ref == 'develop')
-      || (github.event_name == 'pull_request' && github.base_ref == 'main' && startsWith(github.head_ref, 'fix/'))
-      || (github.event_name == 'push' && github.ref == 'refs/heads/develop') }}
+      || (github.event_name == 'pull_request' && github.base_ref == 'main' && startsWith(github.head_ref, 'fix/')) }}
 
 jobs:
   contracts:
