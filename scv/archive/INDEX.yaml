@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-08-26T02:52:01Z
+generated_at: 2026-08-27T07:09:53Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -159,5 +159,9 @@ archives:
     status: done
   - slug: 20260826-wookiya1364-numbered-spec-deck
     title: "번호식 화면설계서 — 그림이 주인공인 기획서"
+    kind: feature
+    status: testing
+  - slug: 20260827-wookiya1364-deck-picture-only
+    title: "기획서는 그림만 — 계획·테스트 문서를 본문에서 분리"
     kind: feature
     status: testing
