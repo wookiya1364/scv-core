@@ -16,3 +16,7 @@ decision	번호식-화면설계서-그림이-주인공인-기획서	scv/DECISION
 decision	번호식-화면설계서-그림이-주인공인-기획서	scv/DECISIONS.md	58999	2078	2026-08-26 11:52	[archived] 번호식 화면설계서 — 그림이 주인공인 기획서
 decision	기획서는-그림만-계획-테스트-문서를-본문에서-분리	scv/DECISIONS.md	61077	1353	2026-08-27 13:25	[adopted] 기획서는 그림만 — 계획·테스트 문서를 본문에서 분리
 decision	기획서는-그림만-계획-테스트-문서를-본문에서-분리-archived	scv/DECISIONS.md	62430	1600	2026-08-27 16:10	[archived] 기획서는 그림만 — 계획·테스트 문서를 본문에서 분리 archived
+decision	일반-대화에서-scv-help-를-실제로-강제한다-표시줄-점층-강화-되돌림	scv/DECISIONS.md	64030	1468	2026-08-28 13:40	[adopted] 일반 대화에서 scv:help 를 실제로 강제한다 — 표시줄 + 점층 강화 되돌림
+decision	일반-대화에서-scv-help-를-실제로-강제한다-표시줄-점층-강화-되돌림-archiv	scv/DECISIONS.md	65498	1608	2026-08-28 14:27	[archived] 일반 대화에서 scv:help 를 실제로 강제한다 — 표시줄 + 점층 강화 되돌림 archived
+decision	기획서-그림이-서로-겹친다-그림마다-다른-id-그리고-빈-그림-없애기	scv/DECISIONS.md	67106	1240	2026-08-28 14:36	[adopted] 기획서 그림이 서로 겹친다 — 그림마다 다른 id, 그리고 빈 그림 없애기
+decision	기획서-그림이-서로-겹친다-그림마다-다른-id-그리고-빈-그림-없애기-archived	scv/DECISIONS.md	68346	1747	2026-08-28 15:07	[archived] 기획서 그림이 서로 겹친다 — 그림마다 다른 id, 그리고 빈 그림 없애기 archived
