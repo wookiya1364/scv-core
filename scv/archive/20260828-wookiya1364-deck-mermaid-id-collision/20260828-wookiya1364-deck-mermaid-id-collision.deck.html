@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Architecture — 기획서 그림이 서로 겹친다</title>
+<style>
+/* Dark only — the light token set and its toggle were removed:
+   FE 프로젝트의 다크-기본+라이트-오버라이드 관례와 동일한 모양(속성 하나만 바뀌면
+   전체가 재테마된다). head 맨 앞 인라인 스크립트가 pre-paint 로 저장된 선택을 적용해
+   깜빡임(FOUC)이 없다. */
+/* Dark only. Ported from the owner's DesignSystem .dark block (shadcn oklch ->
+   sRGB, every neutral at chroma 0). The blue-cast greys this replaces
+   (#171922 / #1d2029 / #2c3040 / #9096a8) were the single loudest reason the
+   two decks read as different systems.
+
+   Contrast figures are WCAG 2.x, measured against the surface named. */
+:root{
+  /* surfaces */
+  --bg:#0a0a0a;                  /* the one ground */
+  --panel:#171717;               /* cards, aside, code */
+  --surface-2:#121212;           /* zebra rows, quiet fills */
+  --surface-3:#151515;           /* table head, code block */
+
+  /* text */
+  --fg:#fafafa;                  /* 18.97:1 on --bg */
+  --fg-body:#e2e2e2;             /* 15.28:1 on --bg  · body copy */
+  --fg-soft:#d6d6d6;             /* 13.62:1 on --bg  · text inside a tinted card */
+  --muted-foreground:#a1a1a1;    /*  7.66:1 on --bg  · 6.94:1 on --panel */
+
+  /* lines — alpha so ONE value composites correctly over bg and panel alike */
+  --border:rgba(255,255,255,.10);
+  --border-strong:#707070;       /* load-bearing rules. Measured where it actually
+                                    sits, not on --bg: 3.62:1 on --panel (node
+                                    fill), 3.69:1 on --surface-3 (figure ground),
+                                    5.87:1 on --bg. #4d4d4d cleared 3:1 against
+                                    --bg alone and failed at 2.12:1 on a node. */
+  --ring:#737373;                /*  4.18:1 on --bg */
+
+  /* brand — the owner's rose, kept for a public product on their say-so.
+     TWO values, because one cannot do both jobs: oklch(.455 .188 13.697)
+     = #a50036 measures 2.50:1 as text on --bg and is unreadable. The text
+     value is the same hue lifted in lightness only. */
+  --primary:#a50036;             /* fill · white on it 7.58:1 */
+  --primary-text:#fc7184;        /* text · 7.39:1 on --bg · 6.69:1 on --panel */
+  --on-primary:#fafafa;          /* 7.58:1 on the --primary plate */
+
+  /* status */
+  --good:#4bd39a;                /*  9.53:1 on --bg */
+  --warn:#e3b153;                /*  9.18:1 on --bg */
+  --danger:#f4837f;              /*  7.22:1 on --bg */
+  --on-warn:#241a06;             /*  8.72:1 on the --warn plate */
+}
+*{box-sizing:border-box}
+/* One scroll region, and only one. The app shell owns the scrolling; the document
+   behind it must never scroll too. Without this the page picks up a second scrollbar
+   whenever the shell ends up a few pixels taller than the viewport (100svh vs 100%
+   rounding is enough), and the reader gets two bars with no way to tell which one the
+   wheel will move. Print restores normal flow below. */
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+html{scroll-behavior:smooth}
+body{margin:0;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:var(--fg);background:var(--bg)}
+/* Controls do not inherit the document font — a UA default applies unless asked.
+   Six controls below set font-size alone or an invalid `font:` shorthand, and
+   all of them rendered in 13.333px/400/Arial. This one line is what makes the
+   per-control rules that follow actually reach the element. */
+button,input,select,textarea{font:inherit;color:inherit}
+/* 문서 = 스크롤되는 본문(좌) + 상시 원문 마크다운 패널(우, sticky) — 이게 scv:deck 의
+   정체성이다: 렌더링과 원문이 늘 같은 화면에 나란히 있어야 서로 어긋나지 않았다는 게
+   보장된다. 인쇄 시에는 패널을 접고 본문 뒤에 원문을 부록으로 붙인다(.print-source). */
+/* Three rows over the viewport: header, content, footer. The header and the
+   footer are chrome and must not scroll away with the text — before this they
+   lived inside .wrap and pushed 268px of nav in front of the first sentence. */
+.shell{display:grid;grid-template-rows:auto 1fr auto;height:100svh;overflow:hidden}
+.shell-mid{display:flex;min-height:0;overflow:hidden}
+/* A container so a figure can measure the READING area and break out of the
+   840px text column. 100vw would count the source panel too and push the
+   diagram under it. */
+.scroll-main{flex:1;min-width:0;overflow-y:auto;container-type:inline-size}
+.wrap{--doc-pad:clamp(20px,5vw,56px);max-width:840px;margin:0 auto;min-height:100%;padding:0 var(--doc-pad) 96px}
+header.doc{display:flex;align-items:center;gap:16px;min-width:0;background:var(--bg);border-bottom:1px solid var(--border);padding:11px 20px}
+header.doc h1{font-size:15px;font-weight:600;margin:0;flex-shrink:0;max-width:34ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)}
+.header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.panel-toggle{flex-shrink:0;font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer}
+.panel-toggle:hover{background:var(--border);color:var(--fg)}
+.panel-toggle .kbd{opacity:.55;margin-left:4px}
+.source-panel{position:relative;width:min(440px,38vw);flex-shrink:0;border-left:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column}
+.source-panel.closed{display:none}
+.panel-resize-handle{position:absolute;left:0;top:0;bottom:0;width:7px;margin-left:-4px;cursor:col-resize;z-index:6}
+.panel-resize-handle:hover{background:rgba(127,137,160,.25)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-title{font-size:12px;color:var(--muted-foreground);font-weight:700;letter-spacing:.02em}
+.panel-close{border:none;background:none;color:var(--muted-foreground);cursor:pointer;font-size:14px;padding:2px 7px;border-radius:5px;line-height:1.4}
+.panel-close:hover{background:var(--border);color:var(--fg)}
+.panel-tabs{display:flex;gap:2px;padding:9px 12px 0;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.panel-tab{font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);padding:7px 10px;border:none;background:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.panel-tab.active{color:var(--fg);border-bottom-color:var(--primary)}
+.panel-body{flex:1;overflow-y:auto;padding:14px}
+.panel-body .src-doc{display:none;margin:0}
+.panel-body .src-doc.active{display:block}
+.print-source{display:none}
+/* 목차(nav.toc) 는 인쇄본 전용(펼친 전체 문서엔 목차가 자연스럽다). 화면에서는
+   deck-nav(아래) 가 같은 역할을 대신한다 — 페이지 번호 pill + 클릭 이동. */
+@media screen{nav.toc{display:none}}
+nav.toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:26px 0}
+nav.toc h3{margin:0 0 8px;font-size:12px;letter-spacing:.04em;color:var(--muted-foreground);text-transform:uppercase}
+nav.toc ol{margin:0;padding-left:20px;columns:2;gap:24px}
+nav.toc a{color:var(--fg);text-decoration:none}
+nav.toc a:hover{color:var(--primary);text-decoration:underline}
+section{padding:22px 0;border-top:1px solid var(--border)}
+section:first-of-type{border-top:none}
+/* 페이지 넘김(화면 전용) — 한 번에 한 섹션만. 인쇄 시엔 전부 펼쳐서 보여준다. */
+@media screen{.slide-page{display:none}.slide-page.active{display:block}}
+/* One scrolling row, never wrapped. The reference sets flex-wrap AND
+   overflow-x-auto together; flex-wrap wins, and fed 19 labels its own header
+   grows to three rows. nowrap is the one place this deliberately differs. */
+.deck-nav{display:flex;flex-wrap:nowrap;gap:4px;margin:0;flex:1;min-width:0;overflow-x:auto;scrollbar-width:thin}
+.deck-nav::-webkit-scrollbar{height:6px}
+.deck-nav::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.deck-nav-item{font-weight:400;font-size:12px;line-height:16px;color:var(--muted-foreground);background:none;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;white-space:nowrap}
+.deck-nav-item:hover{color:var(--fg)}
+.deck-nav-item.active{background:var(--primary-text);color:var(--bg);font-weight:500}
+.deck-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0;padding:11px 20px;border-top:1px solid var(--border);background:var(--bg)}
+.deck-arrow{font-weight:600;font-size:13px;line-height:1;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;cursor:pointer}
+.deck-arrow:disabled{opacity:.35;cursor:default}
+.deck-arrow:not(:disabled):hover{background:var(--panel)}
+.deck-dots{display:flex;align-items:center;gap:6px}
+.deck-dot{width:8px;height:8px;border-radius:999px;background:var(--border);border:none;cursor:pointer;padding:0}
+.deck-dot.active{background:var(--primary);width:20px;border-radius:5px}
+.deck-counter{font-size:12px;color:var(--muted-foreground);min-width:52px;text-align:center}
+mark.src-hl{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--fg);border-left:2px solid var(--warn);border-radius:0;padding:0 2px}
+h2{font-size:32px;line-height:1.15;letter-spacing:-.02em;margin:.1em 0 .5em;font-weight:700;color:var(--fg)}
+h4{margin:1.1em 0 .35em;font-size:17px;font-weight:600;color:var(--fg)}
+.subhead{font-size:20px;font-weight:600;margin:1.4em 0 .4em;color:var(--fg)}
+.kicker{font-size:14px;font-weight:600;letter-spacing:.02em;color:var(--primary-text);margin-bottom:6px}
+.sub{font-size:18px;line-height:1.55;color:var(--muted-foreground);margin:-.1em 0 1.3em;max-width:62ch}
+p{margin:.65em 0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul{margin:.6em 0;padding-left:0;list-style:none}
+ol{margin:.6em 0;padding-left:22px}
+li{margin:0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul>li{position:relative;padding-left:18px;margin:8px 0}
+ul>li::before{content:"";position:absolute;left:0;top:.62em;width:6px;height:6px;border-radius:50%;background:color-mix(in srgb,var(--primary-text) 70%,transparent)}
+ol>li{margin:8px 0}
+.tw{overflow-x:auto;margin:.8em 0}
+table{border-collapse:collapse;width:100%;font-size:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+th,td{border:none;border-bottom:1px solid var(--border);padding:10px 14px;text-align:left;vertical-align:top;color:var(--fg-body)}
+tbody tr:last-child td{border-bottom:none}
+thead th{background:var(--surface-3);font-weight:600;font-size:12px;letter-spacing:.02em;color:var(--muted-foreground)}
+table.kv th{background:none;width:30%;white-space:nowrap;font-weight:500;color:var(--muted-foreground)}
+.kpi{display:flex;flex-wrap:wrap;gap:12px;margin:.8em 0}
+.kpi-card{flex:1 1 160px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--panel)}
+.kpi-label{font-size:13px;color:var(--muted-foreground);margin-bottom:6px}
+.kpi-nums{display:flex;align-items:center;gap:8px;font-weight:700}
+.kpi-nums .base{color:var(--muted-foreground)}
+.kpi-nums .arrow{color:var(--primary)}
+.kpi-nums .target{color:var(--good)}
+.goals{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:.8em 0}
+.goal-col{border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+.goal-col.g{border-left:4px solid var(--good)}
+.goal-col.ng{border-left:4px solid var(--danger)}
+pre.code{background:var(--surface-3);color:var(--fg-body);border-radius:10px;padding:14px 16px;overflow-x:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;margin:.8em 0}
+/* mermaid 는 항상 라이트 카드에 그린다(테마 무관, pre.code 가 항상 다크인 것과 대칭) —
+   mermaid 렌더 테마를 다크로 다시 그리려면 이미 SVG 로 처리된 노드를 되돌려야 해서
+   토글마다 재처리가 필요해진다. 대신 다이어그램 카드 자체를 고정 라이트로 둬서
+   토글과 무관하게 항상 선명하게 읽힌다. */
+/* A figure, not a paragraph. The SVG now carries its natural width, so the
+   frame scrolls instead of shrinking it — a 1437px graph squeezed into an
+   840px column rendered its 16px labels at 7.7px, which was the single worst
+   readability defect in the deck. */
+/* Full bleed: the figure uses the whole reading area, not the 840px measure the
+   prose wants. A 1388px graph inside an 840px column left ~215px of dead gutter
+   on each side AND a scrollbar — the worst of both. */
+pre.mermaid{background:var(--surface-3);border:1px solid var(--border-strong);border-radius:10px;padding:14px;margin:1.1em 0;overflow-x:auto;text-align:left}
+@supports (width:100cqw){
+  pre.mermaid{
+    /* A 16px gutter, not the prose gutter. Text wants a comfortable measure; a
+       figure wants the glass. With the source panel open — which is the deck's
+       whole point and stays open — every pixel of the reading area counts. */
+    --bleed:calc(100cqw - 32px);
+    width:var(--bleed);
+    max-width:var(--bleed);
+    margin-inline:calc((100% - var(--bleed)) / 2);
+  }
+}
+/* Fit the frame when there is room; below 900px stop shrinking and scroll
+   instead. Scaling all the way down is what made 16px labels render at 7.7px,
+   and a scrollbar is better than text nobody can read. */
+pre.mermaid svg{max-width:100%;min-width:900px;height:auto}
+/* The diagram lives in a <pre>, whose UA default is white-space:pre, and that
+   inherits into every label. Mermaid sizes an edge label's box for TWO wrapped
+   lines (200x48.75) and the text then refused to wrap, so anything past 200px
+   was clipped mid-word — "BASE_REF, HEAD_REF, PR_TITLE" measured 230px of text
+   in a 200px box. Labels are prose, not preformatted text. */
+pre.mermaid foreignObject,pre.mermaid foreignObject *{white-space:normal}
+/* On a narrow window there is nothing to floor — let it fit rather than force
+   a scrollbar the reader cannot escape. */
+@media (max-width:900px){pre.mermaid svg{min-width:0}}
+pre.mermaid.mermaid-fallback{text-align:left;white-space:pre;overflow-x:auto;background:#0f1320;color:#e6e9f0;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:30px 16px 14px;position:relative}
+pre.mermaid.mermaid-fallback::before{content:"\29c9 \b2e4\c774\c5b4\adf8\b7a8 \c6d0\bcf8 (\c624\d504\b77c\c778 \b610\b294 CDN \bbf8\b85c\b4dc)";position:absolute;top:8px;left:16px;font:600 11px/1 -apple-system,sans-serif;color:var(--muted-foreground)}
+/* A tinted card, not a left rule — the reference's Callout. color-mix keeps one
+   hue per tone instead of a second hand-picked hex for the fill. */
+.callout{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:1em 0;background:var(--panel)}
+.callout-title{font-weight:600;font-size:16px;margin-bottom:4px;color:var(--fg)}
+.callout p,.callout li{font-size:14px;color:var(--fg-soft)}
+.callout.info{border-color:color-mix(in srgb,var(--primary-text) 30%,transparent);background:color-mix(in srgb,var(--primary-text) 10%,var(--bg))}
+.callout.good{border-color:color-mix(in srgb,var(--good) 30%,transparent);background:color-mix(in srgb,var(--good) 10%,var(--bg))}
+.callout.warn{border-color:color-mix(in srgb,var(--warn) 30%,transparent);background:color-mix(in srgb,var(--warn) 10%,var(--bg))}
+.callout.danger{border-color:color-mix(in srgb,var(--danger) 30%,transparent);background:color-mix(in srgb,var(--danger) 10%,var(--bg))}
+.callout.next{border-style:dashed;border-color:var(--border-strong);background:var(--surface-2)}
+.lint h2{color:var(--warn)}
+.lint-count{display:inline-block;background:var(--warn);color:var(--on-warn);border-radius:999px;font-size:12px;padding:1px 9px;vertical-align:middle}
+/* 화면목업(와이어프레임) 킷 — scv 자체 기본 스킨(2순위 폴백): DesignSystem 의 실제
+   다크 팔레트를 distill(무채색 표면 + 단일 로즈 악센트 + border-only depth + pill
+   배지, 글라스 없음 — DesignSystem 본체엔 글라스가 없다). 문서 자체의 라이트/다크
+   토글과는 독립적으로 항상 이 다크 스킨을 쓴다(--wf-* 로 스코프해 문서 테마 변수와
+   충돌하지 않음) — mermaid 카드를 항상 라이트로 고정하는 것과 같은 이유(재처리 없이
+   항상 또렷하게). 프로젝트 실제 토큰(1순위) 자동감지는 아직 없음 — 후속 작업.
+   버튼은 항상 disabled(정적 예시 그림이라 실제 인터랙션 없음). */
+.wf-screen{
+  margin:1em 0;
+  --wf-bg:#0a0a0b; --wf-fg:#fafafa; --wf-card:#1c1c1e; --wf-border:rgba(255,255,255,.1);
+  --wf-muted:#232326; --wf-muted-fg:#9a9a9f;
+  --wf-primary:#a53257; --wf-primary-fg:#fdf1f3;
+  --wf-success:#34d399; --wf-success-bg:rgba(16,185,129,.15); --wf-success-border:rgba(16,185,129,.4);
+  --wf-danger:#ef6b6b; --wf-danger-bg:rgba(239,107,107,.14);
+  --wf-info:#60a5fa; --wf-info-bg:rgba(96,165,250,.15);
+  --wf-warn:#e0ab48; --wf-warn-bg:rgba(224,171,72,.15);
+  --wf-radius:10px; --wf-radius-pill:999px;
+}
+/* 번호식 화면설계서 — the picture keeps the stage, the prose stands beside it.
+   Sidebar sits right of the picture on a wide screen and DROPS BELOW under 900px,
+   because squeezing the drawing to fit a column is exactly the regression that made
+   an earlier deck's diagram render at 0.483 scale (16px type → 7.7px). */
+.wf-speclayout{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,360px);gap:16px;align-items:start;margin:1em 0}
+.wf-speclayout > .wf-screen{margin:0;min-width:0}
+/* A spec sheet is a FIGURE, not prose: the 840px reading measure that suits paragraphs
+   starves the drawing and crams the detail list against it. Take the full glass, same
+   as a standalone diagram does — the picture gets the room, the detail panel sits at
+   the right edge. */
+@supports (width:100cqw){
+  .wf-speclayout{
+    --bleed:calc(100cqw - 32px);
+    width:var(--bleed);
+    max-width:var(--bleed);
+    margin-inline:calc((100% - var(--bleed)) / 2);
+  }
+}
+/* A diagram needs more room than a wireframe; with the bleed a full-size flowchart
+   fits beside the panel on a wide screen. Below that it stacks rather than shrink —
+   squeezing an 800px flowchart into a narrow column renders 16px labels at ~8px, the
+   regression that made an earlier deck unreadable. */
+@media (max-width:1200px){
+  .wf-speclayout-diagram{grid-template-columns:minmax(0,1fr)}
+  .wf-speclayout-diagram > .wf-spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:start}
+}
+/* Undo the full-bleed above: that rule widens a STANDALONE diagram to the reading
+   glass, which inside a spec frame just bursts the frame (the picture then gets
+   cropped by wf-frame's overflow:hidden). In here the frame is the glass. */
+/* Keep the diagram card's own surface. Making it transparent put mermaid's
+   light-assuming palette (#eaeaea fills, #666 text) straight onto the dark frame, and a
+   sequence diagram's message text became unreadable — the deck draws diagrams on their
+   own card for exactly this reason (see the note above pre.mermaid). */
+.wf-screen pre.mermaid{margin:0;margin-inline:0;width:auto;max-width:100%;padding:10px;overflow-x:auto}
+.wf-screen pre.mermaid svg{min-width:0;max-width:100%;height:auto}
+@media (max-width:900px){.wf-speclayout,.wf-speclayout-diagram{grid-template-columns:minmax(0,1fr)}}
+@media print{.wf-speclayout,.wf-speclayout-diagram{grid-template-columns:minmax(0,1fr);break-inside:avoid}}
+/* Grid, not flex-wrap: in a narrow column the name TRUNCATES instead of shoving
+   PAGE CODE onto its own half-empty row (the identity strip must read as one line). */
+.wf-pagebar{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:stretch;margin-bottom:8px;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;font-size:12.5px}
+.wf-pagebar-key{padding:6px 10px;background:var(--surface-3);color:var(--muted-foreground);font-weight:700;font-size:11px;letter-spacing:.04em;white-space:nowrap;display:flex;align-items:center}
+.wf-pagebar-name{min-width:0;padding:6px 10px;background:var(--surface-2);color:var(--foreground);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center}
+.wf-pagebar-code{padding:6px 10px;background:var(--surface-2);color:var(--foreground);font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;display:flex;align-items:center}
+.wf-marked{display:flex;align-items:flex-start;gap:8px}
+.wf-marked + .wf-marked{margin-top:2px}
+.wf-marked-body{flex:1;min-width:0}
+.wf-marker{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;margin-top:3px;padding:0 5px;border-radius:999px;font:700 11.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.wf-marker-fn{background:var(--wf-primary,#a53257);color:var(--wf-primary-fg,#fdf1f3)}
+.wf-marker-action{background:var(--wf-info,#60a5fa);color:#0a0a0b}
+.wf-spec{display:flex;flex-direction:column;gap:12px;min-width:0}
+.wf-spec-group{border:1px solid var(--border-strong);border-radius:10px;background:var(--surface-2);overflow:hidden}
+.wf-spec-title{padding:7px 12px;background:var(--surface-3);border-bottom:1px solid var(--border-strong);font-weight:700;font-size:12.5px;letter-spacing:.02em}
+.wf-spec-item{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;border-top:1px solid var(--border)}
+.wf-spec-item:first-of-type{border-top:0}
+.wf-spec-badge{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);font:700 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.wf-spec-item-act .wf-spec-badge{background:var(--wf-info,#60a5fa);color:#0a0a0b;border-color:transparent}
+.wf-spec-body{flex:1;min-width:0;font-size:12.5px;line-height:1.6}
+.wf-spec-name{font-weight:600;margin-bottom:2px}
+.wf-spec-notes{margin:0;padding-left:1.1em;color:var(--muted-foreground)}
+.wf-spec-notes li{margin:1px 0}
+.wf-spec-step{margin-left:6px;padding:1px 6px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);color:var(--muted-foreground);font:600 10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+.wf-sub-title{margin:12px 0 6px;font-weight:700;font-size:12.5px;letter-spacing:.02em}
+/* "Called from" sits ABOVE the picture, so the first thing a backend reader learns is
+   which screen and which element reaches this endpoint. */
+.wf-screen > .wf-validations:first-of-type{margin-bottom:2px}
+.wf-diagram-label{margin:8px 0 2px;font-size:11.5px;color:var(--muted-foreground)}
+.wf-diagram-label:first-child{margin-top:0}
+/* Validation table — one row per rule, the numbers it touches in the first column so a
+   rule shared by several markers is traceable instead of scattered through prose. */
+.wf-validations{margin-top:2px}
+.wf-vtable{width:100%;border-collapse:collapse;font-size:12px;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;table-layout:auto}
+.wf-vtable th{padding:6px 9px;background:var(--surface-3);border-bottom:1px solid var(--border-strong);text-align:left;font-weight:700;white-space:nowrap}
+.wf-vtable td{padding:6px 9px;border-top:1px solid var(--border);vertical-align:top;line-height:1.55}
+.wf-vt-marker{width:1%;white-space:nowrap;font:700 11px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted-foreground)}
+/* State variants — a strip under the frame, never a third column: a third column would
+   squeeze the picture, which is the one thing this format exists to protect. */
+.wf-states-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.wf-state{min-width:0}
+.wf-state-label{display:flex;align-items:center;gap:5px;margin-bottom:4px;font-size:11.5px;color:var(--muted-foreground)}
+.wf-state-marker{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);font:700 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--foreground)}
+.wf-state-frame{border:1px solid var(--wf-border,var(--border-strong));border-radius:8px;background:var(--wf-bg,var(--surface-2));padding:9px 10px}
+.wf-chrome{display:flex;align-items:center;gap:7px;padding:9px 12px;border-bottom:1px solid var(--wf-border);background:var(--wf-card)}
+.wf-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;opacity:.7}
+.wf-dot-r{background:#fb2c36}.wf-dot-y{background:#fe9a00}.wf-dot-g{background:#00bc7d}
+.wf-url{margin-left:6px;padding:2px 8px;border-radius:5px;background:var(--wf-muted);color:var(--wf-muted-fg,var(--muted-foreground));font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wf-frame{border:1px solid var(--wf-border);border-radius:calc(var(--wf-radius) + 4px);background:var(--wf-bg);color:var(--wf-fg);overflow:hidden}
+.wf-nav{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--wf-border);background:var(--wf-bg);flex-wrap:wrap}
+.wf-nav-item{font-size:13px;color:var(--wf-muted-fg);padding:12px 11px;border-bottom:2px solid transparent}
+.wf-nav-item.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-primary)}
+.wf-body{padding:20px}
+.wf-header{margin-bottom:0}
+.wf-header-title{font-size:16px;font-weight:600;color:var(--wf-fg)}
+.wf-header-sub{font-size:12.5px;color:var(--wf-muted-fg);margin-top:3px}
+.wf-toolbar{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+.wf-tabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid var(--wf-border)}
+.wf-tab{font-size:12.5px;color:var(--wf-muted-fg);padding:7px 11px;border-bottom:2px solid transparent}
+.wf-tab.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-muted-fg)}
+.wf-btn{font-weight:500;font-size:12.5px;line-height:1;padding:8px 13px;border-radius:8px;border:1px solid transparent;background:var(--wf-muted);color:var(--wf-fg);cursor:default}
+.wf-btn-primary{background:var(--wf-primary);color:var(--wf-primary-fg)}
+.wf-btn-danger{background:var(--wf-danger-bg);color:var(--wf-danger)}
+.wf-input{display:inline-flex;align-items:center;font-size:12.5px;color:var(--wf-muted-fg);padding:8px 12px;border:1px solid var(--wf-border);border-radius:8px;background:var(--wf-card);min-width:120px}
+.wf-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.wf-table th,.wf-table td{border-bottom:1px solid var(--wf-border);padding:9px 10px;text-align:left}
+.wf-table th{color:var(--wf-muted-fg);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.02em}
+.wf-badge{display:inline-flex;align-items:center;height:20px;border-radius:var(--wf-radius-pill);padding:0 9px;font-size:10.5px;font-weight:500;border:1px solid transparent}
+.wf-badge-muted{background:var(--wf-muted);color:var(--wf-muted-fg);border-color:var(--wf-border)}
+.wf-badge-info{background:var(--wf-info-bg);color:var(--wf-info);border-color:rgba(96,165,250,.35)}
+.wf-badge-good{background:var(--wf-success-bg);color:var(--wf-success);border-color:var(--wf-success-border)}
+.wf-badge-warn{background:var(--wf-warn-bg);color:var(--wf-warn);border-color:rgba(224,171,72,.35)}
+.wf-badge-danger{background:var(--wf-danger-bg);color:var(--wf-danger);border-color:rgba(239,107,107,.35)}
+.wf-card{border-radius:var(--wf-radius);border:1px solid var(--wf-border);padding:14px 16px;margin-bottom:10px;background:var(--wf-card)}
+.wf-card-title{font-size:13px;font-weight:600;color:var(--wf-fg);margin-bottom:8px}
+.wf-list{list-style:none;margin:0;padding:0}
+.wf-list li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--wf-border);font-size:12.5px;color:var(--wf-fg)}
+.wf-list li:last-child{border-bottom:none}
+.wf-form{display:flex;flex-direction:column;gap:8px}
+.wf-field{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--wf-muted-fg)}
+.wf-text{font-size:12.5px;color:var(--wf-fg);margin:.3em 0}
+@media (max-width:900px){.source-panel{width:min(360px,44vw)}}
+@media (max-width:640px){.goals{grid-template-columns:1fr}nav.toc ol{columns:1}.shell{flex-direction:column;height:auto;overflow:visible}.scroll-main{overflow:visible}.source-panel{width:100%;height:60vh}}
+/* Paper is the one place the light values live. This is not a second theme the
+   reader can choose — @media print is unreachable on screen, persists nothing,
+   and shows no control. The screen deck stays dark only.
+   It has to redeclare the TOKENS, not just body: the old block set
+   background:#fff on body while every surface below it kept painting from
+   --bg, so the PDF was 20 pages of dark slabs on a white sheet. */
+@media print{
+  /* The single-scroll-region clamp is a SCREEN concern — on paper the document must
+     flow normally, or everything past the first page is clipped away. */
+  html,body{height:auto;overflow:visible}
+  :root{
+    --bg:#ffffff; --panel:#f6f7f8; --surface-2:#fafafa; --surface-3:#f4f4f5;
+    --fg:#111418;                /* 17.74:1 on white */
+    --fg-body:#1c1f24;           /* 15.42:1 */
+    --fg-soft:#33373d;           /* 10.87:1 */
+    --muted-foreground:#565d6b;  /*  6.45:1 */
+    --border:rgba(0,0,0,.14); --border-strong:#8a8f98; --ring:#8a8f98;
+    --primary:#a50036;           /* the brand fill survives; white on it 7.58:1 */
+    --primary-text:#8f0030;      /*  8.75:1 on white — the light form of the rose */
+    --on-primary:#ffffff;
+    --good:#0f7a4d;              /*  5.24:1 */
+    --warn:#8a6100;              /*  5.40:1 */
+    --danger:#b32d1f;            /*  6.18:1 */
+    --on-warn:#fdf6e6;
+    --wf-bg:#ffffff; --wf-fg:#111418; --wf-card:#f6f6f7;
+    --wf-border:rgba(0,0,0,.16); --wf-muted:#f0f0f1; --wf-muted-fg:#565d6b;
+  }
+  @page{size:A4;margin:14mm 12mm}
+  body{background:#fff;display:block;height:auto}
+  .shell{display:block;height:auto;overflow:visible}
+  .shell-mid{display:block;overflow:visible}
+  .scroll-main{overflow:visible;height:auto}
+  .wrap{box-shadow:none;max-width:none;padding:0}
+  header.doc{position:static;border-bottom:1px solid var(--border);padding:0 0 8px}
+  .panel-toggle,.source-panel,.deck-nav,.deck-footer{display:none}
+  nav.toc{display:block;break-inside:avoid}
+  /* break-inside:avoid on a 3000px section dumps most of a page. Keep headings
+     with what follows and protect only the things that must not split. */
+  h2,h3,h4,.subhead{break-after:avoid}
+  figure,table,pre.code,.callout,.wf-screen{break-inside:avoid}
+  /* Paper cannot scroll, so a wide graph gets its own landscape sheet. */
+  @page dg{size:A4 landscape;margin:12mm}
+  pre.mermaid{page:dg;overflow:visible;break-inside:avoid;max-height:180mm}
+  pre.mermaid svg{max-width:100%;height:auto}
+  .print-source{display:block;break-before:page}
+  .print-source h3{margin-top:1.6em;font-size:14px}
+}
+</style>
+<style id="scv-mermaid-contrast">
+/* Diagram palette. static-mermaid.mjs strips the id-scoped rules, the
+   !important flags and the inline colour attributes first, so plain specificity
+   is enough here — before that, an author rule at (1,3,1) with !important still
+   lost to style="fill:#FFE082 !important" on a classDef node. */
+pre.mermaid .flowchart-link,pre.mermaid .edgePath .path,pre.mermaid path.flowchart-link{stroke:var(--fg-body);stroke-width:1.6px;fill:none}
+pre.mermaid .marker,pre.mermaid marker path,pre.mermaid .arrowMarkerPath{fill:var(--fg-body);stroke:var(--fg-body)}
+pre.mermaid .node rect,pre.mermaid .node circle,pre.mermaid .node polygon,pre.mermaid .node path{fill:var(--panel);stroke:var(--border-strong);stroke-width:1.2px}
+pre.mermaid .nodeLabel,pre.mermaid .nodeLabel p,pre.mermaid .label,pre.mermaid text{fill:var(--fg);color:var(--fg)}
+pre.mermaid .edgeLabel,pre.mermaid .edgeLabel p{background-color:var(--surface-3);color:var(--fg-body)}
+pre.mermaid .edgeLabel rect,pre.mermaid .labelBkg{fill:var(--surface-3);opacity:1}
+pre.mermaid .cluster rect{fill:var(--surface-2);stroke:var(--border-strong)}
+pre.mermaid .cluster text,pre.mermaid .cluster .nodeLabel{fill:var(--muted-foreground);color:var(--muted-foreground)}
+/* The two semantic highlights the protocol sanctions. Any other per-node colour
+   is stripped, so these are the only ones that survive — deck.md says so. */
+pre.mermaid .node.new rect,pre.mermaid g.new rect{fill:#5a4415;stroke:var(--warn);stroke-width:1.8px}
+pre.mermaid .node.new .nodeLabel,pre.mermaid g.new .nodeLabel{fill:#f6e8c8;color:#f6e8c8}
+pre.mermaid .node.changed rect,pre.mermaid g.changed rect{fill:#16324f;stroke:#6fb4f2;stroke-width:1.8px}
+pre.mermaid .node.changed .nodeLabel,pre.mermaid g.changed .nodeLabel{fill:#d9ecff;color:#d9ecff}
+/* SEQUENCE diagrams — a backend spec draws the ORDER of a request, and mermaid's own
+   palette for this type assumes a light page (#eaeaea boxes, #333 text). Normalization
+   demotes mermaid's id-scoped rules to .scv-mmd (0,2,0), so these "pre.mermaid svg .x"
+   selectors (0,2,2) win without !important. Without them the message text renders dark
+   grey on the dark card and the whole diagram is unreadable — the same contrast failure
+   the deck redesign fixed for flowcharts, one diagram type later. */
+pre.mermaid svg .actor,pre.mermaid svg rect.actor{fill:var(--panel);stroke:var(--border-strong);stroke-width:1.2px}
+pre.mermaid svg text.actor,pre.mermaid svg text.actor tspan,pre.mermaid svg .actor > tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .actor-line{stroke:var(--border-strong);stroke-width:1px}
+pre.mermaid svg .messageText,pre.mermaid svg text.messageText{fill:var(--fg);stroke:none}
+pre.mermaid svg .messageLine0,pre.mermaid svg .messageLine1{stroke:var(--fg-body);stroke-width:1.5px}
+pre.mermaid svg .labelBox{fill:var(--surface-2);stroke:var(--border-strong)}
+/* sectionTitle is the else-branch label of an alt block — miss it and half the
+   branches in a failure flow stay unreadable while the other half look fine. */
+pre.mermaid svg .labelText,pre.mermaid svg .labelText tspan,pre.mermaid svg .loopText,pre.mermaid svg .loopText tspan,pre.mermaid svg .sectionTitle,pre.mermaid svg .sectionTitle tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .loopLine{stroke:var(--border-strong)}
+pre.mermaid svg .note{fill:var(--surface-2);stroke:var(--border-strong)}
+pre.mermaid svg .noteText,pre.mermaid svg .noteText tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .sequenceNumber{fill:var(--bg)}
+pre.mermaid svg .activation0,pre.mermaid svg .activation1,pre.mermaid svg .activation2{fill:var(--surface-3);stroke:var(--border-strong)}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="doc"><h1>Architecture — 기획서 그림이 서로 겹친다</h1><nav class="deck-nav"><button class="deck-nav-item active" data-idx="0" onclick="scvGoto(0)">1. Architecture — 기획서</button><button class="deck-nav-item" data-idx="1" onclick="scvGoto(1)">2. 1. Component data </button><button class="deck-nav-item" data-idx="2" onclick="scvGoto(2)">3. 2. Position in who</button><button class="deck-nav-item" data-idx="3" onclick="scvGoto(3)">4. 3. Screen mockups</button></nav><div class="header-actions"><button class="panel-toggle" onclick="scvTogglePanel()" title="원문 패널 토글 (S)">기획서 원문 <span class="kbd">S</span></button></div></header>
+<div class="shell-mid">
+<div class="scroll-main">
+<div class="wrap">
+<nav class="toc"><h3>목차</h3><ol><li><a href="#s-0-architecture--기획서-그림이-서로-겹친다">Architecture — 기획서 그림이 서로 겹친다</a></li><li><a href="#s-1-1-component-data-flow">1. Component data flow</a></li><li><a href="#s-2-2-position-in-whole-architecture">2. Position in whole architecture</a></li><li><a href="#s-3-3-screen-mockups">3. Screen mockups</a></li></ol></nav>
+<section id="s-0-architecture--기획서-그림이-서로-겹친다" class="slide-page active" data-idx="0"><h2>Architecture — 기획서 그림이 서로 겹친다</h2><div class="callout info"><div class="callout-title">참고</div><div>이 문서의 그림들 자체가 이번 고침의 재료다. 지금은 셋 다 같은 id 를 받으므로,
+고치기 전에는 겹쳐 보이는 것이 정상이다.</div></div></section>
+<section id="s-1-1-component-data-flow" class="slide-page" data-idx="1"><div class="kicker">Architecture — 기획서 그림이 서로 겹친다</div><h2>1. Component data flow</h2><p>기획서가 만들어지는 마지막 단계. 바깥 두 곳만 파일과 브라우저를 만지고, 가운데
+다섯 단계는 문자열만 다룬다. id 를 만드는 단계 하나만 갈아 끼운다.</p>
+<pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="2234.328125" height="93.55389404296875" class="scv-mmd" id="scv-mmd-1bbcdeae93" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0.000003814697265625 2234.328125 93.55389404296875" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker id="scv-mmd-1bbcdeae93_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1bbcdeae93_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1bbcdeae93_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1bbcdeae93_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-1bbcdeae93_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-1bbcdeae93_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-1bbcdeae93_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-1bbcdeae93_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-1bbcdeae93_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1bbcdeae93_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1bbcdeae93_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-1bbcdeae93_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M137.609,46.777L151.579,46.777C165.549,46.777,193.49,46.777,220.763,46.777C248.036,46.777,274.643,46.777,287.947,46.777L301.25,46.777" id="scv-mmd-1bbcdeae93-L_Browser_Extract_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Browser_Extract_0" data-points="W3sieCI6MTM3LjYwOTM3NSwieSI6NDYuNzc2OTQ3MDIxNDg0Mzc1fSx7IngiOjIyMS40Mjk2ODc1LCJ5Ijo0Ni43NzY5NDcwMjE0ODQzNzV9LHsieCI6MzA1LjI1LCJ5Ijo0Ni43NzY5NDcwMjE0ODQzNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M475.656,46.777L487.423,46.777C499.19,46.777,522.724,46.777,545.591,46.777C568.458,46.777,590.659,46.777,601.759,46.777L612.859,46.777" id="scv-mmd-1bbcdeae93-L_Extract_Derive_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Extract_Derive_0" data-points="W3sieCI6NDc1LjY1NjI1LCJ5Ijo0Ni43NzY5NDcwMjE0ODQzNzV9LHsieCI6NTQ2LjI1NzgxMjUsInkiOjQ2Ljc3Njk0NzAyMTQ4NDM3NX0seyJ4Ijo2MTYuODU5Mzc1LCJ5Ijo0Ni43NzY5NDcwMjE0ODQzNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M828.828,46.777L845.758,46.777C862.688,46.777,896.547,46.777,929.74,46.777C962.932,46.777,995.458,46.777,1011.721,46.777L1027.984,46.777" id="scv-mmd-1bbcdeae93-L_Derive_Rewrite_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Derive_Rewrite_0" data-points="W3sieCI6ODI4LjgyODEyNSwieSI6NDYuNzc2OTQ3MDIxNDg0Mzc1fSx7IngiOjkzMC40MDYyNSwieSI6NDYuNzc2OTQ3MDIxNDg0Mzc1fSx7IngiOjEwMzEuOTg0Mzc1LCJ5Ijo0Ni43NzY5NDcwMjE0ODQzNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1216.188,46.777L1236.225,46.777C1256.263,46.777,1296.339,46.777,1335.747,46.777C1375.156,46.777,1413.898,46.777,1433.27,46.777L1452.641,46.777" id="scv-mmd-1bbcdeae93-L_Rewrite_Size_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Rewrite_Size_0" data-points="W3sieCI6MTIxNi4xODc1LCJ5Ijo0Ni43NzY5NDcwMjE0ODQzNzV9LHsieCI6MTMzNi40MTQwNjI1LCJ5Ijo0Ni43NzY5NDcwMjE0ODQzNzV9LHsieCI6MTQ1Ni42NDA2MjUsInkiOjQ2Ljc3Njk0NzAyMTQ4NDM3NX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1595.25,46.777L1610.018,46.777C1624.786,46.777,1654.323,46.777,1683.193,46.777C1712.063,46.777,1740.266,46.777,1754.367,46.777L1768.469,46.777" id="scv-mmd-1bbcdeae93-L_Size_Splice_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Size_Splice_0" data-points="W3sieCI6MTU5NS4yNSwieSI6NDYuNzc2OTQ3MDIxNDg0Mzc1fSx7IngiOjE2ODMuODU5Mzc1LCJ5Ijo0Ni43NzY5NDcwMjE0ODQzNzV9LHsieCI6MTc3Mi40Njg3NSwieSI6NDYuNzc2OTQ3MDIxNDg0Mzc1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1970.484,46.777L1984.454,46.777C1998.424,46.777,2026.365,46.777,2053.638,46.777C2080.911,46.777,2107.518,46.777,2120.822,46.777L2134.125,46.777" id="scv-mmd-1bbcdeae93-L_Splice_DeckFile_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Splice_DeckFile_0" data-points="W3sieCI6MTk3MC40ODQzNzUsInkiOjQ2Ljc3Njk0NzAyMTQ4NDM3NX0seyJ4IjoyMDU0LjMwNDY4NzUsInkiOjQ2Ljc3Njk0NzAyMTQ4NDM3NX0seyJ4IjoyMTM4LjEyNSwieSI6NDYuNzc2OTQ3MDIxNDg0Mzc1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(221.4296875, 46.776947021484375)"><g class="label" data-id="L_Browser_Extract_0" transform="translate(-58.8203125, -12.1875)"><foreignObject width="117.640625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>그려진 문서 HTML</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(546.2578125, 46.776947021484375)"><g class="label" data-id="L_Extract_Derive_0" transform="translate(-45.6015625, -12.1875)"><foreignObject width="91.203125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>그림 조각 목록</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(930.40625, 46.776947021484375)"><g class="label" data-id="L_Derive_Rewrite_0" transform="translate(-76.578125, -12.1875)"><foreignObject width="153.15625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>조각 + 그 조각의 고유 id</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1336.4140625, 46.776947021484375)"><g class="label" data-id="L_Rewrite_Size_0" transform="translate(-95.2265625, -12.1875)"><foreignObject width="190.453125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>스타일·화살촉 참조가 새 id 로</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1683.859375, 46.776947021484375)"><g class="label" data-id="L_Size_Splice_0" transform="translate(-63.609375, -12.1875)"><foreignObject width="127.21875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>폭·높이가 실린 조각</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(2054.3046875, 46.776947021484375)"><g class="label" data-id="L_Splice_DeckFile_0" transform="translate(-58.8203125, -12.1875)"><foreignObject width="117.640625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>완성된 문서 HTML</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-1bbcdeae93-flowchart-Browser-0" data-look="classic" transform="translate(72.8046875, 46.776947021484375)"><path d="M0,12.726296409941702 a64.8046875,12.726296409941702 0,0,0 129.609375,0 a64.8046875,12.726296409941702 0,0,0 -129.609375,0 l0,52.1012964099417 a64.8046875,12.726296409941702 0,0,0 129.609375,0 l0,-52.1012964099417" class="basic label-container outer-path"  transform="translate(-64.8046875, -38.77694461491255)"></path><g class="label"  transform="translate(-57.3046875, -2.1875)"><rect></rect><foreignObject width="114.609375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>헤드리스 브라우저</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-1bbcdeae93-flowchart-Extract-1" data-look="classic" transform="translate(390.453125, 46.776947021484375)"><rect class="basic label-container"  x="-85.203125" y="-27.1875" width="170.40625" height="54.375"></rect><g class="label"  transform="translate(-55.203125, -12.1875)"><rect></rect><foreignObject width="110.40625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>① 그림 조각 뽑기</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-1bbcdeae93-flowchart-Derive-2" data-look="classic" transform="translate(722.84375, 46.776947021484375)"><rect class="basic label-container"  x="-105.984375" y="-27.1875" width="211.96875" height="54.375"></rect><g class="label"  transform="translate(-75.984375, -12.1875)"><rect></rect><foreignObject width="151.96875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>② id 만들기 (교체 대상)</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-1bbcdeae93-flowchart-Rewrite-3" data-look="classic" transform="translate(1124.0859375, 46.776947021484375)"><rect class="basic label-container"  x="-92.1015625" y="-27.1875" width="184.203125" height="54.375"></rect><g class="label"  transform="translate(-62.1015625, -12.1875)"><rect></rect><foreignObject width="124.203125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>③ 참조 갈아 끼우기</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-1bbcdeae93-flowchart-Size-4" data-look="classic" transform="translate(1525.9453125, 46.776947021484375)"><rect class="basic label-container"  x="-69.3046875" y="-27.1875" width="138.609375" height="54.375"></rect><g class="label"  transform="translate(-39.3046875, -12.1875)"><rect></rect><foreignObject width="78.609375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>④ 크기 싣기</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-1bbcdeae93-flowchart-Splice-5" data-look="classic" transform="translate(1871.4765625, 46.776947021484375)"><rect class="basic label-container"  x="-99.0078125" y="-27.1875" width="198.015625" height="54.375"></rect><g class="label"  transform="translate(-69.0078125, -12.1875)"><rect></rect><foreignObject width="138.015625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>⑤ 문서에 되돌려 넣기</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-1bbcdeae93-flowchart-DeckFile-6" data-look="classic" transform="translate(2182.2265625, 46.776947021484375)"><path d="M0,10.342616342982778 a44.1015625,10.342616342982778 0,0,0 88.203125,0 a44.1015625,10.342616342982778 0,0,0 -88.203125,0 l0,49.71761634298278 a44.1015625,10.342616342982778 0,0,0 88.203125,0 l0,-49.71761634298278" class="basic label-container outer-path"  transform="translate(-44.1015625, -35.20142451447417)"></path><g class="label"  transform="translate(-36.6015625, -2.1875)"><rect></rect><foreignObject width="73.203125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>기획서 파일</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-1bbcdeae93-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-1bbcdeae93-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-1bbcdeae93-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre></section>
+<section id="s-2-2-position-in-whole-architecture" class="slide-page" data-idx="2"><div class="kicker">Architecture — 기획서 그림이 서로 겹친다</div><h2>2. Position in whole architecture</h2><p>이 고침이 시스템 어디에 앉는지. 새로 생기는 것은 노란색이다.</p>
+<div class="callout info"><div class="callout-title">참고</div><div>Source: graphify graph (built 2026-08-26).</div></div>
+<pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="1077.8828125" height="759.75" class="scv-mmd" id="scv-mmd-33a6bbdc87" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 1077.8828125 759.75" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}.scv-mmd .new&gt;*{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .new span{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .new tspan{fill:rgb(0, 0, 0);}</style><g><marker id="scv-mmd-33a6bbdc87_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-33a6bbdc87_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-33a6bbdc87_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-33a6bbdc87_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-33a6bbdc87_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-33a6bbdc87_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-33a6bbdc87_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-33a6bbdc87_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-33a6bbdc87_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-33a6bbdc87_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-33a6bbdc87_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-33a6bbdc87_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"><g class="cluster" id="scv-mmd-33a6bbdc87-C1" data-look="classic"><rect  x="8" y="8" width="370.81640625" height="282.5"></rect><g class="cluster-label" transform="translate(97.814453125, 8)"><foreignObject width="191.1875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>Deck Theme &amp; Effort Policy</p></span></div></foreignObject></g></g><g class="cluster" id="scv-mmd-33a6bbdc87-C11" data-look="classic"><rect  x="793.4765625" y="493.625" width="276.40625" height="258.125"></rect><g class="cluster-label" transform="translate(827.4609375, 493.625)"><foreignObject width="208.4375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>Numbered Wireframe Sample</p></span></div></foreignObject></g></g><g class="cluster" id="scv-mmd-33a6bbdc87-C5" data-look="classic"><rect  x="398.81640625" y="186.125" width="374.66015625" height="436.25"></rect><g class="cluster-label" transform="translate(492.357421875, 186.125)"><foreignObject width="187.578125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>Mermaid Rendering Repair</p></span></div></foreignObject></g></g></g><g class="edgePaths"><path d="M548.02,265.5L548.02,269.667C548.02,273.833,548.02,282.167,548.02,290.5C548.02,298.833,548.02,307.167,548.02,314.833C548.02,322.5,548.02,329.5,548.02,333L548.02,336.5" id="scv-mmd-33a6bbdc87-L_M1_M2_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_M1_M2_0" data-points="W3sieCI6NTQ4LjAxOTUzMTI1LCJ5IjoyNjUuNX0seyJ4Ijo1NDguMDE5NTMxMjUsInkiOjI5MC41fSx7IngiOjU0OC4wMTk1MzEyNSwieSI6MzE1LjV9LHsieCI6NTQ4LjAxOTUzMTI1LCJ5IjozNDAuNX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M548.02,394.875L548.02,403.104C548.02,411.333,548.02,427.792,548.02,444.25C548.02,460.708,548.02,477.167,550.707,489.027C553.395,500.887,558.77,508.148,561.458,511.779L564.145,515.41" id="scv-mmd-33a6bbdc87-L_M2_M3_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_M2_M3_0" data-points="W3sieCI6NTQ4LjAxOTUzMTI1LCJ5IjozOTQuODc1fSx7IngiOjU0OC4wMTk1MzEyNSwieSI6NDQ0LjI1fSx7IngiOjU0OC4wMTk1MzEyNSwieSI6NDkzLjYyNX0seyJ4Ijo1NjYuNTI1Mjk1ODEzMTA2OCwieSI6NTE4LjYyNX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M131.059,87.375L131.059,95.604C131.059,103.833,131.059,120.292,131.059,136.75C131.059,153.208,131.059,169.667,135.346,181.625C139.633,193.583,148.208,201.042,152.496,204.771L156.783,208.5" id="scv-mmd-33a6bbdc87-L_T1_T2_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_T1_T2_0" data-points="W3sieCI6MTMxLjA1ODU5Mzc1LCJ5Ijo4Ny4zNzV9LHsieCI6MTMxLjA1ODU5Mzc1LCJ5IjoxMzYuNzV9LHsieCI6MTMxLjA1ODU5Mzc1LCJ5IjoxODYuMTI1fSx7IngiOjE1OS44MDExMDg3MjAwNTk5LCJ5IjoyMTEuMTI1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M931.68,585.188L931.68,591.385C931.68,597.583,931.68,609.979,931.68,620.344C931.68,630.708,931.68,639.042,931.68,646.708C931.68,654.375,931.68,661.375,931.68,664.875L931.68,668.375" id="scv-mmd-33a6bbdc87-L_W1_W2_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_W1_W2_0" data-points="W3sieCI6OTMxLjY3OTY4NzUsInkiOjU4NS4xODc1fSx7IngiOjkzMS42Nzk2ODc1LCJ5Ijo2MjIuMzc1fSx7IngiOjkzMS42Nzk2ODc1LCJ5Ijo2NDcuMzc1fSx7IngiOjkzMS42Nzk2ODc1LCJ5Ijo2NzIuMzc1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M548.02,87.375L548.02,95.604C548.02,103.833,548.02,120.292,548.02,136.75C548.02,153.208,548.02,169.667,548.02,181.396C548.02,193.125,548.02,200.125,548.02,203.625L548.02,207.125" id="scv-mmd-33a6bbdc87-L_N1_M1_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_N1_M1_0" data-points="W3sieCI6NTQ4LjAxOTUzMTI1LCJ5Ijo4Ny4zNzV9LHsieCI6NTQ4LjAxOTUzMTI1LCJ5IjoxMzYuNzV9LHsieCI6NTQ4LjAxOTUzMTI1LCJ5IjoxODYuMTI1fSx7IngiOjU0OC4wMTk1MzEyNSwieSI6MjExLjEyNX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M472.605,79.631L435.681,89.151C398.757,98.671,324.908,117.71,287.983,135.459C251.059,153.208,251.059,169.667,246.771,181.625C242.484,193.583,233.909,201.042,229.622,204.771L225.334,208.5" id="scv-mmd-33a6bbdc87-L_N1_T2_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_N1_T2_0" data-points="W3sieCI6NDcyLjYwNTQ2ODc1LCJ5Ijo3OS42MzA3NjE0OTAwOTQ5N30seyJ4IjoyNTEuMDU4NTkzNzUsInkiOjEzNi43NX0seyJ4IjoyNTEuMDU4NTkzNzUsInkiOjE4Ni4xMjV9LHsieCI6MjIyLjMxNjA3ODc3OTk0MDEsInkiOjIxMS4xMjV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M931.68,394.875L931.68,403.104C931.68,411.333,931.68,427.792,931.68,444.25C931.68,460.708,931.68,477.167,931.68,490.927C931.68,504.688,931.68,515.75,931.68,521.281L931.68,526.813" id="scv-mmd-33a6bbdc87-L_N2_W1_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_N2_W1_0" data-points="W3sieCI6OTMxLjY3OTY4NzUsInkiOjM5NC44NzV9LHsieCI6OTMxLjY3OTY4NzUsInkiOjQ0NC4yNX0seyJ4Ijo5MzEuNjc5Njg3NSwieSI6NDkzLjYyNX0seyJ4Ijo5MzEuNjc5Njg3NSwieSI6NTMwLjgxMjV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M856.078,387.761L820.619,397.176C785.16,406.591,714.242,425.42,678.783,443.064C643.324,460.708,643.324,477.167,640.637,489.027C637.949,500.887,632.574,508.148,629.886,511.779L627.198,515.41" id="scv-mmd-33a6bbdc87-L_N2_M3_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_N2_M3_0" data-points="W3sieCI6ODU2LjA3ODEyNSwieSI6Mzg3Ljc2MDc5NTgzMTY5NjQ0fSx7IngiOjY0My4zMjQyMTg3NSwieSI6NDQ0LjI1fSx7IngiOjY0My4zMjQyMTg3NSwieSI6NDkzLjYyNX0seyJ4Ijo2MjQuODE4NDU0MTg2ODkzMiwieSI6NTE4LjYyNX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_M1_M2_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_M2_M3_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_T1_T2_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_W1_W2_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(548.01953125, 136.75)"><g class="label" data-id="L_N1_M1_0" transform="translate(-97.28125, -12.1875)"><foreignObject width="194.5625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>정규화 4단계 중 id 단계를 교체</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(251.05859375, 136.75)"><g class="label" data-id="L_N1_T2_0" transform="translate(-100, -24.375)"><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>바이트 안정성 계약을 그대로 물려받음</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(931.6796875, 444.25)"><g class="label" data-id="L_N2_W1_0" transform="translate(-100, -24.375)"><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>시트 레이아웃에서 폭이 0으로 측정</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(643.32421875, 444.25)"><g class="label" data-id="L_N2_M3_0" transform="translate(-75.3046875, -12.1875)"><foreignObject width="150.609375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>크기 문제라는 같은 계열</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-33a6bbdc87-flowchart-M1-0" data-look="classic" transform="translate(548.01953125, 238.3125)"><rect class="basic label-container"  x="-86.734375" y="-27.1875" width="173.46875" height="54.375"></rect><g class="label"  transform="translate(-56.734375, -12.1875)"><rect></rect><foreignObject width="113.46875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>SVG 정규화 4단계</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-33a6bbdc87-flowchart-M2-1" data-look="classic" transform="translate(548.01953125, 367.6875)"><rect class="basic label-container"  x="-98.40625" y="-27.1875" width="196.8125" height="54.375"></rect><g class="label"  transform="translate(-68.40625, -12.1875)"><rect></rect><foreignObject width="136.8125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>인라인 색 제거의 대가</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-33a6bbdc87-flowchart-M3-2" data-look="classic" transform="translate(595.671875, 558)"><rect class="basic label-container"  x="-130" y="-39.375" width="260" height="78.75"></rect><g class="label"  transform="translate(-100, -24.375)"><rect></rect><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>제일 큰 원인은 색이 아니라 크기</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-33a6bbdc87-flowchart-W1-3" data-look="classic" transform="translate(931.6796875, 558)"><rect class="basic label-container"  x="-103.203125" y="-27.1875" width="206.40625" height="54.375"></rect><g class="label"  transform="translate(-73.203125, -12.1875)"><rect></rect><foreignObject width="146.40625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>화면설계 시트 레이아웃</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-33a6bbdc87-flowchart-W2-4" data-look="classic" transform="translate(931.6796875, 699.5625)"><rect class="basic label-container"  x="-75.6015625" y="-27.1875" width="151.203125" height="54.375"></rect><g class="label"  transform="translate(-45.6015625, -12.1875)"><rect></rect><foreignObject width="91.203125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>번호 마커 체계</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-33a6bbdc87-flowchart-T1-5" data-look="classic" transform="translate(131.05859375, 60.1875)"><rect class="basic label-container"  x="-75.6015625" y="-27.1875" width="151.203125" height="54.375"></rect><g class="label"  transform="translate(-45.6015625, -12.1875)"><rect></rect><foreignObject width="91.203125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>다크 전용 결정</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-33a6bbdc87-flowchart-T2-6" data-look="classic" transform="translate(191.05859375, 238.3125)"><rect class="basic label-container"  x="-100.515625" y="-27.1875" width="201.03125" height="54.375"></rect><g class="label"  transform="translate(-70.515625, -12.1875)"><rect></rect><foreignObject width="141.03125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>단일 테마·렌더러 결정</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-33a6bbdc87-flowchart-N1-7" data-look="classic" transform="translate(548.01953125, 60.1875)"><rect class="basic label-container" style="stroke-width:2px" x="-75.4140625" y="-27.1875" width="150.828125" height="54.375"></rect><g class="label"  transform="translate(-45.4140625, -12.1875)"><rect></rect><foreignObject width="90.828125" height="24.375"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>그림별 고유 id</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-33a6bbdc87-flowchart-N2-8" data-look="classic" transform="translate(931.6796875, 367.6875)"><rect class="basic label-container" style="stroke-width:2px" x="-75.6015625" y="-27.1875" width="151.203125" height="54.375"></rect><g class="label"  transform="translate(-45.6015625, -12.1875)"><rect></rect><foreignObject width="91.203125" height="24.375"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>빈 그림 없애기</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-33a6bbdc87-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-33a6bbdc87-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-33a6bbdc87-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre></section>
+<section id="s-3-3-screen-mockups" class="slide-page" data-idx="3"><div class="kicker">Architecture — 기획서 그림이 서로 겹친다</div><h2>3. Screen mockups</h2><p>화면이 없는 고침이라 큰 그림 자리는 증상도가 대신한다. 번호는 그림과 아래 설명이
+같은 것을 가리킨다.</p>
+<h3 class="subhead">지금 무슨 일이 일어나는가</h3>
+<div class="wf-speclayout wf-speclayout-diagram"><div class="wf-screen"><div class="wf-pagebar"><span class="wf-pagebar-key">PATH</span><span class="wf-pagebar-name">같은 id 가 만드는 겹침</span><span class="wf-pagebar-key">PAGE CODE</span><span class="wf-pagebar-code">SCV-DECK-MMD-01</span></div><div class="wf-frame"><div class="wf-body"><div class="wf-diagram-label">증상</div><pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="477.5625" height="368.5" class="scv-mmd" id="scv-mmd-33d8f2ff38" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 477.5625 368.5" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker id="scv-mmd-33d8f2ff38_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-33d8f2ff38_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-33d8f2ff38_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-33d8f2ff38_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-33d8f2ff38_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-33d8f2ff38_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-33d8f2ff38_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-33d8f2ff38_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-33d8f2ff38_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-33d8f2ff38_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-33d8f2ff38_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-33d8f2ff38_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M68.063,62.375L68.063,66.542C68.063,70.708,68.063,79.042,88.613,88.655C109.164,98.267,150.266,109.16,170.817,114.606L191.368,120.052" id="scv-mmd-33d8f2ff38-L_D1_X_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_D1_X_0" data-points="W3sieCI6NjguMDYyNSwieSI6NjIuMzc1fSx7IngiOjY4LjA2MjUsInkiOjg3LjM3NX0seyJ4IjoxOTUuMjM0OTU1ODAyMDcwMjYsInkiOjEyMS4wNzY5NjMzOTU4NTk1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M238.555,62.375L238.555,66.542C238.555,70.708,238.555,79.042,238.625,86.792C238.695,94.542,238.836,101.709,238.906,105.292L238.976,108.876" id="scv-mmd-33d8f2ff38-L_D2_X_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_D2_X_0" data-points="W3sieCI6MjM4LjU1NDY4NzUsInkiOjYyLjM3NX0seyJ4IjoyMzguNTU0Njg3NSwieSI6ODcuMzc1fSx7IngiOjIzOS4wNTQ2ODc1LCJ5IjoxMTIuODc1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M409.273,62.375L409.273,66.542C409.273,70.708,409.273,79.042,388.852,88.656C368.431,98.27,327.588,109.165,307.167,114.612L286.746,120.059" id="scv-mmd-33d8f2ff38-L_D3_X_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_D3_X_0" data-points="W3sieCI6NDA5LjI3MzQzNzUsInkiOjYyLjM3NX0seyJ4Ijo0MDkuMjczNDM3NSwieSI6ODcuMzc1fSx7IngiOjI4Mi44ODExNTg0NDUyODk3LCJ5IjoxMjEuMDkwNDQxODkwNTc5NDd9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M239.055,152.25L238.971,156.333C238.888,160.417,238.721,168.583,238.638,176.167C238.555,183.75,238.555,190.75,238.555,194.25L238.555,197.75" id="scv-mmd-33d8f2ff38-L_X_S_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_X_S_0" data-points="W3sieCI6MjM5LjA1NDY4NzUsInkiOjE1Mi4yNX0seyJ4IjoyMzguNTU0Njg3NSwieSI6MTc2Ljc1fSx7IngiOjIzOC41NTQ2ODc1LCJ5IjoyMDEuNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M238.555,256.125L238.555,260.292C238.555,264.458,238.555,272.792,238.555,280.458C238.555,288.125,238.555,295.125,238.555,298.625L238.555,302.125" id="scv-mmd-33d8f2ff38-L_S_R_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S_R_0" data-points="W3sieCI6MjM4LjU1NDY4NzUsInkiOjI1Ni4xMjV9LHsieCI6MjM4LjU1NDY4NzUsInkiOjI4MS4xMjV9LHsieCI6MjM4LjU1NDY4NzUsInkiOjMwNi4xMjV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_D1_X_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_D2_X_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_D3_X_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_X_S_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S_R_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-33d8f2ff38-flowchart-D1-0" data-look="classic" transform="translate(68.0625, 35.1875)"><rect class="basic label-container"  x="-60.0625" y="-27.1875" width="120.125" height="54.375"></rect><g class="label"  transform="translate(-30.0625, -12.1875)"><rect></rect><foreignObject width="60.125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>① 그림 A</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-33d8f2ff38-flowchart-X-1" data-look="classic" transform="translate(238.5546875, 132.0625)"><polygon points="9.84375,0 89.28125,0 99.125,-19.6875 89.28125,-39.375 9.84375,-39.375 0,-19.6875" class="label-container" transform="translate(-49.5625,19.6875)"></polygon><g class="label"  transform="translate(-32.21875, -12.1875)"><rect></rect><foreignObject width="64.4375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>② 같은 id</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-33d8f2ff38-flowchart-D2-2" data-look="classic" transform="translate(238.5546875, 35.1875)"><rect class="basic label-container"  x="-60.4296875" y="-27.1875" width="120.859375" height="54.375"></rect><g class="label"  transform="translate(-30.4296875, -12.1875)"><rect></rect><foreignObject width="60.859375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>① 그림 B</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-33d8f2ff38-flowchart-D3-4" data-look="classic" transform="translate(409.2734375, 35.1875)"><rect class="basic label-container"  x="-60.2890625" y="-27.1875" width="120.578125" height="54.375"></rect><g class="label"  transform="translate(-30.2890625, -12.1875)"><rect></rect><foreignObject width="60.578125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>① 그림 C</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-33d8f2ff38-flowchart-S-7" data-look="classic" transform="translate(238.5546875, 228.9375)"><rect class="basic label-container"  x="-123.9140625" y="-27.1875" width="247.828125" height="54.375"></rect><g class="label"  transform="translate(-93.9140625, -12.1875)"><rect></rect><foreignObject width="187.828125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>③ 스타일·화살촉이 서로 섞임</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-33d8f2ff38-flowchart-R-9" data-look="classic" transform="translate(238.5546875, 333.3125)"><rect class="basic label-container"  x="-69.3046875" y="-27.1875" width="138.609375" height="54.375"></rect><g class="label"  transform="translate(-39.3046875, -12.1875)"><rect></rect><foreignObject width="78.609375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>④ 겹쳐 보임</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-33d8f2ff38-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-33d8f2ff38-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-33d8f2ff38-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre></div></div><div class="wf-validations"><div class="wf-sub-title">고침 전후</div><table class="wf-vtable"><thead><tr><th>항목</th><th>지금</th><th>고친 뒤</th></tr></thead><tbody><tr><td class="wf-vt-marker">한 문서의 그림 id</td><td>전부 같음</td><td>그림마다 다름</td></tr><tr><td class="wf-vt-marker">같은 그림, 다른 위치</td><td>구분 불가</td><td>같은 id 유지</td></tr><tr><td class="wf-vt-marker">재빌드 산출물</td><td>동일 (유지해야 함)</td><td>동일</td></tr><tr><td class="wf-vt-marker">화면설계 시트의 그림</td><td>빈 그래픽</td><td>내용과 크기 있음</td></tr></tbody></table></div></div><div class="wf-spec"><div class="wf-spec-group wf-spec-functions"><div class="wf-spec-title">기능 설명 (Function Description)</div><div class="wf-spec-item wf-spec-item-fn"><span class="wf-spec-badge">1</span><div class="wf-spec-body"><div class="wf-spec-name">한 문서의 그림들<span class="wf-spec-step">extractSvgs</span></div><ul class="wf-spec-notes"><li>구조 문서 두 장과 화면설계 시트 한 장.</li></ul></div></div><div class="wf-spec-item wf-spec-item-fn"><span class="wf-spec-badge">2</span><div class="wf-spec-body"><div class="wf-spec-name">고정 id<span class="wf-spec-step">deriveId</span></div><ul class="wf-spec-notes"><li>재빌드해도 파일이 안 변하게 하려고 값을 하나로 고정했다.</li></ul></div></div><div class="wf-spec-item wf-spec-item-fn"><span class="wf-spec-badge">3</span><div class="wf-spec-body"><div class="wf-spec-name">참조가 섞인다<span class="wf-spec-step">rewriteRefs</span></div><ul class="wf-spec-notes"><li>머메이드는 id 로 스타일과 화살촉을 한정한다.</li></ul></div></div><div class="wf-spec-item wf-spec-item-fn"><span class="wf-spec-badge">4</span><div class="wf-spec-body"><div class="wf-spec-name">겹쳐 보인다<span class="wf-spec-step">spliceBack</span></div><ul class="wf-spec-notes"><li>여기에 빈 그림까지 더해져 크기가 무너진다.</li></ul></div></div></div></div></div></section>
+
+<section class="print-source"><h2>기획서 원문</h2><h3>PLAN.md</h3><pre class="code"><code>---
+title: "기획서 그림이 서로 겹친다 — 그림마다 다른 id, 그리고 빈 그림 없애기"
+slug: 20260828-wookiya1364-deck-mermaid-id-collision
+author: "wookiya1364"
+created_at: 2026-08-28
+status: testing
+kind: fix
+lang: korean
+tags: [deck, mermaid, render, static]
+raw_sources:
+  - scv/conversations/20260828-143007-deck-mermaid-id-collision.md
+refs: []
+invariants:
+  - "같은 입력으로 두 번 빌드하면 산출물이 바이트 단위로 같다 — 이 값이 promote 마다 커밋되므로 흔들리면 안 된다"
+  - "그림을 하나 끼워 넣어도 나머지 그림의 산출물은 변하지 않는다"
+  - "CDN 을 못 쓰는 환경에서 정적 렌더가 실패하면 지금처럼 CDN 판으로 물러난다 (fail open 유지)"
+  - "머메이드가 구운 색을 벗겨 덱이 다시 칠할 수 있게 하는 기존 처리는 그대로 남는다"
+  - "기존 덱 검사 네 종이 계속 통과한다"
+scope:
+  - "core/DeckUI/scripts/deckdoc/static-mermaid.mjs"
+  - "core/DeckUI/scripts/deckdoc/render.mjs"
+  - "core/tests/test-deck-static-mermaid.sh"
+  - "core/TEMPLATE_DIGEST"
+  - "CHANGELOG.md"
+---
+
+# 기획서 그림이 서로 겹친다 — 그림마다 다른 id, 그리고 빈 그림 없애기
+
+## Summary
+
+기획서를 열면 그림들이 서로 겹치고, 그중 하나는 빈 채로 나온다. 두 증상처럼 보이지만
+**뿌리는 하나다** — 머메이드가 그림 id 를 시각에서 만들어, 같은 순간에 그려진 두
+그림이 같은 id 를 받는다. 뒤진 쪽은 빈 그림이 되고, 살아남은 쪽의 스타일과 화살촉은
+문서 전체에 번진다. 여기에 정적 렌더 단계가 모든 id 를 하나로 뭉개 놓아 굳어졌다.
+
+## Goals / Non-Goals
+
+- **Goals**
+  - 한 문서 안의 그림들이 서로 다른 id 를 갖게 한다.
+  - 그러면서도 같은 입력이면 산출물이 바이트 단위로 같다는 기존 성질을 지킨다.
+  - 같은 그림은 문서에서의 **위치가 바뀌어도** 같은 id 를 갖게 한다 — 중간에 한 장
+    끼워 넣어도 나머지 그림의 산출물이 흔들리지 않는다.
+  - 화면설계 시트 안의 그림이 내용과 크기를 갖춘 채로 나오게 한다.
+
+- **Non-Goals**
+  - 덱의 시각 디자인 변경 — 색·여백·글꼴은 건드리지 않는다.
+  - 머메이드 버전 올리기.
+  - 화면설계 시트의 스키마 변경 — 작성 문법은 그대로다.
+  - 정적 렌더가 실패했을 때의 물러남 정책 변경 — 지금처럼 CDN 판을 남긴다.
+
+## Approach Overview
+
+두 결함은 기획서가 만들어지는 마지막 단계에서 함께 나온다.
+
+**결함 1 — 같은 id.** 정적 렌더는 머메이드가 붙인 빌드 시각 기반 id 를 고정 문자열
+하나로 바꾼다. 그렇게 한 이유가 코드 주석에 남아 있다: 이 산출물은 계획을 승격할
+때마다 커밋되는데, 빌드마다 달라지는 id 를 그대로 두면 내용이 같아도 파일이 매번
+달라진다. 의도는 옳았고 결과가 과했다 — **안정성과 유일성을 동시에 만족시켜야 하는데
+안정성만 취했다.**
+
+해결 방향은 id 를 **그림의 내용에서** 만드는 것이다. 같은 그림이면 언제 빌드해도 같은
+값이고, 다른 그림이면 다른 값이며, 문서에서의 위치와 무관하다. 순번은 안정성은 주지만
+중간 삽입 한 번에 뒤 그림이 전부 밀려 산출물 차이가 커지므로 택하지 않는다.
+
+**결함 2 — 빈 그림. 그리고 두 결함은 같은 뿌리였다.**
+
+이 절은 원인을 확정한 뒤 다시 썼다. 처음 세운 가설은 "시트 안에서 폭이 0으로
+측정된다" 였고 **그것은 틀렸다**. 실제로 재 보니 그 컨테이너의 폭은 550px 로 멀쩡했다.
+앞서 배제한 두 가설(원본 손상·페이지 숨김)과 함께, 이 세 번째 가설도 측정이 기각했다.
+
+진짜 원인은 **머메이드가 그림 id 를 시각에서 만든다**는 것이다. 같은 밀리초에 그려진
+두 그림이 같은 id 를 받는다. 실측으로 잡았다 — 세 장짜리 문서에서 2번과 3번이 둘 다
+`mermaid-1787895796165` 였다. 뒤진 쪽은 자기 id 로 앞 그림의 요소를 집어 빈 SVG 로
+끝난다. 그래서 **겹침과 빈 그림은 두 증상이 아니라 한 원인의 두 얼굴**이다.
+
+여기에 정적 단계의 고정 id 가 겹쳐 상황이 굳었다. 고칠 곳도 두 군데다: 그리는 쪽은
+머메이드에 결정적 id 를 쓰게 하고(충돌 제거 + 시각 의존 제거), 굽는 쪽은 최종 id 를
+그림 내용에서 만든다(유일성 + 위치 무관성).
+
+**첫 항목을 "고치기" 가 아니라 "재기" 로 둔 것이 이 계획에서 가장 값어치 있는
+판단이었다.** 유력해 보이던 가설이 측정 한 번에 무너졌고, 그대로 고쳤다면 엉뚱한
+곳을 손봤을 것이다.
+
+## 순수함수 · 파이프라인 (Pure functions &amp; pipeline)
+
+```
+flow(
+  extractSvgs,      // 문서 HTML → 그림 조각 목록
+  deriveId,         // 그림 조각 → 그 그림의 고유 id
+  rewriteRefs,      // (그림 조각, id) → id 참조가 바뀐 조각
+  applySize,        // 그림 조각 → 크기가 실린 조각
+  spliceBack,       // (문서 HTML, 조각들) → 문서 HTML
+)
+```
+
+| # | 단계 | 받는 값 → 돌려주는 값 | 순수/부수효과 |
+|---|---|---|---|
+| 1 | `extractSvgs` | 문서 HTML → 그림 조각 목록 | 순수 |
+| 2 | `deriveId` | 그림 조각 → 고유 id 문자열 | 결정적 변환 (해싱 도구 사용 가능) |
+| 3 | `rewriteRefs` | (조각, id) → 스타일·마커 참조가 새 id 로 바뀐 조각 | 순수 |
+| 4 | `applySize` | 조각 → 크기 정보가 실린 조각 | 순수 |
+| 5 | `spliceBack` | (문서 HTML, 조각들) → 완성된 문서 HTML | 순수 |
+
+- 부수효과 위치: 파이프라인 바깥. 브라우저를 띄워 문서를 얻는 일과 파일로 쓰는 일만
+  효과부가 맡고, 위 다섯 단계는 문자열만 다룬다.
+- 재사용: 색을 벗기고 크기를 싣는 기존 처리는 그대로 두고, 그 앞에 `deriveId` 만
+  갈아 끼운다. 조각을 훑는 방식도 지금 것을 그대로 쓴다.
+
+## Guardrails
+
+- **바이트 안정성이 이 변경의 계약이다.** 같은 입력으로 두 번 빌드해 산출물이 다르면
+  실패다. 시각·난수·빌드 순번에서 값을 만들지 않는다.
+- **색 벗기기 처리를 건드리지 않는다.** 머메이드가 세 가지 방식으로 색을 굽고 그것을
+  벗겨야 덱이 다시 칠할 수 있다는 기존 이유는 그대로다. id 를 만드는 부분만 바꾼다.
+- **물러남 정책을 유지한다.** 브라우저가 없거나 CDN 이 막히면 지금처럼 CDN 판을 남기고
+  실패로 취급하지 않는다.
+- **원인 확정 전에 고치지 않는다.** 이 항목이 이번에 실제로 값을 했다 — 유력하던
+  가설(폭 0)이 측정 한 번에 무너졌고, 재지 않았다면 엉뚱한 곳을 손봤을 것이다.
+- **화면설계 시트의 작성 문법을 바꾸지 않는다.** 이미 쓰인 계획서들이 그대로 열려야
+  한다.
+- whitespace 계약: 줄 끝 공백 금지, 파일 끝 빈 줄 금지.
+
+## 성공지표 (Metrics)
+
+| 지표 | 지금 (baseline) | 목표 (target) | 어떻게 재나 |
+|---|---|---|---|
+| 한 문서에서 서로 다른 그림 id 수 | 3장 모두 같은 id 1개 | 그림 수와 같음 | 산출물에서 id 를 세어 본다 |
+| 내용 없이 나오는 그림 | 화면설계 시트의 그림 (실측 1장) | 0장 | 빈 그래픽 표식을 센다 |
+| 크기 정보 없는 그림 | 1장 (폭이 100% 로 남음) | 0장 | 크기 속성 유무를 본다 |
+| 같은 입력 재빌드 시 산출물 차이 | 0 (이미 안정) | 0 (유지) | 두 번 빌드해 해시 비교 |
+| 중간 삽입 시 나머지 그림의 차이 | 해당 없음 (전부 같은 id 라 무의미) | 0 | 그림 한 장을 앞에 끼우고 뒤 그림 조각을 비교 |
+
+## 예외처리 (Edge cases)
+
+- **그림이 한 장뿐인 문서** → id 는 여전히 내용에서 나온다. 특별 취급 없음.
+- **완전히 같은 그림이 한 문서에 두 번** → 내용이 같으므로 id 도 같아진다. 이 경우
+  참조가 첫 번째로 몰리므로, 같은 값이 이미 쓰였는지 보고 구분자를 덧붙인다.
+- **머메이드 markup 이 바뀌어 id 를 못 찾음** → 지금처럼 그 조각을 건드리지 않고
+  넘어간다 (fail open).
+- **브라우저 없음 · CDN 막힘** → 정적 렌더를 건너뛰고 CDN 판을 남긴다. 변경 없음.
+- **크기 정보가 없는 그림** → 원인 확정 뒤 결정. 크기를 만들어 낼 수 없다면 그 사실을
+  한 줄로 알리고 넘어가되, 다른 절을 덮지는 않게 한다.
+- **화면설계 시트 없이 그림만 있는 계획서** → 지금과 동일하게 동작해야 한다.
+
+## Exit criteria
+
+- TESTS.md 시나리오가 모두 통과한다.
+- 기존 덱 검사 네 종이 계속 통과한다.
+- 실제 기획서를 열었을 때 그림이 겹치지 않는다 (사람 눈으로 한 번 확인).
+- 빈 그림이 없다.
+- 같은 입력으로 두 번 빌드한 산출물의 해시가 같다.
+- 템플릿 지문이 갱신돼 있다.
+
+## Suggested path
+
+1. **원인 확정 먼저.** 그림이 그려질 때의 실제 값을 찍는다. (완료 — 폭은 550px 로
+   멀쩡했고, 진짜 원인은 머메이드의 시각 기반 id 충돌이었다.)
+2. 그리는 쪽: 머메이드에 결정적 id 를 쓰게 한다 — 충돌이 사라지고 빈 그림도 사라진다.
+3. 굽는 쪽: 최종 id 를 그림 내용에서 만든다. 같은 값이 겹치면 구분자를 붙인다.
+4. 검사를 쓴다 — id 유일성, 위치 무관성, 재빌드 동일성, 빈 그림 없음.
+5. 기존 덱 검사 네 종이 초록인지 확인한다.
+6. 템플릿 지문을 다시 계산하고 변경 이력을 남긴다.
+
+## Related Documents
+
+- [`TESTS.md`](./TESTS.md)
+- `scv/archive/20260827-wookiya1364-deck-picture-only/PLAN.md` — 기획서 본문을 그림
+  문서로 좁힌 직전 작업. 그림이 주인공이 된 뒤에야 이 결함이 눈에 띄었다.
+- `scv/archive/20260813-wookiya1364-deck-redesign/PLAN.md` — 머메이드가 구운 색을
+  벗기는 처리가 여기서 들어왔다. 이번에 그 처리를 건드리지 않는 이유의 출처다.
+
+## Risks / Open Questions
+
+- **빈 그림의 원인은 확정됐고, 처음 가설은 틀렸다.** 폭이 0일 것이라 보았으나 550px
+  이었다. 세 번째로 세운 가설까지 측정이 기각했고, 그제야 id 충돌이 드러났다.
+- **결정적 id 는 머메이드의 설정에 기댄다.** 머메이드가 이 동작을 바꾸면 빈 그림이
+  돌아올 수 있다. 여러 장 재료를 쓰는 검사가 그때 잡아 준다.
+- **내용에서 뽑은 id 는 길다.** 산출물이 조금 커진다. 그림 하나당 몇 십 바이트 수준이라
+  받아들일 만하다고 보지만, 실제 증가폭은 구현 뒤 확인한다.
+- **같은 그림이 두 번 나오는 경우**를 구분자로 처리하면, 그 문서에서 그림 순서를 바꿀 때
+  구분자가 옮겨 붙어 두 조각이 달라질 수 있다. 드문 경우라 받아들이되 검사로 드러낸다.
+
+## Links
+
+- Raw originals: (frontmatter 참조)
+- Related PRs:</code></pre><h3>FEATURE_ARCHITECTURE.md</h3><pre class="code"><code>---
+title: "기획서 그림이 서로 겹친다 — 그림마다 다른 id, 그리고 빈 그림 없애기"
+slug: 20260828-wookiya1364-deck-mermaid-id-collision
+created_at: 2026-08-28
+status: planned
+---
+
+# Architecture — 기획서 그림이 서로 겹친다
+
+&gt; 이 문서의 그림들 자체가 이번 고침의 재료다. 지금은 셋 다 같은 id 를 받으므로,
+&gt; 고치기 전에는 겹쳐 보이는 것이 정상이다.
+
+## 1. Component data flow
+
+기획서가 만들어지는 마지막 단계. 바깥 두 곳만 파일과 브라우저를 만지고, 가운데
+다섯 단계는 문자열만 다룬다. **id 를 만드는 단계 하나만 갈아 끼운다.**
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  Browser[("헤드리스 브라우저")]
+  Extract["① 그림 조각 뽑기"]
+  Derive["② id 만들기 (교체 대상)"]
+  Rewrite["③ 참조 갈아 끼우기"]
+  Size["④ 크기 싣기"]
+  Splice["⑤ 문서에 되돌려 넣기"]
+  DeckFile[("기획서 파일")]
+
+  Browser --&gt;|"그려진 문서 HTML"| Extract
+  Extract --&gt;|"그림 조각 목록"| Derive
+  Derive --&gt;|"조각 + 그 조각의 고유 id"| Rewrite
+  Rewrite --&gt;|"스타일·화살촉 참조가 새 id 로"| Size
+  Size --&gt;|"폭·높이가 실린 조각"| Splice
+  Splice --&gt;|"완성된 문서 HTML"| DeckFile
+```
+
+## 2. Position in whole architecture
+
+이 고침이 시스템 어디에 앉는지. 새로 생기는 것은 노란색이다.
+
+&gt; Source: graphify graph (built 2026-08-26).
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart TB
+  subgraph C5["Mermaid Rendering Repair"]
+    M1["SVG 정규화 4단계"]
+    M2["인라인 색 제거의 대가"]
+    M3["제일 큰 원인은 색이 아니라 크기"]
+  end
+  subgraph C11["Numbered Wireframe Sample"]
+    W1["화면설계 시트 레이아웃"]
+    W2["번호 마커 체계"]
+  end
+  subgraph C1["Deck Theme &amp; Effort Policy"]
+    T1["다크 전용 결정"]
+    T2["단일 테마·렌더러 결정"]
+  end
+
+  N1["그림별 고유 id"]:::new
+  N2["빈 그림 없애기"]:::new
+
+  M1 --&gt; M2
+  M2 --&gt; M3
+  T1 --&gt; T2
+  W1 --&gt; W2
+
+  N1 -.-&gt;|"정규화 4단계 중 id 단계를 교체"| M1
+  N1 -.-&gt;|"바이트 안정성 계약을 그대로 물려받음"| T2
+  N2 -.-&gt;|"시트 레이아웃에서 폭이 0으로 측정"| W1
+  N2 -.-&gt;|"크기 문제라는 같은 계열"| M3
+
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```
+
+## 3. Screen mockups
+
+화면이 없는 고침이라 큰 그림 자리는 증상도가 대신한다. 번호는 그림과 아래 설명이
+같은 것을 가리킨다.
+
+### 지금 무슨 일이 일어나는가
+
+```screen
+{
+  "title": "같은 id 가 만드는 겹침",
+  "pageCode": "SCV-DECK-MMD-01",
+  "autoMarkers": false,
+  "diagram": [
+    { "label": "증상",
+      "code": "flowchart TB\n  D1[\"① 그림 A\"] --&gt; X{{\"② 같은 id\"}}\n  D2[\"① 그림 B\"] --&gt; X\n  D3[\"① 그림 C\"] --&gt; X\n  X --&gt; S[\"③ 스타일·화살촉이 서로 섞임\"]\n  S --&gt; R[\"④ 겹쳐 보임\"]" }
+  ],
+  "functions": [
+    { "marker": "1", "title": "한 문서의 그림들", "step": "extractSvgs",
+      "notes": ["구조 문서 두 장과 화면설계 시트 한 장."] },
+    { "marker": "2", "title": "고정 id", "step": "deriveId",
+      "notes": ["재빌드해도 파일이 안 변하게 하려고 값을 하나로 고정했다."] },
+    { "marker": "3", "title": "참조가 섞인다", "step": "rewriteRefs",
+      "notes": ["머메이드는 id 로 스타일과 화살촉을 한정한다."] },
+    { "marker": "4", "title": "겹쳐 보인다", "step": "spliceBack",
+      "notes": ["여기에 빈 그림까지 더해져 크기가 무너진다."] }
+  ],
+  "validations": {
+    "title": "고침 전후",
+    "columns": ["항목", "지금", "고친 뒤"],
+    "rows": [
+      ["한 문서의 그림 id", "전부 같음", "그림마다 다름"],
+      ["같은 그림, 다른 위치", "구분 불가", "같은 id 유지"],
+      ["재빌드 산출물", "동일 (유지해야 함)", "동일"],
+      ["화면설계 시트의 그림", "빈 그래픽", "내용과 크기 있음"]
+    ]
+  }
+}
+```</code></pre><h3>TESTS.md</h3><pre class="code"><code># Test Plan — 기획서 그림이 서로 겹친다
+
+## Overview
+
+검증 대상은 **만들어진 기획서 파일 그 자체**다. 브라우저에서 어떻게 보이는지는
+기계가 판정하기 어렵지만, 겹침의 원인인 "같은 id" 와 빈 그림은 산출물에서 그대로
+읽힌다. 그래서 실제 계획 폴더로 기획서를 만들고 그 결과물을 검사한다.
+
+두 축이다. **고쳐졌는가**(id 가 서로 다른가, 빈 그림이 없는가)와 **깨지지
+않았는가**(같은 입력이면 산출물이 여전히 같은가, 물러남이 여전히 도는가). 두 번째가
+더 조심스럽다 — 이 산출물은 계획을 승격할 때마다 커밋되므로, 값이 흔들리면 모든
+계획의 변경 내역이 지저분해진다.
+
+## Test scenarios
+
+### T1. 한 문서의 그림들이 서로 다른 id 를 갖는다
+
+- **Setup**: 그림이 세 장 이상 들어간 계획 폴더를 준비한다 (구조 문서에 두 장,
+  화면설계 시트에 한 장).
+- **Run**: 기획서를 만든다.
+- **Expected**: 산출물에서 그림 id 를 모으면 중복이 없다.
+- **Pass criterion**: 서로 다른 id 의 개수 = 그림의 개수.
+
+### T2. 같은 그림은 위치가 바뀌어도 같은 id 를 갖는다
+
+- **Setup**: T1 의 계획에서 그림 한 장을 **맨 앞에** 새로 끼워 넣는다.
+- **Run**: 다시 기획서를 만든다.
+- **Expected**: 원래 있던 그림들의 id 가 그대로다.
+- **Pass criterion**: 삽입 전후로 기존 그림들의 id 집합이 같다. 순번 방식이었다면
+  전부 밀려 실패하는 시나리오다.
+
+### T3. 같은 입력이면 산출물이 바이트 단위로 같다
+
+- **Setup**: 아무 계획 폴더 하나.
+- **Run**: 같은 입력으로 기획서를 두 번 만든다.
+- **Expected**: 두 산출물이 완전히 같다.
+- **Pass criterion**: 두 파일의 해시가 같다. 이 값이 승격마다 커밋되므로 이 시나리오가
+  이번 변경의 가장 중요한 안전장치다.
+
+### T4. 화면설계 시트 안의 그림이 비어 있지 않다
+
+- **Setup**: 화면설계 시트에 그림 한 장이 든 계획 폴더.
+- **Run**: 기획서를 만든다.
+- **Expected**: 그 그림에 실제 그려진 내용이 들어 있다.
+- **Pass criterion**: 빈 그래픽 표식이 하나도 없다.
+
+### T5. 모든 그림에 크기 정보가 실린다
+
+- **Setup**: T4 와 같다.
+- **Run**: 기획서를 만든다.
+- **Expected**: 어떤 그림도 폭이 100% 로 남아 있지 않다.
+- **Pass criterion**: 크기 정보 없는 그림이 0장.
+
+### T6. 완전히 같은 그림이 두 번 나와도 참조가 섞이지 않는다
+
+- **Setup**: 내용이 똑같은 그림 두 장을 한 문서에 넣는다.
+- **Run**: 기획서를 만든다.
+- **Expected**: 두 그림의 id 가 서로 다르다.
+- **Pass criterion**: 중복 id 0건. 내용 기반 id 가 그대로면 충돌하는 경우라, 구분자
+  처리가 실제로 도는지를 보는 시나리오다.
+
+### T7. 정적 렌더가 안 되는 환경에서는 지금처럼 물러난다
+
+- **Setup**: 브라우저를 찾을 수 없게 만든다.
+- **Run**: 기획서를 만든다.
+- **Expected**: 실패로 끝나지 않고 CDN 판 기획서가 나온다.
+- **Pass criterion**: 기획서 파일이 만들어지고, 안내 한 줄이 나온다.
+
+### T8. 색 벗기기 처리가 그대로 남는다
+
+- **Setup**: 색이 지정된 그림이 든 계획 폴더.
+- **Run**: 기획서를 만든다.
+- **Expected**: 머메이드가 구운 색 지정이 여전히 벗겨져 있다.
+- **Pass criterion**: 강제 우선순위 표식이 산출물에 남아 있지 않다.
+
+### T9. 기존 덱 검사가 계속 통과한다
+
+- **Setup**: 없음.
+- **Run**: 기존 덱 검사 네 종을 실행한다.
+- **Expected**: 전부 통과한다.
+- **Pass criterion**: 네 검사 모두 초록.
+
+### T10. 실제 기획서를 열어 겹침이 없다 (사람 확인)
+
+기계로 판정하기 어려운 유일한 항목이라 따로 둔다. 앞의 시나리오가 전부 통과해도
+눈으로 한 번은 봐야 한다.
+
+- **Setup**: 이번 저장소의 최근 계획 폴더.
+- **Run**: 만들어진 기획서를 브라우저로 연다.
+- **Expected**: 그림이 서로 겹치지 않고, 각자 제자리에 그려진다.
+- **Pass criterion**: 사람이 확인하고 보고한다.
+
+## How to run
+
+```bash
+bash core/tests/test-deck-static-mermaid.sh
+```
+
+## Pass criteria
+
+- 위 시나리오 T1~T9 가 모두 통과한다.
+- T10 은 사람이 눈으로 확인한다.
+- 기존 덱 검사 네 종(`test-deck-doc.sh`, `test-deck-numbered-spec.sh`,
+  `test-deck-picture-only.sh`, `test-deck-static-mermaid.sh`)이 계속 통과한다.
+
+## Related Documents
+
+- [`PLAN.md`](./PLAN.md)</code></pre></section>
+</div>
+</div>
+<aside class="source-panel" id="scvSourcePanel">
+      <div class="panel-resize-handle" id="scvResizeHandle" title="드래그해서 크기 조절"></div>
+      <div class="panel-head"><span class="panel-title">기획서 원문</span><button class="panel-close" onclick="scvTogglePanel()" title="숨기기 (S)">✕</button></div>
+      <div class="panel-tabs"><button class="panel-tab" data-idx="0" onclick="scvSelectSource(0)">PLAN.md</button><button class="panel-tab active" data-idx="1" onclick="scvSelectSource(1)">FEATURE_ARCHITECTURE.md</button><button class="panel-tab" data-idx="2" onclick="scvSelectSource(2)">TESTS.md</button></div>
+      <div class="panel-body"><pre class="code src-doc" data-idx="0"><code>---
+title: "기획서 그림이 서로 겹친다 — 그림마다 다른 id, 그리고 빈 그림 없애기"
+slug: 20260828-wookiya1364-deck-mermaid-id-collision
+author: "wookiya1364"
+created_at: 2026-08-28
+status: testing
+kind: fix
+lang: korean
+tags: [deck, mermaid, render, static]
+raw_sources:
+  - scv/conversations/20260828-143007-deck-mermaid-id-collision.md
+refs: []
+invariants:
+  - "같은 입력으로 두 번 빌드하면 산출물이 바이트 단위로 같다 — 이 값이 promote 마다 커밋되므로 흔들리면 안 된다"
+  - "그림을 하나 끼워 넣어도 나머지 그림의 산출물은 변하지 않는다"
+  - "CDN 을 못 쓰는 환경에서 정적 렌더가 실패하면 지금처럼 CDN 판으로 물러난다 (fail open 유지)"
+  - "머메이드가 구운 색을 벗겨 덱이 다시 칠할 수 있게 하는 기존 처리는 그대로 남는다"
+  - "기존 덱 검사 네 종이 계속 통과한다"
+scope:
+  - "core/DeckUI/scripts/deckdoc/static-mermaid.mjs"
+  - "core/DeckUI/scripts/deckdoc/render.mjs"
+  - "core/tests/test-deck-static-mermaid.sh"
+  - "core/TEMPLATE_DIGEST"
+  - "CHANGELOG.md"
+---
+
+# 기획서 그림이 서로 겹친다 — 그림마다 다른 id, 그리고 빈 그림 없애기
+
+## Summary
+
+기획서를 열면 그림들이 서로 겹치고, 그중 하나는 빈 채로 나온다. 두 증상처럼 보이지만
+**뿌리는 하나다** — 머메이드가 그림 id 를 시��에서 만들어, 같은 순간에 그려진 두
+그림이 같은 id 를 받는다. 뒤진 쪽은 빈 그림이 되고, 살아남은 쪽의 스타일과 화살촉은
+문서 전체에 번진다. 여기에 정적 렌더 단계가 모든 id 를 하나로 뭉개 놓아 굳어졌다.
+
+## Goals / Non-Goals
+
+- **Goals**
+  - 한 문서 안의 그림들이 서로 다른 id 를 갖게 한다.
+  - 그러면서도 같은 입력이면 산출물이 바이트 단위로 같다는 기존 성질을 지킨다.
+  - 같은 그림은 문서에서의 **위치가 바뀌어도** 같은 id 를 갖게 한다 — 중간에 한 장
+    끼워 넣어도 나머지 그림의 산출물이 흔들리지 않는다.
+  - 화면설계 시트 안의 그림이 내용과 크기를 갖춘 채로 나오게 한다.
+
+- **Non-Goals**
+  - 덱의 시각 디자인 변경 — 색·여백·글꼴은 건드리지 않는다.
+  - 머메이드 버전 올리기.
+  - 화면설계 시트의 스키마 변경 — 작성 문법은 그대로다.
+  - 정적 렌더가 실패했을 때의 물러남 정책 변경 — 지금처럼 CDN 판을 남긴다.
+
+## Approach Overview
+
+두 결함은 기획서가 만들어지는 마지막 단계에서 함께 나온다.
+
+**결함 1 — 같은 id.** 정적 렌더는 머메이드가 붙인 빌드 시각 기반 id 를 고정 문자열
+하나로 바꾼다. 그렇게 한 이유가 코드 주석에 남아 있다: 이 산출물은 계획을 승격할
+때마다 커밋되는데, 빌드마다 달라지는 id 를 그대로 두면 내용이 같아도 파일이 매번
+달라진다. 의도는 옳았고 결과가 과했다 — **안정성과 유일성을 동시에 만족시켜야 하는데
+안정성만 취했다.**
+
+해결 방향은 id 를 **그림의 내용에서** 만드는 것이다. 같은 그림이면 언제 빌드해도 같은
+값이고, 다른 그림이면 다른 값이며, 문서에서의 위치와 무관하다. 순번은 안정성은 주지만
+중간 삽입 한 번에 뒤 그림이 전부 밀려 산출물 차이가 커지므로 택하지 않는다.
+
+**결함 2 — 빈 그림. 그리고 두 결함은 같은 뿌리였다.**
+
+이 절은 원인을 확정한 뒤 다시 썼다. 처음 세운 가설은 "시트 안에서 폭이 0으로
+측정된다" 였고 **그것은 틀렸다**. 실제로 재 보니 그 컨테이너의 폭은 550px 로 멀쩡했다.
+앞서 배제한 두 가설(원본 손상·페이지 숨김)과 함께, 이 세 번째 가설도 측정이 기각했다.
+
+진짜 원인은 **머메이드가 그림 id 를 시각에서 만든다**는 것이다. 같은 밀리초에 그려진
+두 그림이 같은 id 를 받는다. 실측으로 잡았다 — 세 장짜리 문서에서 2번과 3번이 둘 다
+`mermaid-1787895796165` 였다. 뒤진 쪽은 자기 id 로 앞 그림의 요소를 집어 빈 SVG 로
+끝난다. 그래서 **겹침과 빈 그림은 두 증상이 아니라 한 원인의 두 얼굴**이다.
+
+여기에 정적 단계의 고정 id 가 겹쳐 상황이 굳었다. 고칠 곳도 두 군데다: 그리는 쪽은
+머메이드에 결정적 id 를 쓰게 하고(충돌 제거 + 시각 의존 제거), 굽는 쪽은 최종 id 를
+그림 내용에서 만든다(유일성 + 위치 무관성).
+
+**첫 항목을 "고치기" 가 아니라 "재기" 로 둔 것이 이 계획에서 가장 값어치 있는
+판단이었다.** 유력해 보이던 가설이 측정 한 번에 무너졌고, 그대로 고쳤다면 엉뚱한
+곳을 손봤을 것이다.
+
+## 순수함수 · 파이프라인 (Pure functions &amp; pipeline)
+
+```
+flow(
+  extractSvgs,      // 문서 HTML → 그림 조각 목록
+  deriveId,         // 그림 조각 → 그 그림의 고유 id
+  rewriteRefs,      // (그림 조각, id) → id 참조가 바뀐 조각
+  applySize,        // 그림 조각 → 크기가 실린 조각
+  spliceBack,       // (문서 HTML, 조각들) → 문서 HTML
+)
+```
+
+| # | 단계 | 받는 값 → 돌려주는 값 | 순수/부수효과 |
+|---|---|---|---|
+| 1 | `extractSvgs` | 문서 HTML → 그림 조각 목록 | 순수 |
+| 2 | `deriveId` | 그림 조각 → 고유 id 문자열 | 결정적 변환 (해싱 도구 사용 가능) |
+| 3 | `rewriteRefs` | (조각, id) → 스타일·마커 참조가 새 id 로 바뀐 조각 | 순수 |
+| 4 | `applySize` | 조각 → 크기 정보가 실린 조각 | 순수 |
+| 5 | `spliceBack` | (문서 HTML, 조각들) → 완성된 문서 HTML | 순수 |
+
+- 부수효과 위치: 파이프라인 바깥. 브라우저를 띄워 문서를 얻는 일과 파일로 쓰는 일만
+  효과부가 맡고, 위 다섯 단계는 문자열만 다룬다.
+- 재사용: 색을 벗기고 크기를 싣는 기존 처리는 그대로 두고, 그 앞에 `deriveId` 만
+  갈아 끼운다. 조각을 훑는 방식도 지금 것을 그대로 쓴다.
+
+## Guardrails
+
+- **바이트 안정성이 이 변경의 계약이다.** 같은 입력으로 두 번 빌드해 산출물이 다르면
+  실패다. 시각·난수·빌드 순번에서 값을 만들지 않는다.
+- **색 벗기기 처리를 건드리지 않는다.** 머메이드가 세 가지 방식으로 색을 굽고 그것을
+  벗겨야 덱이 다시 칠할 수 있다는 기존 이유는 그대로다. id 를 만드는 부분만 바꾼다.
+- **물러남 정책을 유지한다.** 브라우저가 없거나 CDN 이 막히면 지금처럼 CDN 판을 남기고
+  실패로 취급하지 않는다.
+- **원인 확정 전에 고치지 않는다.** 이 항목이 이번에 실제로 값을 했다 — 유력하던
+  가설(폭 0)이 측정 한 번에 무너졌고, 재지 않았다면 엉뚱한 곳을 손봤을 것이다.
+- **화면설계 시트의 작성 문법을 바꾸지 않는다.** 이미 쓰인 계획서들이 그대로 열려야
+  한다.
+- whitespace 계약: 줄 끝 공백 금지, 파일 끝 빈 줄 금지.
+
+## 성공지표 (Metrics)
+
+| 지표 | 지금 (baseline) | 목표 (target) | 어떻게 재나 |
+|---|---|---|---|
+| 한 문서에서 서로 다른 그림 id 수 | 3장 모두 같은 id 1개 | 그림 수와 같음 | 산출물에서 id 를 세어 본다 |
+| 내용 없이 나오는 그림 | 화면설계 시트의 그림 (실측 1장) | 0장 | 빈 그래픽 표식을 센다 |
+| 크기 정보 없는 그림 | 1장 (폭이 100% 로 남음) | 0장 | 크기 속성 유무를 본다 |
+| 같은 입력 재빌드 시 산출물 차이 | 0 (이미 안정) | 0 (유지) | 두 번 빌드해 해시 비교 |
+| 중간 삽입 시 나머지 그림의 차이 | 해당 없음 (전부 같은 id 라 무의미) | 0 | 그림 한 장을 앞에 끼우고 뒤 그림 조각을 비교 |
+
+## 예외처리 (Edge cases)
+
+- **그림이 한 장뿐인 문서** → id 는 여전히 내용에서 나온다. 특별 취급 없음.
+- **완전히 같은 그림이 한 문서에 두 번** → 내용이 같으므로 id 도 같아진다. 이 경우
+  참조가 첫 번째로 몰리므로, 같은 값이 이미 쓰였는지 보고 구분자를 덧붙인다.
+- **머메이드 markup 이 바뀌어 id 를 못 찾음** → 지금처럼 그 조각을 건드리지 않고
+  넘어간다 (fail open).
+- **브라우저 없음 · CDN 막힘** → 정적 렌더를 건너뛰고 CDN 판을 남긴다. 변경 없음.
+- **크기 정보가 없는 그림** → 원인 확정 뒤 결정. 크기를 만들어 낼 수 없다면 그 사실을
+  한 줄로 알리고 넘어가되, 다른 절을 덮지는 않게 한다.
+- **화면설계 시트 없이 그림만 있는 계획서** → 지금과 동일하게 동작해야 한다.
+
+## Exit criteria
+
+- TESTS.md 시나리오가 모두 통과한다.
+- 기존 덱 검사 네 종이 계속 통과한다.
+- 실제 기획서를 열었을 때 그림이 겹치지 않는다 (사람 눈으로 한 번 확인).
+- 빈 그림이 없다.
+- 같은 입력으로 두 번 빌드한 산출물의 해시가 같다.
+- 템플릿 지문이 갱신돼 있다.
+
+## Suggested path
+
+1. **원인 확정 먼저.** 그림이 그려질 때의 실제 값을 찍는다. (완료 — 폭은 550px 로
+   멀쩡했고, 진짜 원인은 머메이드의 시각 기반 id 충돌이었다.)
+2. 그리는 쪽: 머메이드에 결정적 id 를 쓰게 한다 — 충돌이 사라지고 빈 그림도 사라진다.
+3. 굽는 쪽: 최종 id 를 그림 내용에서 만든다. 같은 값이 겹치면 구분자를 붙인다.
+4. 검사를 쓴다 — id 유일성, 위치 무관성, 재빌드 동일성, 빈 그림 없음.
+5. 기존 덱 검사 네 종이 초록인지 확인한다.
+6. 템플릿 지문을 다시 계산하고 변경 이력을 남긴다.
+
+## Related Documents
+
+- [`TESTS.md`](./TESTS.md)
+- `scv/archive/20260827-wookiya1364-deck-picture-only/PLAN.md` — 기획서 본문을 그림
+  문서로 좁힌 직전 작업. 그림이 주인공이 된 뒤에야 이 결함이 눈에 띄었다.
+- `scv/archive/20260813-wookiya1364-deck-redesign/PLAN.md` — 머메이드가 구운 색을
+  벗기는 처리가 여기서 들어왔다. 이번에 그 처리를 건드리지 않는 이유의 출처다.
+
+## Risks / Open Questions
+
+- **빈 그림의 원인은 확정됐고, 처음 가설은 틀렸다.** 폭이 0일 것이라 보았으나 550px
+  이었다. 세 번째로 세운 가설까지 측정이 기각했고, 그제야 id 충돌이 드러났다.
+- **결정적 id 는 머메이드의 설정에 기댄다.** 머메이드가 이 동작을 바꾸면 빈 그림이
+  돌아올 수 있다. 여러 장 재료를 쓰는 검사가 그때 잡아 준다.
+- **내용에서 뽑은 id 는 길다.** 산출물이 조금 커진다. 그림 하나당 몇 십 바이트 수준이라
+  받아들일 만하다고 보지만, 실제 증가폭은 구현 뒤 확인한다.
+- **같은 그림이 두 번 나오는 경우**를 구분자로 처리하면, 그 문서에서 그림 순서를 바꿀 때
+  구분자가 옮겨 붙어 두 조각이 달라질 수 있다. 드문 경우라 받아들이되 검사로 드러낸다.
+
+## Links
+
+- Raw originals: (frontmatter 참조)
+- Related PRs:</code></pre><pre class="code src-doc active" data-idx="1"><code>---
+title: "기획서 그림이 서로 겹친다 — 그림마다 다른 id, 그리고 빈 그림 없애기"
+slug: 20260828-wookiya1364-deck-mermaid-id-collision
+created_at: 2026-08-28
+status: planned
+---
+
+<mark class="src-hl"># Architecture — 기획서 그림이 서로 겹친다
+
+&gt; 이 문서의 그림들 자체가 이번 고침의 재료다. 지금은 셋 다 같은 id 를 받으므로,
+&gt; 고치기 전에는 겹쳐 보이는 것이 정상이다.
+</mark>
+## 1. Component data flow
+
+기획서가 만들어지는 마지막 단계. 바깥 두 곳만 파일과 브라우저를 만지고, 가운데
+다섯 단계는 문자열만 다룬다. **id 를 만드는 단계 하나만 갈아 끼운다.**
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  Browser[("헤드리스 브라우저")]
+  Extract["① 그림 조각 뽑기"]
+  Derive["② id 만들기 (교체 대상)"]
+  Rewrite["③ 참조 갈아 끼우기"]
+  Size["④ 크기 싣기"]
+  Splice["⑤ 문서에 되돌려 넣기"]
+  DeckFile[("기획서 파일")]
+
+  Browser --&gt;|"그려진 문서 HTML"| Extract
+  Extract --&gt;|"그림 조각 목록"| Derive
+  Derive --&gt;|"조각 + 그 조각의 고유 id"| Rewrite
+  Rewrite --&gt;|"스타일·화살촉 참조가 새 id 로"| Size
+  Size --&gt;|"폭·높이가 실린 조각"| Splice
+  Splice --&gt;|"완성된 문서 HTML"| DeckFile
+```
+
+## 2. Position in whole architecture
+
+이 고침이 시스템 어디에 앉는지. 새로 생기는 것은 노란색이다.
+
+&gt; Source: graphify graph (built 2026-08-26).
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart TB
+  subgraph C5["Mermaid Rendering Repair"]
+    M1["SVG 정규화 4단계"]
+    M2["인라인 색 제거의 대가"]
+    M3["제일 큰 원인은 색이 아니라 크기"]
+  end
+  subgraph C11["Numbered Wireframe Sample"]
+    W1["화면설계 시트 레이아웃"]
+    W2["번호 마커 체계"]
+  end
+  subgraph C1["Deck Theme &amp; Effort Policy"]
+    T1["다크 전용 결정"]
+    T2["단일 테마·렌더러 결정"]
+  end
+
+  N1["그림별 고유 id"]:::new
+  N2["빈 그림 없애기"]:::new
+
+  M1 --&gt; M2
+  M2 --&gt; M3
+  T1 --&gt; T2
+  W1 --&gt; W2
+
+  N1 -.-&gt;|"정규화 4단계 중 id 단계를 교체"| M1
+  N1 -.-&gt;|"바이트 안정성 계약을 그대로 물려받음"| T2
+  N2 -.-&gt;|"시트 레이아웃에서 폭이 0으로 측정"| W1
+  N2 -.-&gt;|"크기 문제라는 같은 계열"| M3
+
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```
+
+## 3. Screen mockups
+
+화면이 없는 고침이라 큰 그림 자리는 증상도가 대신한다. 번호는 그림과 아래 설명이
+같은 것을 가리킨다.
+
+### 지금 무슨 일이 일어나는가
+
+```screen
+{
+  "title": "같은 id 가 만드는 겹침",
+  "pageCode": "SCV-DECK-MMD-01",
+  "autoMarkers": false,
+  "diagram": [
+    { "label": "증상",
+      "code": "flowchart TB\n  D1[\"① 그림 A\"] --&gt; X{{\"② 같은 id\"}}\n  D2[\"① 그림 B\"] --&gt; X\n  D3[\"① 그림 C\"] --&gt; X\n  X --&gt; S[\"③ 스타일·화살촉이 서로 섞임\"]\n  S --&gt; R[\"④ 겹쳐 보임\"]" }
+  ],
+  "functions": [
+    { "marker": "1", "title": "한 문서의 그림들", "step": "extractSvgs",
+      "notes": ["구조 문서 두 장과 화면설계 시트 한 장."] },
+    { "marker": "2", "title": "고정 id", "step": "deriveId",
+      "notes": ["재빌드해도 파일이 안 변하게 하려고 값을 하나로 고정했다."] },
+    { "marker": "3", "title": "참조가 섞인다", "step": "rewriteRefs",
+      "notes": ["머메이드는 id 로 스타일과 화살촉을 한정한다."] },
+    { "marker": "4", "title": "겹쳐 보인다", "step": "spliceBack",
+      "notes": ["여기에 빈 그림까지 더해져 크기가 무너진다."] }
+  ],
+  "validations": {
+    "title": "고침 전후",
+    "columns": ["항목", "지금", "고친 뒤"],
+    "rows": [
+      ["한 문서의 그림 id", "전부 같음", "그림마다 다름"],
+      ["같은 그림, 다른 위치", "구분 불가", "같은 id 유지"],
+      ["재빌드 산출물", "동일 (유지해야 함)", "동일"],
+      ["화면설계 시트의 그림", "빈 그래픽", "내용과 크기 있음"]
+    ]
+  }
+}
+```</code></pre><pre class="code src-doc" data-idx="2"><code># Test Plan — 기획서 그림이 서로 겹친다
+
+## Overview
+
+검증 대상은 **만들어진 기획서 파일 그 자체**다. 브라우저에서 어떻게 보이는지는
+기계가 판정하기 어렵지만, 겹침의 원인인 "같은 id" 와 빈 그림은 산출물에서 그대로
+읽힌다. 그래서 실제 계획 폴더로 기획서를 만들고 그 결과물을 검사한다.
+
+두 축이다. **고쳐졌는가**(id 가 서로 다른가, 빈 그림이 없는가)와 **깨지지
+않았는가**(같은 입력이면 산출물이 여전히 같은가, 물러남이 여전히 도는가). 두 번째가
+더 조심스럽다 — 이 산출물은 계획을 승격할 때마다 커밋되므로, 값이 흔들리면 모든
+계획의 변경 내역이 지저분해진다.
+
+## Test scenarios
+
+### T1. 한 문서의 그림들이 서로 다른 id 를 갖는다
+
+- **Setup**: 그림이 세 장 이상 들어간 계획 폴더를 준비한다 (구조 문서에 두 장,
+  화면설계 시트에 한 장).
+- **Run**: 기획서를 만든다.
+- **Expected**: 산출물에서 그림 id 를 모으면 중복이 없다.
+- **Pass criterion**: 서로 다른 id 의 개수 = 그림의 개수.
+
+### T2. 같은 그림은 위치가 바뀌어도 같은 id 를 갖는다
+
+- **Setup**: T1 의 계획에서 그림 한 장을 **맨 앞에** 새로 끼워 넣는다.
+- **Run**: 다시 기획서를 만든다.
+- **Expected**: 원래 있던 그림들의 id 가 그대로다.
+- **Pass criterion**: 삽입 전후로 기존 그림들의 id 집합이 같다. 순번 방식이었다면
+  전부 밀려 실패하는 시나리오다.
+
+### T3. 같은 입력이면 산출물이 바이트 단위로 같다
+
+- **Setup**: 아무 계획 폴더 하나.
+- **Run**: 같은 입력으로 기획서를 두 번 만든다.
+- **Expected**: 두 산출물이 완전히 같다.
+- **Pass criterion**: 두 파일의 해시가 같다. 이 값이 승격마다 커밋되므로 이 시나리오가
+  이번 변경의 가장 중요한 안전장치다.
+
+### T4. 화면설계 시트 안의 그림이 비어 있지 않다
+
+- **Setup**: 화면설계 시트에 그림 한 장이 든 계획 폴더.
+- **Run**: 기획서를 만든다.
+- **Expected**: 그 그림에 실제 그려진 내용이 들어 있다.
+- **Pass criterion**: 빈 그래픽 표식이 하나도 없다.
+
+### T5. 모든 그림에 크기 정보가 실린다
+
+- **Setup**: T4 와 같다.
+- **Run**: 기획서를 만든다.
+- **Expected**: 어떤 그림도 폭이 100% 로 남아 있지 않다.
+- **Pass criterion**: 크기 정보 없는 그림이 0장.
+
+### T6. 완전히 같은 그림이 두 번 나와도 참조가 섞이지 않는다
+
+- **Setup**: 내용이 똑같은 그림 두 장을 한 문서에 넣는다.
+- **Run**: 기획서를 만든다.
+- **Expected**: 두 그림의 id 가 서로 다르다.
+- **Pass criterion**: 중복 id 0건. 내용 기반 id 가 그대로면 충돌하는 경우라, 구분자
+  처리가 실제로 도는지를 보는 시나리오다.
+
+### T7. 정적 렌더가 안 되는 환경에서는 지금처럼 물러난다
+
+- **Setup**: 브라우저를 찾을 수 없게 만든다.
+- **Run**: 기획서를 만든다.
+- **Expected**: 실패로 끝나지 않고 CDN 판 기획서가 나온다.
+- **Pass criterion**: 기획서 파일이 만들어지고, 안내 한 줄이 나온다.
+
+### T8. 색 벗기기 처리가 그대로 남는다
+
+- **Setup**: 색이 지정된 그림이 든 계획 폴더.
+- **Run**: 기획서를 만든다.
+- **Expected**: 머메이드가 구운 색 지정이 여전히 벗겨져 있다.
+- **Pass criterion**: 강제 우선순위 표식이 산출물에 남아 있지 않다.
+
+### T9. 기존 덱 검사가 계속 통과한다
+
+- **Setup**: 없음.
+- **Run**: 기존 덱 검사 네 종을 실행한다.
+- **Expected**: 전부 통과한다.
+- **Pass criterion**: 네 검사 모두 초록.
+
+### T10. 실제 기획서를 열어 겹침이 없다 (사람 확인)
+
+기계로 판정하기 어려운 유일한 항목이라 따로 둔다. 앞의 시나리오가 전부 통과해도
+눈으로 한 번은 봐야 한다.
+
+- **Setup**: 이번 저장소의 최근 계획 폴더.
+- **Run**: 만들어진 기획서를 브라우저로 연다.
+- **Expected**: 그림이 서로 겹치지 않고, 각자 제자리에 그려진다.
+- **Pass criterion**: 사람이 확인하고 보고한다.
+
+## How to run
+
+```bash
+bash core/tests/test-deck-static-mermaid.sh
+```
+
+## Pass criteria
+
+- 위 시나리오 T1~T9 가 모두 통과한다.
+- T10 은 사람이 눈으로 확인한다.
+- 기존 덱 검사 네 종(`test-deck-doc.sh`, `test-deck-numbered-spec.sh`,
+  `test-deck-picture-only.sh`, `test-deck-static-mermaid.sh`)이 계속 통과한다.
+
+## Related Documents
+
+- [`PLAN.md`](./PLAN.md)</code></pre></div>
+    </aside>
+</div>
+<div class="deck-footer">
+      <button class="deck-arrow" id="scvPrev" disabled="" onclick="scvGoto(scvIdx()-1)">‹ 이전</button>
+      <div class="deck-dots"><button class="deck-dot active" data-idx="0" onclick="scvGoto(0)" aria-label="1"></button><button class="deck-dot" data-idx="1" onclick="scvGoto(1)" aria-label="2"></button><button class="deck-dot" data-idx="2" onclick="scvGoto(2)" aria-label="3"></button><button class="deck-dot" data-idx="3" onclick="scvGoto(3)" aria-label="4"></button></div>
+      <span class="deck-counter" id="scvCounter">1 / 4</span>
+      <button class="deck-arrow" id="scvNext" onclick="scvGoto(scvIdx()+1)">다음 ›</button>
+    </div>
+</div>
+
+<script>
+  var SCV_ANCHORS = ["Architecture — 기획서 그림이 서로 겹친다","1. Component data flow","2. Position in whole architecture","3. Screen mockups"];
+  var scvPageIdx = 0;
+  function scvIdx(){ return scvPageIdx; }
+  function scvEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function scvHighlight(anchor){
+    var docs = document.querySelectorAll('.src-doc');
+    docs.forEach(function(el){
+      var code = el.querySelector('code');
+      if(code) code.innerHTML = scvEsc(code.textContent);
+    });
+    if(!anchor) return;
+    for (var i=0;i<docs.length;i++){
+      var code = docs[i].querySelector('code');
+      if(!code) continue;
+      var raw = code.textContent;
+      var lines = raw.split('\n');
+      var start=-1, end=lines.length;
+      for (var j=0;j<lines.length;j++){
+        var m = lines[j].match(/^#{1,6}\s+(.*)$/);
+        if (m && m[1].trim() === String(anchor).trim()) { start = j; break; }
+      }
+      if (start < 0) continue;
+      for (var k=start+1;k<lines.length;k++){ if (/^#{1,6}\s+/.test(lines[k])) { end = k; break; } }
+      var before = lines.slice(0,start).join('\n'), hl = lines.slice(start,end).join('\n'), after = lines.slice(end).join('\n');
+      code.innerHTML = scvEsc(before) + (before ? '\n' : '') + '<mark class="src-hl">' + scvEsc(hl) + '</mark>' + (after ? '\n' + scvEsc(after) : '');
+      if (typeof scvSelectSource === 'function') scvSelectSource(i);
+      var markEl = docs[i].querySelector('mark.src-hl');
+      if (markEl && markEl.scrollIntoView) markEl.scrollIntoView({ block: 'center' });
+      return;
+    }
+  }
+  function scvGoto(n){
+    var total = 4;
+    n = Math.max(0, Math.min(total - 1, n));
+    scvPageIdx = n;
+    document.querySelectorAll('.slide-page').forEach(function(p){ p.classList.toggle('active', p.dataset.idx === String(n)); });
+    document.querySelectorAll('.deck-nav-item').forEach(function(el){
+      var on = el.dataset.idx === String(n);
+      el.classList.toggle('active', on);
+      // The nav is one scrolling row now, so the active pill can sit past the
+      // right edge. Scroll the STRIP, not the page — scrollIntoView on the
+      // element would also scroll .scroll-main and lose the reader's place.
+      if (on && el.parentElement) {
+        var strip = el.parentElement;
+        var left = el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2;
+        strip.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+      }
+    });
+    document.querySelectorAll('.deck-dot').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
+    if (typeof window.scvRunMermaid === 'function') { try { window.scvRunMermaid(); } catch (e) {} }
+    var prevBtn = document.getElementById('scvPrev'), nextBtn = document.getElementById('scvNext'), counter = document.getElementById('scvCounter');
+    if (prevBtn) prevBtn.disabled = (n === 0);
+    if (nextBtn) nextBtn.disabled = (n === total - 1);
+    if (counter) counter.textContent = (n + 1) + ' / ' + total;
+    scvHighlight(SCV_ANCHORS[n]);
+    var main = document.querySelector('.scroll-main');
+    if (main) main.scrollTop = 0;
+  }
+  function scvTogglePanel(){ var p=document.getElementById('scvSourcePanel'); if(p) p.classList.toggle('closed'); }
+  function scvSelectSource(i){
+    document.querySelectorAll('.panel-tab').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+    document.querySelectorAll('.src-doc').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+  }
+  (function(){
+    // 패널 좌측 경계 드래그 리사이즈 — 원본 SourcePanel 과 같은 산식(최소 320px,
+    // 본문에 최소 420px 남김).
+    var handle = document.getElementById('scvResizeHandle');
+    var panel = document.getElementById('scvSourcePanel');
+    if (!handle || !panel) return;
+    var MOBILE_BP = 640;
+    handle.addEventListener('mousedown', function(e){
+      e.preventDefault();
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+      function onMove(ev){
+        // 버튼을 놓친 채(창 밖 등) mouseup 을 못 받은 경우 — 버튼이 눌려있지 않으면 즉시 정리.
+        if (ev.buttons === 0) { onUp(); return; }
+        var raw = window.innerWidth - ev.clientX;
+        var max = Math.max(320, window.innerWidth - 420);
+        panel.style.width = Math.min(max, Math.max(320, raw)) + 'px';
+      }
+      function onUp(){
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        window.removeEventListener('blur', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('blur', onUp);
+    });
+    // 인라인 width 는 스타일시트의 반응형 브레이크포인트(640px 모바일 전체폭·900px 좁은폭)
+    // 보다 항상 우선한다 — 창 크기가 바뀔 때마다 다시 맞춰줘야 브레이크포인트가 살아난다.
+    window.addEventListener('resize', function(){
+      if (!panel.style.width) return;
+      if (window.innerWidth <= MOBILE_BP) { panel.style.width = ''; return; }
+      var max = Math.max(320, window.innerWidth - 420);
+      if (parseFloat(panel.style.width) > max) panel.style.width = max + 'px';
+    });
+  })();
+  document.addEventListener('keydown', function(e){
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') scvGoto(scvIdx() + 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') scvGoto(scvIdx() - 1);
+    else if (e.key === 'Home') scvGoto(0);
+    else if (e.key === 'End') scvGoto(4 - 1);
+    else if (e.key === 's' || e.key === 'S') scvTogglePanel();
+  });
+  scvGoto(0);
+</script>
+
+
+
+<div class="mermaidTooltip" style="opacity: 0; position: absolute; text-align: center; max-width: 200px; padding: 2px; font-size: 12px; background: rgb(255, 255, 222); border: 1px solid rgb(51, 51, 51); border-radius: 2px; pointer-events: none; z-index: 100;"></div></body></html>
