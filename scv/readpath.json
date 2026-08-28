@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated_at": "2026-08-27T04:26:53Z",
+  "updated_at": "2026-08-28T05:36:42Z",
   "files": {
     "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "size": 4974, "mtime": "2026-08-12T08:39:19Z" },
     "scv/raw/stale/20260812-wookiya1364-forced-invocation.md": { "size": 9860, "mtime": "2026-08-12T08:39:19Z" },
@@ -22,7 +22,7 @@
     "scv/raw/stale/20260826-wookiya1364-deck-density.md": { "size": 4345, "mtime": "2026-08-26T04:14:01Z" },
     "scv/raw/stale/20260826-wookiya1364-deck-format-sample.png": { "size": 195974, "mtime": "2026-08-26T04:14:01Z" },
     "scv/raw/stale/20260826-wookiya1364-deck-screen-spec-format.md": { "size": 3512, "mtime": "2026-08-26T04:14:01Z" },
-    "scv/raw/stale/20260827-wookiya1364-deck-picture-only.md": { "size": 2635, "mtime": "2026-08-27T04:19:17Z" }
+    "scv/raw/stale/20260827-wookiya1364-deck-picture-only.md": { "size": 2635, "mtime": "2026-08-27T07:22:08Z" }
   },
   "ref_docs": {
     "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "slugs": ["20260812-wookiya1364-ci-provenance-gate"], "ref_commit": "1f766d4", "consumed_at": "2026-08-12T06:09:37Z", "origin": "scv/raw/20260812-wookiya1364-ci-provenance-gate.md" },
