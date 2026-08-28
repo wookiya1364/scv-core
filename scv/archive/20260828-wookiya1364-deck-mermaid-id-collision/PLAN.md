@@ -4,7 +4,7 @@ slug: 20260828-wookiya1364-deck-mermaid-id-collision
 author: "wookiya1364"
 created_at: 2026-08-28
 status: testing
-kind: fix
+kind: feature
 lang: korean
 tags: [deck, mermaid, render, static]
 raw_sources:
