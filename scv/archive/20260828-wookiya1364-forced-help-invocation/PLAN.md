@@ -3,7 +3,9 @@ title: "일반 대화에서 scv:help 를 실제로 강제한다 — 표시줄 + 
 slug: 20260828-wookiya1364-forced-help-invocation
 author: "wookiya1364"
 created_at: 2026-08-28
-status: in_progress
+status: obsolete
+obsoleted_at: 2026-08-31
+obsoleted_by: 20260831-wookiya1364-force-help-preflight
 kind: feature
 lang: korean
 tags: [hooks, help, routing, guard, settings]
