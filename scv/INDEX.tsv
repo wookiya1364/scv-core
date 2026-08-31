@@ -20,3 +20,5 @@ decision	일반-대화에서-scv-help-를-실제로-강제한다-표시줄-점�
 decision	일반-대화에서-scv-help-를-실제로-강제한다-표시줄-점층-강화-되돌림-archiv	scv/DECISIONS.md	65498	1608	2026-08-28 14:27	[archived] 일반 대화에서 scv:help 를 실제로 강제한다 — 표시줄 + 점층 강화 되돌림 archived
 decision	기획서-그림이-서로-겹친다-그림마다-다른-id-그리고-빈-그림-없애기	scv/DECISIONS.md	67106	1240	2026-08-28 14:36	[adopted] 기획서 그림이 서로 겹친다 — 그림마다 다른 id, 그리고 빈 그림 없애기
 decision	기획서-그림이-서로-겹친다-그림마다-다른-id-그리고-빈-그림-없애기-archived	scv/DECISIONS.md	68346	1747	2026-08-28 15:07	[archived] 기획서 그림이 서로 겹친다 — 그림마다 다른 id, 그리고 빈 그림 없애기 archived
+decision	강제를-preflight-로-진단은-주입하고-되돌림은-없앤다	scv/DECISIONS.md	70093	1526	2026-08-31 15:27	[adopted] 강제를 preflight 로 — 진단은 주입하고 되돌림은 없앤다
+decision	강제를-preflight-로-진단은-주입하고-되돌림은-없앤다-archived	scv/DECISIONS.md	71619	1600	2026-08-31 15:57	[archived] 강제를 preflight 로 — 진단은 주입하고 되돌림은 없앤다 archived
