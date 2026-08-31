@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-08-28T06:06:59Z
+generated_at: 2026-08-31T06:57:02Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -167,9 +167,13 @@ archives:
     status: testing
   - slug: 20260828-wookiya1364-deck-mermaid-id-collision
     title: "기획서 그림이 서로 겹친다 — 그림마다 다른 id, 그리고 빈 그림 없애기"
-    kind: fix
+    kind: feature
     status: testing
   - slug: 20260828-wookiya1364-forced-help-invocation
     title: "일반 대화에서 scv:help 를 실제로 강제한다 — 표시줄 + 점층 강화 되돌림"
     kind: feature
     status: in_progress
+  - slug: 20260831-wookiya1364-force-help-preflight
+    title: "강제를 preflight 로 — 진단은 주입하고 되돌림은 없앤다"
+    kind: feature
+    status: testing
