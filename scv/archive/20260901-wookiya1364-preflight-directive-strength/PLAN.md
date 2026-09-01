@@ -3,7 +3,9 @@ title: "지시를 맨 앞으로, 조건문을 명령으로 — preflight 지침 
 slug: 20260901-wookiya1364-preflight-directive-strength
 author: "wookiya1364"
 created_at: 2026-09-01
-status: testing
+status: obsolete
+obsoleted_at: 2026-09-01
+obsoleted_by: 20260901-wookiya1364-unconditional-help
 kind: feature
 lang: korean
 tags: [hooks, help, routing, preflight, prompt]

@@ -872,3 +872,26 @@ merge_policy: preserve
 - path delta: as planned
 - refs: scv/archive/20260901-wookiya1364-update-auto-refresh/PLAN.md
 - conversation: scv/conversations/20260901-131508-update-auto-refresh.md
+
+## [2026-09-01 16:02] scv-core-sync-bot — 분류를 걷어내고 무조건 부르게 — 판단은 help 가 한다
+
+- verdict: adopted
+- why: 지시 블록이 행동보다 판단을 앞세우고, 그 판단에 '부르지 않아도 된다'는 정당한 출구(C)가 있다. 애매한 턴 앞에서 침묵이 언제나 더 싸므로 볼륨을 올려도 이 비대칭은 남는다. 분류를 지침에서 걷어내 help 안으로 옮긴다 — 판단이 사라지는 게 아니라 주체가 모델에서 액션으로 바뀐다.
+- discarded alternatives: 문구만 더 강하게 하는 안 — 0.40.0·0.41.0 에서 두 번 시도했고 두 번 다 안 됐다. 원인이 세기가 아니라 구조(판단이 앞에 있음)라는 것이 이번 진단이다.|예외 없이 완전 무조건으로 가는 안 — 이미 SCV 액션이 도는 턴에서 자기 자신을 다시 부르게 되어 동작이 깨진다. 예외 둘은 분류가 아니라 정의상 해당 없음이다.|C 를 그냥 삭제하는 안 — 짧은 턴마다 대화 파일이 쌓인다. 그 판단은 없앨 것이 아니라 옮길 것이다.
+- refs: scv/promote/20260901-wookiya1364-unconditional-help/PLAN.md
+- conversation: scv/conversations/20260901-155801-unconditional-help.md
+
+## [2026-09-01 16:19] scv-core-sync-bot — 출구를 옮기는 것은 없애는 것이 아니다 — help 의 돌려보내기도 뺀다
+
+- verdict: lesson
+- why: 무조건 호출을 설계하며 모델 쪽 분류는 없앴지만, help 안에 '남길 논의 없음 → 아무것도 쓰지 않고 끝' 갈래를 새로 뒀다. 그것은 출구를 지침에서 액션으로 옮겼을 뿐 출구 자체는 살려 둔 것이고, 같은 구멍이 자리만 바꾼다. 사용자가 잡아냈다. 앞으로 '무조건' 을 설계할 때는 옮긴 자리에 출구가 다시 생기지 않았는지 확인한다.
+- refs: scv/promote/20260901-wookiya1364-unconditional-help/PLAN.md
+- conversation: scv/conversations/20260901-155801-unconditional-help.md
+
+## [2026-09-01 16:34] scv-core-sync-bot — 분류를 걷어내고 무조건 부르게 — 판단은 help 가 한다 archived
+
+- verdict: archived
+- why: 지시 블록에서 세 갈래를 걷어내고 조건 없는 명령 하나로 만들었다(21행 → 13행). 부를 필요가 있었는지는 인자를 쥔 help 가 판단한다. 앞으로 지켜야 할 것 셋 — 지시 블록에 갈래·조건을 다시 넣지 않는다, help 는 돌려보내지 않고 항상 기록한다, 짧은 턴은 세션 대화 파일에 이어 붙인다. 대체된 계획의 성질 넷(스위치 끄면 침묵·비 SCV 폴더 무출력·비차단·요구 블록 하나)은 새 검사가 이어받았다.
+- path delta: as planned
+- refs: scv/archive/20260901-wookiya1364-unconditional-help/PLAN.md
+- conversation: scv/conversations/20260901-155801-unconditional-help.md
