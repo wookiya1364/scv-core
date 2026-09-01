@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-09-01T02:05:41Z
+generated_at: 2026-09-01T05:37:42Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -156,7 +156,8 @@ archives:
   - slug: 20260825-wookiya1364-scv-always-on
     title: "일반 대화에도 SCV 가 끼어든다 — SCV_ALWAYS_ON 스위치"
     kind: feature
-    status: done
+    status: obsolete
+    obsoleted_by: 20260901-wookiya1364-preflight-directive-strength
   - slug: 20260826-wookiya1364-numbered-spec-deck
     title: "번호식 화면설계서 — 그림이 주인공인 기획서"
     kind: feature
@@ -181,4 +182,8 @@ archives:
   - slug: 20260901-wookiya1364-preflight-directive-strength
     title: "지시를 맨 앞으로, 조건문을 명령으로 — preflight 지침 강화"
     kind: feature
+    status: testing
+  - slug: 20260901-wookiya1364-update-auto-refresh
+    title: "갱신은 이미 자동이다 — 강요 문구를 걷고, 조용한 갱신을 보이게"
+    kind: fix
     status: testing
