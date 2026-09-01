@@ -856,3 +856,19 @@ merge_policy: preserve
 - path delta: 옛 라우팅 검사 파일을 살려 고치는 대신 삭제했다 — 그 계획을 대체하므로 두 파일이 같은 성질을 중복 검사하게 되고, 남겨두면 전체 스위트가 계속 빨간불이다. 지우기 전에 성질 네 가지(스위치 규칙·쉬운말 독립·비 SCV 폴더 침묵·키 등록)가 새 검사에 모두 들어왔는지 대조했다. 그 과정에서 내가 검사를 다시 쓰며 키 등록 항목을 빠뜨린 것을 발견해 되살렸다 — 계획이 '가장 조용한 위험' 이라 적어 둔 바로 그 지점이 실제로 일어날 뻔했다.
 - refs: scv/archive/20260901-wookiya1364-preflight-directive-strength/PLAN.md
 - conversation: scv/conversations/20260901-101535-preflight-directive-strength.md
+
+## [2026-09-01 14:07] scv-core-sync-bot — 갱신은 이미 자동이다 — 강요 문구를 걷고, 조용한 갱신을 보이게
+
+- verdict: adopted
+- why: 자동 갱신은 이미 구현돼 돌고 있다. 사용자가 손으로 sync 를 치는 이유는 (1) 래퍼 문서 3곳이 코어 규약과 반대로 안내하고 (2) 갱신 보고가 훅에서 2>/dev/null 로 버려져 아무 증거가 안 남기 때문이다. 로직이 아니라 보고 경로와 문구를 고친다.
+- discarded alternatives: update 액션 안에서 sync 를 직접 부르는 안 — 배포본이 버전별로 캐시되므로 갱신 시점의 세션은 아직 옛 payload 를 들고 있다. 그 자리에서 부르면 옛 템플릿을 깔고 성공했다고 보고한다. 코어 규약이 이미 금지하는 길이다.|훅에서 stderr 를 통째로 내보내는 안 — 한 줄 문제를 고치려다 점검 스크립트의 모든 경고가 매 턴 쏟아진다. 고른 줄만 싣는다.|매 턴 '문서 최신' 을 찍는 안 — 침묵이 기본값이라는 성질을 잃는다.
+- refs: scv/promote/20260901-wookiya1364-update-auto-refresh/PLAN.md
+- conversation: scv/conversations/20260901-131508-update-auto-refresh.md
+
+## [2026-09-01 14:37] scv-core-sync-bot — 갱신은 이미 자동이다 — 강요 문구를 걷고, 조용한 갱신을 보이게 archived
+
+- verdict: archived
+- why: 자동 갱신은 이미 돌고 있었다. 손으로 sync 를 치게 만든 것은 (1) 코어 규약과 반대로 말하는 래퍼 문서 3곳과 (2) 훅이 점검의 stderr 를 2>/dev/null 로 버려 갱신 증거가 화면에 안 남는 것이었다. 앞으로 지켜야 할 것 둘 — 갱신할 것이 없으면 훅 출력이 한 줄도 늘지 않는다(침묵이 기본값), 그리고 점검의 stderr 는 통째로 싣지 않고 템플릿 갱신 줄만 골라 싣는다(같은 통로로 설정 계열 보고가 함께 나온다).
+- path delta: as planned
+- refs: scv/archive/20260901-wookiya1364-update-auto-refresh/PLAN.md
+- conversation: scv/conversations/20260901-131508-update-auto-refresh.md
