@@ -22,3 +22,5 @@ decision	기획서-그림이-서로-겹친다-그림마다-다른-id-그리고-�
 decision	기획서-그림이-서로-겹친다-그림마다-다른-id-그리고-빈-그림-없애기-archived	scv/DECISIONS.md	68346	1747	2026-08-28 15:07	[archived] 기획서 그림이 서로 겹친다 — 그림마다 다른 id, 그리고 빈 그림 없애기 archived
 decision	강제를-preflight-로-진단은-주입하고-되돌림은-없앤다	scv/DECISIONS.md	70093	1526	2026-08-31 15:27	[adopted] 강제를 preflight 로 — 진단은 주입하고 되돌림은 없앤다
 decision	강제를-preflight-로-진단은-주입하고-되돌림은-없앤다-archived	scv/DECISIONS.md	71619	1600	2026-08-31 15:57	[archived] 강제를 preflight 로 — 진단은 주입하고 되돌림은 없앤다 archived
+decision	지시를-맨-앞으로-조건문을-명령으로-preflight-지침-강화	scv/DECISIONS.md	73219	1530	2026-09-01 10:23	[adopted] 지시를 맨 앞으로, 조건문을 명령으로 — preflight 지침 강화
+decision	지시를-맨-앞으로-조건문을-명령으로-preflight-지침-강화-archived	scv/DECISIONS.md	74749	1540	2026-09-01 11:06	[archived] 지시를 맨 앞으로, 조건문을 명령으로 — preflight 지침 강화 archived
