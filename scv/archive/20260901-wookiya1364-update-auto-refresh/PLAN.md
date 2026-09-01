@@ -4,7 +4,7 @@ slug: 20260901-wookiya1364-update-auto-refresh
 author: "wookiya1364"
 created_at: 2026-09-01
 status: testing
-kind: fix
+kind: feature
 lang: korean
 tags: [hooks, preflight, autosync, update, docs]
 raw_sources:
