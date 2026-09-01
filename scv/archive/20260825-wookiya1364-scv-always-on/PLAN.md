@@ -3,7 +3,9 @@ title: "일반 대화에도 SCV 가 끼어든다 — SCV_ALWAYS_ON 스위치"
 slug: 20260825-wookiya1364-scv-always-on
 author: "wookiya1364"
 created_at: 2026-08-25
-status: done
+status: obsolete
+obsoleted_at: 2026-09-01
+obsoleted_by: 20260901-wookiya1364-preflight-directive-strength
 kind: feature
 lang: korean
 tags: [hooks, help, routing, settings]
