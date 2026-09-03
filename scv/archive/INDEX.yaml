@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-09-03T02:44:02Z
+generated_at: 2026-09-03T06:48:33Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -194,5 +194,9 @@ archives:
     status: testing
   - slug: 20260903-wookiya1364-help-answer-shape
     title: "help 의 답 모양 — 질문이 부르는 자리만, 정해진 순서로"
+    kind: feature
+    status: testing
+  - slug: 20260903-wookiya1364-session-model-default
+    title: "명령이 세션 모델을 바꾸지 않는다 — 기본은 세션 모델 그대로"
     kind: feature
     status: testing
