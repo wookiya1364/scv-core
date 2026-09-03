@@ -918,3 +918,19 @@ merge_policy: preserve
 - path delta: 제안 경로에 없던 셋째 규칙(사람의 말로 — 만든 이름 금지)을 같은 절에 추가했다. 구현 중 사용자가 내 답에서 그 문제를 실제로 겪었고, 같은 답을 다스리는 규칙이라 계획을 갈라 내지 않았다. 또 옛 계약 문구를 지웠다가 회귀로 발견해 복구했다.
 - refs: scv/archive/20260903-wookiya1364-help-answer-shape/PLAN.md
 - conversation: scv/conversations/archive/20260903-100312-help-audit-shape.md
+
+## [2026-09-03 15:08] scv-core-sync-bot — 명령이 세션 모델을 바꾸지 않는다 — 기본은 세션 모델 그대로
+
+- verdict: adopted
+- why: SCV 명령 15개 머리말의 model 줄(opus/haiku)이 명령이 도는 동안 세션 모델을 바꾼다. 0.43.0 의 무조건 호출과 결합되어 Fable 세션에서도 매 턴 Opus 5 가 답했다 — 사용자의 모델 선택이 무시됨. 기본을 session-default(줄 없음)로 뒤집고 opus/haiku 매핑은 선택지로 남긴다. 저장 경로도 고장(없는 env-set.sh 호출, 등록부에 키 없음) — 설정 파일로 옮긴다.
+- discarded alternatives: 지금 적용만 하고 기본은 두는 안 — 플러그인 갱신마다 다시 Opus 로 돌아간다. 0.42.0 에서 없앤 '갱신 뒤 손으로 한 번 더' 를 다른 이름으로 되살리는 꼴.|무조건 호출을 되돌리는 안 — 원인은 호출이 아니라 명령의 모델 지정이다. 짝을 고쳐야지 호출을 물릴 일이 아니다.|model 줄을 sonnet 같은 중간값으로 바꾸는 안 — 어느 값이든 사용자 선택을 덮어쓴다는 문제는 같다.
+- refs: scv/promote/20260903-wookiya1364-session-model-default/PLAN.md
+- conversation: scv/conversations/20260903-150216-command-model-override.md
+
+## [2026-09-03 15:48] scv-core-sync-bot — 명령이 세션 모델을 바꾸지 않는다 — 기본은 세션 모델 그대로 archived
+
+- verdict: archived
+- why: 래퍼 명령 15개의 model 줄을 걷어내 기본을 세션 모델로 뒤집었다. 매핑은 set-models 의 선택지로 남고(첫 선택지 session-default), 저장은 사라진 env-set.sh 대신 코어 settings-set.sh 로 설정 파일에 — 코어 등록부에 SCV_MODEL_POLICY(기본 session-default) 를 두었다. 앞으로 지켜야 할 것: 래퍼 명령 파일은 model 줄 없이 커밋한다(계약 검사가 잠근다), 코어 페이로드에는 호스트·모델 이름을 쓰지 않는다(호스트 중립 검사), 템플릿 트리 파일을 바꾸면 지문을 다시 계산한다.
+- path delta: 셋. (1) 설정 파일 읽기를 코어 라이브러리 대신 python3 로 JSON 직접 읽기로 — 래퍼가 프로젝트 경로를 인자로 받는 자리라 cwd 기반 해석보다 단순하고 python3 는 선언된 의존성. (2) 코어 검사에서 모델 이름 단언을 걷어내고 'model 줄의 유무·서로 다름' 만 보게 — 호스트 중립 검사가 core/ 전체에서 opus·sonnet·haiku 를 금지한다는 것을 회귀 15건 실패로 알았다. (3) 템플릿 지문 재계산 — 설정 예시가 템플릿 트리라는 것을 회귀 4건 실패로 다시 확인.
+- refs: scv/archive/20260903-wookiya1364-session-model-default/PLAN.md
+- conversation: scv/conversations/archive/20260903-150216-command-model-override.md

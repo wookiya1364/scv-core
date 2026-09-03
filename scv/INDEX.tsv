@@ -32,3 +32,5 @@ decision	분류를-걷어내고-무조건-부르게-판단은-help-가-한다-ar
 decision	help-의-답-모양-여섯-자리-고정-빈-자리-생략	scv/DECISIONS.md	81215	1318	2026-09-03 10:18	[adopted] help 의 답 모양 — 여섯 자리 고정, 빈 자리 생략
 decision	점검표가-아니라-어휘다-답의-자리는-질문이-고른다	scv/DECISIONS.md	82533	773	2026-09-03 10:50	[lesson] 점검표가 아니라 어휘다 — 답의 자리는 질문이 고른다
 decision	help-의-답-모양-질문이-부르는-자리만-정해진-순서로-archived	scv/DECISIONS.md	83306	1370	2026-09-03 11:44	[archived] help 의 답 모양 — 질문이 부르는 자리만, 정해진 순서로 archived
+decision	명령이-세션-모델을-바꾸지-않는다-기본은-세션-모델-그대로	scv/DECISIONS.md	84676	1272	2026-09-03 15:08	[adopted] 명령이 세션 모델을 바꾸지 않는다 — 기본은 세션 모델 그대로
+decision	명령이-세션-모델을-바꾸지-않는다-기본은-세션-모델-그대로-archived	scv/DECISIONS.md	85948	1529	2026-09-03 15:48	[archived] 명령이 세션 모델을 바꾸지 않는다 — 기본은 세션 모델 그대로 archived
