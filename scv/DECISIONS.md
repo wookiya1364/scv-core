@@ -895,3 +895,26 @@ merge_policy: preserve
 - path delta: as planned
 - refs: scv/archive/20260901-wookiya1364-unconditional-help/PLAN.md
 - conversation: scv/conversations/20260901-155801-unconditional-help.md
+
+## [2026-09-03 10:18] scv-core-sync-bot — help 의 답 모양 — 여섯 자리 고정, 빈 자리 생략
+
+- verdict: adopted
+- why: 좋은 점검 답의 양식(결론 먼저·예상 밖 사실·항목표 지금/바꿀 것/규모·큰 것만 상세·횡단 관심사·추천 붙인 결정표)을 help 의 모든 턴에 고정한다. 좋았던 이유는 표가 아니라 네 성질 — 확인됨 표시, 예상 밖 먼저, 사실/바꿀 것/규모 분리, 추천 붙인 번호표. '모든 턴' 과 '빈 표 금지' 는 규칙 하나로 양립한다: 모양은 고정, 빈 자리는 지운다.
+- discarded alternatives: 맞는 경우(항목 여럿 점검)에만 쓰는 안 — 사용자가 모든 턴을 원했고, 빈 자리 생략 규칙이 있으면 모든 턴에 써도 연극이 되지 않는다.|출력을 기계로 검사해 되돌리는 안 — 0.39.0 이 갔다가 답이 통째로 재생성되는 값을 치르고 걷어낸 길. 규약 문구 층위에 둔다.|'한 턴에 질문 하나' 를 그대로 두는 안 — 독립 결정 6개를 여섯 턴에 나눠 묻는 것은 사용자 주의를 낭비한다. 의존이면 하나씩, 독립이면 한 표로 구분한다.
+- refs: scv/promote/20260903-wookiya1364-help-answer-shape/PLAN.md
+- conversation: scv/conversations/20260903-100312-help-audit-shape.md
+
+## [2026-09-03 10:50] scv-core-sync-bot — 점검표가 아니라 어휘다 — 답의 자리는 질문이 고른다
+
+- verdict: lesson
+- why: 처음 안 '여섯 자리를 놓고 빈 것을 지운다' 는 점검표에서 출발한다 — 모델이 칸을 훑으며 비었나를 판단하고, 그 과정에서 칸을 채우려고 억지 내용을 만들기 쉽다. 사용자가 바로잡았다: 질문에서 출발해 부르는 자리만 고른다. 결과가 같아 보여도 모델이 따르는 방향이 반대다. 앞으로 답 모양을 규칙으로 쓸 때는 '무엇을 지울까' 가 아니라 '무엇을 부를까' 로 쓴다.
+- refs: scv/promote/20260903-wookiya1364-help-answer-shape/PLAN.md
+- conversation: scv/conversations/20260903-100312-help-audit-shape.md
+
+## [2026-09-03 11:44] scv-core-sync-bot — help 의 답 모양 — 질문이 부르는 자리만, 정해진 순서로 archived
+
+- verdict: archived
+- why: 좋은 점검 답의 여섯 부분(결론·예상 밖 사실·항목표·상세·횡단·결정표)을 help 가 골라 쓰는 어휘로 규약에 넣었다. 답은 질문이 부르는 부분만 쓰고, 완성돼 보이려고 더하지 않는다. 앞으로 지켜야 할 것 셋 — 규약 안의 이름은 모델용이지 사람용이 아니며 사용자에게 나가지 않는다(구현 중 사용자 지적으로 추가), 사실은 (confirmed) 로 표시하고 추정과 섞지 않는다, 의존 질문은 한 턴에 하나·독립 결정은 추천 붙여 한 표. 옛 계약 문구 'one question per turn' 은 새 규칙과 모순되지 않으므로 유지한다 — 지웠다가 회귀 6건이 떨어져 되살렸다.
+- path delta: 제안 경로에 없던 셋째 규칙(사람의 말로 — 만든 이름 금지)을 같은 절에 추가했다. 구현 중 사용자가 내 답에서 그 문제를 실제로 겪었고, 같은 답을 다스리는 규칙이라 계획을 갈라 내지 않았다. 또 옛 계약 문구를 지웠다가 회귀로 발견해 복구했다.
+- refs: scv/archive/20260903-wookiya1364-help-answer-shape/PLAN.md
+- conversation: scv/conversations/archive/20260903-100312-help-audit-shape.md
