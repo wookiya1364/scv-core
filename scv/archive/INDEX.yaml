@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-09-01T07:34:00Z
+generated_at: 2026-09-03T02:44:02Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -182,12 +182,17 @@ archives:
   - slug: 20260901-wookiya1364-preflight-directive-strength
     title: "지시를 맨 앞으로, 조건문을 명령으로 — preflight 지침 강화"
     kind: feature
-    status: testing
+    status: obsolete
+    obsoleted_by: 20260901-wookiya1364-unconditional-help
   - slug: 20260901-wookiya1364-unconditional-help
     title: "분류를 걷어내고 무조건 부르게 — 판단은 help 가 한다"
     kind: feature
     status: testing
   - slug: 20260901-wookiya1364-update-auto-refresh
     title: "갱신은 이미 자동이다 — 강요 문구를 걷고, 조용한 갱신을 보이게"
+    kind: feature
+    status: testing
+  - slug: 20260903-wookiya1364-help-answer-shape
+    title: "help 의 답 모양 — 질문이 부르는 자리만, 정해진 순서로"
     kind: feature
     status: testing
