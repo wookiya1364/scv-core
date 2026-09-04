@@ -194,8 +194,8 @@ Wrapper requirements:
    `on-user-prompt.sh` prints to stdout in hydrated projects, and hosts that
    add this event's stdout to the model context — Claude Code and Codex both
    do — therefore deliver it on **every** turn, commands or not. Register the
-   hook for that reason even where journaling alone did not justify it. Two
-   blocks ship today, each with its own switch in `scv/scv_settings.json`
+   hook for that reason even where journaling alone did not justify it. Four
+   blocks ship today, switched from `scv/scv_settings.json`
    (the project `.env` is not read, 0.32.0+):
    - the five-line plain-language *answer shape* reminder, unless
      `SCV_PLAIN_LANGUAGE=off` (absent / `on` / any other value = on);
@@ -204,8 +204,17 @@ Wrapper requirements:
    - the always-on routing block (0.35.0+), unless `SCV_ALWAYS_ON=off`: it
      instructs the model to route a free-conversation turn through the help
      action's Mode decision, and never to hijack a turn already running an
-     SCV action.
-   Neither block enters the journal, and the non-blocking guarantee is
+     SCV action;
+   - the preflight diagnosis (0.40.0+), which rides inside the routing block:
+     off when `SCV_ALWAYS_ON=off` or `SCV_FORCE_HELP=off`. It carries the
+     project's current state, so the model need not call an action to look;
+   - the delegate block (0.46.0+), only when `SCV_DELEGATE_EFFORT=on` (off by
+     default, independent of the other switches, printed right after the
+     routing directive and before the diagnosis): deep questions go to a
+     background investigator agent when the host ships one
+     (`agents/scv-investigator.md` in the Claude wrapper), the session's effort
+     dial is never touched, and the full report lands in `scv/raw/`.
+   None of these blocks enters the journal, and the non-blocking guarantee is
    unchanged.
 
 Hosts without hook support cannot capture free conversation — the session-end
