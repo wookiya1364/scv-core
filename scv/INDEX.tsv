@@ -34,3 +34,5 @@ decision	점검표가-아니라-어휘다-답의-자리는-질문이-고른다	s
 decision	help-의-답-모양-질문이-부르는-자리만-정해진-순서로-archived	scv/DECISIONS.md	83306	1370	2026-09-03 11:44	[archived] help 의 답 모양 — 질문이 부르는 자리만, 정해진 순서로 archived
 decision	명령이-세션-모델을-바꾸지-않는다-기본은-세션-모델-그대로	scv/DECISIONS.md	84676	1272	2026-09-03 15:08	[adopted] 명령이 세션 모델을 바꾸지 않는다 — 기본은 세션 모델 그대로
 decision	명령이-세션-모델을-바꾸지-않는다-기본은-세션-모델-그대로-archived	scv/DECISIONS.md	85948	1529	2026-09-03 15:48	[archived] 명령이 세션 모델을 바꾸지 않는다 — 기본은 세션 모델 그대로 archived
+decision	깊은-질문은-배경-조사로-세션-effort-는-그대로-스위치는-기본-off	scv/DECISIONS.md	87477	1125	2026-09-04 10:33	[adopted] 깊은 질문은 배경 조사로 — 세션 effort 는 그대로, 스위치는 기본 off
+decision	깊은-질문은-배경-조사로-세션-effort-는-그대로-스위치는-기본-off-archiv	scv/DECISIONS.md	88602	1591	2026-09-04 11:24	[archived] 깊은 질문은 배경 조사로 — 세션 effort 는 그대로, 스위치는 기본 off archived
