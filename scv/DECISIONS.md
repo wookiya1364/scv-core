@@ -934,3 +934,19 @@ merge_policy: preserve
 - path delta: 셋. (1) 설정 파일 읽기를 코어 라이브러리 대신 python3 로 JSON 직접 읽기로 — 래퍼가 프로젝트 경로를 인자로 받는 자리라 cwd 기반 해석보다 단순하고 python3 는 선언된 의존성. (2) 코어 검사에서 모델 이름 단언을 걷어내고 'model 줄의 유무·서로 다름' 만 보게 — 호스트 중립 검사가 core/ 전체에서 opus·sonnet·haiku 를 금지한다는 것을 회귀 15건 실패로 알았다. (3) 템플릿 지문 재계산 — 설정 예시가 템플릿 트리라는 것을 회귀 4건 실패로 다시 확인.
 - refs: scv/archive/20260903-wookiya1364-session-model-default/PLAN.md
 - conversation: scv/conversations/archive/20260903-150216-command-model-override.md
+
+## [2026-09-04 10:33] scv-core-sync-bot — 깊은 질문은 배경 조사로 — 세션 effort 는 그대로, 스위치는 기본 off
+
+- verdict: adopted
+- why: effort 도 모델과 같은 원칙: 세션 다이얼은 사용자 것. SCV 는 스위치(기본 off)를 켠 프로젝트에서만 깊은 질문을 배경 조사 에이전트에 넘기고 결과는 scv/raw 파일로 남긴다. 단계 선택은 호출별 effort 가 실제로 먹는 워크플로 호스트로 한정 — 정의 파일 effort 줄은 2.1.260 실측에서 안 먹었다.
+- discarded alternatives: 사용자 effort 를 low/medium 으로 눌러 놓는 안 — 명령 파일 effort 줄로 가능하지만 어제 뺀 model 줄과 같은 다운그레이드 | 정의 파일 effort 로 low~max 를 고르는 안 — 실측에서 세 단계 모두 세션값으로 돌아 기댈 수 없음 | 명령(promote·work)이 조사를 자동으로 부르는 안 — 비용(조사 1건 출력 139k 토큰)이 커 이번 범위 밖
+- refs: scv/promote/20260904-wookiya1364-effort-auto-level/PLAN.md
+- conversation: scv/conversations/20260904-094830-effort-auto-level.md
+
+## [2026-09-04 11:24] scv-core-sync-bot — 깊은 질문은 배경 조사로 — 세션 effort 는 그대로, 스위치는 기본 off archived
+
+- verdict: archived
+- why: effort 도 모델과 같은 원칙으로 확정: 세션 다이얼은 사용자 것, SCV 는 바꾸지 않는다. 대신 SCV_DELEGATE_EFFORT=on(기본 off) 인 프로젝트에서 매 턴 훅이 넷째 블록을 실어 깊은 질문을 배경 조사 에이전트(scv-investigator, 래퍼가 싣는다)에 넘기고 결과 전문은 scv/raw/ 파일로 남긴다. 실측으로 굳힌 것: 에이전트 정의 파일의 effort 줄은 Claude Code 2.1.260 에서 먹지 않는다(세 단계 모두 세션값) — 단계 선택은 워크플로 호출별 effort 가 있는 호스트로 한정. 앞으로 지켜야 할 것: off 면 훅 출력 바이트 동일, 코어 본문에 단계 이름 금지, 에이전트에 effort 줄 금지.
+- path delta: 블록 자리를 계획의 '진단 뒤' 에서 '라우팅 지시 뒤·진단 앞' 으로 옮겼다 — 반박 검토가 훅 자체의 0.40.0 교훈(지시가 진단 뒤에 묻히면 무시된다)과의 충돌을 짚었다. 에이전트는 '읽기 전용' 이 아니라 '편집 도구 금지 + scv/raw 만 쓰기' 로(결과 파일을 쓰려면 Write 가 필요). 결과 도착 시 대화 파일에 경로·요약을 잇는 줄 하나 추가. 순수성 검사가 블록의 <날짜> 를 리다이렉션으로 오인해 표기를 YYYYMMDD 로.
+- refs: scv/archive/20260904-wookiya1364-effort-auto-level/PLAN.md
+- conversation: scv/conversations/20260904-094830-effort-auto-level.md
