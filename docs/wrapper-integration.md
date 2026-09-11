@@ -61,6 +61,16 @@ The wrapper exposes its runtime's native action-discovery files. Each generated
 action delegates to the materialized Core protocol and entrypoint. Do not edit
 vendored files manually; regenerate them from the pinned Core catalog.
 
+Use the runtime's *current* discovery layout, not a legacy one it still
+tolerates — the Claude wrapper projects each action to `skills/<action>/SKILL.md`
+(0.47.0+; the flat `commands/*.md` form is legacy there), the Codex wrapper to
+`skills/<action>/SKILL.md` as well. A skill file must carry `name: <action>` so
+the invocation name never falls back to the install directory. Core ships a
+layout check for the Claude wrapper (`core/tests/test-skill-descriptions.sh`,
+runs only when the sibling checkout exists): `name` equals the directory,
+each `description` stays within 1,536 characters (the listing truncation
+point), all descriptions together within 8,000, and no `model:` line.
+
 The adapter must implement the `update` and `set-models` entrypoints and
 runtime plugin metadata. State-index inspection and migration are not
 adapter-owned: a wrapper may expose a thin shim, but it must delegate to the
