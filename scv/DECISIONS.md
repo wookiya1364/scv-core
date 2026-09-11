@@ -950,3 +950,35 @@ merge_policy: preserve
 - path delta: 블록 자리를 계획의 '진단 뒤' 에서 '라우팅 지시 뒤·진단 앞' 으로 옮겼다 — 반박 검토가 훅 자체의 0.40.0 교훈(지시가 진단 뒤에 묻히면 무시된다)과의 충돌을 짚었다. 에이전트는 '읽기 전용' 이 아니라 '편집 도구 금지 + scv/raw 만 쓰기' 로(결과 파일을 쓰려면 Write 가 필요). 결과 도착 시 대화 파일에 경로·요약을 잇는 줄 하나 추가. 순수성 검사가 블록의 <날짜> 를 리다이렉션으로 오인해 표기를 YYYYMMDD 로.
 - refs: scv/archive/20260904-wookiya1364-effort-auto-level/PLAN.md
 - conversation: scv/conversations/20260904-094830-effort-auto-level.md
+
+## [2026-09-11 13:57] scv-core-sync-bot — 비운 뒤에도 이어진다 — 압축·/clear·재개 뒤 진행 상황 재주입
+
+- verdict: adopted
+- why: 저널·결정·대화는 이미 자동 저장되지만 비운 뒤 다시 읽어 주는 훅이 없었다. 세션 시작 이벤트(압축·비움·재개)에 기존 recap 조립기 + 활성 대화 1건을 싣는다. 새 세션 시작은 preflight 가 맡으므로 제외. 상한 없음(사용자 결정).
+- discarded alternatives: 매 턴 계획 파일 재주입(planning-with-files 방식) — preflight 가 이미 매 턴 상태를 실어 중복 비용 | 압축 직전(PreCompact) 저장 — 저장은 이미 자동이고 그 이벤트 stdout 은 모델에 닿지 않음 | startup 포함 — 첫 메시지 preflight 와 중복 | 80줄 상한 — 사용자가 결정·대화가 더 길 수 있다며 거부
+- refs: scv/promote/20260911-wookiya1364-session-resume-recap/PLAN.md
+- conversation: scv/conversations/20260911-110227-next-features-0-46-1.md
+
+## [2026-09-11 13:57] scv-core-sync-bot — 명령을 skills 로 — 플러그인 구조·설명 길이를 CI 가 지킨다
+
+- verdict: adopted
+- why: 래퍼의 commands/ 는 공식 문서상 legacy. 같은 이름으로 skills/<action>/SKILL.md 로 옮기고 commands/ 는 같은 릴리스에서 삭제. 구조 검사(claude plugin validate --strict)와 설명 길이 상한(개별 1,536·합계 8,000)을 CI 게이트로.
+- discarded alternatives: 한 릴리스 동안 commands/·skills/ 공존 — 스킬 목록 두 배, 문서도 공존 비권장 | context: fork 적용 — 포크는 대화 이력 없고 사용자와 대화 불가, SCV 명령 흐름과 안 맞음 | 개별 상한만 — 스킬 증가 시 총량 통제 불가하여 합계 상한 채택 | Codex 래퍼 동시 변경 — 이미 skills 구조라 무변경
+- refs: scv/promote/20260911-wookiya1364-skills-layout-gates/PLAN.md
+- conversation: scv/conversations/20260911-110227-next-features-0-46-1.md
+
+## [2026-09-11 14:46] scv-core-sync-bot — 비운 뒤에도 이어진다 — 압축·/clear·재개 뒤 진행 상황 재주입 archived
+
+- verdict: archived
+- why: 세션 시작 훅 템플릿(on-session-start.sh)이 압축·비움·재개 직후 recap(진행 중 계획·최근 결정 5·미결) + 활성 대화 1건 전문(가림 필터 경유)을 싣는다. 스위치 SCV_RESUME_RECAP 기본 on. 새 세션 시작은 등록하지 않는다(preflight 중복). 지켜야 할 것: 훅은 아무 것도 쓰지 않고 항상 exit 0, 폴더는 scv/ 고정(SCV_DIR 무시 — 다른 두 훅과 같음), 심볼릭 링크·탭/개행 파일명은 건너뜀, 파일마다 프로세스를 띄우지 않는다(3천 파일 0.2초).
+- path delta: 계획대로 갔으나 적대 검증이 사소 6건 + 가장자리 2건을 잡아 같은 릴리스에 반영 — 링크 추적·특수 파일명·SCV_DIR 어긋남·status 엄격 인식·mtime 동률·파일당 fork 성능·stat 폴백 중복·60줄 넘는 미완 frontmatter. 계획의 '순수부 셋' 은 넷(나머지 활성 대화 목록)이 됐다. PR 은 pr-helper 의 epic 기준(epic/<slug> ← main 생성) 대신 이 저장소의 브랜치 규칙(develop ← feat/*)에 맞춰 직접 연다.
+- refs: scv/archive/20260911-wookiya1364-session-resume-recap/PLAN.md
+- conversation: scv/conversations/20260911-110227-next-features-0-46-1.md
+
+## [2026-09-11 15:40] scv-core-sync-bot — 명령을 skills 로 — 플러그인 구조·설명 길이를 CI 가 지킨다 archived
+
+- verdict: archived
+- why: 래퍼 열다섯 명령이 skills/<action>/SKILL.md 로 옮겨졌고(name: 추가, commands/ 삭제) 호출 이름은 그대로. 투영·갱신 소유 규칙·모델 정책·계약 검사·워크플로가 새 경로를 본다. PR 게이트: claude plugin validate --strict 를 마켓 매니페스트·플러그인 매니페스트·skills·agents 넷에 각각(루트 하나만 돌리면 마켓 매니페스트만 본다 — 적대 검증이 잡음). 코어 검사 test-skill-descriptions.sh: name==디렉터리, 개별 ≤1,536·합계 ≤8,000(현재 5,709), model/context 줄 금지. 지켜야 할 것: CI 에 없는 래퍼 원자성 검사(test-sync-core-atomicity.sh)도 경로 변경 때 같이 고칠 것 — 이번에 빠져 blocker 로 잡혔다.
+- path delta: 계획대로 갔으나 적대 검증이 넷을 잡아 반영: 원자성 검사의 commands 참조 20곳(CI 밖), validate 가 루트에서 마켓 매니페스트만 검사(대상 넷으로), 설명 검사의 탭 구분자가 빈 값을 밀어 '없음' 을 못 잡던 것(\x1f 구분자·접힘/이어쓰기 description·따옴표 name), test-delegate-effort 의 commands 기반 래퍼 감지(T9/T10 조용히 SKIP). validate 가 로그인 없이 CI 에서 도는 것은 첫 실행으로 확인 — 대체 경로 불필요. /skill-doctor 실측은 래퍼 릴리스 뒤.
+- refs: scv/archive/20260911-wookiya1364-skills-layout-gates/PLAN.md
+- conversation: scv/conversations/20260911-110227-next-features-0-46-1.md
