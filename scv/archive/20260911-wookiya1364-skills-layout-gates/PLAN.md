@@ -3,7 +3,7 @@ title: "명령을 skills 로 — 플러그인 구조·설명 길이를 CI 가 �
 slug: 20260911-wookiya1364-skills-layout-gates
 author: "wookiya1364"
 created_at: 2026-09-11
-status: planned
+status: testing
 kind: refactor
 lang: korean
 epic: 20260911-plugin-modernize

@@ -460,14 +460,14 @@ title: "명령을 skills 로 — 플러그인 구조·설명 길이를 CI 가 �
 slug: 20260911-wookiya1364-skills-layout-gates
 author: "wookiya1364"
 created_at: 2026-09-11
-status: planned
+status: testing
 kind: refactor
 lang: korean
 epic: 20260911-plugin-modernize
 tags: [skills, commands, plugin-layout, ci, validate, description-budget, wrapper]
 raw_sources:
   - scv/conversations/20260911-110227-next-features-0-46-1.md
-  - scv/raw/20260911-research-plugin-trends.md
+  - scv/raw/stale/20260911-research-plugin-trends.md
 refs: []
 invariants:
   - "호출 이름은 하나도 바뀌지 않는다 — 열다섯 개 /scv:&lt;action&gt; 이 이전과 같은 이름으로 뜬다"
@@ -477,17 +477,18 @@ invariants:
   - "Codex 래퍼는 무변경 — 이미 skills 구조"
 scope:
   - "(래퍼 scv-claude-code) commands/*.md ×15 → skills/&lt;action&gt;/SKILL.md, name: 추가, commands/ 삭제"
-  - "(래퍼 scv-claude-code) scripts/project-core.sh — 투영 경로"
-  - "(래퍼 scv-claude-code) scripts/sync-core.sh — scopes · adapter_owned · frontmatter-only 규칙 · 스테이지 복사"
-  - "(래퍼 scv-claude-code) scripts/apply-model-policy.sh — 대상 glob"
-  - "(래퍼 scv-claude-code) tests/test-core-contract.sh — 경로 5곳"
-  - "(래퍼 scv-claude-code) .github/workflows/core-contract.yml · core-sync.yml · test-model-policy.yml — paths, 새 validate 단계"
-  - "(래퍼 scv-claude-code) adapter/README.md · docs/core-wrapper-ownership.ko.md · README*.md — 경로 언급"
-  - "core/tests/test-model-policy-default.sh — 래퍼 경로"
-  - "core/tests/test-autosync.sh — 래퍼 경로 1곳"
-  - "core/tests/test-skill-descriptions.sh — 신설 (옆 체크아웃 있을 때만)"
-  - "docs/wrapper-integration.md §3 — 투영 설명의 경로"
-  - "VERSION · CHANGELOG.md (0.47.0, epic 의 두 계획을 한 릴리스로)"
+  - "(래퍼 scv-claude-code) scripts/project-core.sh"
+  - "(래퍼 scv-claude-code) scripts/sync-core.sh"
+  - "(래퍼 scv-claude-code) scripts/apply-model-policy.sh"
+  - "(래퍼 scv-claude-code) tests/test-core-contract.sh"
+  - "(래퍼 scv-claude-code) .github/workflows/core-contract.yml · core-sync.yml · test-model-policy.yml"
+  - "(래퍼 scv-claude-code) adapter/README.md · docs/core-wrapper-ownership.ko.md · README*.md"
+  - "core/tests/test-model-policy-default.sh"
+  - "core/tests/test-autosync.sh"
+  - "core/tests/test-skill-descriptions.sh"
+  - "docs/wrapper-integration.md"
+  - "VERSION"
+  - "CHANGELOG.md"
 ---
 
 # 명령을 skills 로 — 플러그인 구조·설명 길이를 CI 가 지킨다
@@ -846,14 +847,14 @@ title: "명령을 skills 로 — 플러그인 구조·설명 길이를 CI 가 �
 slug: 20260911-wookiya1364-skills-layout-gates
 author: "wookiya1364"
 created_at: 2026-09-11
-status: planned
+status: testing
 kind: refactor
 lang: korean
 epic: 20260911-plugin-modernize
 tags: [skills, commands, plugin-layout, ci, validate, description-budget, wrapper]
 raw_sources:
   - scv/conversations/20260911-110227-next-features-0-46-1.md
-  - scv/raw/20260911-research-plugin-trends.md
+  - scv/raw/stale/20260911-research-plugin-trends.md
 refs: []
 invariants:
   - "호출 이름은 하나도 바뀌지 않는다 — 열다섯 개 /scv:&lt;action&gt; 이 이전과 같은 이름으로 뜬다"
@@ -863,17 +864,18 @@ invariants:
   - "Codex 래퍼는 무변경 — 이미 skills 구조"
 scope:
   - "(래퍼 scv-claude-code) commands/*.md ×15 → skills/&lt;action&gt;/SKILL.md, name: 추가, commands/ 삭제"
-  - "(래퍼 scv-claude-code) scripts/project-core.sh — 투영 경로"
-  - "(래퍼 scv-claude-code) scripts/sync-core.sh — scopes · adapter_owned · frontmatter-only 규칙 · 스테이지 복사"
-  - "(래퍼 scv-claude-code) scripts/apply-model-policy.sh — 대상 glob"
-  - "(래퍼 scv-claude-code) tests/test-core-contract.sh — 경로 5곳"
-  - "(래퍼 scv-claude-code) .github/workflows/core-contract.yml · core-sync.yml · test-model-policy.yml — paths, 새 validate 단계"
-  - "(래퍼 scv-claude-code) adapter/README.md · docs/core-wrapper-ownership.ko.md · README*.md — 경로 언급"
-  - "core/tests/test-model-policy-default.sh — 래퍼 경로"
-  - "core/tests/test-autosync.sh — 래퍼 경로 1곳"
-  - "core/tests/test-skill-descriptions.sh — 신설 (옆 체크아웃 있을 때만)"
-  - "docs/wrapper-integration.md §3 — 투영 설명의 경로"
-  - "VERSION · CHANGELOG.md (0.47.0, epic 의 두 계획을 한 릴리스로)"
+  - "(래퍼 scv-claude-code) scripts/project-core.sh"
+  - "(래퍼 scv-claude-code) scripts/sync-core.sh"
+  - "(래퍼 scv-claude-code) scripts/apply-model-policy.sh"
+  - "(래퍼 scv-claude-code) tests/test-core-contract.sh"
+  - "(래퍼 scv-claude-code) .github/workflows/core-contract.yml · core-sync.yml · test-model-policy.yml"
+  - "(래퍼 scv-claude-code) adapter/README.md · docs/core-wrapper-ownership.ko.md · README*.md"
+  - "core/tests/test-model-policy-default.sh"
+  - "core/tests/test-autosync.sh"
+  - "core/tests/test-skill-descriptions.sh"
+  - "docs/wrapper-integration.md"
+  - "VERSION"
+  - "CHANGELOG.md"
 ---
 
 # 명령을 skills 로 — 플러그인 구조·설명 길이를 CI 가 지킨다
@@ -981,7 +983,7 @@ flow(
 
 - All TESTS.md scenarios pass
 - 래퍼 PR 의 Contract 잡(ubuntu · macos)이 녹색이고, 그 안에 `claude plugin validate --strict`
-  단계가 있으�� 통과한다.
+  단계가 있으며 통과한다.
 - 마켓플레이스 갱신 후 `/scv:help` 가 이전과 같이 뜬다(수동, T12).
 - `/skill-doctor` 실측 수치가 CHANGELOG 에 있다.
 
