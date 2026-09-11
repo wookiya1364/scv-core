@@ -41,30 +41,48 @@ TOTAL_MAX="${SCV_SKILL_DESC_TOTAL_MAX:-8000}"
 
 # ---------------------------------------------------------------- 순수부
 # @pure
-# frontmatter 문자열 → "name<TAB>description<TAB>hasModel<TAB>hasContext" 한 줄.
-# description 은 따옴표를 벗긴 값. 줄은 첫 번째 것만 본다.
+# frontmatter 문자열 → "name<US>description<US>hasModel<US>hasContext" 한 줄 (US = \x1f).
+# 탭이 아니라 단위 구분자(\x1f)를 쓴다 — 탭은 IFS 공백류라 빈 칸이 합쳐져 값이 밀린다.
+# description 은 따옴표를 벗긴 값. 여러 줄(접힘 `>`·`|`, 들여쓴 이어쓰기)은 공백으로 잇는다.
+# name 도 따옴표를 벗긴다. 같은 키가 두 번이면 첫 번째만.
 scv_skill_meta() {
-  local fm="${1:-}" line k v name="" desc="" model=0 ctx=0
+  local fm="${1:-}" line k v name="" desc="" model=0 ctx=0 in_desc=0 seen_desc=0 first
+  local us=$'\x1f' gt=$'\076' bar=$'\174'
   while IFS= read -r line; do
     line="${line%$'\r'}"
+    if (( in_desc )); then
+      if [[ "$line" == [[:space:]]* ]]; then
+        v="${line#"${line%%[![:space:]]*}"}"; v="${v%"${v##*[![:space:]]}"}"
+        [[ -n "$desc" ]] && desc="$desc $v" || desc="$v"
+        continue
+      fi
+      in_desc=0
+    fi
     k="${line%%:*}"; v="${line#*:}"
-    [[ "$k" == "$line" ]] && continue
+    [[ "$k" == "$line" || "$k" == [[:space:]]* ]] && continue
     v="${v#"${v%%[![:space:]]*}"}"; v="${v%"${v##*[![:space:]]}"}"
     case "$k" in
-      name)        [[ -n "$name" ]] || name="$v" ;;
-      description) if [[ -z "$desc" ]]; then v="${v#\"}"; v="${v%\"}"; v="${v#\'}"; v="${v%\'}"; desc="$v"; fi ;;
+      name)        if [[ -z "$name" ]]; then v="${v#\"}"; v="${v%\"}"; v="${v#\'}"; v="${v%\'}"; name="$v"; fi ;;
+      description) if (( seen_desc == 0 )); then
+                     seen_desc=1; in_desc=1; first="${v:0:1}"
+                     if [[ "$first" == "$gt" || "$first" == "$bar" ]]; then desc=""   # 접힘 블록: 다음 줄들이 본문
+                     else v="${v#\"}"; v="${v%\"}"; v="${v#\'}"; v="${v%\'}"; desc="$v"; fi
+                   fi ;;
       model)       model=1 ;;
       context)     ctx=1 ;;
     esac
   done <<< "$fm"
-  printf '%s\t%s\t%s\t%s' "$name" "$desc" "$model" "$ctx"
+  desc="${desc#\"}"; desc="${desc%\"}"
+  printf '%s%s%s%s%s%s%s' "$name" "$us" "$desc" "$us" "$model" "$us" "$ctx"
 }
 
 # @pure
 # meta 줄 + 디렉터리명 + 개별 상한 → 위반 줄들 (없으면 아무것도 안 낸다).
 scv_skill_check() {
-  local meta="${1:-}" dir="${2:-}" max="${3:-1536}" name desc model ctx n
-  IFS=$'\t' read -r name desc model ctx <<< "$meta"
+  local meta="${1:-}" dir="${2:-}" max="${3:-1536}" name desc model ctx n us=$'\x1f'
+  name="${meta%%"$us"*}"; meta="${meta#*"$us"}"
+  desc="${meta%%"$us"*}"; meta="${meta#*"$us"}"
+  model="${meta%%"$us"*}"; ctx="${meta#*"$us"}"
   [[ "$name" == "$dir" ]] || printf 'name mismatch: "%s" != directory "%s"\n' "$name" "$dir"
   [[ -n "$desc" ]] || printf 'description missing\n'
   n=${#desc}
@@ -100,7 +118,7 @@ check_dir() {
     if [[ -n "$viol" ]]; then
       bad=$((bad + 1)); printf '%s:\n%s\n' "$f" "$viol" | sed 's/^/    /'
     fi
-    IFS=$'\t' read -r _ desc _ _ <<< "$meta"; lens="$lens ${#desc}"
+    desc="${meta#*$'\x1f'}"; desc="${desc%%$'\x1f'*}"; lens="$lens ${#desc}"
   done
   n="$(scv_skill_total "$lens")"
   if (( n > TOTAL_MAX )); then bad=$((bad + 1)); printf '    total description length %d > %d\n' "$n" "$TOTAL_MAX"; fi
@@ -111,10 +129,16 @@ echo "test-skill-descriptions: $CORE"
 
 echo "── [T0] 순수부 단위 ──"
 m="$(scv_skill_meta $'name: help\r\ndescription: "Use when x."\nmodel: some-model\n')"
-[[ "$m" == $'help\tUse when x.\t1\t0' ]] && ok "meta 파싱 (CRLF·따옴표·model 감지)" || fail "meta 파싱 결과가 다르다: [$m]"
+[[ "$m" == $'help\x1fUse when x.\x1f1\x1f0' ]] && ok "meta 파싱 (CRLF·따옴표·model 감지)" || fail "meta 파싱 결과가 다르다: [$m]"
 v="$(scv_skill_check "$m" help 1536)"; [[ "$v" == *"model: line present"* && "$v" != *"name mismatch"* ]] && ok "check: model 줄 위반만" || fail "check 결과: $v"
-v="$(scv_skill_check $'x\tabc\t0\t0' help 2)"; [[ "$v" == *"name mismatch"* && "$v" == *"3 chars exceeds 2"* ]] && ok "check: 이름 불일치 + 길이 초과" || fail "check 결과: $v"
+v="$(scv_skill_check $'x\x1fabc\x1f0\x1f0' help 2)"; [[ "$v" == *"name mismatch"* && "$v" == *"3 chars exceeds 2"* ]] && ok "check: 이름 불일치 + 길이 초과" || fail "check 결과: $v"
 [[ "$(scv_skill_total "1 2 3")" == "6" ]] && ok "total 합계" || fail "total 이 6 이 아니다"
+m="$(scv_skill_meta $'name: "help"\ndescription: >\n  line one\n  line two\nmodel: some-model\n')"
+[[ "$m" == $'help\x1fline one line two\x1f1\x1f0' ]] && ok "meta: 따옴표 name · 접힘(>) 여러 줄 description 을 잇는다" || fail "접힘 description 파싱: [$m]"
+m="$(scv_skill_meta $'name: help\ndescription: "first\n  second"\ncontext: fork\n')"
+[[ "$m" == $'help\x1ffirst second\x1f0\x1f1' ]] && ok "meta: 따옴표 이어쓰기 description 을 잇는다" || fail "이어쓰기 파싱: [$m]"
+m="$(scv_skill_meta $'name: help\ndescription: ""\nmodel: x\n')"
+v="$(scv_skill_check "$m" help 1536)"; [[ "$v" == *"description missing"* && "$v" == *"model: line"* && "$v" != *"context"* ]] && ok "check: 빈 description 이 '없음' 으로 잡히고 값이 밀리지 않는다" || fail "빈 description 처리: [$v]"
 bash "$CORE/scripts/check-purity.sh" "${BASH_SOURCE[0]}" >/dev/null 2>&1 && ok "@pure 셋이 순수성 검사 통과" || fail "순수성 검사 실패"
 
 # 대상 디렉터리
