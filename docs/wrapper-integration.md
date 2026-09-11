@@ -163,6 +163,7 @@ an `action:*`) into the committed, author-attributed team journal
 |---|---|---|
 | `core/template/hooks/on-user-prompt.sh` | Claude Code: `UserPromptSubmit` · Codex: the equivalent pre-turn / prompt-submitted hook | one JSON object with a `prompt` string field |
 | `core/template/hooks/on-stop.sh` | Claude Code: `Stop` · Codex: the equivalent turn-end / session-end hook | one JSON object with a `transcript_path` field pointing at a JSONL transcript |
+| `core/template/hooks/on-session-start.sh` (v0.47.0+) | Claude Code: `SessionStart` with matcher `compact\|clear\|resume` · Codex: the equivalent context-reset hook, if one exists (none registered today) | one JSON object; an optional `source` string (what reset the context) is quoted in the header, nothing else is read |
 
 Wrapper requirements:
 
@@ -216,6 +217,22 @@ Wrapper requirements:
      dial is never touched, and the full report lands in `scv/raw/`.
    None of these blocks enters the journal, and the non-blocking guarantee is
    unchanged.
+7. **Register the resume recap on context resets only (v0.47.0+).**
+   `on-session-start.sh` prints, in hydrated projects, what the project was in
+   the middle of — active plans, the five most recent decisions and open items
+   (assembled by `scripts/recap.sh`), plus the most recent *active*
+   conversation file in full (other active ones by path only) — so the model
+   continues after a `/clear`, an auto-compaction, or a resume instead of
+   asking the user to repeat themselves. Register it for exactly those three
+   session starts (Claude Code: `SessionStart` with matcher
+   `compact|clear|resume`) and **not** for a fresh session start: there the
+   first prompt's preflight already carries the project state, and printing
+   both would pay twice for the same information. The template reads only
+   `scv/scv_settings.json` `SCV_RESUME_RECAP` (absent / `on` / any other
+   value = on; only `off` = off), writes nothing, exits `0` on every failure,
+   and routes the conversation text through the redaction filter before it
+   reaches stdout. No line cap — a long active conversation is delivered whole
+   (a deliberate product decision; measure and revisit if it hurts).
 
 Hosts without hook support cannot capture free conversation — the session-end
 protocol summaries partially compensate; the gap is documented in the
