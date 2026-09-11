@@ -163,21 +163,21 @@ Claude Code wrapper에서는 다음 항목을 수정한다.
 - `adapter/claude-code.env`
 - `hooks/hooks.json`
 - `/scv:<action>` slash command 등록
-- `commands/*.md`의 YAML frontmatter
+- `skills/<action>/SKILL.md`의 YAML frontmatter (0.47.0+, 이전 `commands/*.md`)
 - `argument-hint`, `allowed-tools`, `model`
 - `$ARGUMENTS`와 `CLAUDE_PLUGIN_ROOT` 연결
 - `scripts/apply-model-policy.sh`
 - `scripts/update.sh`
 - Claude wrapper의 Core sync, 검증, release, CI 도구
 
-Claude의 일반 `commands/*.md`는 소유권이 나뉜다.
+Claude의 일반 `skills/<action>/SKILL.md`는 소유권이 나뉜다.
 
 | 부분 | 소유자 |
 |---|---|
 | YAML frontmatter, tool/model metadata | Claude wrapper |
 | action protocol 본문 | Core에서 생성된 projection |
-| `commands/update.md` 전체 | Claude wrapper |
-| `commands/set-models.md` 전체 | Claude wrapper |
+| `skills/update/SKILL.md` 전체 | Claude wrapper |
+| `skills/set-models/SKILL.md` 전체 | Claude wrapper |
 
 `scripts/hydrate.sh`, `scripts/sync.sh`, `adapter/scripts/state-index.sh`는
 Claude UX와 호출 순서를 담당하는 shim이다. pointer, conflict, hydration
@@ -208,7 +208,7 @@ DeckUI/**
 assets/**
 ```
 
-Root `scripts/**`, `tests/**`, `commands/*.md`도 adapter allowlist와 command
+Root `scripts/**`, `tests/**`, `skills/*/SKILL.md`도 adapter allowlist와 command
 frontmatter를 제외하면 Core projection이다. 생성 파일을 직접 고치지 말고
 Core source를 수정한 뒤 `scripts/sync-core.sh`로 갱신한다.
 
