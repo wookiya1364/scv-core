@@ -101,10 +101,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      # The toolchain steps carry the same gate as the build steps. Without it a
+      # fast-lane run (SCV_CI_FULL false — e.g. the develop → stage promotion PR)
+      # sets up pnpm caching, never installs anything, and setup-node's post step
+      # then fails the job with "Path Validation Error: path(s) … do not exist"
+      # because there is no store to save. That broke the 0.47.0 promotion chain.
       - uses: pnpm/action-setup@v4
+        if: env.SCV_CI_FULL == 'true'
         with:
           version: 10
       - uses: actions/setup-node@v4
+        if: env.SCV_CI_FULL == 'true'
         with:
           node-version: 22
           cache: pnpm
