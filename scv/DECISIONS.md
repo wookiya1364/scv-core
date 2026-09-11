@@ -974,3 +974,11 @@ merge_policy: preserve
 - path delta: 계획대로 갔으나 적대 검증이 사소 6건 + 가장자리 2건을 잡아 같은 릴리스에 반영 — 링크 추적·특수 파일명·SCV_DIR 어긋남·status 엄격 인식·mtime 동률·파일당 fork 성능·stat 폴백 중복·60줄 넘는 미완 frontmatter. 계획의 '순수부 셋' 은 넷(나머지 활성 대화 목록)이 됐다. PR 은 pr-helper 의 epic 기준(epic/<slug> ← main 생성) 대신 이 저장소의 브랜치 규칙(develop ← feat/*)에 맞춰 직접 연다.
 - refs: scv/archive/20260911-wookiya1364-session-resume-recap/PLAN.md
 - conversation: scv/conversations/20260911-110227-next-features-0-46-1.md
+
+## [2026-09-11 15:40] scv-core-sync-bot — 명령을 skills 로 — 플러그인 구조·설명 길이를 CI 가 지킨다 archived
+
+- verdict: archived
+- why: 래퍼 열다섯 명령이 skills/<action>/SKILL.md 로 옮겨졌고(name: 추가, commands/ 삭제) 호출 이름은 그대로. 투영·갱신 소유 규칙·모델 정책·계약 검사·워크플로가 새 경로를 본다. PR 게이트: claude plugin validate --strict 를 마켓 매니페스트·플러그인 매니페스트·skills·agents 넷에 각각(루트 하나만 돌리면 마켓 매니페스트만 본다 — 적대 검증이 잡음). 코어 검사 test-skill-descriptions.sh: name==디렉터리, 개별 ≤1,536·합계 ≤8,000(현재 5,709), model/context 줄 금지. 지켜야 할 것: CI 에 없는 래퍼 원자성 검사(test-sync-core-atomicity.sh)도 경로 변경 때 같이 고칠 것 — 이번에 빠져 blocker 로 잡혔다.
+- path delta: 계획대로 갔으나 적대 검증이 넷을 잡아 반영: 원자성 검사의 commands 참조 20곳(CI 밖), validate 가 루트에서 마켓 매니페스트만 검사(대상 넷으로), 설명 검사의 탭 구분자가 빈 값을 밀어 '없음' 을 못 잡던 것(\x1f 구분자·접힘/이어쓰기 description·따옴표 name), test-delegate-effort 의 commands 기반 래퍼 감지(T9/T10 조용히 SKIP). validate 가 로그인 없이 CI 에서 도는 것은 첫 실행으로 확인 — 대체 경로 불필요. /skill-doctor 실측은 래퍼 릴리스 뒤.
+- refs: scv/archive/20260911-wookiya1364-skills-layout-gates/PLAN.md
+- conversation: scv/conversations/20260911-110227-next-features-0-46-1.md
