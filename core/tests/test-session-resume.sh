@@ -47,10 +47,10 @@ plan() {  # <프로젝트> <slug> <title>
   mkdir -p "$1/scv/promote/$2"
   printf -- '---\ntitle: "%s"\nslug: %s\nstatus: planned\n---\n# %s\n' "$3" "$2" "$3" > "$1/scv/promote/$2/PLAN.md"
 }
-conv() {  # <프로젝트> <파일명> <status> <본문> [<mtime YYYY-MM-DD>]
+conv() {  # <프로젝트> <파일명> <status> <본문> [<mtime YYYYMMDDhhmm>] — touch -t 는 GNU·BSD 둘 다 같다
   mkdir -p "$1/scv/conversations"
   printf -- '---\nslug: %s\nstatus: %s\n---\n%s\n' "${2%.md}" "$3" "$4" > "$1/scv/conversations/$2"
-  [[ -n "${5:-}" ]] && touch -d "$5" "$1/scv/conversations/$2" 2>/dev/null
+  [[ -n "${5:-}" ]] && touch -t "$5" "$1/scv/conversations/$2" 2>/dev/null
   return 0
 }
 run_hook() {  # <프로젝트> [<stdin>] — stdout 은 OUT 에, 종료 코드는 RC 에 (서브셸이 아니라 전역)
@@ -96,9 +96,9 @@ miss=0; for i in 2 3 4 5 6; do [[ "$O" == *"결정 번호 $i 제목"* ]] || miss
 
 # ---------- T5 활성 대화 — 전문, 가장 최근 것만 ----------
 P="$(mkproj t5)"; plan "$P" 20260911-x-demo "데모 계획"
-conv "$P" 20260911-000001-a.md promoted "CONV-A-BODY" "2020-01-01"
-conv "$P" 20260911-000002-b.md active   "CONV-B-BODY" "2021-01-01"
-conv "$P" 20260911-000003-c.md active   $'## Turn 1\nCONV-C-BODY\n\n## Turn 2\nCONV-C-LAST-TURN' "2022-01-01"
+conv "$P" 20260911-000001-a.md promoted "CONV-A-BODY" "202001010000"
+conv "$P" 20260911-000002-b.md active   "CONV-B-BODY" "202101010000"
+conv "$P" 20260911-000003-c.md active   $'## Turn 1\nCONV-C-BODY\n\n## Turn 2\nCONV-C-LAST-TURN' "202201010000"
 run_hook "$P"; O="$OUT"
 [[ "$O" == *"20260911-000003-c.md"* && "$O" == *"CONV-C-BODY"* && "$O" == *"CONV-C-LAST-TURN"* ]] \
   && ok "T5 최신 활성 대화(c)의 경로와 전문(모든 턴)이 실린다" || fail "T5 최신 활성 대화 전문이 안 실린다"
@@ -138,14 +138,14 @@ run_hook "$P"; O="$OUT"
 [[ "$O" != *"LONG-OPEN-BODY"* && "$O" != *"000003-longopen"* ]] && ok "T5b 60줄 넘게 닫히지 않은 frontmatter 도 active 로 보지 않는다" || fail "T5b 미완 frontmatter 60줄 초과가 active 로 잡힌다"
 rm -f "$P/scv/conversations/20260911-000003-longopen.md"
 mkdir -p "$P/bin"; printf '#!/bin/bash\n/usr/bin/stat "$@"; exit 1\n' > "$P/bin/stat"; chmod +x "$P/bin/stat"
-conv "$P" 20260911-000003-old.md active "STAT-OLD-BODY" "2020-01-01"
+conv "$P" 20260911-000003-old.md active "STAT-OLD-BODY" "202001010000"
 conv "$P" 20260911-000003-new.md active "STAT-NEW-BODY"
 O="$( cd "$P" && printf '{}' | PATH="$P/bin:$PATH" SCV_CORE_ROOT="$CORE" bash "$HOOK" 2>/dev/null )"
 nold="$(printf '%s' "$O" | grep -c "20260911-000003-old.md" || true)"
 [[ "$O" == *"STAT-NEW-BODY"* && "$nold" == "1" ]] && ok "T5b stat 이 출력 뒤 실패해도 폴백이 겹치지 않는다 (경로 1회)" || fail "T5b stat 폴백 중복: old 경로 ${nold}회"
 rm -rf "$P/bin" "$P/scv/conversations/20260911-000003-old.md" "$P/scv/conversations/20260911-000003-new.md"
-conv "$P" 20260911-000004-a.md active "TIE-A-BODY" "2022-06-01 00:00:00"
-conv "$P" 20260911-000005-b.md active "TIE-B-BODY" "2022-06-01 00:00:00"
+conv "$P" 20260911-000004-a.md active "TIE-A-BODY" "202206010000"
+conv "$P" 20260911-000005-b.md active "TIE-B-BODY" "202206010000"
 run_hook "$P"; O="$OUT"
 [[ "$O" == *"TIE-B-BODY"* && "$O" != *"TIE-A-BODY"* ]] && ok "T5b mtime 동률이면 이름이 뒤인(최신) 대화" || fail "T5b 동률 처리가 오래된 쪽을 고른다"
 mkdir -p "$P/other/promote/20260911-y-other" "$P/other/conversations"
