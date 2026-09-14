@@ -3,7 +3,7 @@ title: "run-dry 다이어트 — 문장 고정을 구조 검사로, 남는 고�
 slug: 20260914-wookiya1364-run-dry-anchor-diet
 author: "wookiya1364"
 created_at: 2026-09-14
-status: planned
+status: testing
 kind: refactor
 lang: korean
 tags: [run-dry, tests, anchors, guidance, mermaid, test-budget]
@@ -27,6 +27,10 @@ scope:
 # run-dry 다이어트 — 문장 고정을 구조 검사로, 남는 고정엔 이유를
 
 ## Summary
+
+> **범위 축소 (2026-09-14, 사용자 결정 A)**: 정밀 재대조에서 제거 가능한 고정이 약 45개(중복 3 + GUIDANCE
+> 전용 32 + 소수)로 드러나 목표를 981 → 약 940 으로 고쳤다. mermaid 세 섹션 구조화와 (b)/(c) 사람 판단
+> 표는 이번 범위에서 뺀다. 핵심 산출물은 "남는 문장 고정마다 why + 이유 없는 고정을 막는 검사".
 
 run-dry 981개 중 스크립트를 실제로 돌리는 검사는 약 240개이고, 353개는 규약 문장이 그대로
 있는지 고정한다. 그중 80개는 최소 프로필에서 잘려나가는 코칭 문구(GUIDANCE 블록)만 보고,
@@ -133,12 +137,12 @@ flow(
 
 | 지표 | baseline | target |
 |---|---|---|
-| run-dry 총 검사 수 | 981 | ≤ 750 |
-| 규약 문장 고정(assert_contains on 규약) | 353 | ≤ 120, 전부 why 부착 |
-| GUIDANCE 전용 고정 | 80 | 0 |
+| run-dry 총 검사 수 | 981 | ≤ 940 (구현 실측 965 — 구조 검사 20 추가 포함) |
+| 규약 문장 고정 (문장 58 + 짧은 구 58) | 116 (why 0) | ≤ 120, 전부 why 부착 (구현 실측 116, why 118줄) |
+| GUIDANCE 전용 고정 | 32 | 0 (구현 실측 0, 구조 검사 20 으로 대체) |
 | 정확 중복 | 3 | 0 |
-| 스크립트 실행 검사(assert_out_* + assert_file) | 241 | 241 (동일) |
-| 다음 규약 다이어트 시 재조준 앵커 (promote 기준 추정) | ~151 | ≤ 40 |
+| 스크립트 실행 검사(assert_out_* + assert_file) | 241 | 241 (동일 — 확인) |
+| 다음 규약 다이어트 시 재조준 앵커 | 규약 문장 고정 116 | 같은 수이되 why 로 출처가 보여 재조준 판단이 즉시 |
 
 ## 예외처리 (Edge cases)
 
