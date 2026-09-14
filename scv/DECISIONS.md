@@ -982,3 +982,27 @@ merge_policy: preserve
 - path delta: 계획대로 갔으나 적대 검증이 넷을 잡아 반영: 원자성 검사의 commands 참조 20곳(CI 밖), validate 가 루트에서 마켓 매니페스트만 검사(대상 넷으로), 설명 검사의 탭 구분자가 빈 값을 밀어 '없음' 을 못 잡던 것(\x1f 구분자·접힘/이어쓰기 description·따옴표 name), test-delegate-effort 의 commands 기반 래퍼 감지(T9/T10 조용히 SKIP). validate 가 로그인 없이 CI 에서 도는 것은 첫 실행으로 확인 — 대체 경로 불필요. /skill-doctor 실측은 래퍼 릴리스 뒤.
 - refs: scv/archive/20260911-wookiya1364-skills-layout-gates/PLAN.md
 - conversation: scv/conversations/20260911-110227-next-features-0-46-1.md
+
+## [2026-09-14 09:50] scv-core-sync-bot — help 본문 다이어트 — 매 턴 11k 토큰을 4~5k 로, 동작은 검사가 지킨다
+
+- verdict: adopted
+- why: help 는 매 턴 강제 호출이라 본문 28KB(≈11k tok)가 세션 비용의 가장 큰 항목. 분기 전용 본문 11KB 를 protocols/help/ 부속 파일로 빼서 분기에서만 읽고, 훅과 중복인 위임 절은 포인터로, 설명문은 압축. 부속 파일은 기존 배송 경로(export→materialize 재귀 치환→래퍼 트리 교체)로 실려가 래퍼 무변경 — 확인됨.
+- discarded alternatives: 1·2단계만 먼저(부속 파일 분리 보류): 절감이 ~3k tok 에 그쳐 기각 · 쉬운 말 절 축소: 열세 규약 공통 계약(run-dry 15p · help-shape T7)이라 이번 범위 밖 · 래퍼 투영에 부속 파일 지원 추가: 조사 결과 불필요
+- refs: scv/promote/20260914-wookiya1364-help-body-diet/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-14 10:02] scv-core-sync-bot — help 매 턴 비용 다이어트 — 재검토로 범위 확장 (스크립트 출력 A·B 합침)
+
+- verdict: adopted
+- why: 매 턴 스택 실측 44.5KB(≈17k tok) 중 본문은 2/3. 보조 스크립트가 대화 모드에도 배너·진단(훅과 중복)과 archive 목록 48줄을 찍는다. 대화 모드 출력은 파싱 머리만, archive 목록은 --archive-index 로 분리 → 매 턴 약 18KB(≈6.5k). 인자 없음·위치 인자 출력은 불변이라 기존 검사 무수정.
+- discarded alternatives: 훅 진단 블록 압축(약 2KB): 매 턴 진단 주입은 사용자 결정 영역 — 후속 계획으로 · 라우터 변형(대화 루프까지 부속 파일로): 보통 턴마다 Read 증가 — 기각
+- refs: scv/promote/20260914-wookiya1364-help-body-diet/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-14 10:23] scv-core-sync-bot — help 규약은 세션당 한 번만 — 2단계 계획, epic help-turn-cost
+
+- verdict: adopted
+- why: 1단계 뒤에도 본문이 매 턴 재주입되어 세션 누적(오늘 8턴 234KB)이 압축을 앞당긴다. 규약 전체는 세션당 1회 Read, 재읽기 시점은 훅 상태(session_id 변화 · SessionStart compact/clear/resume)로 결정적으로. 같은 표식으로 진단도 변동 시에만 전체. 1단계 실측 뒤 구현.
+- discarded alternatives: 모델 자기 판단('컨텍스트에 안 보이면 읽어라'): 비결정적이라 기각 · 1단계와 한 PR: 효과 분리 측정 불가라 기각
+- refs: scv/promote/20260914-wookiya1364-help-load-once/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md

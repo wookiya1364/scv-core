@@ -22,6 +22,10 @@ CHECK_FRONT="$STANDARD_ROOT/scripts/check-frontmatter.sh"
 REPORT="$STANDARD_ROOT/scripts/report.sh"
 HELP_SH="$STANDARD_ROOT/scripts/help.sh"
 HELP_CMD="$PROTOCOL_ROOT/help.md"
+# v0.48.0+ — branch-only text lives in protocols/help/*.md; anchors that moved there are
+# asserted against the body + branch files together.
+HELP_ALL="$(mktemp "${TMPDIR:-/tmp}/scv-help-all.XXXXXX")"
+cat "$PROTOCOL_ROOT/help.md" "$PROTOCOL_ROOT"/help/*.md > "$HELP_ALL" 2>/dev/null
 READPATH_SH="$STANDARD_ROOT/scripts/readpath.sh"
 STATUS_SH="$STANDARD_ROOT/scripts/status.sh"
 STATUS_CMD="$PROTOCOL_ROOT/status.md"
@@ -2107,10 +2111,10 @@ done
 # action:help 의 4지선다 first-time setup 흐름 검증
 HELP_CMD="$PROTOCOL_ROOT/help.md"
 assert_contains "$HELP_CMD" "First-time language setup"
-assert_contains "$HELP_CMD" "한국어 (Korean)"
-assert_contains "$HELP_CMD" "日本語 (Japanese)"
-assert_contains "$HELP_CMD" "Other — type a language"
-assert_contains "$HELP_CMD" "Which language do you prefer for SCV output?"
+assert_contains "$HELP_ALL" "한국어 (Korean)"
+assert_contains "$HELP_ALL" "日本語 (Japanese)"
+assert_contains "$HELP_ALL" "Other — type a language"
+assert_contains "$HELP_ALL" "Which language do you prefer for SCV output?"
 
 # 설정 예시 파일에 SCV_LANG 존재
 assert_contains "$STANDARD_ROOT/template/scv/scv_settings.example.json" "SCV_LANG"
@@ -3260,9 +3264,9 @@ assert_contains "$HELP_CMD" "Step B1 — Create / open the conversation file"
 assert_contains "$HELP_CMD" "Step B2 — Conversation loop"
 assert_contains "$HELP_CMD" "Step B3"
 assert_contains "$HELP_CMD" 'scv/conversations/<YYYYMMDD-HHMMSS>-<slug>.md'
-assert_contains "$HELP_CMD" "draft PLAN.md + TESTS.md now"
-assert_contains "$HELP_CMD" "copy this conversation into scv/raw/"
-assert_contains "$HELP_CMD" "keep talking"
+assert_contains "$HELP_ALL" "draft PLAN.md + TESTS.md now"
+assert_contains "$HELP_ALL" "copy this conversation into scv/raw/"
+assert_contains "$HELP_ALL" "keep talking"
 
 # .gitignore — the legacy /scv/.conversations/ ignore is GONE (v0.22.0:
 # conversations are committed). See [17] for the full persistence-switch asserts.
@@ -3298,7 +3302,7 @@ assert_contains "$HELP_SCRIPT" "! -name 'README.md'"
 assert_contains "$HELP_CMD" "Mode B' — Archive Search (retrospective argument, v0.10.0+)"
 assert_contains "$HELP_CMD" "Step B-classify"
 assert_contains "$HELP_CMD" "Future-leaning vs Retrospective vs Ambiguous"
-assert_contains "$HELP_CMD" "ARCHIVE_INDEX:"
+assert_contains "$HELP_ALL" "ARCHIVE_INDEX:"
 
 # The canonical protocol has a neutral prompt-data token. Materialized profiles
 # must keep raw template text out of immediate-execution shell blocks.
@@ -3330,7 +3334,7 @@ assert_contains "$HELP_CMD" "--with-context"
 # v0.10.1 — auto-hydrate on first run (Step A0 in commands/help.md)
 assert_contains "$HELP_CMD" "Step A0 — Auto-hydrate on first run"
 assert_contains "$HELP_CMD" "This project isn't hydrated yet"
-assert_contains "$HELP_CMD" 'scripts/hydrate.sh'
+assert_contains "$HELP_ALL" 'scripts/hydrate.sh'
 
 echo
 echo '=== [11jjj] v0.22.0 — PLAN grammar: Guardrails / Exit criteria / Suggested path ==='
@@ -3834,7 +3838,7 @@ assert_contains "$HELP_CMD" "--redact-only"
 assert_contains "$HELP_CMD" 'mkdir -p scv/conversations'
 # help.md — legacy .conversations detection proposes migration
 assert_contains "$HELP_CMD" "LEGACY_CONVERSATIONS"
-assert_contains "$HELP_CMD" "Migrate them to the committed scv/conversations/?"
+assert_contains "$HELP_ALL" "Migrate them to the committed scv/conversations/?"
 # help.sh — runtime legacy detection (read-only)
 CONVMIG_APP=$(mktemp -d)
 bash "$HYDRATE" init "$CONVMIG_APP" >/dev/null 2>&1
