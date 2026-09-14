@@ -1006,3 +1006,11 @@ merge_policy: preserve
 - discarded alternatives: 모델 자기 판단('컨텍스트에 안 보이면 읽어라'): 비결정적이라 기각 · 1단계와 한 PR: 효과 분리 측정 불가라 기각
 - refs: scv/promote/20260914-wookiya1364-help-load-once/PLAN.md
 - conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-14 11:56] scv-core-sync-bot — help 매 턴 비용 다이어트 — 17k 토큰을 6~7k 로, 동작은 검사가 지킨다 archived
+
+- verdict: archived
+- why: 매 턴 스택 44,458B→17,653B(래퍼 17,963B). 분기 본문 5개를 protocols/help/ 부속 파일로 빼고(래퍼 무변경 — 배송 경로가 하위 폴더를 통째로 실어 나른다), help.sh --with-context 는 파싱 머리만, archive 목록은 --archive-index 로. 배운 것: 래퍼에선 자리표시자 확장으로 본문이 ~390B 커지므로 상한 검사는 래퍼 투영본에서도 돌려야 한다; 규약 문장을 고정한 run-dry 앵커가 다이어트의 실제 마찰(10개 재조준). 지켜야 할 것: 쉬운 말 절·답 모양 절은 계약, 인자 없음·위치 인자 출력은 불변.
+- path delta: 계획 순서대로 갔으나 두 번 벗어났다: (1) 본문 상한 14,000B 만으로는 매 턴 상한 18,000B 를 못 맞춰 계획에 없던 절(B0~B2·persistence·최종 노트)까지 압축; (2) TESTS 의 How to run 에서 verify-core --root . 는 export 트리 전용이라 test-profile-and-export 로 교체. VERSION 은 릴리스 chore PR 관례라 미변경.
+- refs: scv/archive/20260914-wookiya1364-help-body-diet/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md

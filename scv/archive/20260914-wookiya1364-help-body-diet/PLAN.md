@@ -3,7 +3,7 @@ title: "help 매 턴 비용 다이어트 — 17k 토큰을 6~7k 로, 동작은 �
 slug: 20260914-wookiya1364-help-body-diet
 author: "wookiya1364"
 created_at: 2026-09-14
-status: planned
+status: testing
 kind: refactor
 epic: 20260914-help-turn-cost
 lang: korean

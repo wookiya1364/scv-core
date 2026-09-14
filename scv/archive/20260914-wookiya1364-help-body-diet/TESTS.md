@@ -125,7 +125,7 @@
 ## How to run
 
 ```bash
-bash core/tests/test-help-budget.sh && bash core/tests/test-force-help.sh && bash core/tests/test-help-shape.sh && bash core/tests/test-delegate-effort.sh && bash core/tests/test-guidance.sh && bash tools/verify-core.sh --root .
+bash core/tests/test-help-budget.sh && bash core/tests/test-force-help.sh && bash core/tests/test-help-shape.sh && bash core/tests/test-delegate-effort.sh && bash core/tests/test-guidance.sh && bash tests/test-profile-and-export.sh
 ```
 
 ## Pass criteria
