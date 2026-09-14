@@ -1022,3 +1022,11 @@ merge_policy: preserve
 - discarded alternatives: 전용 검사와의 중복 제거만: 겹침이 1/38 이라 효과 없음 · 앵커 일괄 삭제: 출처 없이 지우면 결정을 잃는다 — 출처 표 필수 · help-turn-cost 2단계와 합치기: 성격이 달라 기각
 - refs: scv/promote/20260914-wookiya1364-run-dry-anchor-diet/PLAN.md
 - conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-14 14:17] scv-core-sync-bot — run-dry 다이어트 — 문장 고정을 구조 검사로, 남는 고정엔 이유를 archived
+
+- verdict: archived
+- why: 제거 가능한 고정은 GUIDANCE 전용 32 + 중복 3 뿐 — 처음 감사(~270)는 문자열을 어느 규약에서든 찾은 과대치. 배운 것: 앵커 감사는 대상 파일에서만 세야 하고, git log -S 는 코어 추출 커밋으로 몰려 출처가 안 나온다. 지켜야 할 것: 문장 고정엔 why 필수(총수 ≤120), GUIDANCE 문구는 골격만, 스크립트 실행 검사 241 불변.
+- path delta: 범위 축소(사용자 결정 A): 목표 ≤750 → 실측 965; mermaid 세 섹션 구조화와 (b)/(c) 사람 판단 표는 뺐다. why 는 출처 섹션 태그로 자동 부착(계약/표현 판단은 뒤로). 성능: 앵커마다 GUIDANCE 걷어내기 3분 → 파일당 캐시 7초.
+- refs: scv/archive/20260914-wookiya1364-run-dry-anchor-diet/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
