@@ -1014,3 +1014,11 @@ merge_policy: preserve
 - path delta: 계획 순서대로 갔으나 두 번 벗어났다: (1) 본문 상한 14,000B 만으로는 매 턴 상한 18,000B 를 못 맞춰 계획에 없던 절(B0~B2·persistence·최종 노트)까지 압축; (2) TESTS 의 How to run 에서 verify-core --root . 는 export 트리 전용이라 test-profile-and-export 로 교체. VERSION 은 릴리스 chore PR 관례라 미변경.
 - refs: scv/archive/20260914-wookiya1364-help-body-diet/PLAN.md
 - conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-14 11:59] scv-core-sync-bot — run-dry 다이어트 — 문장 고정을 구조 검사로, 남는 고정엔 이유를
+
+- verdict: adopted
+- why: run-dry 981 중 규약 문장 고정 353(GUIDANCE 전용 80 · mermaid 187 · 중복 3)이 변경 마찰의 원인(help 다이어트에 10개 재조준, promote 면 ~151). 스크립트 실행 검사는 전부 유지, 표현 고정은 구조 검사로, 계약 고정은 why 부착 + 총수 상한. 기능 PR 과 섞지 않고 별도 계획.
+- discarded alternatives: 전용 검사와의 중복 제거만: 겹침이 1/38 이라 효과 없음 · 앵커 일괄 삭제: 출처 없이 지우면 결정을 잃는다 — 출처 표 필수 · help-turn-cost 2단계와 합치기: 성격이 달라 기각
+- refs: scv/promote/20260914-wookiya1364-run-dry-anchor-diet/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
