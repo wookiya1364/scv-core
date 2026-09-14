@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-09-11T06:40:30Z
+generated_at: 2026-09-14T02:56:07Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -214,3 +214,8 @@ archives:
     kind: refactor
     status: testing
     epic: 20260911-plugin-modernize
+  - slug: 20260914-wookiya1364-help-body-diet
+    title: "help 매 턴 비용 다이어트 — 17k 토큰을 6~7k 로, 동작은 검사가 지킨다"
+    kind: refactor
+    status: testing
+    epic: 20260914-help-turn-cost
