@@ -77,6 +77,12 @@ adapter-owned: a wrapper may expose a thin shim, but it must delegate to the
 materialized `core/scripts/state-index.sh`. Keep adapter-owned files outside
 `vendor/scv-core`.
 
+**Branch files under `protocols/<action>/` are not actions.** A protocol may keep branch-only
+text in `core/protocols/<action>/<branch>.md` (v0.48.0+: `help/`) and point at it with
+`${SCV_CORE_ROOT}/protocols/<action>/<branch>.md`. The projection loop reads top-level
+`protocols/*.md` only, so those files never become a second skill; they travel with the
+`protocols/` tree and get the same placeholder substitution as the protocol body.
+
 ## 4. Migrate legacy Deck runtime
 
 Before replacing a pre-0.20.2 Core payload, invoke the verified candidate
