@@ -1086,3 +1086,19 @@ merge_policy: preserve
 - path delta: 목표 7,000B 는 고정 절 4,529B + 계약 문구·명령 ≈1,000B 가 바닥이라 7,115B 에서 멈춤 → 사용자 결정으로 T1 7,200. 추가로 run-dry 의 printf|grep 파이프 44곳을 히어스트링으로(macOS pipefail SIGPIPE 간헐 실패).
 - refs: scv/archive/20260916-wookiya1364-help-router-diet/PLAN.md
 - conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-17 07:28] scv-core-sync-bot — SCV 자체 그래프 — 문서·계획·동시변경을 의존성 0 으로, graphify 제거
+
+- verdict: adopted
+- why: graphify 는 52개 계획 중 실사용 0, Python+LLM 무게, 문서 그래프 하나에만 쓰임. SCV 가 이미 가진 재료(docs 링크 · 보관 계획→파일 · 결정 참조 · 동시변경)로 bash+jq 그래프를 scv/.graph/ 에 자동 재생성하고, 영향 조회(impact)를 work 헤더·회귀 앞단에 붙인다. 문서 범위 docs/+README+core/contracts(설정 키로 변경). graphify 참조 전부 제거.
+- discarded alternatives: 자체 그래프만 먼저 만들고 graphify 제거는 다음 계획 — 경로가 둘 남아 기각 · 산출물 커밋(scv/graph/) — 보관마다 큰 diff 라 무시 파일로 · docs/ 만 — 계약 문서가 빠져 기각 · git numstat 동시변경 — 계획 단위가 잡음이 적어 이번엔 제외
+- refs: scv/promote/20260917-wookiya1364-scv-own-graph/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-17 08:38] scv-core-sync-bot — SCV 자체 그래프 — 문서·계획·동시변경을 의존성 0 으로, graphify 제거 archived
+
+- verdict: archived
+- why: graph.sh(build/status/ensure/impact/report) + lib/graph.sh 로 scv/.graph/ 를 bash+jq 만으로 만든다(55 계획 ≈1.8초, 노드 421 · 링크 9,587). 소비처 넷·help·install-deps·host-profile·regression 이 새 그래프를 쓰고 graphify 참조 0. 지켜야 할 것: 순수부의 jq 프로그램은 함수 밖 상수(검사기가 > 와 sort_by 를 오인) · 결정적 출력(built_at 만 시각) · 없는 경로는 missing 표시 · SCV_GRAPH=off/jq 없음은 막지 않음 · 템플릿 변경 시 TEMPLATE_DIGEST · promote.md 줄 수 변화 시 guard.md 예외 앵커.
+- path delta: as planned — 추가로 regression.sh 에 --dry/--changed, work.sh 에 IMPACT 블록. 놀란 것: 순수성 검사기가 jq 본문의 비교 연산자(>)를 리다이렉션으로, sort_by 를 sort 명령으로 읽음 → jq 프로그램을 함수 밖 상수로. bash 의 "${1:-{}}" 가 닫는 중괄호를 덧붙이는 함정. 병렬 회귀 실행 시 빌드 2초 검사(T6)가 부하로 붉을 수 있음(단독 실행 녹색).
+- refs: scv/archive/20260917-wookiya1364-scv-own-graph/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
