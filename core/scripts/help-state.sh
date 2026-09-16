@@ -35,7 +35,7 @@ case "$cmd" in
   mark)   st="$(scv_hstate_mark "$st")"; json="$(scv_hstate_render "$st")"; _write "$json"; printf '%s\n' "$json" ;;
   diag)   text="$(cat 2>/dev/null || true)"; r="$(scv_hstate_diag "$st" "$text" "${1:-}")"; mode="${r%%$'\x1f'*}"; st="${r#*$'\x1f'}"
           json="$(scv_hstate_render "$st")"; _write "$json"
-          if [[ "$mode" == "brief" ]]; then printf 'brief %s\n' "$(printf '%s' "$st" | awk -F'\x1f' '{print $5}')"; else printf 'full\n'; fi ;;
+          if [[ "$mode" == "brief" ]]; then IFS=$'\x1f' read -r _s _p _t _d _at <<<"$st"; printf 'brief %s\n' "${_at:-}"; else printf 'full\n'; fi ;;
   *) echo "usage: help-state.sh read|prompt <session_id> [N]|reset|mark|diag <hhmm>" >&2 ;;
 esac
 exit 0

@@ -26,7 +26,8 @@ PROMPT_HOOK="$CORE/template/hooks/on-user-prompt.sh"; START_HOOK="$CORE/template
 HELP_SH="$CORE/scripts/help.sh"
 [[ -f "$LIB" ]] || { echo "lib missing: $LIB" >&2; exit 1; }
 source "$LIB"
-f() { awk -F'\x1f' -v n="$2" '{print $n}' <<<"$1"; }
+f() {  # <상태> <n> → n번째 필드 (BSD awk 는 -F 의 \x1f 이스케이프를 모른다 — 셸로 자른다)
+  local IFS="$US" a; read -r -a a <<<"$1"; printf '%s' "${a[$(( $2 - 1 ))]:-}"; }
 
 echo "── [T1] 순수부 — 파싱·되돌림·진단 판정·렌더 ──"
 st="$(scv_hstate_parse '{{broken')"; [[ "$(f "$st" 2)" == "0" && -z "$(f "$st" 1)" ]] && ok "깨진 JSON → 기본값" || fail "기본값 아님: $st"
