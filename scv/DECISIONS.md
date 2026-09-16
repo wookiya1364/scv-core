@@ -1030,3 +1030,11 @@ merge_policy: preserve
 - path delta: 범위 축소(사용자 결정 A): 목표 ≤750 → 실측 965; mermaid 세 섹션 구조화와 (b)/(c) 사람 판단 표는 뺐다. why 는 출처 섹션 태그로 자동 부착(계약/표현 판단은 뒤로). 성능: 앵커마다 GUIDANCE 걷어내기 3분 → 파일당 캐시 7초.
 - refs: scv/archive/20260914-wookiya1364-run-dry-anchor-diet/PLAN.md
 - conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-16 09:59] scv-core-sync-bot — help 규약은 세션당 한 번만 — 매 턴은 기록 계약만, 진단은 변동 시에만 전체 archived
+
+- verdict: archived
+- why: 매 턴 라우터(9.4KB) + 세션당 1회 full.md(6.4KB); 재읽기 시점은 훅 상태(세션 번호 변화·압축/지우기/재개·N턴)로 결정, 진단은 해시 비교로 변동 시에만 전체. 진단 변동 없는 턴 스택 17,653→11,245B. 배운 것: (1) 훅이 잘못된 입력에도 표식을 쓰면 저널 계약(무효 입력엔 아무 것도 안 씀)이 깨진다 — 세션 번호가 없으면 표식 자체를 건드리지 않는다 (2) 되찾기 훅의 '아무 것도 안 쓴다' 계약은 표식 한 파일만 예외로 완화했다 (3) 벤더 페이로드의 호스트 이벤트 이름 검사는 주석까지 본다. 지켜야 할 것: 답 모양 절은 매 턴 라우터에 남는다(잊음 완화의 핵심), mark 없이는 다음 턴 다시 load(자기 회복).
+- path delta: 라우터 상한 4,000B 목표 → 9,374B 실측(답 모양 절을 매 턴 유지하기로 — 사용자의 잊음 우려에 대한 답). 세션 번호가 없으면 매 턴 load 가 아니라 표식 비활성(이전 동작 그대로)으로 바꿈. 기록 계약 누락 감사(완화 b)는 범위에서 빼 후속으로. 되찾기 훅 계약 완화(T10 예외)와 delegate 검사의 표식 초기화는 계획에 없던 손질.
+- refs: scv/archive/20260914-wookiya1364-help-load-once/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
