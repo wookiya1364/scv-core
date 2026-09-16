@@ -1070,3 +1070,19 @@ merge_policy: preserve
 - path delta: as planned — 추가로 test-help-echo 하네스의 원본 흉내에 사람 프롬프트 줄을 넣었다(새 규칙상 U 없으면 생략이라 옛 흉내가 붉어짐). 회귀 1차 9건은 코드 문제가 아니라 커밋 전 diff 검사·지문 미갱신.
 - refs: scv/archive/20260916-wookiya1364-answer-lint-turn-race/PLAN.md
 - conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-16 23:33] scv-core-sync-bot — 매 턴 라우터 다이어트 — 답 모양은 남기고 나머지는 압축, 진단 안내문은 직접 부를 때만
+
+- verdict: adopted
+- why: 매 턴 스택 ≈12.6KB(라우터 9.7KB + 훅 1.5KB + 헬퍼). 답 모양·언어·쉬운 말 절은 바이트 그대로 두고(사용자 결정: 잊음 우려 유지, run-dry [15p] 공통 문구) 기록 계약·헬퍼·규약 읽기 절 압축, 배경 조사 절은 full.md 로 → 라우터 ≤7KB. 변동 턴 preflight 는 진단 본문 + 권장 첫 줄만(Learn more·hydrate 방법 제거) → ≤2KB. 상한 하향 잠금.
+- discarded alternatives: 답 모양 절을 full.md 로 이동(라우터 ≈4.2KB, −5.5KB/턴) — 사용자가 매 턴 유지를 택함 · 매 턴 Skill 호출 자체를 훅 명령으로 대체 — always-on 계약 검사들과 얽혀 별도 계획으로
+- refs: scv/promote/20260916-wookiya1364-help-router-diet/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-16 23:59] scv-core-sync-bot — 매 턴 라우터 다이어트 — 답 모양은 남기고 나머지는 압축, 진단 안내문은 직접 부를 때만 archived
+
+- verdict: archived
+- why: 라우터 9,670→7,115B(−26%), 매 턴 스택 ≈9.0KB, 변동 턴 preflight ≈1.5KB. 언어·쉬운 말·답 모양 절은 md5 로 고정, 위임 절은 full.md 로. 지켜야 할 것: 다른 검사가 정확한 문구로 고정한 계약 문장(nothing worth keeping · rejected on purpose · Short turns skip this question entirely · no conversation file yet, open one · one question per turn · dependent question or one Decisions table — never both)과 명령 셋은 한 줄 안에 그대로. 상한 7,500/9,500/9,000.
+- path delta: 목표 7,000B 는 고정 절 4,529B + 계약 문구·명령 ≈1,000B 가 바닥이라 7,115B 에서 멈춤 → 사용자 결정으로 T1 7,200. 추가로 run-dry 의 printf|grep 파이프 44곳을 히어스트링으로(macOS pipefail SIGPIPE 간헐 실패).
+- refs: scv/archive/20260916-wookiya1364-help-router-diet/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
