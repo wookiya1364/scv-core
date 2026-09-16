@@ -1054,3 +1054,19 @@ merge_policy: preserve
 - path delta: mark 출력 JSON 에도 지문을 싣는다(규약을 읽은 턴에만 실행되므로 불변식 유지) — 파일만 읽게 하면 mark 전엔 파일이 없어 순서가 꼬인다. 종료 훅은 저널 꼬리(4000B)와 별개로 마지막 어시스턴트 메시지 전문(64KB)을 뽑아 린트한다. 범위 밖 둘: 회귀 러너 게이트 상한 300→600(코어 검사 47개 ≈290초, 새 검사가 더해지자 보관 계약 3건이 같은 게이트로 붉게 떴다) · 래퍼 통합 문서에 훅이 쓰는 파일 넷 명시.
 - refs: scv/archive/20260916-wookiya1364-help-protocol-echo/PLAN.md
 - conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-16 21:58] scv-core-sync-bot — 답 모양 검사는 이번 턴의 답만 본다 — 기록 경합 제거
+
+- verdict: adopted
+- why: 0.50.0 린트가 원본(transcript)의 마지막 답을 읽는데 호스트가 원본을 비동기로 적어 훅이 한 턴 전 답을 봄(관찰 2건, 같은 초). 호스트가 넘기는 last_assistant_message 를 1순위로, 없으면 원본을 턴 경계로 잘라 1초 안에서 재시도, 그래도 없으면 생략(src=none). 따옴표 안 마침표 오탐도 함께.
+- discarded alternatives: 값 없는 호스트에서 린트를 끄기 — 사용자가 '무조건 적용' 을 요구해 기각 · 로그 형식 완전 불변 — 사후 검증을 위해 끝에 src 토큰 하나는 덧붙이기로
+- refs: scv/promote/20260916-wookiya1364-answer-lint-turn-race/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-16 23:21] scv-core-sync-bot — 답 모양 검사는 이번 턴의 답만 본다 — 기록 경합 제거 archived
+
+- verdict: archived
+- why: 종료 훅의 린트 본문 출처를 셋으로 고정: 호스트가 넘긴 last_assistant_message → 원본의 이번 턴(마지막 사람 프롬프트 이후, 1초 안 재시도) → 없음(생략). 낡은 답을 보는 경우 0. 드리프트 줄 끝 src= 토큰으로 사후 검증 가능. 따옴표·괄호 안 마침표는 문장으로 안 센다. 지켜야 할 것: 지문 검사 경로 불변, U(사람 프롬프트) 없는 창은 안전 쪽(생략), 스위치 둘 다 off 면 읽지 않음, 템플릿 파일 변경 시 TEMPLATE_DIGEST 재계산.
+- path delta: as planned — 추가로 test-help-echo 하네스의 원본 흉내에 사람 프롬프트 줄을 넣었다(새 규칙상 U 없으면 생략이라 옛 흉내가 붉어짐). 회귀 1차 9건은 코드 문제가 아니라 커밋 전 diff 검사·지문 미갱신.
+- refs: scv/archive/20260916-wookiya1364-answer-lint-turn-race/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
