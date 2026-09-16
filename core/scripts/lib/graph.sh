@@ -74,45 +74,82 @@ scv_graph_doc_links() {
   done <<<"$s"
 }
 
+# awk — PLAN.md 본문에서 관심 있는 것만 레코드로 뽑는다 (한 프로세스, C 속도). 함수 밖 상수(순수성 검사기).
+#   T<us>title · E<us>epic · S<us>scope 항목 · B<us>백틱 토큰
+_SCV_GRAPH_AWK_PLAN='
+  BEGIN { fm=0; inscope=0; cur="" }
+  FNR==1 && FILENAME != "" && FILENAME != "-" { fm=0; inscope=0; printf "F%s%s\n", us, FILENAME }
+  /^---$/ { fm++; next }
+  fm==1 {
+    if ($0 ~ /^title:/) { t=$0; sub(/^title:[ \t]*/, "", t); sub(/^"/, "", t); sub(/"[ \t]*$/, "", t); printf "T%s%s\n", us, t; inscope=0; next }
+    if ($0 ~ /^epic:/)  { e=$0; sub(/^epic:[ \t]*/, "", e); sub(/[ \t#].*$/, "", e); printf "E%s%s\n", us, e; inscope=0; next }
+    if ($0 ~ /^scope:/) { inscope=1; next }
+    if ($0 ~ /^[ \t]*- / && inscope) { it=$0; sub(/^[ \t]*- [ \t]*/, "", it); sub(/^"/, "", it); sub(/"[ \t]*$/, "", it); sub(/[ \t]*#.*$/, "", it); printf "S%s%s\n", us, it; next }
+    if ($0 ~ /^[A-Za-z_]+:/) { inscope=0 }
+    next
+  }
+  fm>=2 && index($0, "`") {
+    line=$0
+    while ((i=index(line, "`")) != 0) {
+      rest=substr(line, i+1); j=index(rest, "`"); if (j==0) break
+      printf "B%s%s\n", us, substr(rest, 1, j-1); line=substr(rest, j+1)
+    }
+  }'
+
 # @deterministic
-# <슬러그> <PLAN.md 본문> → "slug\x1fepic\x1ftitle\x1ffiles". files 는 공백 구분, 정렬·중복 제거.
-#   frontmatter scope: 항목 — 토큰 중 경로 모양(확장자 필요, 슬래시 불필요)만. 본문 백틱 안 — 슬래시 있는 경로만.
+# <슬러그> <PLAN.md 본문> → "slug\x1fepic\x1ftitle\x1ffiles". files 는 공백 구분, 첫 등장 순서, 중복 제거
+# (정렬은 그래프를 만드는 jq 가 한다). frontmatter scope: 항목 — 토큰 중 경로 모양(확장자 필요, 슬래시 불필요)만.
+# 본문 백틱 안 — 슬래시 있는 경로만. awk 한 번 + 토큰 검증만 셸에서 — 계획마다 줄 단위 셸 루프를 돌면 1초가 넘는다.
 scv_graph_plan_touches() {
-  local slug="${1:-}" text="${2:-}" us=$'\x1f' line infm=0 fmdone=0 inscope=0 title="" epic="" tok item
-  local -a files=()
-  while IFS= read -r line; do
-    if (( ! fmdone )); then
-      if [[ "$line" == "---" ]]; then
-        if (( infm )); then fmdone=1; continue; else infm=1; continue; fi
-      fi
-      if (( infm )); then
-        case "$line" in
-          title:*) title="${line#title:}"; title="${title#"${title%%[! ]*}"}"; title="${title%\"}"; title="${title#\"}"; inscope=0 ;;
-          epic:*)  epic="${line#epic:}"; epic="${epic//[[:space:]]/}"; epic="${epic%%#*}"; inscope=0 ;;
-          scope:*) inscope=1 ;;
-          "  - "*|"- "*)
-            if (( inscope )); then
-              item="${line#*- }"; item="${item%\"}"; item="${item#\"}"; item="${item%%#*}"
-              for tok in $item; do
-                tok="${tok%%[·,;:]}"; tok="${tok#\`}"; tok="${tok%\`}"; tok="${tok%\)}"; tok="${tok#\(}"
-                scv_graph_is_path "$tok" 0 && files+=("${tok#./}")
-              done
-            fi ;;
-          *) [[ "$line" =~ ^[A-Za-z_]+: ]] && inscope=0 ;;
-        esac
-        continue
-      fi
-    fi
-    # 본문: 백틱 안 경로
-    local s="$line" re_tick='^([^`]*)`([^`]+)`(.*)$'
-    while [[ "$s" =~ $re_tick ]]; do
-      tok="${BASH_REMATCH[2]}"; s="${BASH_REMATCH[3]}"
-      scv_graph_is_path "$tok" 1 && files+=("${tok#./}")
-    done
-  done <<<"$text"
-  local sorted
-  sorted="$(printf '%s\n' "${files[@]}" | LC_ALL=C sort -u | tr '\n' ' ')"; sorted="${sorted% }"
-  printf '%s%s%s%s%s%s%s' "$slug" "$us" "$epic" "$us" "$title" "$us" "$sorted"
+  local slug="${1:-}" text="${2:-}" us=$'\x1f' recs
+  recs="$(printf '%s\n' "$text" | awk -v us="$us" "$_SCV_GRAPH_AWK_PLAN")"
+  scv_graph_plan_records "$slug" "$recs"
+}
+
+# @pure
+# <슬러그> <awk 레코드들(T/E/S/B)> → "slug\x1fepic\x1ftitle\x1ffiles" — 토큰 검증과 중복 제거만 한다.
+scv_graph_plan_records() {
+  local slug="${1:-}" recs="${2:-}" us=$'\x1f' rec kind val tok title="" epic=""
+  local -a files=() uniq=()
+  while IFS= read -r rec; do
+    [[ -n "$rec" ]] || continue
+    kind="${rec%%"$us"*}"; val="${rec#*"$us"}"
+    case "$kind" in
+      T) title="$val" ;;
+      E) epic="$val" ;;
+      S) for tok in $val; do
+           tok="${tok%%[·,;:]}"; tok="${tok#\`}"; tok="${tok%\`}"; tok="${tok%\)}"; tok="${tok#\(}"
+           scv_graph_is_path "$tok" 0 && files+=("${tok#./}")
+         done ;;
+      B) scv_graph_is_path "$val" 1 && files+=("${val#./}") ;;
+    esac
+  done <<<"$recs"
+  local f
+  for f in "${files[@]}"; do
+    [[ -n "$f" ]] || continue
+    [[ " ${uniq[*]} " == *" $f "* ]] && continue
+    uniq+=("$f")
+  done
+  printf '%s%s%s%s%s%s%s' "$slug" "$us" "$epic" "$us" "$title" "$us" "${uniq[*]}"
+}
+
+# @pure
+# 여러 계획의 awk 레코드(F<us>path 로 경계) → touches 줄들 "slug\x1fepic\x1ftitle\x1factive\x1ffiles".
+# active 는 경로에 /promote/ 가 있으면 1. 한 번의 awk 로 55개 계획을 처리하려고 있다.
+scv_graph_plans_batch() {
+  local recs="${1:-}" us=$'\x1f' rec cur="" buf="" slug active line
+  emit() {
+    [[ -n "$cur" ]] || return 0
+    slug="${cur%/PLAN.md}"; slug="${slug##*/}"; active=0; [[ "$cur" == */promote/* ]] && active=1
+    line="$(scv_graph_plan_records "$slug" "$buf")"
+    printf '%s%s%s%s%s\n' "${line%"$us"*}" "$us" "$active" "$us" "${line##*"$us"}"
+  }
+  while IFS= read -r rec; do
+    if [[ "$rec" == F"$us"* ]]; then emit; cur="${rec#F"$us"}"; buf=""; continue; fi
+    buf+="$rec"$'\n'
+  done <<<"$recs"
+  emit
+  unset -f emit
 }
 
 # @pure

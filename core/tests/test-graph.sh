@@ -38,7 +38,7 @@ PLAN=$'---\ntitle: "T"\nslug: 20260917-x-plan\nepic: 20260917-e\nscope:\n  - "co
 v="$(scv_graph_plan_touches 20260917-x-plan "$PLAN")"
 IFS="$US" read -r slug epic title files <<<"$v"
 [[ "$slug" == "20260917-x-plan" && "$epic" == "20260917-e" && "$title" == "T" ]] && ok "슬러그·epic·제목" || fail "meta: $slug|$epic|$title"
-[[ "$files" == "CHANGELOG.md core/tests/test-a.sh core/tests/test-b.sh core/x.sh core/y.sh core/z.md" ]] && ok "scope 첫 토큰·구분자 분리·백틱 경로·./ 제거·중복 제거·정렬 (설정 키·버전·URL 제외)" || fail "files: $files"
+[[ "$files" == "core/x.sh core/tests/test-a.sh core/tests/test-b.sh CHANGELOG.md core/y.sh core/z.md" ]] && ok "scope 첫 토큰·구분자 분리·백틱 경로·./ 제거·중복 제거 (설정 키·버전·URL 제외; 정렬은 jq)" || fail "files: $files"
 
 echo "── [T3] 동시변경 (순수) ──"
 T=$'A'"$US"$'x y z\nB'"$US"$'x y\nC'"$US"$'y'
