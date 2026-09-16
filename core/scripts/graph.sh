@@ -63,15 +63,14 @@ _status() {
 _build() {
   local links="" touches="" refs="" docs="" f p a slug rec exists="" now
   docs="$(_docs)"
-  while IFS= read -r f; do [[ -n "$f" ]] || continue; links+="$(scv_graph_doc_links "$f" "$(cat "$f")")"$'\n'; done <<<"$docs"
-  while IFS="$US" read -r p a; do
-    [[ -n "$p" ]] || continue
-    slug="${p%/PLAN.md}"; slug="${slug##*/}"
-    rec="$(scv_graph_plan_touches "$slug" "$(cat "$p")")"
-    # slug\x1fepic\x1ftitle\x1ffiles → slug\x1fepic\x1ftitle\x1factive\x1ffiles
-    touches+="${rec%"$US"*}${US}${a}${US}${rec##*"$US"}"$'\n'
-  done < <(_plans)
-  [[ -f "$SCV_DIR/DECISIONS.md" ]] && refs="$(scv_graph_decision_refs "$(cat "$SCV_DIR/DECISIONS.md")")"
+  while IFS= read -r f; do [[ -n "$f" ]] || continue; links+="$(scv_graph_doc_links "$f" "$(<"$f")")"$'\n'; done <<<"$docs"
+  # 계획 전부를 awk 한 번으로 — 파일마다 프로세스를 띄우면 55개 계획에 0.7초가 든다.
+  local -a plan_files=()
+  while IFS="$US" read -r p a; do [[ -n "$p" ]] && plan_files+=("$p"); done < <(_plans)
+  if (( ${#plan_files[@]} )); then
+    touches="$(scv_graph_plans_batch "$(awk -v us="$US" "$_SCV_GRAPH_AWK_PLAN" "${plan_files[@]}")")"$'\n'
+  fi
+  [[ -f "$SCV_DIR/DECISIONS.md" ]] && refs="$(scv_graph_decision_refs "$(<"$SCV_DIR/DECISIONS.md")")"
   # 존재하는 경로 목록 — 링크 대상·계획 파일 후보 중 실제로 있는 것
   while IFS= read -r f; do [[ -n "$f" && -e "$f" ]] && exists+="$f"$'\n'; done < <( { printf '%s\n' "$docs"; printf '%s\n' "$links" | cut -d"$US" -f2; printf '%s\n' "$touches" | awk -F"$US" '{print $5}' | tr ' ' '\n'; } | LC_ALL=C sort -u )
   now="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date)"
