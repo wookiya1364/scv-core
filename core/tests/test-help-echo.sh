@@ -83,8 +83,10 @@ stop() {  # <proj> <답 본문>
 append() {  # <proj> <n> <지문|''>
   local fl="$1/scv/conversations/20260916-000000-echo.md"
   [[ -f "$fl" ]] || printf -- '---\nslug: echo\nstatus: active\n---\n' > "$fl"
-  sleep 1   # 표식(턴 시작에 씀)보다 나중이어야 "이번 턴에 기록됨" 으로 본다 — mtime 초 단위
   { printf '\n## Turn %s — 2026-09-16T10:00:00+09:00\n' "$2"; [[ -n "$3" ]] && printf 'protocol: %s\n' "$3"; printf '\n**User**: 안녕\n\n**the host agent**: 답.\n'; } >> "$fl"
+  # 기록이 표식(턴 시작에 씀)보다 나중이어야 "이번 턴에 기록됨" 으로 본다 — mtime 초 단위라 1초 대기 대신
+  # 표식을 과거로 돌린다 (회귀 러너의 코어 검사 게이트는 5분 제한: 대기 30번이면 그 선을 넘긴다).
+  [[ -f "$1/scv/journal/.help-state" ]] && touch -t 202001010000 "$1/scv/journal/.help-state"
 }
 GOOD=$'네, 됩니다. 이렇게요.\n\n- 항목 하나.\n'
 BAD4=$'하나다. 둘이다. 셋이다. 넷이다.\n\n- 항목.\n'
@@ -149,9 +151,7 @@ before="$( cd "$P" && find scv -type f ! -path '*/journal/2*' | LC_ALL=C sort | 
 after="$( cd "$P" && find scv -type f ! -path '*/journal/2*' | LC_ALL=C sort | xargs cksum )"; [[ "$before" == "$after" ]] && ok "둘 다 off: 종료 훅은 저널 외 아무 것도 안 쓴다 (0.49 동작)" || fail "둘 다 off 인데 썼다"
 P=$(mkproj t5e '{"SCV_HELP_LOAD_ONCE":"off"}'); hook "$P" A >/dev/null; mark "$P" >/dev/null; append "$P" 1 ""; stop "$P" "$GOOD" >/dev/null
 O="$(hook "$P" A)"; ! grep -q '\[SCV 규약 지문\]' <<<"$O" && ok "SCV_HELP_LOAD_ONCE=off: 메아리 검사 없음(매 턴 load 라 무의미)" || fail "load-once off 인데 메아리 경고"
-if [[ -f "$CORE/tests/test-journal.sh" ]]; then
-  bash "$CORE/tests/test-journal.sh" >/dev/null 2>&1 && ok "test-journal 통과" || fail "test-journal 실패"
-fi
+# test-journal 은 TESTS.md 의 실행 블록과 코어 검사 게이트가 따로 돌린다 — 여기서 겹쳐 돌리지 않는다(시간).
 
 echo "── [T6] 10턴 시뮬레이션 — 4·8턴 지문 누락, 6턴 모양 위반 → load 는 1·5·7·9 ──"
 P=$(mkproj t6 '{"SCV_HELP_RELOAD_EVERY":"0"}'); loads=""; N=""
