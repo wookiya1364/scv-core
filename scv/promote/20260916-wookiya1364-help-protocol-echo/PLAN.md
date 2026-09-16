@@ -3,7 +3,7 @@ title: "규약 지문 메아리 — 잊었는지 묻지 않고, 지문과 답 �
 slug: 20260916-wookiya1364-help-protocol-echo
 author: "wookiya1364"
 created_at: 2026-09-16
-status: planned
+status: testing
 kind: feature
 epic: 20260914-help-turn-cost
 lang: korean
