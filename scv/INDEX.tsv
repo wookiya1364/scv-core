@@ -47,3 +47,4 @@ decision	help-매-턴-비용-다이어트-17k-토큰을-6-7k-로-동작은-검�
 decision	run-dry-다이어트-문장-고정을-구조-검사로-남는-고정엔-이유를	scv/DECISIONS.md	99223	897	2026-09-14 11:59	[adopted] run-dry 다이어트 — 문장 고정을 구조 검사로, 남는 고정엔 이유를
 decision	run-dry-다이어트-문장-고정을-구조-검사로-남는-고정엔-이유를-archived	scv/DECISIONS.md	100120	1029	2026-09-14 14:17	[archived] run-dry 다이어트 — 문장 고정을 구조 검사로, 남는 고정엔 이유를 archived
 decision	help-규약은-세션당-한-번만-매-턴은-기록-계약만-진단은-변동-시에만-전체-arch	scv/DECISIONS.md	101149	1555	2026-09-16 09:59	[archived] help 규약은 세션당 한 번만 — 매 턴은 기록 계약만, 진단은 변동 시에만 전체 archived
+decision	규약-지문-메아리-잊었는지-묻지-않고-지문과-답-모양으로-잡아-다시-싣는다	scv/DECISIONS.md	102704	989	2026-09-16 13:34	[adopted] 규약 지문 메아리 — 잊었는지 묻지 않고, 지문과 답 모양으로 잡아 다시 싣는다
