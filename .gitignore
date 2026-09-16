@@ -9,5 +9,5 @@ coverage/
 # SCV journal — 기본 ignore (core/template/.gitignore.fragment 와 동일 정책)
 scv/journal/
 
-# graphify 산출물 — 로컬 생성물(그래프/캐시), 저장소에 담지 않는다
-.graphify/
+# SCV 자체 그래프 산출물 — 필요할 때 자동 재생성, 저장소에 담지 않는다
+scv/.graph/
