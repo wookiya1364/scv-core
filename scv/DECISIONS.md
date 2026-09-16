@@ -1038,3 +1038,11 @@ merge_policy: preserve
 - path delta: 라우터 상한 4,000B 목표 → 9,374B 실측(답 모양 절을 매 턴 유지하기로 — 사용자의 잊음 우려에 대한 답). 세션 번호가 없으면 매 턴 load 가 아니라 표식 비활성(이전 동작 그대로)으로 바꿈. 기록 계약 누락 감사(완화 b)는 범위에서 빼 후속으로. 되찾기 훅 계약 완화(T10 예외)와 delegate 검사의 표식 초기화는 계획에 없던 손질.
 - refs: scv/archive/20260914-wookiya1364-help-load-once/PLAN.md
 - conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-16 13:34] scv-core-sync-bot — 규약 지문 메아리 — 잊었는지 묻지 않고, 지문과 답 모양으로 잡아 다시 싣는다
+
+- verdict: adopted
+- why: 모델의 주의는 못 재므로 행동 체크섬으로: 규약을 읽은 컨텍스트에만 있는 무작위 지문을 매 턴 append 에 적게 하고 Stop 훅이 부재를 감지해 다음 턴 강제 재읽기; Stop 훅의 답 모양 린트로 계약 위반도 다음 턴 경고+재읽기. 통신 체크섬·재전송, 영상 참조 프레임 검사와 같은 구조. 기존 '기록 누락 감사'를 대체.
+- discarded alternatives: 규약 암기 후 LLM 지식과 비교: 규약은 지식이 아니라 컨텍스트라 불가·자기보고 신뢰 불가 · Stop 훅으로 답 차단: non-blocking 계약 위반 · 라우터에 지문 싣기: 메아리 무의미
+- refs: scv/promote/20260916-wookiya1364-help-protocol-echo/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
