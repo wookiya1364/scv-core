@@ -74,7 +74,8 @@ grep -q 'Dependency check' <<<"$PRE" && grep -q 'scv/raw\|scv/archive\|hydrate' 
 grep -q 'Recommended next action' <<<"$PRE" && ok "권장 행동 제목 있음" || fail "권장 행동 제목 없음"
 ! grep -q 'Learn more' <<<"$PRE" && ok "Learn more 없음" || fail "Learn more 있음"
 ! grep -q 'hydrate.sh" init' <<<"$PRE" && ok "hydrate 명령 줄 없음" || fail "hydrate 명령 줄 있음"
-n="$(printf '%s' "$PRE" | wc -c)"; (( n <= 2000 )) && ok "preflight 블록 ${n}B ≤ 2000B" || fail "preflight 블록 ${n}B > 2000B"
+# 경로 길이에 흔들리지 않게 임시 프로젝트 경로를 빼고 잰다 (CI 러너의 긴 경로가 31B 를 넘겼다).
+n="$(printf '%s' "${PRE//$P/}" | wc -c)"; (( n <= 2000 )) && ok "preflight 블록 ${n}B ≤ 2000B (경로 제외)" || fail "preflight 블록 ${n}B > 2000B"
 D="$( cd "$P" && bash "$HELP_SH" 2>/dev/null )"; grep -q 'Learn more' <<<"$D" && grep -q 'hydrate.sh" init' <<<"$D" && ok "직접 help.sh 는 안내문 그대로" || fail "직접 help.sh 에서 안내문이 사라짐"
 O2="$(hook S1)"; grep -q '진단 변동 없음' <<<"$O2" && ! grep -q 'Current project diagnosis' <<<"$O2" && ok "둘째 턴: 한 줄" || fail "둘째 턴: $(printf '%s' "$O2" | tail -3)"
 printf 'x\n' > "$P/scv/raw/new.md"; O3="$(hook S1)"; grep -q 'Current project diagnosis' <<<"$O3" && ok "진단 바뀌면 다시 전체" || fail "변동 뒤에도 한 줄"

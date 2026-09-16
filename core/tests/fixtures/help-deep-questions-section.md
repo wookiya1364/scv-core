@@ -8,4 +8,3 @@ and hand only a *deep* question — several files to read, or a claim to verify 
 will follow. Its report
 lands in `scv/raw/<YYYYMMDD>-research-<slug>.md`; when its summary arrives, append the
 path and one line to the session's conversation file. Shallow questions are never delegated.
-
