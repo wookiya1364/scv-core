@@ -94,7 +94,7 @@ grep -qF 'untrusted prompt data, never shell source' "$CLAUDE_HELP"
 grep -qF 'exactly one' "$CLAUDE_HELP"
 grep -qF '`SCV_ARGS` element' "$CLAUDE_HELP"
 grep -qF -- '--with-context' "$CLAUDE_HELP"
-if grep -R -n '^```!$' "$TMP/claude-code/vendor/scv-core/core/protocols" >/dev/null 2>&1; then
+if grep -R -n '^[[:space:]]*```![[:space:]]*$' "$TMP/claude-code/vendor/scv-core/core/protocols" >/dev/null 2>&1; then
   echo "template-string projection retained a dynamic shell fence" >&2
   exit 1
 fi
