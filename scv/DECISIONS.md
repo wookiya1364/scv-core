@@ -1046,3 +1046,11 @@ merge_policy: preserve
 - discarded alternatives: 규약 암기 후 LLM 지식과 비교: 규약은 지식이 아니라 컨텍스트라 불가·자기보고 신뢰 불가 · Stop 훅으로 답 차단: non-blocking 계약 위반 · 라우터에 지문 싣기: 메아리 무의미
 - refs: scv/promote/20260916-wookiya1364-help-protocol-echo/PLAN.md
 - conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-16 17:42] scv-core-sync-bot — 규약 지문 메아리 — 잊었는지 묻지 않고, 지문과 답 모양으로 잡아 다시 싣는다
+
+- verdict: archived
+- why: 규약을 읽은 컨텍스트에만 있는 8자리 지문을 매 턴 기록에 적게 하고 종료 훅이 표식과 비교한다 — 없거나 다르면 protocol=0 으로 되돌려 다음 턴에 규약을 다시 싣는다(빠진 뒤 재읽기까지 최대 10턴 → 다음 턴). 답 골격 린트(첫 문단 문장 수·결론 없이 표 시작·첫 문단 코드값·결정표 추천 열)도 같은 신호. 종료 훅은 여전히 답을 막지 않는다. 지문은 라우터·훅 출력·PROTOCOL 줄에 절대 싣지 않는다(검사) — 구현 중 diag 의 brief 줄에 지문이 새던 필드 읽기 결함을 검사가 잡았다.
+- path delta: mark 출력 JSON 에도 지문을 싣는다(규약을 읽은 턴에만 실행되므로 불변식 유지) — 파일만 읽게 하면 mark 전엔 파일이 없어 순서가 꼬인다. 종료 훅은 저널 꼬리(4000B)와 별개로 마지막 어시스턴트 메시지 전문(64KB)을 뽑아 린트한다. 범위 밖 둘: 회귀 러너 게이트 상한 300→600(코어 검사 47개 ≈290초, 새 검사가 더해지자 보관 계약 3건이 같은 게이트로 붉게 떴다) · 래퍼 통합 문서에 훅이 쓰는 파일 넷 명시.
+- refs: scv/archive/20260916-wookiya1364-help-protocol-echo/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
