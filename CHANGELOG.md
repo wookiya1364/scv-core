@@ -4,6 +4,21 @@ All notable changes to SCV Core are documented here.
 
 ## [Unreleased]
 
+### 매 턴 라우터 다이어트 — 답 모양은 남기고 나머지는 압축, 진단 안내문은 직접 부를 때만
+
+매 턴 실리는 help 라우터(core/protocols/help.md) 9,670B → 7,115B (−26%), 매 턴 스택(훅 한 줄 + 라우터 +
+헬퍼) 11.5KB → ≈9.0KB. 언어·쉬운 말·답 모양 절은 바이트 그대로(0.49 의 "답 모양 절은 매 턴 남긴다" 결정
+유지); 기록 계약·헬퍼 호출·규약 읽기 절을 압축하고, 배경 조사(위임) 절은 세션당 한 번 읽는
+`protocols/help/full.md` 로 옮겼다(문구 그대로). "Final notes" 절 제거.
+
+- **preflight 진단 다듬기** (`lib/force-help.sh` `scv_force_trim_diagnosis`): 진단이 바뀐 턴에 훅이 싣는
+  전체 진단에서 "Learn more" 블록과 "Recommended next action" 의 방법 설명을 뺀다 — 진단 본문 + 권장
+  행동 제목·첫 줄만(3,266B → ≈1.5KB). 사용자가 직접 부른 help.sh 출력은 그대로.
+- **상한 잠금** (`test-help-budget.sh`): BODY 10,000→7,500 · TURN 12,000→9,500 · FULL 8,000→9,000.
+- 검사 `core/tests/test-help-router-diet.sh` (신설, 35) — 남긴 세 절 md5 고정(fixtures), 위임 절 이동 문구
+  동일, 기록 계약 문구·명령 셋 존재, 훅 진단에 안내문 없음·직접 호출은 그대로, brief/full 전환 유지.
+  `test-delegate-effort.sh` 는 위임 절을 full.md 에서 본다.
+
 ### 답 모양 검사는 이번 턴의 답만 본다 — 기록 경합 제거
 
 0.50.0 의 답 모양 린트는 종료 훅이 대화 원본(transcript)의 마지막 어시스턴트 텍스트를 읽었다.

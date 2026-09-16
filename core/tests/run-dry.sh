@@ -69,7 +69,9 @@ assert_contains() {
   grep -qF -- "$2" "$1" && pass "contains: ${1#"$APP/"} ← '${2:0:60}'" \
                         || fail "does NOT contain: ${1#"$APP/"} ← '${2:0:60}'"
 }
-assert_out_contains(){ printf '%s' "$2" | grep -qF -- "$1" && pass "$3" || fail "$3 — got: $(printf '%s' "$2" | head -3)"; }
+# 파이프 대신 히어스트링: `set -o pipefail` 아래에서 grep -q 가 일찍 닫으면 printf 가 SIGPIPE 를 받아
+# 파이프라인 전체가 실패로 읽힌다 — macOS 에서 간헐적으로 "일치했는데 실패" 가 났다 (2026-09-16, PR #217 CI).
+assert_out_contains(){ grep -qF -- "$1" <<<"$2" && pass "$3" || fail "$3 — got: $(head -3 <<<"$2")"; }
 assert_ok_exit()     { [[ "$1" -eq 0 ]] && pass "$2" || fail "$2 (exit=$1)"; }
 
 TMP=$(mktemp -d)
@@ -194,10 +196,10 @@ EMPTY_DIR2=$(mktemp -d)
   OUT=$(bash "$HELP_SH" 2>&1)
   assert_out_contains "not hydrated yet" "$OUT" "help(un-hydrated): detects un-hydrated dir"
   assert_out_contains "hydrate.sh" "$OUT"       "help(un-hydrated): shows the single hydrate command"
-  printf '%s' "$OUT" | grep -qF -- "--new" \
+  grep -qF -- "--new" <<<"$OUT" \
     && fail "help(un-hydrated): still offers --new" \
     || pass "help(un-hydrated): --new option gone"
-  printf '%s' "$OUT" | grep -q "INTAKE" \
+  grep -q "INTAKE" <<<"$OUT" \
     && fail "help(un-hydrated): still mentions INTAKE" \
     || pass "help(un-hydrated): no INTAKE mention"
 )
@@ -367,7 +369,7 @@ printf 'fakepdf' > "$APP/scv/raw/customer-interview.pdf"
   OUT=$(bash "$PROMOTE_HELPER" --graph-only 2>&1)
   assert_out_contains "MODE: graph-only" "$OUT"    "helper surfaces --graph-only flag"
   assert_out_contains "GRAPH_STATUS:" "$OUT"       "helper still prints GRAPH_STATUS in graph-only"
-  printf '%s' "$OUT" | grep -qF "scv/raw inventory" \
+  grep -qF "scv/raw inventory" <<<"$OUT" \
     && fail "helper --graph-only should skip inventory section" \
     || pass "helper --graph-only skips inventory"
 )
@@ -393,7 +395,7 @@ echo "sub content"  > "$RP_APP/scv/raw/subdir/inside.md"
   assert_out_contains '"files":'     "$OUT"                                  "readpath scan: files field"
   assert_out_contains 'scv/raw/notes.md' "$OUT"                              "readpath scan: includes notes.md"
   assert_out_contains 'scv/raw/subdir/inside.md' "$OUT"                      "readpath scan: recurses into subdir"
-  printf '%s' "$OUT" | grep -qF 'scv/raw/README.md' \
+  grep -qF 'scv/raw/README.md' <<<"$OUT" \
     && fail "readpath scan: README.md should be skipped" \
     || pass "readpath scan: README.md skipped"
 
@@ -781,7 +783,7 @@ T
   assert_out_contains "https://confluence.example.com/x/spec" "$OUT" "work refs: confluence url"
   assert_out_contains "[pr] 1"        "$OUT" "work refs: pr count = 1"
   # Verify no 'id=https://' prefix bug (url-only entries should show url cleanly)
-  printf '%s' "$OUT" | grep -qF "id=https://" \
+  grep -qF "id=https://" <<<"$OUT" \
     && fail "work refs: url-only entry incorrectly prefixed with 'id='" \
     || pass "work refs: url-only entries rendered without id= prefix"
 )
@@ -829,7 +831,7 @@ echo '=== [11f] action:status docs graph section ==='
   OUT=$(bash "$STATUS_SH" 2>&1)
   assert_out_contains "[docs graph" "$OUT" "status: includes docs graph section"
   # Should show exactly one of: missing, built, stale, or skill-missing message
-  printf '%s' "$OUT" | grep -qE 'status: (missing|built|stale)|skill not installed' \
+  grep -qE 'status: (missing|built|stale)|skill not installed' <<<"$OUT" \
     && pass "status: graph state reported (one of missing/built/stale/skill-missing)" \
     || fail "status: graph state not reported"
 )
@@ -899,7 +901,7 @@ echo "=== [11c] action:help banner for raw changes ==="
   # No pending changes → change-window banner absent. The lifecycle banner
   # still prints: notes.md + subdir/inside.md were never consumed (unused).
   OUT=$(bash "$HELP_SH" 2>&1)
-  printf '%s' "$OUT" | grep -qF 'added ·' \
+  grep -qF 'added ·' <<<"$OUT" \
     && fail "help: change banner should be absent when no changes" \
     || pass "help: no change banner when raw clean"
   assert_out_contains "never promoted" "$OUT"      "help: lifecycle banner lists unused docs"
@@ -1746,10 +1748,10 @@ if _get_github_owner_repo >/dev/null; then echo "gitlab-not-rejected"; else echo
 cd /; rm -rf "$TMP"
 INNER_EOF
 )
-printf '%s' "$PARSE_OUT" | grep -qF "https://github.com/owner/repo.git -> owner/repo" && pass "attachments URL: https/.git → owner/repo" || fail "attachments URL: https/.git parse"
-printf '%s' "$PARSE_OUT" | grep -qF "git@github.com:owner/repo.git -> owner/repo" && pass "attachments URL: ssh/.git → owner/repo" || fail "attachments URL: ssh/.git parse"
-printf '%s' "$PARSE_OUT" | grep -qF "https://github.com/owner/repo -> owner/repo" && pass "attachments URL: https no-suffix → owner/repo" || fail "attachments URL: no-suffix parse"
-printf '%s' "$PARSE_OUT" | grep -qF "gitlab-rejected" && pass "attachments URL: gitlab rejected" || fail "attachments URL: gitlab not rejected"
+grep -qF "https://github.com/owner/repo.git -> owner/repo" <<<"$PARSE_OUT" && pass "attachments URL: https/.git → owner/repo" || fail "attachments URL: https/.git parse"
+grep -qF "git@github.com:owner/repo.git -> owner/repo" <<<"$PARSE_OUT" && pass "attachments URL: ssh/.git → owner/repo" || fail "attachments URL: ssh/.git parse"
+grep -qF "https://github.com/owner/repo -> owner/repo" <<<"$PARSE_OUT" && pass "attachments URL: https no-suffix → owner/repo" || fail "attachments URL: no-suffix parse"
+grep -qF "gitlab-rejected" <<<"$PARSE_OUT" && pass "attachments URL: gitlab rejected" || fail "attachments URL: gitlab not rejected"
 
 echo
 echo "=== [11gg] lib/attachments.sh — backend dispatch + stub ==="
@@ -1765,8 +1767,8 @@ rm -f /tmp/test.webm
 cd /; rm -rf "$TMP"
 INNER_EOF
 )
-printf '%s' "$DISPATCH_OUT" | grep -qF "unknown SCV_ATTACHMENTS_BACKEND='invalid'" && pass "attachments dispatch: invalid backend rejected" || fail "attachments dispatch: invalid not rejected"
-printf '%s' "$DISPATCH_OUT" | grep -qF "s3 backend not yet implemented" && pass "attachments dispatch: s3 stub warning" || fail "attachments dispatch: s3 stub missing"
+grep -qF "unknown SCV_ATTACHMENTS_BACKEND='invalid'" <<<"$DISPATCH_OUT" && pass "attachments dispatch: invalid backend rejected" || fail "attachments dispatch: invalid not rejected"
+grep -qF "s3 backend not yet implemented" <<<"$DISPATCH_OUT" && pass "attachments dispatch: s3 stub warning" || fail "attachments dispatch: s3 stub missing"
 
 echo
 echo "=== [11hh] lib/attachments.sh — size guards ==="
@@ -1798,7 +1800,7 @@ rm -f /tmp/big.webm
 cd /; rm -rf "$TMP" "$BARE"
 INNER_EOF
 )
-printf '%s' "$SIZE_OUT" | grep -qE 'WARN.*51MB|>50MB' && pass "attachments size: 50MB+ WARN" || fail "attachments size: 50MB+ WARN missing — got: $SIZE_OUT"
+grep -qE 'WARN.*51MB|>50MB' <<<"$SIZE_OUT" && pass "attachments size: 50MB+ WARN" || fail "attachments size: 50MB+ WARN missing — got: $SIZE_OUT"
 
 echo
 echo "=== [11ii] lib/attachments.sh — manifest + cleanup with mock gh ==="
@@ -1864,9 +1866,9 @@ git ls-tree -r origin/scv-attachments | awk '{print $4}'
 cd /; rm -rf "$WORK" "$MOCK"
 INNER_EOF
 )
-printf '%s' "$CLEAN_OUT" | grep -qF "DELETED merged-old" && pass "attachments cleanup: stale slug deleted" || fail "attachments cleanup: DELETED line missing"
-printf '%s' "$CLEAN_OUT" | grep -qF "still-open/v2.webm" && pass "attachments cleanup: open PR preserved" || fail "attachments cleanup: open PR was deleted"
-printf '%s' "$CLEAN_OUT" | grep -qF "merged-old/v1.webm" && fail "attachments cleanup: merged file still in tree" || pass "attachments cleanup: merged file removed from tree"
+grep -qF "DELETED merged-old" <<<"$CLEAN_OUT" && pass "attachments cleanup: stale slug deleted" || fail "attachments cleanup: DELETED line missing"
+grep -qF "still-open/v2.webm" <<<"$CLEAN_OUT" && pass "attachments cleanup: open PR preserved" || fail "attachments cleanup: open PR was deleted"
+grep -qF "merged-old/v1.webm" <<<"$CLEAN_OUT" && fail "attachments cleanup: merged file still in tree" || pass "attachments cleanup: merged file removed from tree"
 
 echo
 echo "=== [11jj] work protocol — Step 9d retention question content ==="
@@ -1944,7 +1946,7 @@ cd /; rm -rf "$WORK"
 INNER_EOF
 )
 
-printf '%s' "$MIGRATE_OUT" | grep -qF "Migrated v0.3.0 layout → scv/" \
+grep -qF "Migrated v0.3.0 layout → scv/" <<<"$MIGRATE_OUT" \
   && pass "attachments migrate: stderr notice emitted" \
   || fail "attachments migrate: stderr notice missing"
 
@@ -1964,7 +1966,7 @@ printf '%s' "$MIGRATE_OUT" | awk '/---FILES---/,/---LOG---/' | grep -qE '^old-sl
   && fail "attachments migrate: old root slug folder still in tree" \
   || pass "attachments migrate: old root slug folder removed"
 
-printf '%s' "$MIGRATE_OUT" | grep -qF "Migrate v0.3.0 layout → scv/ subdirectory (v0.3.1)" \
+grep -qF "Migrate v0.3.0 layout → scv/ subdirectory (v0.3.1)" <<<"$MIGRATE_OUT" \
   && pass "attachments migrate: commit message correct" \
   || fail "attachments migrate: commit message missing"
 
@@ -2138,40 +2140,40 @@ RENDER_SH="$STANDARD_ROOT/scripts/render-template.sh"
 
 # 1. English (default — no SCV_LANG)
 OUT_EN=$(PHASE="Phase 1" STATUS=passed PROJECT=test GIT_SHORT=abc1234 bash "$RENDER_SH")
-printf '%s' "$OUT_EN" | grep -qF "Passed" \
+grep -qF "Passed" <<<"$OUT_EN" \
   && pass "render-template: english passed label" \
   || fail "render-template: english passed label missing"
-printf '%s' "$OUT_EN" | grep -qF "Project:" \
+grep -qF "Project:" <<<"$OUT_EN" \
   && pass "render-template: english Project label" \
   || fail "render-template: english Project label missing"
 
 # 2. Korean
 OUT_KO=$(PHASE="Phase 1" STATUS=passed PROJECT=test GIT_SHORT=abc1234 SCV_LANG=korean bash "$RENDER_SH")
-printf '%s' "$OUT_KO" | grep -qF "완료" \
+grep -qF "완료" <<<"$OUT_KO" \
   && pass "render-template: korean passed label" \
   || fail "render-template: korean passed label missing"
-printf '%s' "$OUT_KO" | grep -qF "프로젝트:" \
+grep -qF "프로젝트:" <<<"$OUT_KO" \
   && pass "render-template: korean Project label" \
   || fail "render-template: korean Project label missing"
 
 # 3. Japanese (failed status — covers cause / retry chrome too)
 OUT_JA=$(PHASE="Phase 1" STATUS=failed PROJECT=test GIT_SHORT=abc1234 SCV_LANG=japanese bash "$RENDER_SH")
-printf '%s' "$OUT_JA" | grep -qF "失敗" \
+grep -qF "失敗" <<<"$OUT_JA" \
   && pass "render-template: japanese failed label" \
   || fail "render-template: japanese failed label missing"
-printf '%s' "$OUT_JA" | grep -qF "原因" \
+grep -qF "原因" <<<"$OUT_JA" \
   && pass "render-template: japanese cause label" \
   || fail "render-template: japanese cause label missing"
 
 # 4. Unknown language → English fallback
 OUT_FB=$(PHASE="Phase 1" STATUS=passed PROJECT=test GIT_SHORT=abc1234 SCV_LANG=esperanto bash "$RENDER_SH")
-printf '%s' "$OUT_FB" | grep -qF "Passed" \
+grep -qF "Passed" <<<"$OUT_FB" \
   && pass "render-template: unknown lang falls back to english" \
   || fail "render-template: unknown lang fallback missing"
 
 # 5. Case-insensitive (KOREAN matches korean)
 OUT_KO_CAP=$(PHASE="Phase 1" STATUS=passed PROJECT=test GIT_SHORT=abc1234 SCV_LANG=KOREAN bash "$RENDER_SH")
-printf '%s' "$OUT_KO_CAP" | grep -qF "완료" \
+grep -qF "완료" <<<"$OUT_KO_CAP" \
   && pass "render-template: SCV_LANG case-insensitive" \
   || fail "render-template: SCV_LANG case-sensitive (should be insensitive)"
 
@@ -2408,16 +2410,16 @@ S3=$(printf '%s' "$GITLAB_TOKEN_OUT" | awk '/---S3---/{f=1;next} /---S4---/{f=0}
 
 # Scenario 4: error message + non-zero
 S4_BLOCK=$(printf '%s' "$GITLAB_TOKEN_OUT" | awk '/---S4---/{f=1;next} f')
-printf '%s' "$S4_BLOCK" | grep -q "no GitLab token available" \
+grep -q "no GitLab token available" <<<"$S4_BLOCK" \
   && pass "_pr_gitlab_token: error mentions 'no GitLab token available'" \
   || fail "_pr_gitlab_token: error message wrong (got: $S4_BLOCK)"
-printf '%s' "$S4_BLOCK" | grep -q "glab auth login" \
+grep -q "glab auth login" <<<"$S4_BLOCK" \
   && pass "_pr_gitlab_token: error suggests 'glab auth login'" \
   || fail "_pr_gitlab_token: error doesn't mention glab auth login"
-printf '%s' "$S4_BLOCK" | grep -q "settings-set.sh GITLAB_TOKEN=" \
+grep -q "settings-set.sh GITLAB_TOKEN=" <<<"$S4_BLOCK" \
   && pass "_pr_gitlab_token: error points at settings-set.sh for the token" \
   || fail "_pr_gitlab_token: error doesn't show how to store GITLAB_TOKEN"
-printf '%s' "$S4_BLOCK" | grep -q "S4-EXIT=1" \
+grep -q "S4-EXIT=1" <<<"$S4_BLOCK" \
   && pass "_pr_gitlab_token: returns exit 1 when no source available" \
   || fail "_pr_gitlab_token: should exit 1 (got: $S4_BLOCK)"
 
@@ -2882,22 +2884,22 @@ EXTRACTED=$(awk '
 ' "$TMP_FA")
 rm -f "$TMP_FA"
 
-if printf '%s' "$EXTRACTED" | grep -qF "### 1. Component data flow"; then
+if grep -qF "### 1. Component data flow" <<<"$EXTRACTED"; then
   pass "pr-helper awk: heading 1 extracted as ### subsection"
 else
   fail "pr-helper awk: heading 1 not found"
 fi
-if printf '%s' "$EXTRACTED" | grep -qF "### 2. Position in whole architecture"; then
+if grep -qF "### 2. Position in whole architecture" <<<"$EXTRACTED"; then
   pass "pr-helper awk: heading 2 extracted"
 else
   fail "pr-helper awk: heading 2 not found"
 fi
-if printf '%s' "$EXTRACTED" | grep -c '```mermaid' | grep -q '^2$'; then
+if grep -c '```mermaid' <<<"$EXTRACTED" | grep -q '^2$'; then
   pass "pr-helper awk: exactly 2 mermaid fences (both blocks)"
 else
   fail "pr-helper awk: mermaid fence count != 2"
 fi
-if printf '%s' "$EXTRACTED" | grep -qF "Source: graphify graph (built 2026-01-01)"; then
+if grep -qF "Source: graphify graph (built 2026-01-01)" <<<"$EXTRACTED"; then
   fail "pr-helper awk: Source line leaked into output (should be excluded)"
 else
   pass "pr-helper awk: Source line excluded (only mermaid blocks inline)"
@@ -3230,17 +3232,17 @@ OUT_JA=$(bash "$PR_HELPER" test-ja --dry-run 2>&1 || true)
 
 cd "$STANDARD_ROOT"
 
-if printf '%s' "$OUT_EN" | grep -qF "## Summary" && printf '%s' "$OUT_EN" | grep -qF "🗂  Archived"; then
+if grep -qF "## Summary" <<<"$OUT_EN" && grep -qF "🗂  Archived" <<<"$OUT_EN"; then
   pass "[11ddd] pr-helper dry-run: lang=english produces English labels"
 else
   fail "[11ddd] pr-helper dry-run: English labels missing"
 fi
-if printf '%s' "$OUT_KO" | grep -qF "## 요약" && printf '%s' "$OUT_KO" | grep -qF "🗂  보관됨"; then
+if grep -qF "## 요약" <<<"$OUT_KO" && grep -qF "🗂  보관됨" <<<"$OUT_KO"; then
   pass "[11ddd] pr-helper dry-run: lang=korean produces 한국어 labels (## 요약 / 🗂 보관됨)"
 else
   fail "[11ddd] pr-helper dry-run: Korean labels missing"
 fi
-if printf '%s' "$OUT_JA" | grep -qF "## 概要" && printf '%s' "$OUT_JA" | grep -qF "🗂  アーカイブ済み"; then
+if grep -qF "## 概要" <<<"$OUT_JA" && grep -qF "🗂  アーカイブ済み" <<<"$OUT_JA"; then
   pass "[11ddd] pr-helper dry-run: lang=japanese produces 日本語 labels (## 概要 / 🗂 アーカイブ済み)"
 else
   fail "[11ddd] pr-helper dry-run: Japanese labels missing"
@@ -3282,7 +3284,7 @@ EOF
 cd "$TMP_PRH"
 OUT_OTHER=$(bash "$PR_HELPER" test-other --dry-run 2>&1 || true)
 cd "$STANDARD_ROOT"
-if printf '%s' "$OUT_OTHER" | grep -qF "## Summary" && printf '%s' "$OUT_OTHER" | grep -qF "🗂  Archived"; then
+if grep -qF "## Summary" <<<"$OUT_OTHER" && grep -qF "🗂  Archived" <<<"$OUT_OTHER"; then
   pass "[11ddd] pr-helper dry-run: lang=spanish (unknown) falls back to English labels"
 else
   fail "[11ddd] pr-helper dry-run: unknown lang fallback broken"
@@ -3970,7 +3972,7 @@ TODO
   assert_out_contains "[scv/TODO.md — open items]" "$OUT" "status: TODO section present"
   assert_out_contains "1 open — by author: @kim 1" "$OUT" "status: open TODO counted per author"
   assert_out_contains "(T-001) write hook registration handoff — @kim" "$OUT" "status: open item listed with author"
-  printf '%s' "$OUT" | grep -qF "(T-002)" \
+  grep -qF "(T-002)" <<<"$OUT" \
     && fail "status: completed TODO leaked into open list" \
     || pass "status: completed TODO excluded"
 )
