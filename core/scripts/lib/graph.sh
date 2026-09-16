@@ -243,7 +243,7 @@ _SCV_GRAPH_JQ_REPORT='
     "",
     "## God Nodes",
     "",
-    ( .nodes as $n | .god_nodes | to_entries[] | "\(.key+1). `\(.value)` — \( ($n[] | select(.id==.value) | .degree) // 0 ) edges (\( ($n[] | select(.id==.value) | .kind) // "?" ))" ),
+    ( .nodes as $n | .god_nodes | to_entries[] | .value as $id | "\(.key+1). `\($id)` — \( ([$n[] | select(.id==$id) | .degree] | .[0]) // 0 ) edges (\( ([$n[] | select(.id==$id) | .kind] | .[0]) // "?" ))" ),
     "",
     "## Co-change pairs",
     "",
