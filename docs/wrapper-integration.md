@@ -245,7 +245,8 @@ Wrapper requirements:
    first prompt's preflight already carries the project state, and printing
    both would pay twice for the same information. The template reads only
    `scv/scv_settings.json` `SCV_RESUME_RECAP` (absent / `on` / any other
-   value = on; only `off` = off), writes nothing, exits `0` on every failure,
+   value = on; only `off` = off), writes nothing except the one-line help-state marker
+   (`scv/journal/.help-state`, v0.49.0+ — the "protocol read once per session" reset), exits `0` on every failure,
    and routes the conversation text through the redaction filter before it
    reaches stdout. No line cap — a long active conversation is delivered whole
    (a deliberate product decision; measure and revisit if it hurts).
