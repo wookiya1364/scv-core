@@ -198,6 +198,14 @@ Wrapper requirements:
    missing `jq`/`python3`, un-hydrated project) and write nothing. A wrapper
    that wraps or copies them must not turn hook failure into a session
    failure, and must not register them as blocking hooks.
+   The only files the hooks write outside the journal entries themselves live
+   in `scv/journal/` (ignored by default): the help-state marker
+   (`.help-state`, v0.49.0+), and — v0.50.0+ — the protocol fingerprint
+   (`.help-nonce`, written by `help-state.sh mark`), a one-turn warning the
+   stop hook reserves and the next prompt hook prints and deletes
+   (`.help-warn`), and the per-turn drift log (`.help-drift`). The stop hook
+   never blocks or rewrites an answer: on drift it only flips the marker so the
+   next help call reloads the full protocol.
 4. **Never bypass redaction.** All journal writes route through
    `journal-append.sh`, whose redaction filter
    (password/token/secret/api-key values, `Bearer` tokens, `AKIA…` keys →
