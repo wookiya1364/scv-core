@@ -14,7 +14,7 @@ SCV_ARGUMENT_STYLE=argv-array
 SCV_STATE_INDEX=SCV.md
 SCV_LEGACY_STATE_INDEXES='CLAUDE.md|CODEX.md'
 SCV_ROOT_ENV=EXAMPLE_PLUGIN_ROOT
-SCV_GRAPH_SKILL_PATHS='$HOME/.example/graph/SKILL.md'
+SCV_GRAPH_SKILL_PATHS (deprecated 0.51.0, ignored — see contracts/host-profile.md)='$HOME/.example/graph/SKILL.md'
 SCV_UPDATE_OWNER=adapter
 SCV_MODEL_POLICY_OWNER=adapter
 ```

@@ -4,6 +4,30 @@ All notable changes to SCV Core are documented here.
 
 ## [Unreleased]
 
+### SCV 자체 그래프 — 문서·계획·동시변경을 의존성 0 으로, graphify 제거
+
+그래프 스킬(graphify)은 보관된 52개 계획 중 실제로 쓴 계획이 0 이었고, Python 스킬 + LLM 빌드 비용이
+붙는데 SCV 가 그것으로 하던 일은 문서 그래프 하나였다. 이제 SCV 가 이미 가진 재료로 그래프를 직접
+만든다 — 문서의 링크, 보관된 계획이 건드린 파일(`scope:` + 백틱 경로), 결정 로그의 참조, 같은 계획에서
+함께 바뀐 파일 쌍(가중치 = 계획 수, 근거 = 슬러그). bash + jq, 새 의존 없음, 이 저장소(55 계획)에서 ≈2초.
+
+- **`core/scripts/graph.sh`** `build | status | ensure | impact [--json] <path>… | report` + 순수부 `lib/graph.sh`
+  (`@pure`/`@deterministic`). 산출물 `scv/.graph/graph.json`(version 1: nodes doc|file|plan|decision · links
+  link|touches|refers|cochange · communities(폴더/epic) · god_nodes · missing 표시) + `GRAPH_REPORT.md`. 무시 파일,
+  낡으면(문서·PLAN·DECISIONS 보다 오래되면) 자동 재생성. 결정적 출력(`built_at` 만 시각).
+- **영향 조회** `graph.sh impact` — "이 파일을 바꾸면 무엇이 같이 바뀌고(가중치·근거) 어느 계획·결정이
+  얽혔는가". `work.sh` 가 계획 `scope:` 파일들로 `=== impact (scv graph) ===` 블록을 싣고, `regression.sh`
+  가 변경 파일(`--changed a,b` 또는 git 작업 트리)로 앞단에 같은 블록을 싣는다(정보만, 실행 선택 불변).
+  `regression.sh --dry` 는 계획·영향만 찍고 실행하지 않는다.
+- **소비처**: promote-helper · work · status · deck-context 가 `graph.sh ensure` 를 쓴다 — `GRAPH_STATUS:
+  built|stale|missing|off|unavailable` + `GRAPH_DIR: scv/.graph`. promote.md Step 1 은 자동(질문 없음), Step 6.2
+  의 3-way/2-way 질문 제거, 그림 2 매핑은 새 graph.json 계약(군집 = 폴더/epic 라벨, god_nodes, cochange
+  가중치·근거). `Source: scv graph (built YYYY-MM-DD)`.
+- **graphify 제거**: 의존성 표(help.sh) · install-deps · host-profile 감지(`SCV_GRAPH_SKILL_PATHS` 는 받아도
+  무시, 폐기 표시) · gitignore(`.graphify*` → `scv/.graph/`) · PROMOTE.md · 규약 여섯 · run-dry 계약.
+- 설정: `SCV_GRAPH=on|off`, `SCV_GRAPH_DOCS`(기본 `docs README.md README.*.md core/contracts`).
+- 검사 `core/tests/test-graph.sh` (신설). 래퍼 계약: docs/wrapper-integration.md §8.
+
 ### 매 턴 라우터 다이어트 — 답 모양은 남기고 나머지는 압축, 진단 안내문은 직접 부를 때만
 
 매 턴 실리는 help 라우터(core/protocols/help.md) 9,670B → 7,115B (−26%), 매 턴 스택(훅 한 줄 + 라우터 +

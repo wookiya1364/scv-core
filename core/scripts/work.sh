@@ -23,7 +23,7 @@ fi
 #                                 so the change is announced rather than assumed.
 #
 # Output header (same style as promote-helper.sh) — the host agent parses these keys:
-#   MODE / TODAY / AUTHOR / GRAPHIFY_SKILL / GRAPH_STATUS
+#   MODE / TODAY / AUTHOR / GRAPH_STATUS / GRAPH_DIR
 #   TARGET_SLUG / TARGET_DIR / PLAN_FILE / TESTS_FILE
 #
 # Content blocks:
@@ -119,30 +119,13 @@ CRITERIA
   exit 0
 fi
 
-# Graphify skill check (shared logic with promote-helper.sh)
-GRAPHIFY_SKILL="missing"
-scv_graph_skill_available && GRAPHIFY_SKILL="available"
-echo "GRAPHIFY_SKILL: $GRAPHIFY_SKILL"
-
-GRAPH_STATUS="n/a"
-if [[ "$GRAPHIFY_SKILL" == "available" ]]; then
-  GRAPH_DIR=".graphify/docs/graphify-out"
-  if [[ ! -d "$GRAPH_DIR" ]]; then
-    GRAPH_STATUS="missing"
-  elif [[ ! -f "$STATE_FILE" ]]; then
-    GRAPH_STATUS="built"
-  else
-    # BSD/GNU portable mtime in epoch seconds.
-    graph_mt=$(stat -c %Y "$GRAPH_DIR" 2>/dev/null || stat -f %m "$GRAPH_DIR" 2>/dev/null || echo 0)
-    state_mt=$(stat -c %Y "$STATE_FILE" 2>/dev/null || stat -f %m "$STATE_FILE" 2>/dev/null || echo 0)
-    if [[ "$graph_mt" -ge "$state_mt" ]]; then
-      GRAPH_STATUS="built"
-    else
-      GRAPH_STATUS="stale"
-    fi
-  fi
-fi
+# SCV 자체 그래프 (v0.51.0+). 낡았으면 여기서 자동으로 다시 만든다(bash+jq, 목표 2초 안).
+# jq 가 없으면 unavailable, SCV_GRAPH=off 면 off — 어느 쪽도 이 스크립트를 막지 않는다.
+GRAPH_DIR="scv/.graph"
+GRAPH_STATUS="$(bash "$SCRIPT_DIR/graph.sh" ensure 2>/dev/null | sed -n 's/^GRAPH_STATUS: //p' | head -1)"
+[[ -n "$GRAPH_STATUS" ]] || GRAPH_STATUS="unavailable"
 echo "GRAPH_STATUS: $GRAPH_STATUS"
+[[ "$GRAPH_STATUS" == "built" ]] && echo "GRAPH_DIR: $GRAPH_DIR"
 
 # ---------- helpers ----------
 
@@ -436,5 +419,23 @@ if [[ -f "$PLAN" ]]; then
         fi
       done <<< "$refs_data"
     done
+  fi
+fi
+
+# ---------- impact (scv graph, v0.51.0+) ----------
+# 이 계획의 scope: 파일들에 대해 — 함께 바뀌는 파일(가중치·근거 계획) · 건드린 계획 · 얽힌 결정 · 링크한 문서.
+# 정보만 싣는다; 그래프가 없으면(off/unavailable) 조용히 생략.
+if [[ -n "${PLAN:-}" && -f "$PLAN" && "${GRAPH_STATUS:-}" == "built" && -f "$SCRIPT_DIR/lib/graph.sh" ]]; then
+  # shellcheck disable=SC1091
+  source "$SCRIPT_DIR/lib/graph.sh"
+  _impact_rec="$(scv_graph_plan_touches "$TARGET_SLUG" "$(cat "$PLAN")")"
+  _impact_files="${_impact_rec##*$'\x1f'}"
+  echo ""
+  echo "=== impact (scv graph) ==="
+  if [[ -n "${_impact_files//[[:space:]]/}" ]]; then
+    # shellcheck disable=SC2046
+    bash "$SCRIPT_DIR/graph.sh" impact $(printf '%s' "$_impact_files" | tr ' ' '\n' | head -12) 2>/dev/null || echo "(graph unavailable)"
+  else
+    echo "(PLAN.md has no scope: paths)"
   fi
 fi

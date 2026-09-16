@@ -21,8 +21,7 @@ fi
 # Tools handled (system CLIs only):
 #   git, gh, glab, curl, jq, ffmpeg, python3
 #
-# Out of scope (different distribution channel):
-#   graphify (the host agent skill — see https://github.com/safishamsi/graphify)
+# The docs graph needs no install: scripts/graph.sh builds it from the repository with bash + jq (v0.51.0+).
 #
 # Supported OS / package manager:
 #   macOS              → brew
@@ -349,8 +348,7 @@ mode_check_or_install() {
   if [[ "$pm" == missing-* || "$pm" == "unknown-pm" ]]; then
     emit_pm_missing "$os" "$pm"
     echo ""
-    echo "Re-run after installing a package manager. graphify (the host agent skill)"
-    echo "is separate — see https://github.com/safishamsi/graphify"
+    echo "Re-run after installing a package manager."
     return 2
   fi
 
@@ -391,14 +389,6 @@ mode_check_or_install() {
     esac
   done
 
-  echo ""
-  echo "graphify (the host agent skill, optional):"
-if scv_graph_skill_available; then
-    echo "  [✓] graphify   skill installed (token-efficient graph queries)"
-  else
-    echo "  [△] graphify   not installed — token-efficient graph queries unavailable"
-    echo "      See https://github.com/safishamsi/graphify"
-  fi
 
   echo ""
   if [[ ${#missing_required[@]} -gt 0 ]]; then
@@ -447,9 +437,6 @@ mode_print() {
     echo ""
   done
 
-  echo "graphify (the host agent skill, all OSes):"
-  echo "  See https://github.com/safishamsi/graphify"
-  echo "  Manual placement: use the graph-skill path documented by your wrapper."
 }
 
 # ---------- Main ------------------------------------------------------------
