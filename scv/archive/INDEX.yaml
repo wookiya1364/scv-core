@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-09-16T08:42:03Z
+generated_at: 2026-09-17T00:18:14Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -228,8 +228,28 @@ archives:
     title: "run-dry 다이어트 — 문장 고정을 구조 검사로, 남는 고정엔 이유를"
     kind: refactor
     status: testing
+  - slug: 20260916-wookiya1364-answer-lint-turn-race
+    title: "답 모양 검사는 이번 턴의 답만 본다 — 기록 경합 제거"
+    kind: feature
+    status: testing
+    epic: 20260914-help-turn-cost
   - slug: 20260916-wookiya1364-help-protocol-echo
     title: "규약 지문 메아리 — 잊었는지 묻지 않고, 지문과 답 모양으로 잡아 다시 싣는다"
     kind: feature
     status: testing
     epic: 20260914-help-turn-cost
+  - slug: 20260916-wookiya1364-help-router-diet
+    title: "매 턴 라우터 다이어트 — 답 모양은 남기고 나머지는 압축, 진단 안내문은 직접 부를 때만"
+    kind: refactor
+    status: planned
+    epic: 20260914-help-turn-cost
+  - slug: 20260917-wookiya1364-graft-adapter
+    title: "Graft 어댑터 — 있으면 코드 영향 범위와 관련 코드 후보를 덧붙이고, 없으면 조용히 생략"
+    kind: feature
+    status: testing
+    epic: 20260917-scv-graph
+  - slug: 20260917-wookiya1364-scv-own-graph
+    title: "SCV 자체 그래프 — 문서·계획·동시변경을 의존성 0 으로, graphify 제거"
+    kind: feature
+    status: testing
+    epic: 20260917-scv-graph

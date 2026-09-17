@@ -1054,3 +1054,67 @@ merge_policy: preserve
 - path delta: mark 출력 JSON 에도 지문을 싣는다(규약을 읽은 턴에만 실행되므로 불변식 유지) — 파일만 읽게 하면 mark 전엔 파일이 없어 순서가 꼬인다. 종료 훅은 저널 꼬리(4000B)와 별개로 마지막 어시스턴트 메시지 전문(64KB)을 뽑아 린트한다. 범위 밖 둘: 회귀 러너 게이트 상한 300→600(코어 검사 47개 ≈290초, 새 검사가 더해지자 보관 계약 3건이 같은 게이트로 붉게 떴다) · 래퍼 통합 문서에 훅이 쓰는 파일 넷 명시.
 - refs: scv/archive/20260916-wookiya1364-help-protocol-echo/PLAN.md
 - conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-16 21:58] scv-core-sync-bot — 답 모양 검사는 이번 턴의 답만 본다 — 기록 경합 제거
+
+- verdict: adopted
+- why: 0.50.0 린트가 원본(transcript)의 마지막 답을 읽는데 호스트가 원본을 비동기로 적어 훅이 한 턴 전 답을 봄(관찰 2건, 같은 초). 호스트가 넘기는 last_assistant_message 를 1순위로, 없으면 원본을 턴 경계로 잘라 1초 안에서 재시도, 그래도 없으면 생략(src=none). 따옴표 안 마침표 오탐도 함께.
+- discarded alternatives: 값 없는 호스트에서 린트를 끄기 — 사용자가 '무조건 적용' 을 요구해 기각 · 로그 형식 완전 불변 — 사후 검증을 위해 끝에 src 토큰 하나는 덧붙이기로
+- refs: scv/promote/20260916-wookiya1364-answer-lint-turn-race/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-16 23:21] scv-core-sync-bot — 답 모양 검사는 이번 턴의 답만 본다 — 기록 경합 제거 archived
+
+- verdict: archived
+- why: 종료 훅의 린트 본문 출처를 셋으로 고정: 호스트가 넘긴 last_assistant_message → 원본의 이번 턴(마지막 사람 프롬프트 이후, 1초 안 재시도) → 없음(생략). 낡은 답을 보는 경우 0. 드리프트 줄 끝 src= 토큰으로 사후 검증 가능. 따옴표·괄호 안 마침표는 문장으로 안 센다. 지켜야 할 것: 지문 검사 경로 불변, U(사람 프롬프트) 없는 창은 안전 쪽(생략), 스위치 둘 다 off 면 읽지 않음, 템플릿 파일 변경 시 TEMPLATE_DIGEST 재계산.
+- path delta: as planned — 추가로 test-help-echo 하네스의 원본 흉내에 사람 프롬프트 줄을 넣었다(새 규칙상 U 없으면 생략이라 옛 흉내가 붉어짐). 회귀 1차 9건은 코드 문제가 아니라 커밋 전 diff 검사·지문 미갱신.
+- refs: scv/archive/20260916-wookiya1364-answer-lint-turn-race/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-16 23:33] scv-core-sync-bot — 매 턴 라우터 다이어트 — 답 모양은 남기고 나머지는 압축, 진단 안내문은 직접 부를 때만
+
+- verdict: adopted
+- why: 매 턴 스택 ≈12.6KB(라우터 9.7KB + 훅 1.5KB + 헬퍼). 답 모양·언어·쉬운 말 절은 바이트 그대로 두고(사용자 결정: 잊음 우려 유지, run-dry [15p] 공통 문구) 기록 계약·헬퍼·규약 읽기 절 압축, 배경 조사 절은 full.md 로 → 라우터 ≤7KB. 변동 턴 preflight 는 진단 본문 + 권장 첫 줄만(Learn more·hydrate 방법 제거) → ≤2KB. 상한 하향 잠금.
+- discarded alternatives: 답 모양 절을 full.md 로 이동(라우터 ≈4.2KB, −5.5KB/턴) — 사용자가 매 턴 유지를 택함 · 매 턴 Skill 호출 자체를 훅 명령으로 대체 — always-on 계약 검사들과 얽혀 별도 계획으로
+- refs: scv/promote/20260916-wookiya1364-help-router-diet/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-16 23:59] scv-core-sync-bot — 매 턴 라우터 다이어트 — 답 모양은 남기고 나머지는 압축, 진단 안내문은 직접 부를 때만 archived
+
+- verdict: archived
+- why: 라우터 9,670→7,115B(−26%), 매 턴 스택 ≈9.0KB, 변동 턴 preflight ≈1.5KB. 언어·쉬운 말·답 모양 절은 md5 로 고정, 위임 절은 full.md 로. 지켜야 할 것: 다른 검사가 정확한 문구로 고정한 계약 문장(nothing worth keeping · rejected on purpose · Short turns skip this question entirely · no conversation file yet, open one · one question per turn · dependent question or one Decisions table — never both)과 명령 셋은 한 줄 안에 그대로. 상한 7,500/9,500/9,000.
+- path delta: 목표 7,000B 는 고정 절 4,529B + 계약 문구·명령 ≈1,000B 가 바닥이라 7,115B 에서 멈춤 → 사용자 결정으로 T1 7,200. 추가로 run-dry 의 printf|grep 파이프 44곳을 히어스트링으로(macOS pipefail SIGPIPE 간헐 실패).
+- refs: scv/archive/20260916-wookiya1364-help-router-diet/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-17 07:28] scv-core-sync-bot — SCV 자체 그래프 — 문서·계획·동시변경을 의존성 0 으로, graphify 제거
+
+- verdict: adopted
+- why: graphify 는 52개 계획 중 실사용 0, Python+LLM 무게, 문서 그래프 하나에만 쓰임. SCV 가 이미 가진 재료(docs 링크 · 보관 계획→파일 · 결정 참조 · 동시변경)로 bash+jq 그래프를 scv/.graph/ 에 자동 재생성하고, 영향 조회(impact)를 work 헤더·회귀 앞단에 붙인다. 문서 범위 docs/+README+core/contracts(설정 키로 변경). graphify 참조 전부 제거.
+- discarded alternatives: 자체 그래프만 먼저 만들고 graphify 제거는 다음 계획 — 경로가 둘 남아 기각 · 산출물 커밋(scv/graph/) — 보관마다 큰 diff 라 무시 파일로 · docs/ 만 — 계약 문서가 빠져 기각 · git numstat 동시변경 — 계획 단위가 잡음이 적어 이번엔 제외
+- refs: scv/promote/20260917-wookiya1364-scv-own-graph/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-17 08:38] scv-core-sync-bot — SCV 자체 그래프 — 문서·계획·동시변경을 의존성 0 으로, graphify 제거 archived
+
+- verdict: archived
+- why: graph.sh(build/status/ensure/impact/report) + lib/graph.sh 로 scv/.graph/ 를 bash+jq 만으로 만든다(55 계획 ≈1.8초, 노드 421 · 링크 9,587). 소비처 넷·help·install-deps·host-profile·regression 이 새 그래프를 쓰고 graphify 참조 0. 지켜야 할 것: 순수부의 jq 프로그램은 함수 밖 상수(검사기가 > 와 sort_by 를 오인) · 결정적 출력(built_at 만 시각) · 없는 경로는 missing 표시 · SCV_GRAPH=off/jq 없음은 막지 않음 · 템플릿 변경 시 TEMPLATE_DIGEST · promote.md 줄 수 변화 시 guard.md 예외 앵커.
+- path delta: as planned — 추가로 regression.sh 에 --dry/--changed, work.sh 에 IMPACT 블록. 놀란 것: 순수성 검사기가 jq 본문의 비교 연산자(>)를 리다이렉션으로, sort_by 를 sort 명령으로 읽음 → jq 프로그램을 함수 밖 상수로. bash 의 "${1:-{}}" 가 닫는 중괄호를 덧붙이는 함정. 병렬 회귀 실행 시 빌드 2초 검사(T6)가 부하로 붉을 수 있음(단독 실행 녹색).
+- refs: scv/archive/20260917-wookiya1364-scv-own-graph/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-17 08:54] scv-core-sync-bot — Graft 어댑터 — 있으면 코드 영향 범위와 관련 코드 후보를 덧붙이고, 없으면 조용히 생략
+
+- verdict: adopted
+- why: 자체 그래프(이력)와 Graft(현재 의존)는 겹치지 않는다. Graft 를 필수가 아닌 선택 제공자로: graft 가 PATH 에 있고 graft/ 가 있으면 회귀 앞단에 blast(정적 영향), work/promote 헤더에 ask(관련 코드 후보). 없으면 GRAFT_STATUS: absent 한 줄뿐. 설치·init·훅은 SCV 가 하지 않는다(--no-hooks --no-statusline 안내만). Graft 는 bash 미지원 — 이 저장소에선 실증 불가, 가짜 graft 픽스처로 계약 검증.
+- discarded alternatives: Graft 결과를 자체 그래프에 합치기 — 스키마가 문서화되지 않아 이번엔 나란히만 · 이번 릴리스에서 제외 — 사용자가 포함을 택함
+- refs: scv/promote/20260917-wookiya1364-graft-adapter/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-17 09:18] scv-core-sync-bot — Graft 어댑터 — 있으면 코드 영향 범위와 관련 코드 후보를 덧붙이고, 없으면 조용히 생략 archived
+
+- verdict: archived
+- why: graft.sh(status/blast/ask) + lib/graft.sh. 없으면 GRAFT_STATUS: absent 한 줄이 유일한 차이. ready 면 회귀 앞단 blast 블록·work 헤더 ask 후보. 지켜야 할 것: SCV 는 graft 를 설치·init·build·훅하지 않음 · 시간 제한·실패는 exit 0 · 자체 그래프 블록 아래에만 · 소스에 제어 문자 없이 jq 유니코드 이스케이프로 구분자.
+- path delta: as planned — 놀란 것: Graft 는 bash 미지원(이 저장소에서 실증 불가, 픽스처로 계약 검증). 소스에 US 제어 문자를 넣으면 이 도구의 명령 검증에 걸린다 — jq 이스케이프로 대체.
+- refs: scv/archive/20260917-wookiya1364-graft-adapter/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md

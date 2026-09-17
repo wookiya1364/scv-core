@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated_at": "2026-09-14T02:59:23Z",
+  "updated_at": "2026-09-16T23:54:35Z",
   "files": {
     "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "size": 4974, "mtime": "2026-09-01T06:09:12Z" },
     "scv/raw/stale/20260812-wookiya1364-forced-invocation.md": { "size": 9860, "mtime": "2026-09-01T06:09:12Z" },
@@ -24,9 +24,14 @@
     "scv/raw/stale/20260826-wookiya1364-deck-screen-spec-format.md": { "size": 3512, "mtime": "2026-09-01T06:09:12Z" },
     "scv/raw/stale/20260827-wookiya1364-deck-picture-only.md": { "size": 2635, "mtime": "2026-09-01T06:09:12Z" },
     "scv/raw/stale/20260911-research-plugin-trends.md": { "size": 5770, "mtime": "2026-09-11T07:03:23Z" },
-    "scv/raw/stale/20260914-wookiya1364-help-body-diet.md": { "size": 2652, "mtime": "2026-09-14T00:39:51Z" },
-    "scv/raw/stale/20260914-wookiya1364-run-dry-audit.md": { "size": 1130, "mtime": "2026-09-14T02:59:22Z" },
-    "scv/raw/stale/20260914-wookiya1364-skill-cost-measurement.md": { "size": 2169, "mtime": "2026-09-14T00:27:36Z" }
+    "scv/raw/stale/20260914-wookiya1364-help-body-diet.md": { "size": 2652, "mtime": "2026-09-14T04:10:58Z" },
+    "scv/raw/stale/20260914-wookiya1364-run-dry-audit.md": { "size": 1130, "mtime": "2026-09-14T08:01:55Z" },
+    "scv/raw/stale/20260914-wookiya1364-skill-cost-measurement.md": { "size": 2169, "mtime": "2026-09-14T04:10:58Z" },
+    "scv/raw/stale/20260916-always-on-per-turn-cost-diet.md": { "size": 2886, "mtime": "2026-09-16T14:25:57Z" },
+    "scv/raw/stale/20260916-answer-lint-one-turn-lag.md": { "size": 2152, "mtime": "2026-09-16T12:26:20Z" },
+    "scv/raw/stale/20260916-graft-partial-adoption-shared-conversation.md": { "size": 23892, "mtime": "2026-09-16T12:19:27Z" },
+    "scv/raw/stale/20260916-graph-dependency-decision.md": { "size": 2836, "mtime": "2026-09-16T12:39:59Z" },
+    "scv/raw/stale/20260916-wookiya1364-protocol-echo-idea.md": { "size": 1175, "mtime": "2026-09-16T05:10:37Z" }
   },
   "ref_docs": {
     "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "slugs": ["20260812-wookiya1364-ci-provenance-gate"], "ref_commit": "1f766d4", "consumed_at": "2026-08-12T06:09:37Z", "origin": "scv/raw/20260812-wookiya1364-ci-provenance-gate.md" },
@@ -49,6 +54,10 @@
     "scv/raw/stale/20260911-research-plugin-trends.md": { "slugs": ["20260911-wookiya1364-session-resume-recap", "20260911-wookiya1364-skills-layout-gates"], "ref_commit": "359afaa", "consumed_at": "2026-09-11T05:02:17Z", "origin": "scv/raw/20260911-research-plugin-trends.md" },
     "scv/raw/stale/20260914-wookiya1364-help-body-diet.md": { "slugs": ["20260914-wookiya1364-help-body-diet"], "ref_commit": "8b2a0be", "consumed_at": "2026-09-14T00:50:20Z", "origin": "scv/raw/20260914-wookiya1364-help-body-diet.md" },
     "scv/raw/stale/20260914-wookiya1364-run-dry-audit.md": { "slugs": ["20260914-wookiya1364-run-dry-anchor-diet"], "ref_commit": "4d641c5", "consumed_at": "2026-09-14T02:59:23Z", "origin": "scv/raw/20260914-wookiya1364-run-dry-audit.md" },
-    "scv/raw/stale/20260914-wookiya1364-skill-cost-measurement.md": { "slugs": ["20260914-wookiya1364-help-body-diet"], "ref_commit": "8b2a0be", "consumed_at": "2026-09-14T00:50:20Z", "origin": "scv/raw/20260914-wookiya1364-skill-cost-measurement.md" }
+    "scv/raw/stale/20260914-wookiya1364-skill-cost-measurement.md": { "slugs": ["20260914-wookiya1364-help-body-diet"], "ref_commit": "8b2a0be", "consumed_at": "2026-09-14T00:50:20Z", "origin": "scv/raw/20260914-wookiya1364-skill-cost-measurement.md" },
+    "scv/raw/stale/20260916-always-on-per-turn-cost-diet.md": { "slugs": ["20260916-wookiya1364-help-router-diet"], "ref_commit": "2cdad50", "consumed_at": "2026-09-16T14:33:20Z", "origin": "scv/raw/20260916-always-on-per-turn-cost-diet.md" },
+    "scv/raw/stale/20260916-answer-lint-one-turn-lag.md": { "slugs": ["20260916-wookiya1364-answer-lint-turn-race"], "ref_commit": "fc841ec", "consumed_at": "2026-09-16T12:58:29Z", "origin": "scv/raw/20260916-answer-lint-one-turn-lag.md" },
+    "scv/raw/stale/20260916-graft-partial-adoption-shared-conversation.md": { "slugs": ["20260917-wookiya1364-scv-own-graph", "20260917-wookiya1364-graft-adapter"], "ref_commit": "96fabc5", "consumed_at": "2026-09-16T23:54:35Z", "origin": "scv/raw/20260916-graft-partial-adoption-shared-conversation.md" },
+    "scv/raw/stale/20260916-graph-dependency-decision.md": { "slugs": ["20260916-wookiya1364-answer-lint-turn-race", "20260916-wookiya1364-help-router-diet", "20260917-wookiya1364-scv-own-graph", "20260917-wookiya1364-graft-adapter"], "ref_commit": "96fabc5", "consumed_at": "2026-09-16T23:54:35Z", "origin": "scv/raw/20260916-graph-dependency-decision.md" }
   }
 }
