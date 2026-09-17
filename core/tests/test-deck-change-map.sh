@@ -20,6 +20,13 @@ has()  { grep -qF -- "$2" "$1" && ok || bad "$3 — 없음: $2"; }
 hasnt(){ grep -qF -- "$2" "$1" && bad "$3 — 있으면 안 됨: $2" || ok; }
 
 command -v node >/dev/null 2>&1 || { echo "SKIP test-deck-change-map: node 없음"; exit 0; }
+# 문서 생성기는 remark 묶음에 기대므로, 그것이 없으면 이 검사는 돌 수 없다.
+# 다른 deck 검사들과 같은 관문이다 — 없으면 붉히지 않고 조용히 건너뛴다.
+command -v pnpm >/dev/null 2>&1 || { echo "SKIP test-deck-change-map: pnpm 없음"; exit 0; }
+if [[ ! -d "$DECKDOC/node_modules" ]]; then
+  ( cd "$DECKDOC" && pnpm install ) >/dev/null 2>&1 \
+    || { echo "SKIP test-deck-change-map: deckdoc 의존성 설치 실패"; exit 0; }
+fi
 
 WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
 
