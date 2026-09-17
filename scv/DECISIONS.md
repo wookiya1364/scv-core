@@ -1118,3 +1118,20 @@ merge_policy: preserve
 - path delta: as planned — 놀란 것: Graft 는 bash 미지원(이 저장소에서 실증 불가, 픽스처로 계약 검증). 소스에 US 제어 문자를 넣으면 이 도구의 명령 검증에 걸린다 — jq 이스케이프로 대체.
 - refs: scv/archive/20260917-wookiya1364-graft-adapter/PLAN.md
 - conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-17 14:52] scv-core-sync-bot — 변경 지도 — 계획서가 바뀔 함수를 선언하고, Graft 가 대조하고, 문서가 그린다
+
+- verdict: adopted
+- why: 읽는 사람이 추가·변경·삭제를 그림으로 한눈에 보게 한다. 파이프라인 절과 화면의 단계 태그가 이미 있으므로, 새 개념을 넣는 대신 빈칸을 메우는 일로 잡았다. Graft 는 선택 제공자로 두어 없어도 문서가 완성된다.
+- discarded alternatives: Graft 가 A/M/D 를 직접 판정하게 하는 안 — Graft 는 존재하는 코드만 보므로 구현 전 계획에서는 빈 결과가 나온다. / 계획서에 표를 미리 적어 고정하는 안 — 실제 변경과 벌어진다. / 파일 단위 A/M/D — 함수 단위여야 화면·파이프라인과 이어진다.
+- refs: scv/promote/20260917-wookiya1364-deck-change-map/PLAN.md
+- conversation: scv/conversations/20260917-133700-release-0512-verify.md
+
+## [2026-09-17 17:23] scv-core-sync-bot — 변경 지도 배송 + 고정 밀리초 예산 제거
+
+- verdict: archived
+- why: 계획서가 함수 단위로 추가·변경·삭제를 선언하고, deck 이 그것을 상태별 색 그림과 표로 그린다. 화면의 번호도 자기를 움직이는 함수와 그 상태를 함께 보여준다. Graft 는 선언을 코드와 대조하는 선택 제공자이며, 없으면 설치 명령만 안내하고 나머지는 그대로 그려진다. 함께, 세 검사에 박혀 있던 고정 밀리초 예산을 기계 사정에 맞춰 늘어나는 예산으로 바꿨다 — 이것이 부하에서 계획 25건을 한꺼번에 붉게 만들던 원인이다.
+- discarded alternatives: Graft 가 추가·변경·삭제를 직접 판정하게 하는 안 — 존재하는 코드만 보므로 구현 전에는 빈 결과가 난다. / 흔들리는 단언에 재시도를 붙이는 안 — 실패를 두 번 기다릴 뿐 기준이 여전히 기계에 달려 있다. / 예산을 그냥 크게 키우는 안 — 빠른 기계에서 진짜 느려짐을 놓친다.
+- path delta: 계획에 없던 일 셋을 더했다. (1) Graft 응답을 원본 JSON 대신 어댑터의 사람용 후보 줄로 읽는다 — JSON 모양 추정은 어댑터가 이미 떠안고 있어 두 번 할 이유가 없었다. (2) deck 프로토콜에 변경 지도 절을 넣었다 — 약속 문서가 실제 동작을 말하지 않으면 계약이 아니다. (3) 검증 도중 발견한 시간 예산 흔들림을 같은 계획 안에서 고쳤다. 순수 단계는 계획의 5개가 아니라 7개로 나뉘었다.
+- refs: scv/archive/20260917-wookiya1364-deck-change-map/PLAN.md
+- conversation: scv/conversations/20260917-133700-release-0512-verify.md
