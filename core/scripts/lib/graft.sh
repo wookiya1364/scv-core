@@ -32,8 +32,8 @@ _SCV_GRAFT_JQ_ASK='
 # <graft 실행 파일 있음 0|1> <graft/ 그래프 있음 0|1> <스위치 auto|off|''> → absent | no-graph | ready | off
 scv_graft_status() {
   local has_bin="${1:-0}" has_graph="${2:-0}" sw="${3:-auto}"
-  sw="${sw,,}"; sw="${sw//[[:space:]\"\']/}"
-  if [[ "$sw" == "off" ]]; then printf 'off'; return 0; fi
+  sw="${sw//[[:space:]\"\']/}"
+  if [[ "$sw" == [oO][fF][fF] ]]; then printf 'off'; return 0; fi   # bash 3.2 에는 ${var,,} 가 없다
   (( has_bin )) || { printf 'absent'; return 0; }
   (( has_graph )) || { printf 'no-graph'; return 0; }
   printf 'ready'

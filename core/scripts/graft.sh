@@ -22,18 +22,23 @@ has_bin=0; command -v graft >/dev/null 2>&1 && has_bin=1
 has_graph=0; [[ -d graft ]] && has_graph=1
 STATUS="$(scv_graft_status "$has_bin" "$has_graph" "$(_get SCV_GRAFT)")"
 
-# 시간 제한 실행 — coreutils timeout 이 있으면 그것, 없으면 bash 감시자. 출력은 stdout 으로.
-_run() {
-  if command -v timeout >/dev/null 2>&1; then timeout "$TIMEOUT" "$@"; return $?; fi
-  "$@" & local pid=$!
-  ( sleep "$TIMEOUT"; kill "$pid" 2>/dev/null ) & local wd=$!
-  wait "$pid" 2>/dev/null; local rc=$?
-  kill "$wd" 2>/dev/null; wait "$wd" 2>/dev/null
-  return $rc
-}
+# 시간 제한 실행 — coreutils timeout 이 있으면 그것(프로세스 그룹째 죽인다), 없으면 bash 감시자:
+# 작업 제어(set -m)로 자식을 제 프로세스 그룹에 두고 그룹째 TERM → KILL. 출력은 임시 파일로 받는다 —
+# 명령 치환으로 받으면 죽은 자식이 남긴 손자(예: sleep)가 stdout 을 쥐고 있어 끝까지 기다리게 된다.
 _call() {  # <args…> → JSON on stdout or empty (+ stderr note)
-  local out rc
-  out="$(_run graft "$@" 2>/dev/null)"; rc=$?
+  local tmp rc=0 out
+  tmp="$(mktemp 2>/dev/null || printf '/tmp/scv-graft.%s.%s' "$$" "$RANDOM")"
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$TIMEOUT" graft "$@" > "$tmp" 2>/dev/null; rc=$?
+  else
+    ( set -m
+      graft "$@" > "$tmp" 2>/dev/null & pid=$!
+      ( sleep "$TIMEOUT"; kill -TERM -- "-$pid" 2>/dev/null; sleep 1; kill -KILL -- "-$pid" 2>/dev/null ) & wd=$!
+      wait "$pid" 2>/dev/null; rc=$?
+      kill -KILL -- "-$wd" 2>/dev/null; kill "$wd" 2>/dev/null; wait "$wd" 2>/dev/null
+      exit "$rc" ); rc=$?
+  fi
+  out="$(cat "$tmp" 2>/dev/null)"; rm -f "$tmp"
   if (( rc != 0 )); then echo "graft: '$1' failed or timed out (${TIMEOUT}s) — skipped" >&2; return 0; fi
   if ! printf '%s' "$out" | jq -e . >/dev/null 2>&1; then echo "graft: '$1' returned no JSON — skipped" >&2; return 0; fi
   printf '%s' "$out"
