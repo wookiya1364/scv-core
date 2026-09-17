@@ -2,6 +2,15 @@
 
 All notable changes to SCV Core are documented here.
 
+## [0.51.1] - 2026-09-17
+
+### 그래프 검사의 저장소 전용 항목은 scv-core 에서만
+
+0.51.0 을 래퍼에 벤더링하면 `core/tests/test-graph.sh` 의 세 항목이 사본에서 붉었다 — T6(이 저장소의 보관 계획
+동시변경 쌍) · T10(docs·README·루트 tests 의 옛 스킬 이름 — 래퍼의 host-profile.env 가 걸림) · T11(루트 gitignore).
+VERSION·TEMPLATE_DIGEST·scv/archive 가 있는 scv-core 에서만 보고 사본에서는 건너뛴다. 코어 페이로드(scripts·
+protocols·template·contracts·tests)의 옛 스킬 이름 검사는 어디서든 그대로. 코드 변경 없음.
+
 ## [0.51.0] - 2026-09-17
 
 ### Graft 어댑터 — 있으면 코드 영향 범위와 관련 코드 후보를 덧붙이고, 없으면 조용히 생략
