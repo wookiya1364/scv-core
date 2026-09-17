@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated_at": "2026-09-16T22:27:57Z",
+  "updated_at": "2026-09-16T23:54:35Z",
   "files": {
     "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "size": 4974, "mtime": "2026-09-01T06:09:12Z" },
     "scv/raw/stale/20260812-wookiya1364-forced-invocation.md": { "size": 9860, "mtime": "2026-09-01T06:09:12Z" },
@@ -57,7 +57,7 @@
     "scv/raw/stale/20260914-wookiya1364-skill-cost-measurement.md": { "slugs": ["20260914-wookiya1364-help-body-diet"], "ref_commit": "8b2a0be", "consumed_at": "2026-09-14T00:50:20Z", "origin": "scv/raw/20260914-wookiya1364-skill-cost-measurement.md" },
     "scv/raw/stale/20260916-always-on-per-turn-cost-diet.md": { "slugs": ["20260916-wookiya1364-help-router-diet"], "ref_commit": "2cdad50", "consumed_at": "2026-09-16T14:33:20Z", "origin": "scv/raw/20260916-always-on-per-turn-cost-diet.md" },
     "scv/raw/stale/20260916-answer-lint-one-turn-lag.md": { "slugs": ["20260916-wookiya1364-answer-lint-turn-race"], "ref_commit": "fc841ec", "consumed_at": "2026-09-16T12:58:29Z", "origin": "scv/raw/20260916-answer-lint-one-turn-lag.md" },
-    "scv/raw/stale/20260916-graft-partial-adoption-shared-conversation.md": { "slugs": ["20260917-wookiya1364-scv-own-graph"], "ref_commit": "f43487d", "consumed_at": "2026-09-16T22:27:56Z", "origin": "scv/raw/20260916-graft-partial-adoption-shared-conversation.md" },
-    "scv/raw/stale/20260916-graph-dependency-decision.md": { "slugs": ["20260916-wookiya1364-answer-lint-turn-race", "20260916-wookiya1364-help-router-diet", "20260917-wookiya1364-scv-own-graph"], "ref_commit": "f43487d", "consumed_at": "2026-09-16T22:27:56Z", "origin": "scv/raw/20260916-graph-dependency-decision.md" }
+    "scv/raw/stale/20260916-graft-partial-adoption-shared-conversation.md": { "slugs": ["20260917-wookiya1364-scv-own-graph", "20260917-wookiya1364-graft-adapter"], "ref_commit": "96fabc5", "consumed_at": "2026-09-16T23:54:35Z", "origin": "scv/raw/20260916-graft-partial-adoption-shared-conversation.md" },
+    "scv/raw/stale/20260916-graph-dependency-decision.md": { "slugs": ["20260916-wookiya1364-answer-lint-turn-race", "20260916-wookiya1364-help-router-diet", "20260917-wookiya1364-scv-own-graph", "20260917-wookiya1364-graft-adapter"], "ref_commit": "96fabc5", "consumed_at": "2026-09-16T23:54:35Z", "origin": "scv/raw/20260916-graph-dependency-decision.md" }
   }
 }

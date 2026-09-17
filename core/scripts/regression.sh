@@ -495,6 +495,11 @@ main() {
     echo "=== impact (scv graph) ==="
     # shellcheck disable=SC2086
     bash "$SCRIPT_DIR/graph.sh" impact $changed 2>/dev/null || echo "(graph unavailable)"
+    # Graft 어댑터 (v0.51.0+, 선택): graft 가 있고 그래프가 있으면 정적 영향 범위를 그 아래에 덧붙인다. 없으면 줄도 없다.
+    if [[ -f "$SCRIPT_DIR/graft.sh" ]]; then
+      local graft_out; graft_out="$(bash "$SCRIPT_DIR/graft.sh" blast 2>/dev/null || true)"
+      if [[ -n "${graft_out//[[:space:]]/}" ]]; then echo ""; echo "=== impact (graft blast) ==="; printf '%s\n' "$graft_out"; fi
+    fi
   fi
   if [[ $DRY -eq 1 ]]; then
     echo ""

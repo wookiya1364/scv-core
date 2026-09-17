@@ -362,3 +362,8 @@ Core releases send a `repository_dispatch` event named
 The wrapper workflow downloads both immutable files, verifies SHA-256, vendors
 with its profile, runs tests, then opens `chore/core-v<version>` against
 `develop`. It must never update a permanent branch directly.
+
+Optional second provider (v0.51.0+): when the user has installed Graft (`graft` on PATH and a
+`graft/` graph), `core/scripts/graft.sh` reads `graft blast` / `graft ask` and the helpers print
+`GRAFT_STATUS: ready` plus the extra blocks; otherwise `GRAFT_STATUS: absent` is the only
+difference. Wrappers need no change; SCV never installs, initialises or hooks Graft.

@@ -34,7 +34,7 @@ bash "${SCV_CORE_ROOT}/scripts/work.sh" {{SCV_ARGS}}
 
 > **Monorepo (nested scv)** — pass a module dir as the first argument to target its scv: `action:work FE <slug>` operates on `FE/scv`. Omit it to use the current dir's `scv/` (or nearest parent).
 
-Parse the header (`MODE:`, `SCV_DIR:`, `TARGET_SLUG:`, `PLAN_FILE:`, `TESTS_FILE:`, `GRAPH_STATUS:`, `GRAPH_DIR:`) and the three content blocks (`=== active promote plans ===`, `=== related documents (from PLAN.md) ===`, `=== external refs (from PLAN.md frontmatter refs:) ===`).
+Parse the header (`MODE:`, `SCV_DIR:`, `TARGET_SLUG:`, `PLAN_FILE:`, `TESTS_FILE:`, `GRAPH_STATUS:`, `GRAPH_DIR:`, `GRAFT_STATUS:`) and the three content blocks (`=== active promote plans ===`, `=== related documents (from PLAN.md) ===`, `=== external refs (from PLAN.md frontmatter refs:) ===`).
 
 > **Monorepo module threading** — if `SCV_DIR:` is **not** plain `scv` (i.e. the user targeted a nested module, e.g. `action:work FE <slug>` → `SCV_DIR: FE/scv`), pass that `SCV_DIR` value as the **leading arg** to every lifecycle helper in Step 9 — `regression.sh <SCV_DIR>`, `work.sh <SCV_DIR> <slug> --archive`, `pr-helper.sh <SCV_DIR> <slug>` — so Steps 9a/9b/9d all operate on the SAME scv/. Omitting it makes the Step-9a regression gate run against the wrong scv and pass **without testing (false green)**. For a plain `scv` (standalone/root), pass nothing extra.
 
@@ -93,6 +93,12 @@ stale (bash + jq, about a second). Nothing to ask.
 |---|---|
 | `built` | Continue. `GRAPH_DIR:` names `scv/.graph` (graph.json + GRAPH_REPORT.md). The `=== impact (scv graph) ===` block below the refs lists, for this plan's `scope:` files, what changes together with them, which archived plans touched them, and which decisions are involved — use it in Step 3's scope summary and when choosing Related Documents. |
 | `off` / `unavailable` | Continue without the graph (`SCV_GRAPH=off`, or jq missing). Mention once, one line. |
+
+`GRAFT_STATUS:` (v0.51.0+, optional second provider): `ready` means the Graft code graph is
+present (`graft` on PATH + `graft/`), and the helper appends `=== code candidates (graft ask) ===`
+— file:line candidates for this plan's title — below the impact block; use them as starting
+points, not as facts. `absent` / `no-graph` / `off` change nothing. SCV never installs, builds
+or hooks Graft; `action:install-deps --print` shows the optional one-liner.
 
 ### Step 3 — Load PLAN.md (required)
 
