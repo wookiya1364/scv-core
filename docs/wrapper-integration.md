@@ -14,7 +14,7 @@ SCV_ARGUMENT_STYLE=argv-array
 SCV_STATE_INDEX=SCV.md
 SCV_LEGACY_STATE_INDEXES='CLAUDE.md|CODEX.md'
 SCV_ROOT_ENV=EXAMPLE_PLUGIN_ROOT
-SCV_GRAPH_SKILL_PATHS='$HOME/.example/graph/SKILL.md'
+SCV_GRAPH_SKILL_PATHS (deprecated 0.51.0, ignored — see contracts/host-profile.md)='$HOME/.example/graph/SKILL.md'
 SCV_UPDATE_OWNER=adapter
 SCV_MODEL_POLICY_OWNER=adapter
 ```
@@ -178,7 +178,7 @@ an `action:*`) into the committed, author-attributed team journal
 | Template (materialized payload) | Host event | stdin contract |
 |---|---|---|
 | `core/template/hooks/on-user-prompt.sh` | Claude Code: `UserPromptSubmit` · Codex: the equivalent pre-turn / prompt-submitted hook | one JSON object with a `prompt` string field |
-| `core/template/hooks/on-stop.sh` | Claude Code: `Stop` · Codex: the equivalent turn-end / session-end hook | one JSON object with a `transcript_path` field pointing at a JSONL transcript |
+| `core/template/hooks/on-stop.sh` | Claude Code: `Stop` · Codex: the equivalent turn-end / session-end hook | one JSON object with a `transcript_path` field pointing at a JSONL transcript. **v0.51.0+:** if the host also passes `last_assistant_message` (Claude Code does — its docs say the transcript is written asynchronously and may lag), the answer-shape lint reads that field first; without it the template slices the transcript to the current turn (assistant text after the last human prompt entry, retrying briefly) and skips the lint for the turn when nothing has landed yet. Wrappers that can hand over the final message text should. |
 | `core/template/hooks/on-session-start.sh` (v0.47.0+) | Claude Code: `SessionStart` with matcher `compact\|clear\|resume` · Codex: the equivalent context-reset hook, if one exists (none registered today) | one JSON object; an optional `source` string (what reset the context) is quoted in the header, nothing else is read |
 
 Wrapper requirements:
@@ -362,3 +362,8 @@ Core releases send a `repository_dispatch` event named
 The wrapper workflow downloads both immutable files, verifies SHA-256, vendors
 with its profile, runs tests, then opens `chore/core-v<version>` against
 `develop`. It must never update a permanent branch directly.
+
+Optional second provider (v0.51.0+): when the user has installed Graft (`graft` on PATH and a
+`graft/` graph), `core/scripts/graft.sh` reads `graft blast` / `graft ask` and the helpers print
+`GRAFT_STATUS: ready` plus the extra blocks; otherwise `GRAFT_STATUS: absent` is the only
+difference. Wrappers need no change; SCV never installs, initialises or hooks Graft.
