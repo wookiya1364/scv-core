@@ -52,7 +52,9 @@ AJ3='{"query":"q","mode":"lexical","hits":[{"kind":"symbol","title":"buildThing 
 [[ "$(scv_graft_ask_summary "$AJ3" 10 | head -1)" == "src/a.mjs:190${US}buildThing" ]] \
   && ok "hits[]/pointer/title 실물 모양을 읽는다" \
   || fail "ask3: $(scv_graft_ask_summary "$AJ3" 10 | tr "$US" '|' | tr '\n' ' ')"
-[[ "$(scv_graft_ask_summary "$AJ3" 10 | wc -l)" == "2" ]] && ok "hits 두 건 모두 읽는다" || fail "ask3 개수"
+# BSD 의 wc 는 숫자 앞에 공백을 붙인다 — 맥에서만 붉었다. 공백을 털고 비교한다.
+n3="$(scv_graft_ask_summary "$AJ3" 10 | wc -l | tr -d '[:space:]')"
+[[ "$n3" == "2" ]] && ok "hits 두 건 모두 읽는다" || fail "ask3 개수: $n3"
 # 종류 꼬리표가 붙지 않은 title 도 그대로 이름으로 쓴다.
 AJ4='{"hits":[{"title":"plain","pointer":"src/c.mjs:L2-L3","score":1}]}'
 [[ "$(scv_graft_ask_summary "$AJ4" 10)" == "src/c.mjs:2${US}plain" ]] && ok "꼬리표 없는 title" || fail "ask4"
