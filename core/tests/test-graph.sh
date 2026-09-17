@@ -17,6 +17,9 @@ for up in "$HERE/.." "$HERE/../.."; do
 done
 [[ -n "$CORE" ]] || { echo "test-graph: payload not found from $HERE" >&2; exit 1; }
 REPO="$(cd "$CORE/.." && pwd)"
+# 이 검사가 scv-core 저장소 자체에서 도는지(보관 계획·루트 gitignore·docs 가 있는 곳), 래퍼에 벤더링된 사본에서 도는지.
+# 저장소 전용 항목(T6 의 알려진 동시변경 쌍 · T10 의 docs/README · T11 의 루트 gitignore)은 사본에서는 건너뛴다.
+IS_CORE_REPO=0; [[ -f "$REPO/VERSION" && -f "$REPO/core/TEMPLATE_DIGEST" && -d "$REPO/scv/archive" ]] && IS_CORE_REPO=1
 PASS=0; FAIL=0
 ok()   { echo "  ✓ $1"; PASS=$((PASS + 1)); }
 fail() { echo "  ✖ FAIL: $1"; FAIL=$((FAIL + 1)); }
@@ -79,10 +82,14 @@ for s in '## Communities' '## God Nodes' '## Co-change pairs' '## Sources'; do g
 cp "$J" "$WORK/g1.json"; sleep 1; gs build >/dev/null; [[ "$(jq -S 'del(.built_at)' "$WORK/g1.json")" == "$(jq -S 'del(.built_at)' "$J")" ]] && ok "두 번 빌드 → built_at 제외 동일" || fail "비결정적"
 
 echo "── [T6] 이 저장소 빌드 ──"
-t0=$(now_ms); ( cd "$REPO" && bash "$GRAPH" build >/dev/null 2>&1 ); t1=$(now_ms); RJ="$REPO/scv/.graph/graph.json"
-(( t1 - t0 <= 2000 )) && ok "빌드 $((t1 - t0))ms ≤ 2000ms" || fail "빌드 느림: $((t1 - t0))ms"
-[[ -f "$RJ" ]] && jq -e '(.nodes|length)>50' "$RJ" >/dev/null && ok "노드 > 50" || fail "노드 수"
-jq -e '.links[]|select(.kind=="cochange" and ((.source=="core/template/hooks/on-stop.sh" and .target=="core/scripts/lib/help-state.sh") or (.source=="core/scripts/lib/help-state.sh" and .target=="core/template/hooks/on-stop.sh")))|.evidence|index("20260916-wookiya1364-answer-lint-turn-race")' "$RJ" >/dev/null && ok "on-stop.sh–lib/help-state.sh 동시변경, 근거에 answer-lint-turn-race" || fail "알려진 동시변경 쌍 없음"
+if (( IS_CORE_REPO )); then
+  t0=$(now_ms); ( cd "$REPO" && bash "$GRAPH" build >/dev/null 2>&1 ); t1=$(now_ms); RJ="$REPO/scv/.graph/graph.json"
+  (( t1 - t0 <= 2000 )) && ok "빌드 $((t1 - t0))ms ≤ 2000ms" || fail "빌드 느림: $((t1 - t0))ms"
+  [[ -f "$RJ" ]] && jq -e '(.nodes|length)>50' "$RJ" >/dev/null && ok "노드 > 50" || fail "노드 수"
+  jq -e '.links[]|select(.kind=="cochange" and ((.source=="core/template/hooks/on-stop.sh" and .target=="core/scripts/lib/help-state.sh") or (.source=="core/scripts/lib/help-state.sh" and .target=="core/template/hooks/on-stop.sh")))|.evidence|index("20260916-wookiya1364-answer-lint-turn-race")' "$RJ" >/dev/null && ok "on-stop.sh–lib/help-state.sh 동시변경, 근거에 answer-lint-turn-race" || fail "알려진 동시변경 쌍 없음"
+else
+  echo "  – SKIP: 벤더링된 사본(보관 계획 없음) — 저장소 전용 항목은 scv-core 에서만 본다"
+fi
 
 echo "── [T7] 신선도 ──"
 P2="$WORK/p2"; cp -r "$P" "$P2"; rm -rf "$P2/scv/.graph"; gs2() { ( cd "$P2" && bash "$GRAPH" "$@" 2>&1 ); }
@@ -111,14 +118,20 @@ o="$( cd "$P" && bash "$DC" 2>/dev/null )"; grep -q '^SCV_GRAPH: present' <<<"$o
 o="$( cd "$P" && bash "$RG" --dry --changed core/x.sh,core/z.sh 2>/dev/null )"; grep -q '=== impact (scv graph) ===' <<<"$o" && grep -q 'core/y.sh' <<<"$o" && grep -q 'TOTAL_SLUGS' <<<"$o" && ok "regression --dry: 영향 목록 + 실행 계획(실행 없음)" || fail "regression: $(head -12 <<<"$o")"
 
 echo "── [T10] 옛 그래프 스킬 참조 0 ──"
-W="graph""ify"; n="$( cd "$REPO" && grep -ril "$W" core docs README.md tests 2>/dev/null | grep -v '^core/tests/fixtures/' | wc -l )"; (( n == 0 )) && ok "core·docs·README·tests 에 옛 스킬 이름 없음" || fail "옛 스킬 이름 남음: $( cd "$REPO" && grep -ril "$W" core docs README.md tests | head -5 | tr '\n' ' ')"
+W="graph""ify"
+# 코어 페이로드(scripts·protocols·template·contracts·tests)는 어디서 돌든 본다; docs·README·루트 tests 는 scv-core 에서만.
+n="$( cd "$CORE" && grep -ril "$W" scripts protocols template contracts tests 2>/dev/null | grep -v '^tests/fixtures/' | wc -l )"; (( n == 0 )) && ok "코어 페이로드에 옛 스킬 이름 없음" || fail "옛 스킬 이름 남음(코어): $( cd "$CORE" && grep -ril "$W" scripts protocols template contracts tests | head -5 | tr '\n' ' ')"
+if (( IS_CORE_REPO )); then
+  n="$( cd "$REPO" && grep -ril "$W" docs README.md tests 2>/dev/null | wc -l )"; (( n == 0 )) && ok "docs·README·루트 tests 에 옛 스킬 이름 없음" || fail "옛 스킬 이름 남음(저장소): $( cd "$REPO" && grep -ril "$W" docs README.md tests | head -5 | tr '\n' ' ')"
+fi
 ! grep -q 'scv_graph_skill_available' "$CORE/scripts/lib/host-profile.sh" && ok "감지 함수 제거" || fail "scv_graph_skill_available 남음"
 ! bash "$CORE/scripts/install-deps.sh" --check 2>&1 | grep -qi "$W" && ! bash "$CORE/scripts/install-deps.sh" --print 2>&1 | grep -qi "$W" && ok "install-deps 출력에 옛 스킬 이름 없음" || fail "install-deps 옛 스킬 이름"
 ! ( cd "$P" && bash "$CORE/scripts/help.sh" 2>&1 | grep -qi "$W" ) && ok "help.sh 의존성 표에 옛 스킬 이름 없음" || fail "help.sh 옛 스킬 이름"
 
 echo "── [T11] gitignore · 설정 ──"
 grep -q '^scv/\.graph/' "$CORE/template/.gitignore.fragment" && ! grep -qi "$W" "$CORE/template/.gitignore.fragment" && ok "템플릿 fragment: scv/.graph/, 옛 항목 없음" || fail "fragment"
-grep -q '^scv/\.graph/' "$REPO/.gitignore" && ! grep -qi "$W" "$REPO/.gitignore" "$CORE/.gitignore" && ok "루트·core gitignore" || fail "gitignore"
+! grep -qi "$W" "$CORE/.gitignore" && ok "core gitignore 에 옛 항목 없음" || fail "core gitignore"
+if (( IS_CORE_REPO )); then grep -q '^scv/\.graph/' "$REPO/.gitignore" && ! grep -qi "$W" "$REPO/.gitignore" && ok "루트 gitignore: scv/.graph/" || fail "루트 gitignore"; fi
 jq -e '._doc.SCV_GRAPH and ._doc.SCV_GRAPH_DOCS and .SCV_GRAPH=="on" and (.SCV_GRAPH_DOCS|type)=="string"' "$CORE/template/scv/scv_settings.example.json" >/dev/null && ok "설정 예시: SCV_GRAPH · SCV_GRAPH_DOCS" || fail "설정 예시"
 P3="$WORK/p3"; cp -r "$P" "$P3"; rm -rf "$P3/scv/.graph"; printf '{"SCV_GRAPH":"off"}\n' > "$P3/scv/scv_settings.json"
 o="$( cd "$P3" && bash "$GRAPH" ensure 2>&1 )"; [[ "$o" == "GRAPH_STATUS: off" && ! -e "$P3/scv/.graph" ]] && ok "SCV_GRAPH=off → off, 아무것도 안 만듦" || fail "off: $o"
