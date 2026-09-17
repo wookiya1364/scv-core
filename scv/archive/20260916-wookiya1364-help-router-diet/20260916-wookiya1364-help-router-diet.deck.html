@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Architecture — 매 턴 라우터 다이어트</title>
+<style>
+/* Dark only — the light token set and its toggle were removed:
+   FE 프로젝트의 다크-기본+라이트-오버라이드 관례와 동일한 모양(속성 하나만 바뀌면
+   전체가 재테마된다). head 맨 앞 인라인 스크립트가 pre-paint 로 저장된 선택을 적용해
+   깜빡임(FOUC)이 없다. */
+/* Dark only. Ported from the owner's DesignSystem .dark block (shadcn oklch ->
+   sRGB, every neutral at chroma 0). The blue-cast greys this replaces
+   (#171922 / #1d2029 / #2c3040 / #9096a8) were the single loudest reason the
+   two decks read as different systems.
+
+   Contrast figures are WCAG 2.x, measured against the surface named. */
+:root{
+  /* surfaces */
+  --bg:#0a0a0a;                  /* the one ground */
+  --panel:#171717;               /* cards, aside, code */
+  --surface-2:#121212;           /* zebra rows, quiet fills */
+  --surface-3:#151515;           /* table head, code block */
+
+  /* text */
+  --fg:#fafafa;                  /* 18.97:1 on --bg */
+  --fg-body:#e2e2e2;             /* 15.28:1 on --bg  · body copy */
+  --fg-soft:#d6d6d6;             /* 13.62:1 on --bg  · text inside a tinted card */
+  --muted-foreground:#a1a1a1;    /*  7.66:1 on --bg  · 6.94:1 on --panel */
+
+  /* lines — alpha so ONE value composites correctly over bg and panel alike */
+  --border:rgba(255,255,255,.10);
+  --border-strong:#707070;       /* load-bearing rules. Measured where it actually
+                                    sits, not on --bg: 3.62:1 on --panel (node
+                                    fill), 3.69:1 on --surface-3 (figure ground),
+                                    5.87:1 on --bg. #4d4d4d cleared 3:1 against
+                                    --bg alone and failed at 2.12:1 on a node. */
+  --ring:#737373;                /*  4.18:1 on --bg */
+
+  /* brand — the owner's rose, kept for a public product on their say-so.
+     TWO values, because one cannot do both jobs: oklch(.455 .188 13.697)
+     = #a50036 measures 2.50:1 as text on --bg and is unreadable. The text
+     value is the same hue lifted in lightness only. */
+  --primary:#a50036;             /* fill · white on it 7.58:1 */
+  --primary-text:#fc7184;        /* text · 7.39:1 on --bg · 6.69:1 on --panel */
+  --on-primary:#fafafa;          /* 7.58:1 on the --primary plate */
+
+  /* status */
+  --good:#4bd39a;                /*  9.53:1 on --bg */
+  --warn:#e3b153;                /*  9.18:1 on --bg */
+  --danger:#f4837f;              /*  7.22:1 on --bg */
+  --on-warn:#241a06;             /*  8.72:1 on the --warn plate */
+}
+*{box-sizing:border-box}
+/* One scroll region, and only one. The app shell owns the scrolling; the document
+   behind it must never scroll too. Without this the page picks up a second scrollbar
+   whenever the shell ends up a few pixels taller than the viewport (100svh vs 100%
+   rounding is enough), and the reader gets two bars with no way to tell which one the
+   wheel will move. Print restores normal flow below. */
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+html{scroll-behavior:smooth}
+body{margin:0;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:var(--fg);background:var(--bg)}
+/* Controls do not inherit the document font — a UA default applies unless asked.
+   Six controls below set font-size alone or an invalid `font:` shorthand, and
+   all of them rendered in 13.333px/400/Arial. This one line is what makes the
+   per-control rules that follow actually reach the element. */
+button,input,select,textarea{font:inherit;color:inherit}
+/* 문서 = 스크롤되는 본문(좌) + 상시 원문 마크다운 패널(우, sticky) — 이게 scv:deck 의
+   정체성이다: 렌더링과 원문이 늘 같은 화면에 나란히 있어야 서로 어긋나지 않았다는 게
+   보장된다. 인쇄 시에는 패널을 접고 본문 뒤에 원문을 부록으로 붙인다(.print-source). */
+/* Three rows over the viewport: header, content, footer. The header and the
+   footer are chrome and must not scroll away with the text — before this they
+   lived inside .wrap and pushed 268px of nav in front of the first sentence. */
+.shell{display:grid;grid-template-rows:auto 1fr auto;height:100svh;overflow:hidden}
+.shell-mid{display:flex;min-height:0;overflow:hidden}
+/* A container so a figure can measure the READING area and break out of the
+   840px text column. 100vw would count the source panel too and push the
+   diagram under it. */
+.scroll-main{flex:1;min-width:0;overflow-y:auto;container-type:inline-size}
+.wrap{--doc-pad:clamp(20px,5vw,56px);max-width:840px;margin:0 auto;min-height:100%;padding:0 var(--doc-pad) 96px}
+header.doc{display:flex;align-items:center;gap:16px;min-width:0;background:var(--bg);border-bottom:1px solid var(--border);padding:11px 20px}
+header.doc h1{font-size:15px;font-weight:600;margin:0;flex-shrink:0;max-width:34ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)}
+.header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.panel-toggle{flex-shrink:0;font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer}
+.panel-toggle:hover{background:var(--border);color:var(--fg)}
+.panel-toggle .kbd{opacity:.55;margin-left:4px}
+.source-panel{position:relative;width:min(440px,38vw);flex-shrink:0;border-left:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column}
+.source-panel.closed{display:none}
+.panel-resize-handle{position:absolute;left:0;top:0;bottom:0;width:7px;margin-left:-4px;cursor:col-resize;z-index:6}
+.panel-resize-handle:hover{background:rgba(127,137,160,.25)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-title{font-size:12px;color:var(--muted-foreground);font-weight:700;letter-spacing:.02em}
+.panel-close{border:none;background:none;color:var(--muted-foreground);cursor:pointer;font-size:14px;padding:2px 7px;border-radius:5px;line-height:1.4}
+.panel-close:hover{background:var(--border);color:var(--fg)}
+.panel-tabs{display:flex;gap:2px;padding:9px 12px 0;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.panel-tab{font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);padding:7px 10px;border:none;background:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.panel-tab.active{color:var(--fg);border-bottom-color:var(--primary)}
+.panel-body{flex:1;overflow-y:auto;padding:14px}
+.panel-body .src-doc{display:none;margin:0}
+.panel-body .src-doc.active{display:block}
+.print-source{display:none}
+/* 목차(nav.toc) 는 인쇄본 전용(펼친 전체 문서엔 목차가 자연스럽다). 화면에서는
+   deck-nav(아래) 가 같은 역할을 대신한다 — 페이지 번호 pill + 클릭 이동. */
+@media screen{nav.toc{display:none}}
+nav.toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:26px 0}
+nav.toc h3{margin:0 0 8px;font-size:12px;letter-spacing:.04em;color:var(--muted-foreground);text-transform:uppercase}
+nav.toc ol{margin:0;padding-left:20px;columns:2;gap:24px}
+nav.toc a{color:var(--fg);text-decoration:none}
+nav.toc a:hover{color:var(--primary);text-decoration:underline}
+section{padding:22px 0;border-top:1px solid var(--border)}
+section:first-of-type{border-top:none}
+/* 페이지 넘김(화면 전용) — 한 번에 한 섹션만. 인쇄 시엔 전부 펼쳐서 보여준다. */
+@media screen{.slide-page{display:none}.slide-page.active{display:block}}
+/* One scrolling row, never wrapped. The reference sets flex-wrap AND
+   overflow-x-auto together; flex-wrap wins, and fed 19 labels its own header
+   grows to three rows. nowrap is the one place this deliberately differs. */
+.deck-nav{display:flex;flex-wrap:nowrap;gap:4px;margin:0;flex:1;min-width:0;overflow-x:auto;scrollbar-width:thin}
+.deck-nav::-webkit-scrollbar{height:6px}
+.deck-nav::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.deck-nav-item{font-weight:400;font-size:12px;line-height:16px;color:var(--muted-foreground);background:none;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;white-space:nowrap}
+.deck-nav-item:hover{color:var(--fg)}
+.deck-nav-item.active{background:var(--primary-text);color:var(--bg);font-weight:500}
+.deck-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0;padding:11px 20px;border-top:1px solid var(--border);background:var(--bg)}
+.deck-arrow{font-weight:600;font-size:13px;line-height:1;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;cursor:pointer}
+.deck-arrow:disabled{opacity:.35;cursor:default}
+.deck-arrow:not(:disabled):hover{background:var(--panel)}
+.deck-dots{display:flex;align-items:center;gap:6px}
+.deck-dot{width:8px;height:8px;border-radius:999px;background:var(--border);border:none;cursor:pointer;padding:0}
+.deck-dot.active{background:var(--primary);width:20px;border-radius:5px}
+.deck-counter{font-size:12px;color:var(--muted-foreground);min-width:52px;text-align:center}
+mark.src-hl{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--fg);border-left:2px solid var(--warn);border-radius:0;padding:0 2px}
+h2{font-size:32px;line-height:1.15;letter-spacing:-.02em;margin:.1em 0 .5em;font-weight:700;color:var(--fg)}
+h4{margin:1.1em 0 .35em;font-size:17px;font-weight:600;color:var(--fg)}
+.subhead{font-size:20px;font-weight:600;margin:1.4em 0 .4em;color:var(--fg)}
+.kicker{font-size:14px;font-weight:600;letter-spacing:.02em;color:var(--primary-text);margin-bottom:6px}
+.sub{font-size:18px;line-height:1.55;color:var(--muted-foreground);margin:-.1em 0 1.3em;max-width:62ch}
+p{margin:.65em 0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul{margin:.6em 0;padding-left:0;list-style:none}
+ol{margin:.6em 0;padding-left:22px}
+li{margin:0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul>li{position:relative;padding-left:18px;margin:8px 0}
+ul>li::before{content:"";position:absolute;left:0;top:.62em;width:6px;height:6px;border-radius:50%;background:color-mix(in srgb,var(--primary-text) 70%,transparent)}
+ol>li{margin:8px 0}
+.tw{overflow-x:auto;margin:.8em 0}
+table{border-collapse:collapse;width:100%;font-size:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+th,td{border:none;border-bottom:1px solid var(--border);padding:10px 14px;text-align:left;vertical-align:top;color:var(--fg-body)}
+tbody tr:last-child td{border-bottom:none}
+thead th{background:var(--surface-3);font-weight:600;font-size:12px;letter-spacing:.02em;color:var(--muted-foreground)}
+table.kv th{background:none;width:30%;white-space:nowrap;font-weight:500;color:var(--muted-foreground)}
+.kpi{display:flex;flex-wrap:wrap;gap:12px;margin:.8em 0}
+.kpi-card{flex:1 1 160px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--panel)}
+.kpi-label{font-size:13px;color:var(--muted-foreground);margin-bottom:6px}
+.kpi-nums{display:flex;align-items:center;gap:8px;font-weight:700}
+.kpi-nums .base{color:var(--muted-foreground)}
+.kpi-nums .arrow{color:var(--primary)}
+.kpi-nums .target{color:var(--good)}
+.goals{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:.8em 0}
+.goal-col{border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+.goal-col.g{border-left:4px solid var(--good)}
+.goal-col.ng{border-left:4px solid var(--danger)}
+pre.code{background:var(--surface-3);color:var(--fg-body);border-radius:10px;padding:14px 16px;overflow-x:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;margin:.8em 0}
+/* mermaid 는 항상 라이트 카드에 그린다(테마 무관, pre.code 가 항상 다크인 것과 대칭) —
+   mermaid 렌더 테마를 다크로 다시 그리려면 이미 SVG 로 처리된 노드를 되돌려야 해서
+   토글마다 재처리가 필요해진다. 대신 다이어그램 카드 자체를 고정 라이트로 둬서
+   토글과 무관하게 항상 선명하게 읽힌다. */
+/* A figure, not a paragraph. The SVG now carries its natural width, so the
+   frame scrolls instead of shrinking it — a 1437px graph squeezed into an
+   840px column rendered its 16px labels at 7.7px, which was the single worst
+   readability defect in the deck. */
+/* Full bleed: the figure uses the whole reading area, not the 840px measure the
+   prose wants. A 1388px graph inside an 840px column left ~215px of dead gutter
+   on each side AND a scrollbar — the worst of both. */
+pre.mermaid{background:var(--surface-3);border:1px solid var(--border-strong);border-radius:10px;padding:14px;margin:1.1em 0;overflow-x:auto;text-align:left}
+@supports (width:100cqw){
+  pre.mermaid{
+    /* A 16px gutter, not the prose gutter. Text wants a comfortable measure; a
+       figure wants the glass. With the source panel open — which is the deck's
+       whole point and stays open — every pixel of the reading area counts. */
+    --bleed:calc(100cqw - 32px);
+    width:var(--bleed);
+    max-width:var(--bleed);
+    margin-inline:calc((100% - var(--bleed)) / 2);
+  }
+}
+/* Fit the frame when there is room; below 900px stop shrinking and scroll
+   instead. Scaling all the way down is what made 16px labels render at 7.7px,
+   and a scrollbar is better than text nobody can read. */
+pre.mermaid svg{max-width:100%;min-width:900px;height:auto}
+/* The diagram lives in a <pre>, whose UA default is white-space:pre, and that
+   inherits into every label. Mermaid sizes an edge label's box for TWO wrapped
+   lines (200x48.75) and the text then refused to wrap, so anything past 200px
+   was clipped mid-word — "BASE_REF, HEAD_REF, PR_TITLE" measured 230px of text
+   in a 200px box. Labels are prose, not preformatted text. */
+pre.mermaid foreignObject,pre.mermaid foreignObject *{white-space:normal}
+/* On a narrow window there is nothing to floor — let it fit rather than force
+   a scrollbar the reader cannot escape. */
+@media (max-width:900px){pre.mermaid svg{min-width:0}}
+pre.mermaid.mermaid-fallback{text-align:left;white-space:pre;overflow-x:auto;background:#0f1320;color:#e6e9f0;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:30px 16px 14px;position:relative}
+pre.mermaid.mermaid-fallback::before{content:"\29c9 \b2e4\c774\c5b4\adf8\b7a8 \c6d0\bcf8 (\c624\d504\b77c\c778 \b610\b294 CDN \bbf8\b85c\b4dc)";position:absolute;top:8px;left:16px;font:600 11px/1 -apple-system,sans-serif;color:var(--muted-foreground)}
+/* A tinted card, not a left rule — the reference's Callout. color-mix keeps one
+   hue per tone instead of a second hand-picked hex for the fill. */
+.callout{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:1em 0;background:var(--panel)}
+.callout-title{font-weight:600;font-size:16px;margin-bottom:4px;color:var(--fg)}
+.callout p,.callout li{font-size:14px;color:var(--fg-soft)}
+.callout.info{border-color:color-mix(in srgb,var(--primary-text) 30%,transparent);background:color-mix(in srgb,var(--primary-text) 10%,var(--bg))}
+.callout.good{border-color:color-mix(in srgb,var(--good) 30%,transparent);background:color-mix(in srgb,var(--good) 10%,var(--bg))}
+.callout.warn{border-color:color-mix(in srgb,var(--warn) 30%,transparent);background:color-mix(in srgb,var(--warn) 10%,var(--bg))}
+.callout.danger{border-color:color-mix(in srgb,var(--danger) 30%,transparent);background:color-mix(in srgb,var(--danger) 10%,var(--bg))}
+.callout.next{border-style:dashed;border-color:var(--border-strong);background:var(--surface-2)}
+.lint h2{color:var(--warn)}
+.lint-count{display:inline-block;background:var(--warn);color:var(--on-warn);border-radius:999px;font-size:12px;padding:1px 9px;vertical-align:middle}
+/* 화면목업(와이어프레임) 킷 — scv 자체 기본 스킨(2순위 폴백): DesignSystem 의 실제
+   다크 팔레트를 distill(무채색 표면 + 단일 로즈 악센트 + border-only depth + pill
+   배지, 글라스 없음 — DesignSystem 본체엔 글라스가 없다). 문서 자체의 라이트/다크
+   토글과는 독립적으로 항상 이 다크 스킨을 쓴다(--wf-* 로 스코프해 문서 테마 변수와
+   충돌하지 않음) — mermaid 카드를 항상 라이트로 고정하는 것과 같은 이유(재처리 없이
+   항상 또렷하게). 프로젝트 실제 토큰(1순위) 자동감지는 아직 없음 — 후속 작업.
+   버튼은 항상 disabled(정적 예시 그림이라 실제 인터랙션 없음). */
+.wf-screen{
+  margin:1em 0;
+  --wf-bg:#0a0a0b; --wf-fg:#fafafa; --wf-card:#1c1c1e; --wf-border:rgba(255,255,255,.1);
+  --wf-muted:#232326; --wf-muted-fg:#9a9a9f;
+  --wf-primary:#a53257; --wf-primary-fg:#fdf1f3;
+  --wf-success:#34d399; --wf-success-bg:rgba(16,185,129,.15); --wf-success-border:rgba(16,185,129,.4);
+  --wf-danger:#ef6b6b; --wf-danger-bg:rgba(239,107,107,.14);
+  --wf-info:#60a5fa; --wf-info-bg:rgba(96,165,250,.15);
+  --wf-warn:#e0ab48; --wf-warn-bg:rgba(224,171,72,.15);
+  --wf-radius:10px; --wf-radius-pill:999px;
+}
+/* 번호식 화면설계서 — the picture keeps the stage, the prose stands beside it.
+   Sidebar sits right of the picture on a wide screen and DROPS BELOW under 900px,
+   because squeezing the drawing to fit a column is exactly the regression that made
+   an earlier deck's diagram render at 0.483 scale (16px type → 7.7px). */
+.wf-speclayout{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,360px);gap:16px;align-items:start;margin:1em 0}
+.wf-speclayout > .wf-screen{margin:0;min-width:0}
+/* A spec sheet is a FIGURE, not prose: the 840px reading measure that suits paragraphs
+   starves the drawing and crams the detail list against it. Take the full glass, same
+   as a standalone diagram does — the picture gets the room, the detail panel sits at
+   the right edge. */
+@supports (width:100cqw){
+  .wf-speclayout{
+    --bleed:calc(100cqw - 32px);
+    width:var(--bleed);
+    max-width:var(--bleed);
+    margin-inline:calc((100% - var(--bleed)) / 2);
+  }
+}
+/* A diagram needs more room than a wireframe; with the bleed a full-size flowchart
+   fits beside the panel on a wide screen. Below that it stacks rather than shrink —
+   squeezing an 800px flowchart into a narrow column renders 16px labels at ~8px, the
+   regression that made an earlier deck unreadable. */
+@media (max-width:1200px){
+  .wf-speclayout-diagram{grid-template-columns:minmax(0,1fr)}
+  .wf-speclayout-diagram > .wf-spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:start}
+}
+/* Undo the full-bleed above: that rule widens a STANDALONE diagram to the reading
+   glass, which inside a spec frame just bursts the frame (the picture then gets
+   cropped by wf-frame's overflow:hidden). In here the frame is the glass. */
+/* Keep the diagram card's own surface. Making it transparent put mermaid's
+   light-assuming palette (#eaeaea fills, #666 text) straight onto the dark frame, and a
+   sequence diagram's message text became unreadable — the deck draws diagrams on their
+   own card for exactly this reason (see the note above pre.mermaid). */
+.wf-screen pre.mermaid{margin:0;margin-inline:0;width:auto;max-width:100%;padding:10px;overflow-x:auto}
+.wf-screen pre.mermaid svg{min-width:0;max-width:100%;height:auto}
+@media (max-width:900px){.wf-speclayout,.wf-speclayout-diagram{grid-template-columns:minmax(0,1fr)}}
+@media print{.wf-speclayout,.wf-speclayout-diagram{grid-template-columns:minmax(0,1fr);break-inside:avoid}}
+/* Grid, not flex-wrap: in a narrow column the name TRUNCATES instead of shoving
+   PAGE CODE onto its own half-empty row (the identity strip must read as one line). */
+.wf-pagebar{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:stretch;margin-bottom:8px;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;font-size:12.5px}
+.wf-pagebar-key{padding:6px 10px;background:var(--surface-3);color:var(--muted-foreground);font-weight:700;font-size:11px;letter-spacing:.04em;white-space:nowrap;display:flex;align-items:center}
+.wf-pagebar-name{min-width:0;padding:6px 10px;background:var(--surface-2);color:var(--foreground);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center}
+.wf-pagebar-code{padding:6px 10px;background:var(--surface-2);color:var(--foreground);font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;display:flex;align-items:center}
+.wf-marked{display:flex;align-items:flex-start;gap:8px}
+.wf-marked + .wf-marked{margin-top:2px}
+.wf-marked-body{flex:1;min-width:0}
+.wf-marker{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;margin-top:3px;padding:0 5px;border-radius:999px;font:700 11.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.wf-marker-fn{background:var(--wf-primary,#a53257);color:var(--wf-primary-fg,#fdf1f3)}
+.wf-marker-action{background:var(--wf-info,#60a5fa);color:#0a0a0b}
+.wf-spec{display:flex;flex-direction:column;gap:12px;min-width:0}
+.wf-spec-group{border:1px solid var(--border-strong);border-radius:10px;background:var(--surface-2);overflow:hidden}
+.wf-spec-title{padding:7px 12px;background:var(--surface-3);border-bottom:1px solid var(--border-strong);font-weight:700;font-size:12.5px;letter-spacing:.02em}
+.wf-spec-item{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;border-top:1px solid var(--border)}
+.wf-spec-item:first-of-type{border-top:0}
+.wf-spec-badge{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);font:700 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.wf-spec-item-act .wf-spec-badge{background:var(--wf-info,#60a5fa);color:#0a0a0b;border-color:transparent}
+.wf-spec-body{flex:1;min-width:0;font-size:12.5px;line-height:1.6}
+.wf-spec-name{font-weight:600;margin-bottom:2px}
+.wf-spec-notes{margin:0;padding-left:1.1em;color:var(--muted-foreground)}
+.wf-spec-notes li{margin:1px 0}
+.wf-spec-step{margin-left:6px;padding:1px 6px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);color:var(--muted-foreground);font:600 10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+.wf-sub-title{margin:12px 0 6px;font-weight:700;font-size:12.5px;letter-spacing:.02em}
+/* "Called from" sits ABOVE the picture, so the first thing a backend reader learns is
+   which screen and which element reaches this endpoint. */
+.wf-screen > .wf-validations:first-of-type{margin-bottom:2px}
+.wf-diagram-label{margin:8px 0 2px;font-size:11.5px;color:var(--muted-foreground)}
+.wf-diagram-label:first-child{margin-top:0}
+/* Validation table — one row per rule, the numbers it touches in the first column so a
+   rule shared by several markers is traceable instead of scattered through prose. */
+.wf-validations{margin-top:2px}
+.wf-vtable{width:100%;border-collapse:collapse;font-size:12px;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;table-layout:auto}
+.wf-vtable th{padding:6px 9px;background:var(--surface-3);border-bottom:1px solid var(--border-strong);text-align:left;font-weight:700;white-space:nowrap}
+.wf-vtable td{padding:6px 9px;border-top:1px solid var(--border);vertical-align:top;line-height:1.55}
+.wf-vt-marker{width:1%;white-space:nowrap;font:700 11px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted-foreground)}
+/* State variants — a strip under the frame, never a third column: a third column would
+   squeeze the picture, which is the one thing this format exists to protect. */
+.wf-states-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.wf-state{min-width:0}
+.wf-state-label{display:flex;align-items:center;gap:5px;margin-bottom:4px;font-size:11.5px;color:var(--muted-foreground)}
+.wf-state-marker{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);font:700 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--foreground)}
+.wf-state-frame{border:1px solid var(--wf-border,var(--border-strong));border-radius:8px;background:var(--wf-bg,var(--surface-2));padding:9px 10px}
+.wf-chrome{display:flex;align-items:center;gap:7px;padding:9px 12px;border-bottom:1px solid var(--wf-border);background:var(--wf-card)}
+.wf-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;opacity:.7}
+.wf-dot-r{background:#fb2c36}.wf-dot-y{background:#fe9a00}.wf-dot-g{background:#00bc7d}
+.wf-url{margin-left:6px;padding:2px 8px;border-radius:5px;background:var(--wf-muted);color:var(--wf-muted-fg,var(--muted-foreground));font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wf-frame{border:1px solid var(--wf-border);border-radius:calc(var(--wf-radius) + 4px);background:var(--wf-bg);color:var(--wf-fg);overflow:hidden}
+.wf-nav{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--wf-border);background:var(--wf-bg);flex-wrap:wrap}
+.wf-nav-item{font-size:13px;color:var(--wf-muted-fg);padding:12px 11px;border-bottom:2px solid transparent}
+.wf-nav-item.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-primary)}
+.wf-body{padding:20px}
+.wf-header{margin-bottom:0}
+.wf-header-title{font-size:16px;font-weight:600;color:var(--wf-fg)}
+.wf-header-sub{font-size:12.5px;color:var(--wf-muted-fg);margin-top:3px}
+.wf-toolbar{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+.wf-tabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid var(--wf-border)}
+.wf-tab{font-size:12.5px;color:var(--wf-muted-fg);padding:7px 11px;border-bottom:2px solid transparent}
+.wf-tab.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-muted-fg)}
+.wf-btn{font-weight:500;font-size:12.5px;line-height:1;padding:8px 13px;border-radius:8px;border:1px solid transparent;background:var(--wf-muted);color:var(--wf-fg);cursor:default}
+.wf-btn-primary{background:var(--wf-primary);color:var(--wf-primary-fg)}
+.wf-btn-danger{background:var(--wf-danger-bg);color:var(--wf-danger)}
+.wf-input{display:inline-flex;align-items:center;font-size:12.5px;color:var(--wf-muted-fg);padding:8px 12px;border:1px solid var(--wf-border);border-radius:8px;background:var(--wf-card);min-width:120px}
+.wf-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.wf-table th,.wf-table td{border-bottom:1px solid var(--wf-border);padding:9px 10px;text-align:left}
+.wf-table th{color:var(--wf-muted-fg);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.02em}
+.wf-badge{display:inline-flex;align-items:center;height:20px;border-radius:var(--wf-radius-pill);padding:0 9px;font-size:10.5px;font-weight:500;border:1px solid transparent}
+.wf-badge-muted{background:var(--wf-muted);color:var(--wf-muted-fg);border-color:var(--wf-border)}
+.wf-badge-info{background:var(--wf-info-bg);color:var(--wf-info);border-color:rgba(96,165,250,.35)}
+.wf-badge-good{background:var(--wf-success-bg);color:var(--wf-success);border-color:var(--wf-success-border)}
+.wf-badge-warn{background:var(--wf-warn-bg);color:var(--wf-warn);border-color:rgba(224,171,72,.35)}
+.wf-badge-danger{background:var(--wf-danger-bg);color:var(--wf-danger);border-color:rgba(239,107,107,.35)}
+.wf-card{border-radius:var(--wf-radius);border:1px solid var(--wf-border);padding:14px 16px;margin-bottom:10px;background:var(--wf-card)}
+.wf-card-title{font-size:13px;font-weight:600;color:var(--wf-fg);margin-bottom:8px}
+.wf-list{list-style:none;margin:0;padding:0}
+.wf-list li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--wf-border);font-size:12.5px;color:var(--wf-fg)}
+.wf-list li:last-child{border-bottom:none}
+.wf-form{display:flex;flex-direction:column;gap:8px}
+.wf-field{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--wf-muted-fg)}
+.wf-text{font-size:12.5px;color:var(--wf-fg);margin:.3em 0}
+@media (max-width:900px){.source-panel{width:min(360px,44vw)}}
+@media (max-width:640px){.goals{grid-template-columns:1fr}nav.toc ol{columns:1}.shell{flex-direction:column;height:auto;overflow:visible}.scroll-main{overflow:visible}.source-panel{width:100%;height:60vh}}
+/* Paper is the one place the light values live. This is not a second theme the
+   reader can choose — @media print is unreachable on screen, persists nothing,
+   and shows no control. The screen deck stays dark only.
+   It has to redeclare the TOKENS, not just body: the old block set
+   background:#fff on body while every surface below it kept painting from
+   --bg, so the PDF was 20 pages of dark slabs on a white sheet. */
+@media print{
+  /* The single-scroll-region clamp is a SCREEN concern — on paper the document must
+     flow normally, or everything past the first page is clipped away. */
+  html,body{height:auto;overflow:visible}
+  :root{
+    --bg:#ffffff; --panel:#f6f7f8; --surface-2:#fafafa; --surface-3:#f4f4f5;
+    --fg:#111418;                /* 17.74:1 on white */
+    --fg-body:#1c1f24;           /* 15.42:1 */
+    --fg-soft:#33373d;           /* 10.87:1 */
+    --muted-foreground:#565d6b;  /*  6.45:1 */
+    --border:rgba(0,0,0,.14); --border-strong:#8a8f98; --ring:#8a8f98;
+    --primary:#a50036;           /* the brand fill survives; white on it 7.58:1 */
+    --primary-text:#8f0030;      /*  8.75:1 on white — the light form of the rose */
+    --on-primary:#ffffff;
+    --good:#0f7a4d;              /*  5.24:1 */
+    --warn:#8a6100;              /*  5.40:1 */
+    --danger:#b32d1f;            /*  6.18:1 */
+    --on-warn:#fdf6e6;
+    --wf-bg:#ffffff; --wf-fg:#111418; --wf-card:#f6f6f7;
+    --wf-border:rgba(0,0,0,.16); --wf-muted:#f0f0f1; --wf-muted-fg:#565d6b;
+  }
+  @page{size:A4;margin:14mm 12mm}
+  body{background:#fff;display:block;height:auto}
+  .shell{display:block;height:auto;overflow:visible}
+  .shell-mid{display:block;overflow:visible}
+  .scroll-main{overflow:visible;height:auto}
+  .wrap{box-shadow:none;max-width:none;padding:0}
+  header.doc{position:static;border-bottom:1px solid var(--border);padding:0 0 8px}
+  .panel-toggle,.source-panel,.deck-nav,.deck-footer{display:none}
+  nav.toc{display:block;break-inside:avoid}
+  /* break-inside:avoid on a 3000px section dumps most of a page. Keep headings
+     with what follows and protect only the things that must not split. */
+  h2,h3,h4,.subhead{break-after:avoid}
+  figure,table,pre.code,.callout,.wf-screen{break-inside:avoid}
+  /* Paper cannot scroll, so a wide graph gets its own landscape sheet. */
+  @page dg{size:A4 landscape;margin:12mm}
+  pre.mermaid{page:dg;overflow:visible;break-inside:avoid;max-height:180mm}
+  pre.mermaid svg{max-width:100%;height:auto}
+  .print-source{display:block;break-before:page}
+  .print-source h3{margin-top:1.6em;font-size:14px}
+}
+</style>
+<style id="scv-mermaid-contrast">
+/* Diagram palette. static-mermaid.mjs strips the id-scoped rules, the
+   !important flags and the inline colour attributes first, so plain specificity
+   is enough here — before that, an author rule at (1,3,1) with !important still
+   lost to style="fill:#FFE082 !important" on a classDef node. */
+pre.mermaid .flowchart-link,pre.mermaid .edgePath .path,pre.mermaid path.flowchart-link{stroke:var(--fg-body);stroke-width:1.6px;fill:none}
+pre.mermaid .marker,pre.mermaid marker path,pre.mermaid .arrowMarkerPath{fill:var(--fg-body);stroke:var(--fg-body)}
+pre.mermaid .node rect,pre.mermaid .node circle,pre.mermaid .node polygon,pre.mermaid .node path{fill:var(--panel);stroke:var(--border-strong);stroke-width:1.2px}
+pre.mermaid .nodeLabel,pre.mermaid .nodeLabel p,pre.mermaid .label,pre.mermaid text{fill:var(--fg);color:var(--fg)}
+pre.mermaid .edgeLabel,pre.mermaid .edgeLabel p{background-color:var(--surface-3);color:var(--fg-body)}
+pre.mermaid .edgeLabel rect,pre.mermaid .labelBkg{fill:var(--surface-3);opacity:1}
+pre.mermaid .cluster rect{fill:var(--surface-2);stroke:var(--border-strong)}
+pre.mermaid .cluster text,pre.mermaid .cluster .nodeLabel{fill:var(--muted-foreground);color:var(--muted-foreground)}
+/* The two semantic highlights the protocol sanctions. Any other per-node colour
+   is stripped, so these are the only ones that survive — deck.md says so. */
+pre.mermaid .node.new rect,pre.mermaid g.new rect{fill:#5a4415;stroke:var(--warn);stroke-width:1.8px}
+pre.mermaid .node.new .nodeLabel,pre.mermaid g.new .nodeLabel{fill:#f6e8c8;color:#f6e8c8}
+pre.mermaid .node.changed rect,pre.mermaid g.changed rect{fill:#16324f;stroke:#6fb4f2;stroke-width:1.8px}
+pre.mermaid .node.changed .nodeLabel,pre.mermaid g.changed .nodeLabel{fill:#d9ecff;color:#d9ecff}
+/* SEQUENCE diagrams — a backend spec draws the ORDER of a request, and mermaid's own
+   palette for this type assumes a light page (#eaeaea boxes, #333 text). Normalization
+   demotes mermaid's id-scoped rules to .scv-mmd (0,2,0), so these "pre.mermaid svg .x"
+   selectors (0,2,2) win without !important. Without them the message text renders dark
+   grey on the dark card and the whole diagram is unreadable — the same contrast failure
+   the deck redesign fixed for flowcharts, one diagram type later. */
+pre.mermaid svg .actor,pre.mermaid svg rect.actor{fill:var(--panel);stroke:var(--border-strong);stroke-width:1.2px}
+pre.mermaid svg text.actor,pre.mermaid svg text.actor tspan,pre.mermaid svg .actor > tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .actor-line{stroke:var(--border-strong);stroke-width:1px}
+pre.mermaid svg .messageText,pre.mermaid svg text.messageText{fill:var(--fg);stroke:none}
+pre.mermaid svg .messageLine0,pre.mermaid svg .messageLine1{stroke:var(--fg-body);stroke-width:1.5px}
+pre.mermaid svg .labelBox{fill:var(--surface-2);stroke:var(--border-strong)}
+/* sectionTitle is the else-branch label of an alt block — miss it and half the
+   branches in a failure flow stay unreadable while the other half look fine. */
+pre.mermaid svg .labelText,pre.mermaid svg .labelText tspan,pre.mermaid svg .loopText,pre.mermaid svg .loopText tspan,pre.mermaid svg .sectionTitle,pre.mermaid svg .sectionTitle tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .loopLine{stroke:var(--border-strong)}
+pre.mermaid svg .note{fill:var(--surface-2);stroke:var(--border-strong)}
+pre.mermaid svg .noteText,pre.mermaid svg .noteText tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .sequenceNumber{fill:var(--bg)}
+pre.mermaid svg .activation0,pre.mermaid svg .activation1,pre.mermaid svg .activation2{fill:var(--surface-3);stroke:var(--border-strong)}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="doc"><h1>Architecture — 매 턴 라우터 다이어트</h1><nav class="deck-nav"><button class="deck-nav-item active" data-idx="0" onclick="scvGoto(0)">1. Architecture — 매 턴</button><button class="deck-nav-item" data-idx="1" onclick="scvGoto(1)">2. 1. Component data </button><button class="deck-nav-item" data-idx="2" onclick="scvGoto(2)">3. 2. Position in who</button><button class="deck-nav-item" data-idx="3" onclick="scvGoto(3)">4. 3. Screen mockups</button></nav><div class="header-actions"><button class="panel-toggle" onclick="scvTogglePanel()" title="원문 패널 토글 (S)">기획서 원문 <span class="kbd">S</span></button></div></header>
+<div class="shell-mid">
+<div class="scroll-main">
+<div class="wrap">
+<nav class="toc"><h3>목차</h3><ol><li><a href="#s-0-architecture--매-턴-라우터-다이어트">Architecture — 매 턴 라우터 다이어트</a></li><li><a href="#s-1-1-component-data-flow">1. Component data flow</a></li><li><a href="#s-2-2-position-in-whole-architecture">2. Position in whole architecture</a></li><li><a href="#s-3-3-screen-mockups">3. Screen mockups</a></li></ol></nav>
+<section id="s-0-architecture--매-턴-라우터-다이어트" class="slide-page active" data-idx="0"><h2>Architecture — 매 턴 라우터 다이어트</h2><div class="callout info"><div class="callout-title">참고</div><div>Two-diagram view of this feature. Review and edit before /scv:work —
+diagrams are LLM-generated and may have inaccuracies.</div></div></section>
+<section id="s-1-1-component-data-flow" class="slide-page" data-idx="1"><div class="kicker">Architecture — 매 턴 라우터 다이어트</div><h2>1. Component data flow</h2><p>매 턴 컨텍스트에 실리는 세 덩어리와, 이번에 줄어드는 자리(노란색).</p>
+<pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="1675.65625" height="493.1875" class="scv-mmd" id="scv-mmd-6834db9970" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 1675.65625 493.1875" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}.scv-mmd .new&gt;*{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .new span{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .new tspan{fill:rgb(0, 0, 0);}</style><g><marker id="scv-mmd-6834db9970_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-6834db9970_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-6834db9970_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-6834db9970_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-6834db9970_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-6834db9970_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-6834db9970_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-6834db9970_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-6834db9970_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-6834db9970_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-6834db9970_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-6834db9970_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M199.859,59.563L217.85,59.563C235.841,59.563,271.823,59.563,307.138,59.563C342.453,59.563,377.102,59.563,394.426,59.563L411.75,59.563" id="scv-mmd-6834db9970-L_Hook_Probe_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Hook_Probe_0" data-points="W3sieCI6MTk5Ljg1OTM3NSwieSI6NTkuNTYyNX0seyJ4IjozMDcuODA0Njg3NSwieSI6NTkuNTYyNX0seyJ4Ijo0MTUuNzUsInkiOjU5LjU2MjV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M558.844,59.563L567.961,59.563C577.078,59.563,595.313,59.563,612.88,59.563C630.448,59.563,647.349,59.563,655.799,59.563L664.25,59.563" id="scv-mmd-6834db9970-L_Probe_Trim_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Probe_Trim_0" data-points="W3sieCI6NTU4Ljg0Mzc1LCJ5Ijo1OS41NjI1fSx7IngiOjYxMy41NDY4NzUsInkiOjU5LjU2MjV9LHsieCI6NjY4LjI1LCJ5Ijo1OS41NjI1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M928.25,59.563L938.517,59.563C948.784,59.563,969.318,59.563,991.039,59.563C1012.76,59.563,1035.669,59.563,1047.124,59.563L1058.578,59.563" id="scv-mmd-6834db9970-L_Trim_Mode_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Trim_Mode_0" data-points="W3sieCI6OTI4LjI1LCJ5Ijo1OS41NjI1fSx7IngiOjk4OS44NTE1NjI1LCJ5Ijo1OS41NjI1fSx7IngiOjEwNjIuNTc4MTI1LCJ5Ijo1OS41NjI1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1300.328,59.563L1323.016,59.563C1345.703,59.563,1391.078,59.563,1437.84,88.495C1484.602,117.427,1532.75,175.292,1556.824,204.224L1580.898,233.156" id="scv-mmd-6834db9970-L_Mode_Ctx_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Mode_Ctx_0" data-points="W3sieCI6MTMwMC4zMjgxMjUsInkiOjU5LjU2MjV9LHsieCI6MTQzNi40NTMxMjUsInkiOjU5LjU2MjV9LHsieCI6MTU4My40NTY4MTkyMTM3MzIsInkiOjIzNi4yMzA5MDIxMTk5NTE2Mn1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1311.453,200.5L1332.286,200.5C1353.12,200.5,1394.786,200.5,1435.833,208.498C1476.88,216.496,1517.307,232.491,1537.52,240.489L1557.734,248.487" id="scv-mmd-6834db9970-L_Skill_Ctx_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Skill_Ctx_0" data-points="W3sieCI6MTMxMS40NTMxMjUsInkiOjIwMC41fSx7IngiOjE0MzYuNDUzMTI1LCJ5IjoyMDAuNX0seyJ4IjoxNTYxLjQ1MzEyNSwieSI6MjQ5Ljk1ODI2MjA1MjAyNDR9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1311.453,341.438L1332.286,341.438C1353.12,341.438,1394.786,341.438,1435.833,333.44C1476.88,325.442,1517.307,309.446,1537.52,301.449L1557.734,293.451" id="scv-mmd-6834db9970-L_Full_Ctx_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Full_Ctx_0" data-points="W3sieCI6MTMxMS40NTMxMjUsInkiOjM0MS40Mzc1fSx7IngiOjE0MzYuNDUzMTI1LCJ5IjozNDEuNDM3NX0seyJ4IjoxNTYxLjQ1MzEyNSwieSI6MjkxLjk3OTIzNzk0Nzk3NTZ9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1288.422,458L1313.094,458C1337.766,458,1387.109,458,1435.151,432.988C1483.193,407.976,1529.933,357.952,1553.303,332.94L1576.673,307.928" id="scv-mmd-6834db9970-L_Helper_Ctx_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Helper_Ctx_0" data-points="W3sieCI6MTI4OC40MjE4NzUsInkiOjQ1OH0seyJ4IjoxNDM2LjQ1MzEyNSwieSI6NDU4fSx7IngiOjE1NzkuNDAzOTY0MTk4OTgsInkiOjMwNS4wMDU3MTE1NzAxODR9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M928.25,223.156L938.517,219.38C948.784,215.604,969.318,208.052,989.185,204.276C1009.052,200.5,1028.253,200.5,1037.853,200.5L1047.453,200.5" id="scv-mmd-6834db9970-L_Budget_Skill_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Budget_Skill_0" data-points="W3sieCI6OTI4LjI1LCJ5IjoyMjMuMTU2MzEzNzEwNDk5NX0seyJ4Ijo5ODkuODUxNTYyNSwieSI6MjAwLjV9LHsieCI6MTA1MS40NTMxMjUsInkiOjIwMC41fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M928.25,318.781L938.517,322.557C948.784,326.333,969.318,333.885,989.185,337.661C1009.052,341.438,1028.253,341.438,1037.853,341.438L1047.453,341.438" id="scv-mmd-6834db9970-L_Budget_Full_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Budget_Full_0" data-points="W3sieCI6OTI4LjI1LCJ5IjozMTguNzgxMTg2Mjg5NTAwNX0seyJ4Ijo5ODkuODUxNTYyNSwieSI6MzQxLjQzNzV9LHsieCI6MTA1MS40NTMxMjUsInkiOjM0MS40Mzc1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(307.8046875, 59.5625)"><g class="label" data-id="L_Hook_Probe_0" transform="translate(-82.9453125, -12.1875)"><foreignObject width="165.890625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>help.sh 실행 → 전체 출력</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(613.546875, 59.5625)"><g class="label" data-id="L_Probe_Trim_0" transform="translate(-29.703125, -12.1875)"><foreignObject width="59.40625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>전체 출력</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(989.8515625, 59.5625)"><g class="label" data-id="L_Trim_Mode_0" transform="translate(-36.6015625, -12.1875)"><foreignObject width="73.203125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>다듬은 진단</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1436.453125, 59.5625)"><g class="label" data-id="L_Mode_Ctx_0" transform="translate(-100, -24.375)"><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>full: 다듬은 진단 ≤2KB · brief: 한 줄</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1436.453125, 200.5)"><g class="label" data-id="L_Skill_Ctx_0" transform="translate(-46.734375, -12.1875)"><foreignObject width="93.46875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>Skill 호출 본문</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1436.453125, 341.4375)"><g class="label" data-id="L_Full_Ctx_0" transform="translate(-100, -24.375)"><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>세션당 1회 · 드리프트 시 재읽기</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1436.453125, 458)"><g class="label" data-id="L_Helper_Ctx_0" transform="translate(-59.4921875, -12.1875)"><foreignObject width="118.984375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>파싱 머리 ≈0.2KB</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(989.8515625, 200.5)"><g class="label" data-id="L_Budget_Skill_0" transform="translate(-34.25, -12.1875)"><foreignObject width="68.5" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>wc -c 상한</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(989.8515625, 341.4375)"><g class="label" data-id="L_Budget_Full_0" transform="translate(-13.8046875, -12.1875)"><foreignObject width="27.609375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>상한</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-6834db9970-flowchart-Hook-0" data-look="classic" transform="translate(103.9296875, 59.5625)"><rect class="basic label-container"  x="-95.9296875" y="-27.1875" width="191.859375" height="54.375"></rect><g class="label"  transform="translate(-65.9296875, -12.1875)"><rect></rect><foreignObject width="131.859375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>on-user-prompt.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-6834db9970-flowchart-Probe-1" data-look="classic" transform="translate(487.296875, 59.5625)"><rect class="basic label-container"  x="-71.546875" y="-27.1875" width="143.09375" height="54.375"></rect><g class="label"  transform="translate(-41.546875, -12.1875)"><rect></rect><foreignObject width="83.09375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>help.sh 진단</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-6834db9970-flowchart-Trim-3" data-look="classic" transform="translate(798.25, 59.5625)"><rect class="basic label-container" style="stroke-width:2px" x="-130" y="-51.5625" width="260" height="103.125"></rect><g class="label"  transform="translate(-100, -36.5625)"><rect></rect><foreignObject width="200" height="73.125"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>scv_force_trim_diagnosis — 진단 본문 + 권장 첫 줄, Learn more 제거</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-6834db9970-flowchart-Mode-5" data-look="classic" transform="translate(1181.453125, 59.5625)"><rect class="basic label-container"  x="-118.875" y="-27.1875" width="237.75" height="54.375"></rect><g class="label"  transform="translate(-88.875, -12.1875)"><rect></rect><foreignObject width="177.75" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>scv_hstate_diag brief/full</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-6834db9970-flowchart-Ctx-7" data-look="classic" transform="translate(1614.5546875, 270.96875)"><path d="M0,11.48374670541326 a53.1015625,11.48374670541326 0,0,0 106.203125,0 a53.1015625,11.48374670541326 0,0,0 -106.203125,0 l0,50.85874670541326 a53.1015625,11.48374670541326 0,0,0 106.203125,0 l0,-50.85874670541326" class="basic label-container outer-path"  transform="translate(-53.1015625, -36.91312005811989)"></path><g class="label"  transform="translate(-45.6015625, -2.1875)"><rect></rect><foreignObject width="91.203125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>매 턴 컨텍스트</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-6834db9970-flowchart-Skill-8" data-look="classic" transform="translate(1181.453125, 200.5)"><rect class="basic label-container" style="stroke-width:2px" x="-130" y="-51.5625" width="260" height="103.125"></rect><g class="label"  transform="translate(-100, -36.5625)"><rect></rect><foreignObject width="200" height="73.125"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>help 라우터 help.md ≤7KB — 언어·쉬운 말·답 모양 절 그대로, 기록 계약 압축</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-6834db9970-flowchart-Full-10" data-look="classic" transform="translate(1181.453125, 341.4375)"><rect class="basic label-container" style="stroke-width:2px" x="-130" y="-39.375" width="260" height="78.75"></rect><g class="label"  transform="translate(-100, -24.375)"><rect></rect><foreignObject width="200" height="48.75"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>full.md — 세 모드·대화 루프·지문 + 배경 조사 절(이동)</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-6834db9970-flowchart-Helper-12" data-look="classic" transform="translate(1181.453125, 458)"><rect class="basic label-container"  x="-106.96875" y="-27.1875" width="213.9375" height="54.375"></rect><g class="label"  transform="translate(-76.96875, -12.1875)"><rect></rect><foreignObject width="153.9375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>help.sh --with-context</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-6834db9970-flowchart-Budget-14" data-look="classic" transform="translate(798.25, 270.96875)"><rect class="basic label-container" style="stroke-width:2px" x="-130" y="-51.5625" width="260" height="103.125"></rect><g class="label"  transform="translate(-100, -36.5625)"><rect></rect><foreignObject width="200" height="73.125"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>test-help-budget.sh — BODY 7,500 · TURN 9,500 · FULL 9,000</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-6834db9970-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-6834db9970-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-6834db9970-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre></section>
+<section id="s-2-2-position-in-whole-architecture" class="slide-page" data-idx="2"><div class="kicker">Architecture — 매 턴 라우터 다이어트</div><h2>2. Position in whole architecture</h2><div class="callout info"><div class="callout-title">참고</div><div>Source: graphify graph (built 2026-09-11) — 문서 그래프 기준으로 관련 군집만 추렸다</div></div>
+<pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="1429.3359375" height="532.875" class="scv-mmd" id="scv-mmd-18f4f8ca3f" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 1429.3359375 532.875" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}.scv-mmd .new&gt;*{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .new span{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .new tspan{fill:rgb(0, 0, 0);}</style><g><marker id="scv-mmd-18f4f8ca3f_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-18f4f8ca3f_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-18f4f8ca3f_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-18f4f8ca3f_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-18f4f8ca3f_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-18f4f8ca3f_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-18f4f8ca3f_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-18f4f8ca3f_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-18f4f8ca3f_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-18f4f8ca3f_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-18f4f8ca3f_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-18f4f8ca3f_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"><g class="cluster" id="scv-mmd-18f4f8ca3f-검사" data-look="classic"><rect  x="254.30859375" y="8" width="1167.02734375" height="128.75"></rect><g class="cluster-label" transform="translate(824.017578125, 8)"><foreignObject width="27.609375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>검사</p></span></div></foreignObject></g></g><g class="cluster" id="scv-mmd-18f4f8ca3f-subGraph1" data-look="classic"><rect  x="8" y="186.75" width="632.47265625" height="208.75"></rect><g class="cluster-label" transform="translate(299.330078125, 186.75)"><foreignObject width="49.8125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>매 턴 훅</p></span></div></foreignObject></g></g><g class="cluster" id="scv-mmd-18f4f8ca3f-subGraph0" data-look="classic"><rect  x="660.47265625" y="186.75" width="679.8203125" height="338.125"></rect><g class="cluster-label" transform="translate(906.703125, 186.75)"><foreignObject width="187.359375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>help 규약 · 표식 (0.49~0.51)</p></span></div></foreignObject></g></g></g><g class="edgePaths"><path d="M154.094,266.125L154.094,270.292C154.094,274.458,154.094,282.792,158.799,290.709C163.505,298.627,172.916,306.129,177.621,309.88L182.326,313.632" id="scv-mmd-18f4f8ca3f-L_Prompt_Force_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Prompt_Force_0" data-points="W3sieCI6MTU0LjA5Mzc1LCJ5IjoyNjYuMTI1fSx7IngiOjE1NC4wOTM3NSwieSI6MjkxLjEyNX0seyJ4IjoxODUuNDU0MTU0MTkxNjE2NzcsInkiOjMxNi4xMjV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M219.559,370.5L219.559,374.667C219.559,378.833,219.559,387.167,305.37,395.5C391.182,403.833,562.806,412.167,655.221,420.165C747.636,428.164,760.843,435.828,767.447,439.66L774.05,443.492" id="scv-mmd-18f4f8ca3f-L_Force_HState_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Force_HState_0" data-points="W3sieCI6MjE5LjU1ODU5Mzc1LCJ5IjozNzAuNX0seyJ4IjoyMTkuNTU4NTkzNzUsInkiOjM5NS41fSx7IngiOjczNC40Mjk2ODc1LCJ5Ijo0MjAuNX0seyJ4Ijo3NzcuNTA5Nzc3MzIwMzU5MywieSI6NDQ1LjV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1051.098,266.125L1051.098,270.292C1051.098,274.458,1051.098,282.792,1041.476,290.874C1031.854,298.956,1012.61,306.787,1002.988,310.702L993.366,314.617" id="scv-mmd-18f4f8ca3f-L_Router_FullMd_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Router_FullMd_0" data-points="W3sieCI6MTA1MS4wOTc2NTYyNSwieSI6MjY2LjEyNX0seyJ4IjoxMDUxLjA5NzY1NjI1LCJ5IjoyOTEuMTI1fSx7IngiOjk4OS42NjA1MzA1MDE0OTcsInkiOjMxNi4xMjV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M922.848,370.5L922.848,374.667C922.848,378.833,922.848,387.167,922.848,395.5C922.848,403.833,922.848,412.167,915.573,420.188C908.299,428.209,893.751,435.918,886.476,439.773L879.202,443.627" id="scv-mmd-18f4f8ca3f-L_FullMd_HState_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_FullMd_HState_0" data-points="W3sieCI6OTIyLjg0NzY1NjI1LCJ5IjozNzAuNX0seyJ4Ijo5MjIuODQ3NjU2MjUsInkiOjM5NS41fSx7IngiOjkyMi44NDc2NTYyNSwieSI6NDIwLjV9LHsieCI6ODc1LjY2NzY0MTI3OTk0MDEsInkiOjQ0NS41fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M500.645,370.5L500.645,374.667C500.645,378.833,500.645,387.167,542.942,395.5C585.24,403.833,669.835,412.167,717.181,420.101C764.528,428.036,774.625,435.572,779.674,439.34L784.723,443.108" id="scv-mmd-18f4f8ca3f-L_Stop_HState_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Stop_HState_0" data-points="W3sieCI6NTAwLjY0NDUzMTI1LCJ5IjozNzAuNX0seyJ4Ijo1MDAuNjQ0NTMxMjUsInkiOjM5NS41fSx7IngiOjc1NC40Mjk2ODc1LCJ5Ijo0MjAuNX0seyJ4Ijo3ODcuOTI4OTM4OTk3MDA2LCJ5Ijo0NDUuNX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M458.136,99.563L470.484,105.76C482.832,111.958,507.527,124.354,519.875,134.719C532.223,145.083,532.223,153.417,580.672,161.75C629.121,170.083,726.02,178.417,798.186,188.008C870.353,197.599,917.787,208.448,941.504,213.872L965.222,219.297" id="scv-mmd-18f4f8ca3f-L_Budget_Router_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Budget_Router_0" data-points="W3sieCI6NDU4LjEzNjQ5MTIwMTQ1NjMsInkiOjk5LjU2MjV9LHsieCI6NTMyLjIyMjY1NjI1LCJ5IjoxMzYuNzV9LHsieCI6NTMyLjIyMjY1NjI1LCJ5IjoxNjEuNzV9LHsieCI6ODIyLjkxNzk2ODc1LCJ5IjoxODYuNzV9LHsieCI6OTY5LjEyMTA5Mzc1LCJ5IjoyMjAuMTg4NDUyMjU0NTk2NX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M399.749,99.563L398.787,105.76C397.824,111.958,395.898,124.354,394.935,134.719C393.973,145.083,393.973,153.417,455.715,161.75C517.458,170.083,640.944,178.417,702.687,191.281C764.43,204.146,764.43,221.542,764.43,238.938C764.43,256.333,764.43,273.729,776.445,286.385C788.46,299.041,812.489,306.957,824.504,310.915L836.519,314.873" id="scv-mmd-18f4f8ca3f-L_Budget_FullMd_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Budget_FullMd_0" data-points="W3sieCI6Mzk5Ljc0OTM1NTI3OTEyNjIzLCJ5Ijo5OS41NjI1fSx7IngiOjM5My45NzI2NTYyNSwieSI6MTM2Ljc1fSx7IngiOjM5My45NzI2NTYyNSwieSI6MTYxLjc1fSx7IngiOjc2NC40Mjk2ODc1LCJ5IjoxODYuNzV9LHsieCI6NzY0LjQyOTY4NzUsInkiOjIzOC45Mzc1fSx7IngiOjc2NC40Mjk2ODc1LCJ5IjoyOTEuMTI1fSx7IngiOjg0MC4zMTg1MzQ4MDUzODkyLCJ5IjozMTYuMTI1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M774.511,99.563L785.913,105.76C797.314,111.958,820.116,124.354,831.517,134.719C842.918,145.083,842.918,153.417,842.918,161.75C842.918,170.083,842.918,178.417,863.305,187.694C883.692,196.972,924.467,207.193,944.854,212.304L965.241,217.415" id="scv-mmd-18f4f8ca3f-L_Diet_Router_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Diet_Router_0" data-points="W3sieCI6Nzc0LjUxMTQ3MjIzOTA3NzYsInkiOjk5LjU2MjV9LHsieCI6ODQyLjkxNzk2ODc1LCJ5IjoxMzYuNzV9LHsieCI6ODQyLjkxNzk2ODc1LCJ5IjoxNjEuNzV9LHsieCI6ODQyLjkxNzk2ODc1LCJ5IjoxODYuNzV9LHsieCI6OTY5LjEyMTA5Mzc1LCJ5IjoyMTguMzg3MjE1MjU4NzUzMzJ9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M651.742,99.563L635.156,105.76C618.569,111.958,585.396,124.354,568.809,134.719C552.223,145.083,552.223,153.417,530.188,161.75C508.154,170.083,464.085,178.417,442.05,191.281C420.016,204.146,420.016,221.542,420.016,238.938C420.016,256.333,420.016,273.729,404.656,286.426C389.297,299.122,358.578,307.12,343.219,311.119L327.859,315.117" id="scv-mmd-18f4f8ca3f-L_Diet_Force_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Diet_Force_0" data-points="W3sieCI6NjUxLjc0MjA5MjY4ODEwNjgsInkiOjk5LjU2MjV9LHsieCI6NTUyLjIyMjY1NjI1LCJ5IjoxMzYuNzV9LHsieCI6NTUyLjIyMjY1NjI1LCJ5IjoxNjEuNzV9LHsieCI6NDIwLjAxNTYyNSwieSI6MTg2Ljc1fSx7IngiOjQyMC4wMTU2MjUsInkiOjIzOC45Mzc1fSx7IngiOjQyMC4wMTU2MjUsInkiOjI5MS4xMjV9LHsieCI6MzIzLjk4ODMwNDY0MDcxODYsInkiOjMxNi4xMjV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M981.336,99.563L981.336,105.76C981.336,111.958,981.336,124.354,981.336,134.719C981.336,145.083,981.336,153.417,981.336,161.75C981.336,170.083,981.336,178.417,986.372,186.351C991.408,194.285,1001.48,201.819,1006.516,205.587L1011.552,209.354" id="scv-mmd-18f4f8ca3f-L_Shape_Router_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Shape_Router_0" data-points="W3sieCI6OTgxLjMzNTkzNzUsInkiOjk5LjU2MjV9LHsieCI6OTgxLjMzNTkzNzUsInkiOjEzNi43NX0seyJ4Ijo5ODEuMzM1OTM3NSwieSI6MTYxLjc1fSx7IngiOjk4MS4zMzU5Mzc1LCJ5IjoxODYuNzV9LHsieCI6MTAxNC43NTQ3MjQ5MjUxNDk3LCJ5IjoyMTEuNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1256.336,111.75L1256.336,115.917C1256.336,120.083,1256.336,128.417,1256.336,136.75C1256.336,145.083,1256.336,153.417,1256.336,161.75C1256.336,170.083,1256.336,178.417,1236.438,187.643C1216.541,196.869,1176.746,206.988,1156.848,212.047L1136.951,217.107" id="scv-mmd-18f4f8ca3f-L_RunDry_Router_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_RunDry_Router_0" data-points="W3sieCI6MTI1Ni4zMzU5Mzc1LCJ5IjoxMTEuNzV9LHsieCI6MTI1Ni4zMzU5Mzc1LCJ5IjoxMzYuNzV9LHsieCI6MTI1Ni4zMzU5Mzc1LCJ5IjoxNjEuNzV9LHsieCI6MTI1Ni4zMzU5Mzc1LCJ5IjoxODYuNzV9LHsieCI6MTEzMy4wNzQyMTg3NSwieSI6MjE4LjA5MjY5NTQ2NjM5NzY5fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_Prompt_Force_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_Force_HState_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_Router_FullMd_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_FullMd_HState_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_Stop_HState_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_Budget_Router_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_Budget_FullMd_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_Diet_Router_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_Diet_Force_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_Shape_Router_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_RunDry_Router_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-18f4f8ca3f-flowchart-Router-0" data-look="classic" transform="translate(1051.09765625, 238.9375)"><rect class="basic label-container"  x="-81.9765625" y="-27.1875" width="163.953125" height="54.375"></rect><g class="label"  transform="translate(-51.9765625, -12.1875)"><rect></rect><foreignObject width="103.953125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>help.md 라우터</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-18f4f8ca3f-flowchart-FullMd-1" data-look="classic" transform="translate(922.84765625, 343.3125)"><rect class="basic label-container"  x="-89.2734375" y="-27.1875" width="178.546875" height="54.375"></rect><g class="label"  transform="translate(-59.2734375, -12.1875)"><rect></rect><foreignObject width="118.546875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>help/full.md 규약</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-18f4f8ca3f-flowchart-HState-2" data-look="classic" transform="translate(824.359375, 472.6875)"><rect class="basic label-container"  x="-112.9140625" y="-27.1875" width="225.828125" height="54.375"></rect><g class="label"  transform="translate(-82.9140625, -12.1875)"><rect></rect><foreignObject width="165.828125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>help-state.sh 표식 · 지문</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-18f4f8ca3f-flowchart-Prompt-3" data-look="classic" transform="translate(154.09375, 238.9375)"><rect class="basic label-container"  x="-95.9296875" y="-27.1875" width="191.859375" height="54.375"></rect><g class="label"  transform="translate(-65.9296875, -12.1875)"><rect></rect><foreignObject width="131.859375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>on-user-prompt.sh</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-18f4f8ca3f-flowchart-Force-4" data-look="classic" transform="translate(219.55859375, 343.3125)"><rect class="basic label-container" style="stroke-width:2px" x="-126.2578125" y="-27.1875" width="252.515625" height="54.375"></rect><g class="label"  transform="translate(-96.2578125, -12.1875)"><rect></rect><foreignObject width="192.515625" height="24.375"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>lib/force-help.sh 진단 다듬기</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-18f4f8ca3f-flowchart-Stop-5" data-look="classic" transform="translate(500.64453125, 343.3125)"><rect class="basic label-container"  x="-104.828125" y="-27.1875" width="209.65625" height="54.375"></rect><g class="label"  transform="translate(-74.828125, -12.1875)"><rect></rect><foreignObject width="149.65625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>on-stop.sh 지문 · 린트</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-18f4f8ca3f-flowchart-Budget-6" data-look="classic" transform="translate(403.97265625, 72.375)"><rect class="basic label-container" style="stroke-width:2px" x="-114.6640625" y="-27.1875" width="229.328125" height="54.375"></rect><g class="label"  transform="translate(-84.6640625, -12.1875)"><rect></rect><foreignObject width="169.328125" height="24.375"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>test-help-budget.sh 상한</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-18f4f8ca3f-flowchart-Diet-7" data-look="classic" transform="translate(724.5, 72.375)"><rect class="basic label-container" style="stroke-width:2px" x="-111.8359375" y="-27.1875" width="223.671875" height="54.375"></rect><g class="label"  transform="translate(-81.8359375, -12.1875)"><rect></rect><foreignObject width="163.671875" height="24.375"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>test-help-router-diet.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-18f4f8ca3f-flowchart-Shape-8" data-look="classic" transform="translate(981.3359375, 72.375)"><rect class="basic label-container"  x="-95" y="-27.1875" width="190" height="54.375"></rect><g class="label"  transform="translate(-65, -12.1875)"><rect></rect><foreignObject width="130" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>test-help-shape.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-18f4f8ca3f-flowchart-RunDry-9" data-look="classic" transform="translate(1256.3359375, 72.375)"><rect class="basic label-container"  x="-130" y="-39.375" width="260" height="78.75"></rect><g class="label"  transform="translate(-100, -24.375)"><rect></rect><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>run-dry [15p] 쉬운 말 공통 문구</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-18f4f8ca3f-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-18f4f8ca3f-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-18f4f8ca3f-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre></section>
+<section id="s-3-3-screen-mockups" class="slide-page" data-idx="3"><div class="kicker">Architecture — 매 턴 라우터 다이어트</div><h2>3. Screen mockups</h2><p>화면이 없는 계획이라 그림 자리는 구성·순서 두 다이어그램이다.</p>
+<h3 class="subhead">매 턴 컨텍스트 — 무엇이 얼마나 실리나</h3>
+<div class="wf-speclayout wf-speclayout-diagram"><div class="wf-screen"><div class="wf-pagebar"><span class="wf-pagebar-key">PATH</span><span class="wf-pagebar-name">매 턴 컨텍스트 — 무엇이 얼마나 실리나</span><span class="wf-pagebar-key">PAGE CODE</span><span class="wf-pagebar-code">HELP-TURN-01</span></div><div class="wf-validations"><div class="wf-sub-title">호출 화면 (어디서 불리는가)</div><table class="wf-vtable"><thead><tr><th>번호</th><th>화면 (PAGE CODE)</th><th>요소</th><th>시점</th></tr></thead><tbody><tr><td class="wf-vt-marker">1</td><td>사용자 메시지 제출 (UserPromptSubmit) · HOST-PROMPT</td><td>훅 실행</td><td>매 턴</td></tr></tbody></table></div><div class="wf-frame"><div class="wf-body"><div class="wf-diagram-label">구성</div><pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="770.40625" height="444.4375" class="scv-mmd" id="scv-mmd-ec5307ee53" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 770.40625 444.4375" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker id="scv-mmd-ec5307ee53_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-ec5307ee53_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-ec5307ee53_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-ec5307ee53_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-ec5307ee53_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-ec5307ee53_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-ec5307ee53_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-ec5307ee53_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-ec5307ee53_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-ec5307ee53_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-ec5307ee53_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-ec5307ee53_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M540.195,47.375L550.663,47.375C561.13,47.375,582.065,47.375,605.199,71.395C628.333,95.414,653.667,143.454,666.333,167.473L679,191.493" id="scv-mmd-ec5307ee53-L_A_C_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_A_C_0" data-points="W3sieCI6NTQwLjE5NTMxMjUsInkiOjQ3LjM3NX0seyJ4Ijo2MDMsInkiOjQ3LjM3NX0seyJ4Ijo2ODAuODY1OTA5ODUyNTQ2OSwieSI6MTk1LjAzMTI1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M578,163.938L582.167,163.938C586.333,163.938,594.667,163.938,606.468,168.764C618.27,173.59,633.54,183.242,641.175,188.068L648.81,192.894" id="scv-mmd-ec5307ee53-L_B_C_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_B_C_0" data-points="W3sieCI6NTc4LCJ5IjoxNjMuOTM3NX0seyJ4Ijo2MDMsInkiOjE2My45Mzc1fSx7IngiOjY1Mi4xOTE0Nzk1NTc2NDA3LCJ5IjoxOTUuMDMxMjV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M539.594,280.5L550.161,280.5C560.729,280.5,581.865,280.5,600.067,275.674C618.27,270.848,633.54,261.196,641.175,256.37L648.81,251.543" id="scv-mmd-ec5307ee53-L_D_C_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_D_C_0" data-points="W3sieCI6NTM5LjU5Mzc1LCJ5IjoyODAuNX0seyJ4Ijo2MDMsInkiOjI4MC41fSx7IngiOjY1Mi4xOTE0Nzk1NTc2NDA3LCJ5IjoyNDkuNDA2MjV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M578,397.063L582.167,397.063C586.333,397.063,594.667,397.063,611.5,373.043C628.333,349.023,653.667,300.984,666.333,276.964L679,252.944" id="scv-mmd-ec5307ee53-L_E_C_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_E_C_0" data-points="W3sieCI6NTc4LCJ5IjozOTcuMDYyNX0seyJ4Ijo2MDMsInkiOjM5Ny4wNjI1fSx7IngiOjY4MC44NjU5MDk4NTI1NDY5LCJ5IjoyNDkuNDA2MjV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M268,47.375L272.167,47.375C276.333,47.375,284.667,47.375,298.634,47.375C312.602,47.375,332.203,47.375,342.004,47.375L351.805,47.375" id="scv-mmd-ec5307ee53-L_F_A_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_F_A_0" data-points="W3sieCI6MjY4LCJ5Ijo0Ny4zNzV9LHsieCI6MjkzLCJ5Ijo0Ny4zNzV9LHsieCI6MzU1LjgwNDY4NzUsInkiOjQ3LjM3NX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_A_C_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_B_C_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_D_C_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_E_C_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_F_A_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-ec5307ee53-flowchart-A-0" data-look="classic" transform="translate(448, 47.375)"><rect class="basic label-container"  x="-92.1953125" y="-27.1875" width="184.390625" height="54.375"></rect><g class="label"  transform="translate(-62.1953125, -12.1875)"><rect></rect><foreignObject width="124.390625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>① 훅 블록 ≈1.5KB</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-ec5307ee53-flowchart-C-1" data-look="classic" transform="translate(695.203125, 222.21875)"><rect class="basic label-container"  x="-67.203125" y="-27.1875" width="134.40625" height="54.375"></rect><g class="label"  transform="translate(-37.203125, -12.1875)"><rect></rect><foreignObject width="74.40625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>④ 컨텍스트</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-ec5307ee53-flowchart-B-2" data-look="classic" transform="translate(448, 163.9375)"><rect class="basic label-container"  x="-130" y="-39.375" width="260" height="78.75"></rect><g class="label"  transform="translate(-100, -24.375)"><rect></rect><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>② 라우터 help.md 9.7→≤7KB</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-ec5307ee53-flowchart-D-4" data-look="classic" transform="translate(448, 280.5)"><rect class="basic label-container"  x="-91.59375" y="-27.1875" width="183.1875" height="54.375"></rect><g class="label"  transform="translate(-61.59375, -12.1875)"><rect></rect><foreignObject width="123.1875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>③ 헬퍼 출력 0.2KB</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-ec5307ee53-flowchart-E-6" data-look="classic" transform="translate(448, 397.0625)"><rect class="basic label-container"  x="-130" y="-39.375" width="260" height="78.75"></rect><g class="label"  transform="translate(-100, -24.375)"><rect></rect><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>⑤ full.md 7.2→≤9KB (세션당 1회)</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-ec5307ee53-flowchart-F-8" data-look="classic" transform="translate(138, 47.375)"><rect class="basic label-container"  x="-130" y="-39.375" width="260" height="78.75"></rect><g class="label"  transform="translate(-100, -24.375)"><rect></rect><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>⑥ 전체 진단 3.3→≤2KB (변동 턴만)</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-ec5307ee53-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-ec5307ee53-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-ec5307ee53-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre><div class="wf-diagram-label">순서</div><pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="929" height="892" class="scv-mmd" id="scv-mmd-672778ec5d" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"  viewBox="-50 -10 929 892" role="graphics-document document" aria-roledescription="sequence"><g><rect x="679" y="806" fill="#eaeaea" stroke="#666" width="150" name="K" rx="3" ry="3" class="actor actor-bottom"></rect><text x="754" y="838.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box" style="text-anchor: middle; font-size: 16px; font-weight: 400"><tspan x="754" dy="0">help-state</tspan></text></g><g><rect x="431" y="806" fill="#eaeaea" stroke="#666" width="150" height="65" name="S" rx="3" ry="3" class="actor actor-bottom"></rect><text x="506" y="838.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box" style="text-anchor: middle; font-size: 16px; font-weight: 400"><tspan x="506" dy="0">② help 라우터</tspan></text></g><g><rect x="200" y="806" fill="#eaeaea" stroke="#666" width="181" height="65" name="P" rx="3" ry="3" class="actor actor-bottom"></rect><text x="290.5" y="838.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box" style="text-anchor: middle; font-size: 16px; font-weight: 400"><tspan x="290.5" dy="0">① on-user-prompt.sh</tspan></text></g><g><rect x="0" y="806" fill="#eaeaea" stroke="#666" width="150" height="65" name="H" rx="3" ry="3" class="actor actor-bottom"></rect><text x="75" y="838.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box" style="text-anchor: middle; font-size: 16px; font-weight: 400"><tspan x="75" dy="0">호스트</tspan></text></g><g><line id="actor3" x1="754" y1="65" x2="754" y2="806" class="actor-line 200" stroke-width="0.5px" stroke="#999" name="K" data-et="life-line" data-id="K"></line><g id="root-3" data-et="participant" data-type="participant" data-id="K"><rect x="679" y="0" fill="#eaeaea" stroke="#666" width="150" height="65" name="K" rx="3" ry="3" class="actor actor-top"></rect><text x="754" y="32.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box" style="text-anchor: middle; font-size: 16px; font-weight: 400"><tspan x="754" dy="0">help-state</tspan></text></g></g><g><line id="actor2" x1="506" y1="65" x2="506" y2="806" class="actor-line 200" stroke-width="0.5px" stroke="#999" name="S" data-et="life-line" data-id="S"></line><g id="root-2" data-et="participant" data-type="participant" data-id="S"><rect x="431" y="0" fill="#eaeaea" stroke="#666" width="150" height="65" name="S" rx="3" ry="3" class="actor actor-top"></rect><text x="506" y="32.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box" style="text-anchor: middle; font-size: 16px; font-weight: 400"><tspan x="506" dy="0">② help 라우터</tspan></text></g></g><g><line id="actor1" x1="290.5" y1="65" x2="290.5" y2="806" class="actor-line 200" stroke-width="0.5px" stroke="#999" name="P" data-et="life-line" data-id="P"></line><g id="root-1" data-et="participant" data-type="participant" data-id="P"><rect x="200" y="0" fill="#eaeaea" stroke="#666" width="181" height="65" name="P" rx="3" ry="3" class="actor actor-top"></rect><text x="290.5" y="32.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box" style="text-anchor: middle; font-size: 16px; font-weight: 400"><tspan x="290.5" dy="0">① on-user-prompt.sh</tspan></text></g></g><g><line id="actor0" x1="75" y1="65" x2="75" y2="806" class="actor-line 200" stroke-width="0.5px" stroke="#999" name="H" data-et="life-line" data-id="H"></line><g id="root-0" data-et="participant" data-type="participant" data-id="H"><rect x="0" y="0" fill="#eaeaea" stroke="#666" width="150" height="65" name="H" rx="3" ry="3" class="actor actor-top"></rect><text x="75" y="32.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box" style="text-anchor: middle; font-size: 16px; font-weight: 400"><tspan x="75" dy="0">호스트</tspan></text></g></g><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .actor{stroke:hsl(40.5882352941, 60%, 83.3333333333%);fill:#fff4dd;stroke-width:1;}.scv-mmd rect.actor.outer-path[data-look="neo"]{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd rect.note[data-look="neo"]{stroke:hsl(52.6829268293, 60%, 73.9215686275%);fill:#fff5ad;filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd text.actor&gt;tspan{fill:#333;stroke:none;}.scv-mmd .actor-line{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd .innerArc{stroke-width:1.5;stroke-dasharray:none;}.scv-mmd .messageLine0{stroke-width:1.5;stroke-dasharray:none;stroke:#333;}.scv-mmd .messageLine1{stroke-width:1.5;stroke-dasharray:2,2;stroke:#333;}.scv-mmd [id$="-arrowhead"] path{fill:#333;stroke:#333;}.scv-mmd .sequenceNumber{fill:#f4f4f4;}.scv-mmd [id$="-sequencenumber"]{fill:#333;}.scv-mmd [id$="-crosshead"] path{fill:#333;stroke:#333;}.scv-mmd .messageText{fill:#333;stroke:none;}.scv-mmd .labelBox{stroke:hsl(40.5882352941, 60%, 83.3333333333%);fill:#fff4dd;filter:none;}.scv-mmd .labelText,.scv-mmd .labelText&gt;tspan{fill:#333;stroke:none;}.scv-mmd .loopText,.scv-mmd .loopText&gt;tspan{fill:#333;stroke:none;}.scv-mmd .sectionTitle,.scv-mmd .sectionTitle&gt;tspan{fill:#333;stroke:none;}.scv-mmd .loopLine{stroke-width:2px;stroke-dasharray:2,2;stroke:hsl(40.5882352941, 60%, 83.3333333333%);fill:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd .note{stroke:hsl(52.6829268293, 60%, 73.9215686275%);fill:#fff5ad;}.scv-mmd .noteText,.scv-mmd .noteText&gt;tspan{fill:#333;stroke:none;font-weight:normal;}.scv-mmd .activation0{fill:hsl(-79.4117647059, 100%, 93.3333333333%);stroke:hsl(-79.4117647059, 100%, 83.3333333333%);}.scv-mmd .activation1{fill:hsl(-79.4117647059, 100%, 93.3333333333%);stroke:hsl(-79.4117647059, 100%, 83.3333333333%);}.scv-mmd .activation2{fill:hsl(-79.4117647059, 100%, 93.3333333333%);stroke:hsl(-79.4117647059, 100%, 83.3333333333%);}.scv-mmd .actorPopupMenu{position:absolute;}.scv-mmd .actorPopupMenuPanel{position:absolute;fill:#fff4dd;box-shadow:0px 8px 16px 0px rgba(0,0,0,0.2);filter:drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4));}.scv-mmd .actor-man circle,.scv-mmd line{fill:#fff4dd;stroke-width:2px;}.scv-mmd g rect.rect{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g></g><defs><symbol id="scv-mmd-672778ec5d-computer" width="24" height="24"><path transform="scale(.5)" d="M2 2v13h20v-13h-20zm18 11h-16v-9h16v9zm-10.228 6l.466-1h3.524l.467 1h-4.457zm14.228 3h-24l2-6h2.104l-1.33 4h18.45l-1.297-4h2.073l2 6zm-5-10h-14v-7h14v7z"></path></symbol></defs><defs><symbol id="scv-mmd-672778ec5d-database" fill-rule="evenodd" clip-rule="evenodd"><path transform="scale(.5)" d="M12.258.001l.256.004.255.005.253.008.251.01.249.012.247.015.246.016.242.019.241.02.239.023.236.024.233.027.231.028.229.031.225.032.223.034.22.036.217.038.214.04.211.041.208.043.205.045.201.046.198.048.194.05.191.051.187.053.183.054.18.056.175.057.172.059.168.06.163.061.16.063.155.064.15.066.074.033.073.033.071.034.07.034.069.035.068.035.067.035.066.035.064.036.064.036.062.036.06.036.06.037.058.037.058.037.055.038.055.038.053.038.052.038.051.039.05.039.048.039.047.039.045.04.044.04.043.04.041.04.04.041.039.041.037.041.036.041.034.041.033.042.032.042.03.042.029.042.027.042.026.043.024.043.023.043.021.043.02.043.018.044.017.043.015.044.013.044.012.044.011.045.009.044.007.045.006.045.004.045.002.045.001.045v17l-.001.045-.002.045-.004.045-.006.045-.007.045-.009.044-.011.045-.012.044-.013.044-.015.044-.017.043-.018.044-.02.043-.021.043-.023.043-.024.043-.026.043-.027.042-.029.042-.03.042-.032.042-.033.042-.034.041-.036.041-.037.041-.039.041-.04.041-.041.04-.043.04-.044.04-.045.04-.047.039-.048.039-.05.039-.051.039-.052.038-.053.038-.055.038-.055.038-.058.037-.058.037-.06.037-.06.036-.062.036-.064.036-.064.036-.066.035-.067.035-.068.035-.069.035-.07.034-.071.034-.073.033-.074.033-.15.066-.155.064-.16.063-.163.061-.168.06-.172.059-.175.057-.18.056-.183.054-.187.053-.191.051-.194.05-.198.048-.201.046-.205.045-.208.043-.211.041-.214.04-.217.038-.22.036-.223.034-.225.032-.229.031-.231.028-.233.027-.236.024-.239.023-.241.02-.242.019-.246.016-.247.015-.249.012-.251.01-.253.008-.255.005-.256.004-.258.001-.258-.001-.256-.004-.255-.005-.253-.008-.251-.01-.249-.012-.247-.015-.245-.016-.243-.019-.241-.02-.238-.023-.236-.024-.234-.027-.231-.028-.228-.031-.226-.032-.223-.034-.22-.036-.217-.038-.214-.04-.211-.041-.208-.043-.204-.045-.201-.046-.198-.048-.195-.05-.19-.051-.187-.053-.184-.054-.179-.056-.176-.057-.172-.059-.167-.06-.164-.061-.159-.063-.155-.064-.151-.066-.074-.033-.072-.033-.072-.034-.07-.034-.069-.035-.068-.035-.067-.035-.066-.035-.064-.036-.063-.036-.062-.036-.061-.036-.06-.037-.058-.037-.057-.037-.056-.038-.055-.038-.053-.038-.052-.038-.051-.039-.049-.039-.049-.039-.046-.039-.046-.04-.044-.04-.043-.04-.041-.04-.04-.041-.039-.041-.037-.041-.036-.041-.034-.041-.033-.042-.032-.042-.03-.042-.029-.042-.027-.042-.026-.043-.024-.043-.023-.043-.021-.043-.02-.043-.018-.044-.017-.043-.015-.044-.013-.044-.012-.044-.011-.045-.009-.044-.007-.045-.006-.045-.004-.045-.002-.045-.001-.045v-17l.001-.045.002-.045.004-.045.006-.045.007-.045.009-.044.011-.045.012-.044.013-.044.015-.044.017-.043.018-.044.02-.043.021-.043.023-.043.024-.043.026-.043.027-.042.029-.042.03-.042.032-.042.033-.042.034-.041.036-.041.037-.041.039-.041.04-.041.041-.04.043-.04.044-.04.046-.04.046-.039.049-.039.049-.039.051-.039.052-.038.053-.038.055-.038.056-.038.057-.037.058-.037.06-.037.061-.036.062-.036.063-.036.064-.036.066-.035.067-.035.068-.035.069-.035.07-.034.072-.034.072-.033.074-.033.151-.066.155-.064.159-.063.164-.061.167-.06.172-.059.176-.057.179-.056.184-.054.187-.053.19-.051.195-.05.198-.048.201-.046.204-.045.208-.043.211-.041.214-.04.217-.038.22-.036.223-.034.226-.032.228-.031.231-.028.234-.027.236-.024.238-.023.241-.02.243-.019.245-.016.247-.015.249-.012.251-.01.253-.008.255-.005.256-.004.258-.001.258.001zm-9.258 20.499v.01l.001.021.003.021.004.022.005.021.006.022.007.022.009.023.01.022.011.023.012.023.013.023.015.023.016.024.017.023.018.024.019.024.021.024.022.025.023.024.024.025.052.049.056.05.061.051.066.051.07.051.075.051.079.052.084.052.088.052.092.052.097.052.102.051.105.052.11.052.114.051.119.051.123.051.127.05.131.05.135.05.139.048.144.049.147.047.152.047.155.047.16.045.163.045.167.043.171.043.176.041.178.041.183.039.187.039.19.037.194.035.197.035.202.033.204.031.209.03.212.029.216.027.219.025.222.024.226.021.23.02.233.018.236.016.24.015.243.012.246.01.249.008.253.005.256.004.259.001.26-.001.257-.004.254-.005.25-.008.247-.011.244-.012.241-.014.237-.016.233-.018.231-.021.226-.021.224-.024.22-.026.216-.027.212-.028.21-.031.205-.031.202-.034.198-.034.194-.036.191-.037.187-.039.183-.04.179-.04.175-.042.172-.043.168-.044.163-.045.16-.046.155-.046.152-.047.148-.048.143-.049.139-.049.136-.05.131-.05.126-.05.123-.051.118-.052.114-.051.11-.052.106-.052.101-.052.096-.052.092-.052.088-.053.083-.051.079-.052.074-.052.07-.051.065-.051.06-.051.056-.05.051-.05.023-.024.023-.025.021-.024.02-.024.019-.024.018-.024.017-.024.015-.023.014-.024.013-.023.012-.023.01-.023.01-.022.008-.022.006-.022.006-.022.004-.022.004-.021.001-.021.001-.021v-4.127l-.077.055-.08.053-.083.054-.085.053-.087.052-.09.052-.093.051-.095.05-.097.05-.1.049-.102.049-.105.048-.106.047-.109.047-.111.046-.114.045-.115.045-.118.044-.12.043-.122.042-.124.042-.126.041-.128.04-.13.04-.132.038-.134.038-.135.037-.138.037-.139.035-.142.035-.143.034-.144.033-.147.032-.148.031-.15.03-.151.03-.153.029-.154.027-.156.027-.158.026-.159.025-.161.024-.162.023-.163.022-.165.021-.166.02-.167.019-.169.018-.169.017-.171.016-.173.015-.173.014-.175.013-.175.012-.177.011-.178.01-.179.008-.179.008-.181.006-.182.005-.182.004-.184.003-.184.002h-.37l-.184-.002-.184-.003-.182-.004-.182-.005-.181-.006-.179-.008-.179-.008-.178-.01-.176-.011-.176-.012-.175-.013-.173-.014-.172-.015-.171-.016-.17-.017-.169-.018-.167-.019-.166-.02-.165-.021-.163-.022-.162-.023-.161-.024-.159-.025-.157-.026-.156-.027-.155-.027-.153-.029-.151-.03-.15-.03-.148-.031-.146-.032-.145-.033-.143-.034-.141-.035-.14-.035-.137-.037-.136-.037-.134-.038-.132-.038-.13-.04-.128-.04-.126-.041-.124-.042-.122-.042-.12-.044-.117-.043-.116-.045-.113-.045-.112-.046-.109-.047-.106-.047-.105-.048-.102-.049-.1-.049-.097-.05-.095-.05-.093-.052-.09-.051-.087-.052-.085-.053-.083-.054-.08-.054-.077-.054v4.127zm0-5.654v.011l.001.021.003.021.004.021.005.022.006.022.007.022.009.022.01.022.011.023.012.023.013.023.015.024.016.023.017.024.018.024.019.024.021.024.022.024.023.025.024.024.052.05.056.05.061.05.066.051.07.051.075.052.079.051.084.052.088.052.092.052.097.052.102.052.105.052.11.051.114.051.119.052.123.05.127.051.131.05.135.049.139.049.144.048.147.048.152.047.155.046.16.045.163.045.167.044.171.042.176.042.178.04.183.04.187.038.19.037.194.036.197.034.202.033.204.032.209.03.212.028.216.027.219.025.222.024.226.022.23.02.233.018.236.016.24.014.243.012.246.01.249.008.253.006.256.003.259.001.26-.001.257-.003.254-.006.25-.008.247-.01.244-.012.241-.015.237-.016.233-.018.231-.02.226-.022.224-.024.22-.025.216-.027.212-.029.21-.03.205-.032.202-.033.198-.035.194-.036.191-.037.187-.039.183-.039.179-.041.175-.042.172-.043.168-.044.163-.045.16-.045.155-.047.152-.047.148-.048.143-.048.139-.05.136-.049.131-.05.126-.051.123-.051.118-.051.114-.052.11-.052.106-.052.101-.052.096-.052.092-.052.088-.052.083-.052.079-.052.074-.051.07-.052.065-.051.06-.05.056-.051.051-.049.023-.025.023-.024.021-.025.02-.024.019-.024.018-.024.017-.024.015-.023.014-.023.013-.024.012-.022.01-.023.01-.023.008-.022.006-.022.006-.022.004-.021.004-.022.001-.021.001-.021v-4.139l-.077.054-.08.054-.083.054-.085.052-.087.053-.09.051-.093.051-.095.051-.097.05-.1.049-.102.049-.105.048-.106.047-.109.047-.111.046-.114.045-.115.044-.118.044-.12.044-.122.042-.124.042-.126.041-.128.04-.13.039-.132.039-.134.038-.135.037-.138.036-.139.036-.142.035-.143.033-.144.033-.147.033-.148.031-.15.03-.151.03-.153.028-.154.028-.156.027-.158.026-.159.025-.161.024-.162.023-.163.022-.165.021-.166.02-.167.019-.169.018-.169.017-.171.016-.173.015-.173.014-.175.013-.175.012-.177.011-.178.009-.179.009-.179.007-.181.007-.182.005-.182.004-.184.003-.184.002h-.37l-.184-.002-.184-.003-.182-.004-.182-.005-.181-.007-.179-.007-.179-.009-.178-.009-.176-.011-.176-.012-.175-.013-.173-.014-.172-.015-.171-.016-.17-.017-.169-.018-.167-.019-.166-.02-.165-.021-.163-.022-.162-.023-.161-.024-.159-.025-.157-.026-.156-.027-.155-.028-.153-.028-.151-.03-.15-.03-.148-.031-.146-.033-.145-.033-.143-.033-.141-.035-.14-.036-.137-.036-.136-.037-.134-.038-.132-.039-.13-.039-.128-.04-.126-.041-.124-.042-.122-.043-.12-.043-.117-.044-.116-.044-.113-.046-.112-.046-.109-.046-.106-.047-.105-.048-.102-.049-.1-.049-.097-.05-.095-.051-.093-.051-.09-.051-.087-.053-.085-.052-.083-.054-.08-.054-.077-.054v4.139zm0-5.666v.011l.001.02.003.022.004.021.005.022.006.021.007.022.009.023.01.022.011.023.012.023.013.023.015.023.016.024.017.024.018.023.019.024.021.025.022.024.023.024.024.025.052.05.056.05.061.05.066.051.07.051.075.052.079.051.084.052.088.052.092.052.097.052.102.052.105.051.11.052.114.051.119.051.123.051.127.05.131.05.135.05.139.049.144.048.147.048.152.047.155.046.16.045.163.045.167.043.171.043.176.042.178.04.183.04.187.038.19.037.194.036.197.034.202.033.204.032.209.03.212.028.216.027.219.025.222.024.226.021.23.02.233.018.236.017.24.014.243.012.246.01.249.008.253.006.256.003.259.001.26-.001.257-.003.254-.006.25-.008.247-.01.244-.013.241-.014.237-.016.233-.018.231-.02.226-.022.224-.024.22-.025.216-.027.212-.029.21-.03.205-.032.202-.033.198-.035.194-.036.191-.037.187-.039.183-.039.179-.041.175-.042.172-.043.168-.044.163-.045.16-.045.155-.047.152-.047.148-.048.143-.049.139-.049.136-.049.131-.051.126-.05.123-.051.118-.052.114-.051.11-.052.106-.052.101-.052.096-.052.092-.052.088-.052.083-.052.079-.052.074-.052.07-.051.065-.051.06-.051.056-.05.051-.049.023-.025.023-.025.021-.024.02-.024.019-.024.018-.024.017-.024.015-.023.014-.024.013-.023.012-.023.01-.022.01-.023.008-.022.006-.022.006-.022.004-.022.004-.021.001-.021.001-.021v-4.153l-.077.054-.08.054-.083.053-.085.053-.087.053-.09.051-.093.051-.095.051-.097.05-.1.049-.102.048-.105.048-.106.048-.109.046-.111.046-.114.046-.115.044-.118.044-.12.043-.122.043-.124.042-.126.041-.128.04-.13.039-.132.039-.134.038-.135.037-.138.036-.139.036-.142.034-.143.034-.144.033-.147.032-.148.032-.15.03-.151.03-.153.028-.154.028-.156.027-.158.026-.159.024-.161.024-.162.023-.163.023-.165.021-.166.02-.167.019-.169.018-.169.017-.171.016-.173.015-.173.014-.175.013-.175.012-.177.01-.178.01-.179.009-.179.007-.181.006-.182.006-.182.004-.184.003-.184.001-.185.001-.185-.001-.184-.001-.184-.003-.182-.004-.182-.006-.181-.006-.179-.007-.179-.009-.178-.01-.176-.01-.176-.012-.175-.013-.173-.014-.172-.015-.171-.016-.17-.017-.169-.018-.167-.019-.166-.02-.165-.021-.163-.023-.162-.023-.161-.024-.159-.024-.157-.026-.156-.027-.155-.028-.153-.028-.151-.03-.15-.03-.148-.032-.146-.032-.145-.033-.143-.034-.141-.034-.14-.036-.137-.036-.136-.037-.134-.038-.132-.039-.13-.039-.128-.041-.126-.041-.124-.041-.122-.043-.12-.043-.117-.044-.116-.044-.113-.046-.112-.046-.109-.046-.106-.048-.105-.048-.102-.048-.1-.05-.097-.049-.095-.051-.093-.051-.09-.052-.087-.052-.085-.053-.083-.053-.08-.054-.077-.054v4.153zm8.74-8.179l-.257.004-.254.005-.25.008-.247.011-.244.012-.241.014-.237.016-.233.018-.231.021-.226.022-.224.023-.22.026-.216.027-.212.028-.21.031-.205.032-.202.033-.198.034-.194.036-.191.038-.187.038-.183.04-.179.041-.175.042-.172.043-.168.043-.163.045-.16.046-.155.046-.152.048-.148.048-.143.048-.139.049-.136.05-.131.05-.126.051-.123.051-.118.051-.114.052-.11.052-.106.052-.101.052-.096.052-.092.052-.088.052-.083.052-.079.052-.074.051-.07.052-.065.051-.06.05-.056.05-.051.05-.023.025-.023.024-.021.024-.02.025-.019.024-.018.024-.017.023-.015.024-.014.023-.013.023-.012.023-.01.023-.01.022-.008.022-.006.023-.006.021-.004.022-.004.021-.001.021-.001.021.001.021.001.021.004.021.004.022.006.021.006.023.008.022.01.022.01.023.012.023.013.023.014.023.015.024.017.023.018.024.019.024.02.025.021.024.023.024.023.025.051.05.056.05.06.05.065.051.07.052.074.051.079.052.083.052.088.052.092.052.096.052.101.052.106.052.11.052.114.052.118.051.123.051.126.051.131.05.136.05.139.049.143.048.148.048.152.048.155.046.16.046.163.045.168.043.172.043.175.042.179.041.183.04.187.038.191.038.194.036.198.034.202.033.205.032.21.031.212.028.216.027.22.026.224.023.226.022.231.021.233.018.237.016.241.014.244.012.247.011.25.008.254.005.257.004.26.001.26-.001.257-.004.254-.005.25-.008.247-.011.244-.012.241-.014.237-.016.233-.018.231-.021.226-.022.224-.023.22-.026.216-.027.212-.028.21-.031.205-.032.202-.033.198-.034.194-.036.191-.038.187-.038.183-.04.179-.041.175-.042.172-.043.168-.043.163-.045.16-.046.155-.046.152-.048.148-.048.143-.048.139-.049.136-.05.131-.05.126-.051.123-.051.118-.051.114-.052.11-.052.106-.052.101-.052.096-.052.092-.052.088-.052.083-.052.079-.052.074-.051.07-.052.065-.051.06-.05.056-.05.051-.05.023-.025.023-.024.021-.024.02-.025.019-.024.018-.024.017-.023.015-.024.014-.023.013-.023.012-.023.01-.023.01-.022.008-.022.006-.023.006-.021.004-.022.004-.021.001-.021.001-.021-.001-.021-.001-.021-.004-.021-.004-.022-.006-.021-.006-.023-.008-.022-.01-.022-.01-.023-.012-.023-.013-.023-.014-.023-.015-.024-.017-.023-.018-.024-.019-.024-.02-.025-.021-.024-.023-.024-.023-.025-.051-.05-.056-.05-.06-.05-.065-.051-.07-.052-.074-.051-.079-.052-.083-.052-.088-.052-.092-.052-.096-.052-.101-.052-.106-.052-.11-.052-.114-.052-.118-.051-.123-.051-.126-.051-.131-.05-.136-.05-.139-.049-.143-.048-.148-.048-.152-.048-.155-.046-.16-.046-.163-.045-.168-.043-.172-.043-.175-.042-.179-.041-.183-.04-.187-.038-.191-.038-.194-.036-.198-.034-.202-.033-.205-.032-.21-.031-.212-.028-.216-.027-.22-.026-.224-.023-.226-.022-.231-.021-.233-.018-.237-.016-.241-.014-.244-.012-.247-.011-.25-.008-.254-.005-.257-.004-.26-.001-.26.001z"></path></symbol></defs><defs><symbol id="scv-mmd-672778ec5d-clock" width="24" height="24"><path transform="scale(.5)" d="M12 2c5.514 0 10 4.486 10 10s-4.486 10-10 10-10-4.486-10-10 4.486-10 10-10zm0-2c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm5.848 12.459c.202.038.202.333.001.372-1.907.361-6.045 1.111-6.547 1.111-.719 0-1.301-.582-1.301-1.301 0-.512.77-5.447 1.125-7.445.034-.192.312-.181.343.014l.985 6.238 5.394 1.011z"></path></symbol></defs><defs><marker id="scv-mmd-672778ec5d-arrowhead" refX="7.9" refY="5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto-start-reverse"><path d="M -1 0 L 10 5 L 0 10 z"></path></marker></defs><defs><marker id="scv-mmd-672778ec5d-crosshead" markerWidth="15" markerHeight="8" orient="auto" refX="4" refY="4.5"><path fill="none" stroke="#000000" stroke-width="1pt" d="M 1,2 L 6,7 M 6,2 L 1,7" style="stroke-dasharray: 0, 0"></path></marker></defs><defs><marker id="scv-mmd-672778ec5d-filled-head" refX="15.5" refY="7" markerWidth="20" markerHeight="28" orient="auto"><path d="M 18,7 L9,13 L14,7 L9,1 Z"></path></marker></defs><defs><marker id="scv-mmd-672778ec5d-sequencenumber" refX="15" refY="15" markerWidth="60" markerHeight="40" orient="auto"><circle cx="15" cy="15" r="6"></circle></marker></defs><defs><marker id="scv-mmd-672778ec5d-solidTopArrowHead" refX="7.9" refY="7.25" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto-start-reverse"><path d="M 0 0 L 10 8 L 0 8 z"></path></marker></defs><defs><marker id="scv-mmd-672778ec5d-solidBottomArrowHead" refX="7.9" refY="0.75" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto-start-reverse"><path d="M 0 0 L 10 0 L 0 8 z"></path></marker></defs><defs><marker id="scv-mmd-672778ec5d-stickTopArrowHead" refX="7.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto-start-reverse"><path d="M 0 0 L 7 7" stroke="black" stroke-width="1.5" fill="none"></path></marker></defs><defs><marker id="scv-mmd-672778ec5d-stickBottomArrowHead" refX="7.5" refY="0" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto-start-reverse"><path d="M 0 7 L 7 0" stroke="black" stroke-width="1.5" fill="none"></path></marker></defs><g data-et="control-structure" data-id="i8"><line x1="64" y1="279" x2="301.5" y2="279" class="loopLine"></line><line x1="301.5" y1="279" x2="301.5" y2="493" class="loopLine"></line><line x1="64" y1="493" x2="301.5" y2="493" class="loopLine"></line><line x1="64" y1="279" x2="64" y2="493" class="loopLine"></line><line x1="64" y1="391" x2="301.5" y2="391" class="loopLine" style="stroke-dasharray: 3, 3"></line><polygon points="64,279 114,279 114,292 105.6,299 64,299" class="labelBox"></polygon><text x="89" y="292" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="labelText" style="font-size: 16px; font-weight: 400">alt</text><text x="207.75" y="297" text-anchor="middle" class="loopText" style="font-size: 16px; font-weight: 400"><tspan x="207.75">[변동 없음]</tspan></text><text x="182.75" y="409" text-anchor="middle" class="sectionTitle" style="font-size: 16px; font-weight: 400">[변동]</text></g><g data-et="control-structure" data-id="i13"><line x1="422" y1="619" x2="592" y2="619" class="loopLine"></line><line x1="592" y1="619" x2="592" y2="786" class="loopLine"></line><line x1="422" y1="786" x2="592" y2="786" class="loopLine"></line><line x1="422" y1="619" x2="422" y2="786" class="loopLine"></line><polygon points="422,619 472,619 472,632 463.6,639 422,639" class="labelBox"></polygon><text x="447" y="632" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="labelText" style="font-size: 16px; font-weight: 400">alt</text><text x="532" y="637" text-anchor="middle" class="loopText" style="font-size: 16px; font-weight: 400"><tspan x="532">[load]</tspan></text></g><text x="181" y="80" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em" style="font-size: 16px; font-weight: 400">프롬프트</text><line x1="82" y1="123" x2="286.5" y2="123" class="messageLine0" data-et="message" data-id="i1" data-from="H" data-to="P" stroke-width="2" stroke="none" marker-end="url(.scv-mmd-arrowhead)" ></line><line x1="75" y1="123" x2="75" y2="123" stroke-width="0" marker-start="url(.scv-mmd-sequencenumber)"></line><text x="75" y="127" font-family="sans-serif" font-size="12px" text-anchor="middle" class="sequenceNumber">1</text><text x="292" y="138" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em" style="font-size: 16px; font-weight: 400">help.sh 실행 → 다듬기(⑥)</text><path d="M 291.5,181 C 351.5,171 351.5,211 291.5,201" class="messageLine0" data-et="message" data-id="i2" data-from="P" data-to="P" stroke-width="2" stroke="none" marker-end="url(.scv-mmd-arrowhead)" x1="297.5" ></path><line x1="290.5" y1="181" x2="290.5" y2="181" stroke-width="0" marker-start="url(.scv-mmd-sequencenumber)"></line><text x="290.5" y="185" font-family="sans-serif" font-size="12px" text-anchor="middle" class="sequenceNumber">2</text><text x="521" y="226" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em" style="font-size: 16px; font-weight: 400">diag 해시 비교</text><line x1="297.5" y1="269" x2="750" y2="269" class="messageLine0" data-et="message" data-id="i3" data-from="P" data-to="K" stroke-width="2" stroke="none" marker-end="url(.scv-mmd-arrowhead)" ></line><line x1="290.5" y1="269" x2="290.5" y2="269" stroke-width="0" marker-start="url(.scv-mmd-sequencenumber)"></line><text x="290.5" y="273" font-family="sans-serif" font-size="12px" text-anchor="middle" class="sequenceNumber">3</text><text x="184" y="333" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em" style="font-size: 16px; font-weight: 400">한 줄</text><line x1="295.5" y1="376" x2="79" y2="376" class="messageLine1" data-et="message" data-id="i5" data-from="P" data-to="H" stroke-width="2" stroke="none" marker-end="url(.scv-mmd-arrowhead)" style="stroke-dasharray: 3, 3"></line><line x1="290.5" y1="376" x2="290.5" y2="376" stroke-width="0" marker-start="url(.scv-mmd-sequencenumber)"></line><text x="290.5" y="380" font-family="sans-serif" font-size="12px" text-anchor="middle" class="sequenceNumber">4</text><text x="184" y="440" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em" style="font-size: 16px; font-weight: 400">다듬은 진단 ≤2KB</text><line x1="295.5" y1="483" x2="79" y2="483" class="messageLine1" data-et="message" data-id="i7" data-from="P" data-to="H" stroke-width="2" stroke="none" marker-end="url(.scv-mmd-arrowhead)" style="stroke-dasharray: 3, 3"></line><line x1="290.5" y1="483" x2="290.5" y2="483" stroke-width="0" marker-start="url(.scv-mmd-sequencenumber)"></line><text x="290.5" y="487" font-family="sans-serif" font-size="12px" text-anchor="middle" class="sequenceNumber">5</text><text x="289" y="508" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em" style="font-size: 16px; font-weight: 400">Skill 호출 (≤7KB)</text><line x1="82" y1="551" x2="502" y2="551" class="messageLine0" data-et="message" data-id="i9" data-from="H" data-to="S" stroke-width="2" stroke="none" marker-end="url(.scv-mmd-arrowhead)" ></line><line x1="75" y1="551" x2="75" y2="551" stroke-width="0" marker-start="url(.scv-mmd-sequencenumber)"></line><text x="75" y="555" font-family="sans-serif" font-size="12px" text-anchor="middle" class="sequenceNumber">6</text><text x="629" y="566" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em" style="font-size: 16px; font-weight: 400">PROTOCOL load/loaded</text><line x1="513" y1="609" x2="750" y2="609" class="messageLine0" data-et="message" data-id="i10" data-from="S" data-to="K" stroke-width="2" stroke="none" marker-end="url(.scv-mmd-arrowhead)" ></line><line x1="506" y1="609" x2="506" y2="609" stroke-width="0" marker-start="url(.scv-mmd-sequencenumber)"></line><text x="506" y="613" font-family="sans-serif" font-size="12px" text-anchor="middle" class="sequenceNumber">7</text><text x="507" y="673" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em" style="font-size: 16px; font-weight: 400">full.md 읽기 (⑤)</text><path d="M 507,716 C 567,706 567,746 507,736" class="messageLine0" data-et="message" data-id="i12" data-from="S" data-to="S" stroke-width="2" stroke="none" marker-end="url(.scv-mmd-arrowhead)" x1="513" ></path><line x1="506" y1="716" x2="506" y2="716" stroke-width="0" marker-start="url(.scv-mmd-sequencenumber)"></line><text x="506" y="720" font-family="sans-serif" font-size="12px" text-anchor="middle" class="sequenceNumber">8</text></svg></pre></div></div><div class="wf-states"><div class="wf-sub-title">데이터 모양 (상한 검사)</div><div class="wf-states-row"><div class="wf-state"><div class="wf-state-label"><span class="wf-state-marker">2</span>상한</div><div class="wf-state-frame"><p class="wf-text">BODY ≤ 7,500 · TURN ≤ 9,500 · FULL ≤ 9,000 · TOTAL ≤ 32,000 (test-help-budget.sh)</p></div></div></div></div><div class="wf-validations"><div class="wf-sub-title">계약 · 검사 표</div><table class="wf-vtable"><thead><tr><th>번호</th><th>조건</th><th>검사</th><th>결과</th></tr></thead><tbody><tr><td class="wf-vt-marker">2</td><td>언어·쉬운 말·답 모양 절 바이트 동일</td><td>T2 md5 · run-dry [15p]</td><td>라우터 절 3개 그대로</td></tr><tr><td class="wf-vt-marker">2</td><td>기록 템플릿·명령 셋 존재</td><td>T4 grep 7건 · test-help-echo</td><td>지문 규칙 유지</td></tr><tr><td class="wf-vt-marker">5</td><td>배경 조사 절 문구 그대로 이동</td><td>T3 · test-delegate-effort</td><td>위치만 바뀜</td></tr><tr><td class="wf-vt-marker">6</td><td>훅 전체 진단에 Learn more 없음</td><td>T6 · T8 순수부</td><td>≤ 2,000B</td></tr><tr><td class="wf-vt-marker">6</td><td>help.sh 직접 출력은 그대로</td><td>T6 비교</td><td>안내문 유지</td></tr><tr><td class="wf-vt-marker">4</td><td>brief/full 전환 그대로</td><td>T7</td><td>해시는 다듬은 텍스트</td></tr></tbody></table></div></div><div class="wf-spec"><div class="wf-spec-group wf-spec-functions"><div class="wf-spec-title">기능 설명 (Function Description)</div><div class="wf-spec-item wf-spec-item-fn"><span class="wf-spec-badge">1</span><div class="wf-spec-body"><div class="wf-spec-name">훅 블록</div><ul class="wf-spec-notes"><li>역할: 강제 호출 지시 + 쉬운 말 5줄 + preflight</li><li>변동 없는 턴 ≈1.5KB — 이번엔 손대지 않는다</li></ul></div></div><div class="wf-spec-item wf-spec-item-fn"><span class="wf-spec-badge">2</span><div class="wf-spec-body"><div class="wf-spec-name">라우터 help.md<span class="wf-spec-step">sectionSizes</span></div><ul class="wf-spec-notes"><li>역할: 매 턴 Skill 호출 본문</li><li>남기는 절: 언어 · 쉬운 말 · 답 모양(바이트 동일) · 기록 계약(압축)</li><li>옮기는 절: 배경 조사 → full.md · 지우는 절: Final notes</li></ul></div></div><div class="wf-spec-item wf-spec-item-fn"><span class="wf-spec-badge">3</span><div class="wf-spec-body"><div class="wf-spec-name">헬퍼 출력</div><ul class="wf-spec-notes"><li>역할: PROTOCOL load/loaded · 대화 파일 목록</li><li>변경 없음 ≈0.2KB</li></ul></div></div><div class="wf-spec-item wf-spec-item-fn"><span class="wf-spec-badge">4</span><div class="wf-spec-body"><div class="wf-spec-name">컨텍스트</div><ul class="wf-spec-notes"><li>역할: 모델이 이번 턴에 읽는 것</li><li>목표: 변동 없는 턴 합 ≤ 9.5KB (지금 ≈12.6KB)</li></ul></div></div><div class="wf-spec-item wf-spec-item-fn"><span class="wf-spec-badge">5</span><div class="wf-spec-body"><div class="wf-spec-name">full.md</div><ul class="wf-spec-notes"><li>역할: 세션당 한 번 읽는 규약</li><li>배경 조사 절이 여기로 — 상한 9,000B</li></ul></div></div><div class="wf-spec-item wf-spec-item-fn"><span class="wf-spec-badge">6</span><div class="wf-spec-body"><div class="wf-spec-name">전체 진단 다듬기<span class="wf-spec-step">trimDiagnosis</span></div><ul class="wf-spec-notes"><li>역할: 훅 경로에서만 안내문 제거</li><li>남김: 진단 본문 · 권장 행동 제목 + 첫 줄 / 뺌: Learn more · hydrate 방법</li><li>직접 /scv:help 는 그대로</li></ul></div></div></div></div></div></section>
+
+<section class="print-source"><h2>기획서 원문</h2><h3>PLAN.md</h3><pre class="code"><code>---
+title: "매 턴 라우터 다이어트 — 답 모양은 남기고 나머지는 압축, 진단 안내문은 직접 부를 때만"
+slug: 20260916-wookiya1364-help-router-diet
+author: "wookiya1364"
+created_at: 2026-09-16
+status: planned
+kind: refactor
+epic: 20260914-help-turn-cost
+lang: korean
+tags: [help, router, token-cost, preflight, diagnosis, budget]
+raw_sources:
+  - scv/raw/stale/20260916-always-on-per-turn-cost-diet.md
+  - scv/raw/stale/20260916-graph-dependency-decision.md
+  - scv/conversations/20260914-092553-install-check-0-47-0.md
+refs: []
+invariants:
+  - "언어 절·쉬운 말 절·답 모양 절은 라우터에 바이트 그대로 남는다 (run-dry [15p] 공통 문구 · 사용자의 잊음 우려에 대한 답)"
+  - "매 턴 기록 계약은 그대로 — 기록 형식(Turn 제목 · protocol: &lt;fingerprint&gt; 줄 · User/Claude Code 블록), 헬퍼 호출, 표식 mark, 지문 규칙"
+  - "동작은 바꾸지 않는다 — 진단 내용(의존성·raw·계획 수) 과 brief/full 전환, 사용자가 직접 부른 /scv:help 의 전체 출력은 그대로"
+  - "부속 파일(full.md 등)에는 쉬운 말 절·언어 절이 없다 (budget T4)"
+  - "훅은 non-blocking, scv/journal/ 밖에 쓰지 않음"
+scope:
+  - "core/protocols/help.md (라우터: 배경 조사 절 → full.md 로 이동, 나머지 절 압축, Final notes 제거)"
+  - "core/protocols/help/full.md (배경 조사 절 수용)"
+  - "core/scripts/lib/force-help.sh (scv_force_trim_diagnosis: 진단 본문 + 권장 행동 첫 줄만, Learn more 제거)"
+  - "core/tests/test-help-budget.sh (상한 하향 · preflight 진단 크기 검사 추가) · core/tests/test-delegate-effort.sh (절 위치) · core/tests/test-force-help.sh (필요 시)"
+  - "core/tests/test-help-router-diet.sh (신설)"
+  - "CHANGELOG.md"
+---
+
+# 매 턴 라우터 다이어트 — 답 모양은 남기고 나머지는 압축, 진단 안내문은 직접 부를 때만
+
+## Summary
+
+매 턴 실리는 help 라우터는 10.9KB(SKILL.md 기준, 원본 help.md 9,670B)이고 훅 블록·헬퍼 출력을
+더한 턴 스택은 ≈12.6KB 다. 0.49 계획이 라우터 4,000B 를 목표로 잡고도 "답 모양 절은 매 턴
+남긴다(잊음 우려)" 로 9.4KB 에 멈췄다. 이번엔 그 결정을 존중해 **답 모양·언어·쉬운 말 절은
+그대로 두고**, 나머지 절(기록 계약·헬퍼 호출·규약 읽기·배경 조사·마무리)을 압축·이동해
+라우터를 ≤ 7,200B 로 만든다(실측 7,115B). 함께, 진단이 바뀐 턴에 preflight 가 싣는 전체
+진단(3.3KB) 에서 매번 같은 안내문("Learn more" 0.6KB · hydrate 방법 0.9KB) 을 빼고 진단
+본문과 권장 행동 한 줄만 싣는다 — 안내문은 사용자가 직접 /scv:help 를 쳤을 때만 보인다.
+동작은 바꾸지 않는다. 상한 검사를 낮춰 잠가 두 달 뒤 다시 자라지 않게 한다.
+
+## Goals / Non-Goals
+
+- **Goals**
+  - 라우터 ≤ 7,200B (지금 9,670B; 7,000 목표는 고정 절·문구 바닥에 걸려 7,200 으로 조정). 매 턴 스택 ≤ 9,500B (지금 ≈12.6KB).
+  - 변동 턴 preflight ≤ 2,000B (지금 3,266B) — 진단 본문 + 권장 행동 첫 줄.
+  - 답 모양·언어·쉬운 말 절과 기록 계약은 바이트/의미 그대로.
+  - 상한 검사: BODY 7,500 · TURN 9,500 · FULL 9,000 · TOTAL 32,000 유지.
+- **Non-Goals**
+  - 답 모양 절을 full.md 로 옮기는 것 (사용자 결정: 매 턴 유지).
+  - 매 턴 Skill 호출 자체를 없애는 것(훅이 명령을 대신 싣는 방식) — 계약 변경이 커서 별도.
+  - 강제 호출 블록(훅 1,082B) 문구 변경 — 강도 검사와 얽혀 있어 손대지 않는다.
+  - 진단 내용 자체의 변경.
+
+## Approach Overview
+
+1. **라우터 압축** (core/protocols/help.md): 배경 조사 절(710B)은 full.md 로 통째 이동(훅이
+   스위치 on 일 때 매 턴 같은 규칙을 싣는다). "Never hand the turn back" 은 3문장으로,
+   "Run the help script" 는 두 명령과 파싱 줄 목록만, "full protocol once" 는 load/loaded 두
+   갈래만, "Every turn" 은 기록 템플릿(지문 줄 포함)·append 명령·한 모양 규칙만, "Final notes" 는
+   삭제. 언어·쉬운 말·답 모양 절은 손대지 않는다.
+2. **진단 다듬기** (lib/force-help.sh 의 순수 함수): 이미 "Current project diagnosis" 앞을
+   버리는 `scv_force_trim_diagnosis` 를 확장해 (a) "Learn more" 블록을 통째로 버리고, (b) "Recommended
+   next action" 은 제목과 첫 내용 줄만 남긴다. 사용자가 직접 부른 help.sh 출력은 그대로(훅만
+   이 함수를 지난다).
+3. **상한 잠금** (test-help-budget.sh): BODY_MAX 10,000→7,500, TURN_MAX 12,000→9,500, FULL_MAX
+   8,000→9,000. 새 검사 T13: 훅의 전체 진단(변동 턴)에 "Learn more"·hydrate 명령 줄이 없고 ≤ 2,000B.
+4. **검사 이동**: test-delegate-effort 의 절 위치를 full.md 로.
+
+## 순수함수 · 파이프라인 (Pure functions &amp; pipeline)
+
+```
+flow(
+  readRouter,           // help.md 파일 → 텍스트                                     (입구, 부수효과 — 검사·측정만)
+  sectionSizes,         // 텍스트 → {절 이름: 바이트}                                  순수 (검사용, 기존 awk 한 줄)
+  budgetCheck,          // (바이트, 상한, 이름) → 위반 줄                                순수 (기존 scv_help_budget)
+  probeDiagnosis,       // help.sh 실행 → 전체 출력                                    (부수효과, 훅)
+  trimDiagnosis,        // 전체 출력 → 진단 본문 + 권장 행동 첫 줄 (Learn more 제거)        순수 (기존 scv_force_trim_diagnosis 확장)
+  diagMode,             // (표식, 다듬은 진단) → brief|full                              순수 (기존 scv_hstate_diag, 변경 없음)
+  emit,                 // 훅 stdout                                                  (출구)
+)
+```
+
+| # | 단계 | 받는 값 → 돌려주는 값 | 순수/부수효과 |
+|---|---|---|---|
+| 1 | readRouter | 파일 경로 → 텍스트 | 부수효과 (검사의 입구) |
+| 2 | sectionSizes | 텍스트 → 절별 바이트 | 순수 |
+| 3 | budgetCheck | 바이트·상한·이름 → 위반 줄 (없으면 빈) | 순수 (기존) |
+| 4 | probeDiagnosis | 없음 → help.sh 전체 출력 | 부수효과 (훅) |
+| 5 | trimDiagnosis | 전체 출력 → 다듬은 진단 | 순수 (기존 함수 확장: Learn more 제거 · 권장 행동 첫 줄만) |
+| 6 | diagMode | 표식·다듬은 진단 → brief/full | 순수 (기존, 변경 없음) |
+| 7 | emit | 다듬은 진단 또는 한 줄 → stdout | 부수효과 (출구) |
+
+- 부수효과 위치: 1·4(읽기/실행) · 7(출력). 2·3·5·6 은 문자열만 받는다.
+- 재사용: 3(scv_help_budget)·5(scv_force_trim_diagnosis)·6(scv_hstate_diag) 은 기존 순수부 — 5 만 확장한다.
+
+## Guardrails
+
+- 언어·쉬운 말·답 모양 절: `git show develop:core/protocols/help.md` 의 해당 절과 바이트 동일 (검사 T2).
+- 기록 템플릿의 `protocol: &lt;fingerprint&gt;` 줄과 "Append, never overwrite" 문구, 헬퍼·mark·journal-append 세 명령은 라우터에 남는다 (test-help-echo T2 가 본다).
+- 배경 조사 절은 문구 그대로 full.md 로 — 압축하지 않는다 (test-delegate-effort 가 문구를 본다).
+- 진단 다듬기는 훅 경로에만. `help.sh` 직접 출력은 바이트 그대로 (T6).
+- 권장 행동 블록이 없거나 진단 자체가 없으면(help.sh 실패) 지금처럼 전부 통과시킨다 — 잘라서 빈 진단을 만들지 않는다.
+- 상한을 낮출 뿐 올리지 않는다 (FULL 만 배경 조사 절 수용분으로 +1,000).
+
+## Exit criteria
+
+- All TESTS.md scenarios pass
+- 코어 검사 전체(48개)·run-dry·루트 계약 러너 녹색.
+- 실사용 한 세션: 변동 없는 턴의 스택 ≤ 9.5KB, 변동 턴 preflight 에 "Learn more" 없음 — 훅 출력 크기로 확인.
+
+## Suggested path
+
+1. 검사부터: test-help-router-diet.sh 신설(T1~T7) + budget 상한 하향 → 붉음 확인.
+2. help.md 압축·배경 조사 절 이동 → T1·T2·T3·T4 녹색.
+3. scv_force_trim_diagnosis 확장 → T6·T7 녹색. test-delegate-effort 위치 갱신.
+4. 코어 검사 전체·run-dry → CHANGELOG.
+
+## 성공지표 (Metrics)
+
+| 지표 | baseline (0.50.0, 2026-09-16 실측) | target |
+|---|---|---|
+| 라우터 help.md | 9,670B | ≤ 7,200B (상한 7,500) — 실측 7,115B |
+| 매 턴 스택 (변동 없는 턴: 훅 + 라우터 + 헬퍼) | ≈12.6KB (SKILL.md 기준) / budget T12 ≈11.4KB (help.md 기준) | ≤ 9,500B |
+| 변동 턴 preflight 진단 | 3,266B | ≤ 2,000B |
+| full.md | 7,151B | ≤ 9,000B |
+| 동작 변화 | — | 0 (기존 검사 전부 녹색, 진단 내용 동일) |
+
+## 예외처리 (Edge cases)
+
+- 권장 행동 블록의 첫 내용 줄이 비어 있거나 없음 → 제목만 남기고 넘어간다.
+- "Learn more" 가 없는 출력(래퍼가 다른 진단을 붙인 경우) → 그대로 통과.
+- 진단 앞에 자동 갱신 보고(stderr 고르기)가 붙는 경우 → 기존 순서(보고 → 진단) 유지.
+- 표식 해시는 다듬은 텍스트로 계산되므로 이번 변경 직후 첫 턴은 full 이 한 번 더 뜬다(정상).
+- 래퍼가 옛 full.md 를 갖고 있으면 배경 조사 절이 잠시 어디에도 없다 — 스위치 on 이면 훅이 같은 규칙을 매 턴 싣고 있어 동작 공백 없음.
+
+## Related Documents
+
+- scv/raw/20260916-always-on-per-turn-cost-diet.md — 실측·제약 (run-dry [15p], budget T4, 0.49 결정의 path delta)
+- scv/archive/20260914-wookiya1364-help-body-diet/PLAN.md — 1차 다이어트(28KB→9.4KB)와 상한 검사의 출발
+- scv/archive/20260914-wookiya1364-help-load-once/PLAN.md — 세션당 한 번 규약과 brief/full 진단
+
+## Risks / Open Questions
+
+- 라우터 압축으로 문장이 줄면 모델이 기록 계약을 덜 지킬 가능성 — 0.50.0 의 지문·린트가 잡는다. 실사용 드리프트 로그로 확인.
+- 매 턴 Skill 호출을 없애는 더 큰 다이어트(−3~4KB 추가)는 always-on 계약(강제 호출 검사들)과 얽혀 있어 별도 계획으로.
+
+## Links
+
+- Raw originals: (listed in frontmatter)
+- Related PRs: #217 (같은 브랜치에 포함)</code></pre><h3>FEATURE_ARCHITECTURE.md</h3><pre class="code"><code>---
+title: "매 턴 라우터 다이어트 — 답 모양은 남기고 나머지는 압축, 진단 안내문은 직접 부를 때만"
+slug: 20260916-wookiya1364-help-router-diet
+created_at: 2026-09-16
+status: planned
+---
+
+# Architecture — 매 턴 라우터 다이어트
+
+&gt; Two-diagram view of this feature. **Review and edit before `/scv:work`** —
+&gt; diagrams are LLM-generated and may have inaccuracies.
+
+## 1. Component data flow
+
+매 턴 컨텍스트에 실리는 세 덩어리와, 이번에 줄어드는 자리(노란색).
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  Hook[on-user-prompt.sh] --&gt;|"help.sh 실행 → 전체 출력"| Probe[help.sh 진단]
+  Probe --&gt;|"전체 출력"| Trim["scv_force_trim_diagnosis — 진단 본문 + 권장 첫 줄, Learn more 제거"]:::new
+  Trim --&gt;|"다듬은 진단"| Mode[scv_hstate_diag brief/full]
+  Mode --&gt;|"full: 다듬은 진단 ≤2KB · brief: 한 줄"| Ctx[(매 턴 컨텍스트)]
+  Skill["help 라우터 help.md ≤7KB — 언어·쉬운 말·답 모양 절 그대로, 기록 계약 압축"]:::new --&gt;|"Skill 호출 본문"| Ctx
+  Full["full.md — 세 모드·대화 루프·지문 + 배경 조사 절(이동)"]:::new --&gt;|"세션당 1회 · 드리프트 시 재읽기"| Ctx
+  Helper[help.sh --with-context] --&gt;|"파싱 머리 ≈0.2KB"| Ctx
+  Budget["test-help-budget.sh — BODY 7,500 · TURN 9,500 · FULL 9,000"]:::new --&gt;|"wc -c 상한"| Skill
+  Budget --&gt;|"상한"| Full
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```
+
+## 2. Position in whole architecture
+
+&gt; Source: graphify graph (built 2026-09-11) — 문서 그래프 기준으로 관련 군집만 추렸다
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart TB
+  subgraph "help 규약 · 표식 (0.49~0.51)"
+    Router[help.md 라우터]
+    FullMd[help/full.md 규약]
+    HState[help-state.sh 표식 · 지문]
+  end
+  subgraph "매 턴 훅"
+    Prompt[on-user-prompt.sh]
+    Force["lib/force-help.sh 진단 다듬기"]:::new
+    Stop[on-stop.sh 지문 · 린트]
+  end
+  subgraph "검사"
+    Budget["test-help-budget.sh 상한"]:::new
+    Diet["test-help-router-diet.sh"]:::new
+    Shape[test-help-shape.sh]
+    RunDry["run-dry [15p] 쉬운 말 공통 문구"]
+  end
+  Prompt --&gt; Force --&gt; HState
+  Router --&gt; FullMd --&gt; HState
+  Stop --&gt; HState
+  Budget -.-&gt; Router
+  Budget -.-&gt; FullMd
+  Diet -.-&gt; Router
+  Diet -.-&gt; Force
+  Shape --&gt; Router
+  RunDry --&gt; Router
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```
+
+## 3. Screen mockups
+
+화면이 없는 계획이라 그림 자리는 구성·순서 두 다이어그램이다.
+
+### 매 턴 컨텍스트 — 무엇이 얼마나 실리나
+
+```screen
+{
+  "title": "매 턴 컨텍스트 — 무엇이 얼마나 실리나",
+  "pageCode": "HELP-TURN-01",
+  "screenRefs": [
+    { "calls": "1", "name": "사용자 메시지 제출 (UserPromptSubmit)", "pageCode": "HOST-PROMPT", "element": "훅 실행", "when": "매 턴" }
+  ],
+  "diagram": [
+    { "label": "구성", "code": "flowchart LR\n  A[\"① 훅 블록 ≈1.5KB\"] --&gt; C[\"④ 컨텍스트\"]\n  B[\"② 라우터 help.md 9.7→≤7KB\"] --&gt; C\n  D[\"③ 헬퍼 출력 0.2KB\"] --&gt; C\n  E[\"⑤ full.md 7.2→≤9KB (세션당 1회)\"] -.-&gt; C\n  F[\"⑥ 전체 진단 3.3→≤2KB (변동 턴만)\"] --&gt; A" },
+    { "label": "순서", "code": "sequenceDiagram\n  autonumber\n  participant H as 호스트\n  participant P as ① on-user-prompt.sh\n  participant S as ② help 라우터\n  participant K as help-state\n  H-&gt;&gt;P: 프롬프트\n  P-&gt;&gt;P: help.sh 실행 → 다듬기(⑥)\n  P-&gt;&gt;K: diag 해시 비교\n  alt 변동 없음\n    P--&gt;&gt;H: 한 줄\n  else 변동\n    P--&gt;&gt;H: 다듬은 진단 ≤2KB\n  end\n  H-&gt;&gt;S: Skill 호출 (≤7KB)\n  S-&gt;&gt;K: PROTOCOL load/loaded\n  alt load\n    S-&gt;&gt;S: full.md 읽기 (⑤)\n  end" }
+  ],
+  "functions": [
+    { "marker": "1", "title": "훅 블록", "notes": ["역할: 강제 호출 지시 + 쉬운 말 5줄 + preflight", "변동 없는 턴 ≈1.5KB — 이번엔 손대지 않는다"] },
+    { "marker": "2", "title": "라우터 help.md", "step": "sectionSizes", "notes": ["역할: 매 턴 Skill 호출 본문", "남기는 절: 언어 · 쉬운 말 · 답 모양(바이트 동일) · 기록 계약(압축)", "옮기는 절: 배경 조사 → full.md · 지우는 절: Final notes"] },
+    { "marker": "3", "title": "헬퍼 출력", "notes": ["역할: PROTOCOL load/loaded · 대화 파일 목록", "변경 없음 ≈0.2KB"] },
+    { "marker": "4", "title": "컨텍스트", "notes": ["역할: 모델이 이번 턴에 읽는 것", "목표: 변동 없는 턴 합 ≤ 9.5KB (지금 ≈12.6KB)"] },
+    { "marker": "5", "title": "full.md", "notes": ["역할: 세션당 한 번 읽는 규약", "배경 조사 절이 여기로 — 상한 9,000B"] },
+    { "marker": "6", "title": "전체 진단 다듬기", "step": "trimDiagnosis", "notes": ["역할: 훅 경로에서만 안내문 제거", "남김: 진단 본문 · 권장 행동 제목 + 첫 줄 / 뺌: Learn more · hydrate 방법", "직접 /scv:help 는 그대로"] }
+  ],
+  "statesTitle": "데이터 모양 (상한 검사)",
+  "states": [
+    { "marker": "2", "label": "상한", "body": [ { "type": "text", "value": "BODY ≤ 7,500 · TURN ≤ 9,500 · FULL ≤ 9,000 · TOTAL ≤ 32,000 (test-help-budget.sh)" } ] }
+  ],
+  "validations": {
+    "title": "계약 · 검사 표",
+    "columns": ["번호", "조건", "검사", "결과"],
+    "rows": [
+      ["2", "언어·쉬운 말·답 모양 절 바이트 동일", "T2 md5 · run-dry [15p]", "라우터 절 3개 그대로"],
+      ["2", "기록 템플릿·명령 셋 존재", "T4 grep 7건 · test-help-echo", "지문 규칙 유지"],
+      ["5", "배경 조사 절 문구 그대로 이동", "T3 · test-delegate-effort", "위치만 바뀜"],
+      ["6", "훅 전체 진단에 Learn more 없음", "T6 · T8 순수부", "≤ 2,000B"],
+      ["6", "help.sh 직접 출력은 그대로", "T6 비교", "안내문 유지"],
+      ["4", "brief/full 전환 그대로", "T7", "해시는 다듬은 텍스트"]
+    ]
+  }
+}
+```</code></pre><h3>TESTS.md</h3><pre class="code"><code># Test Plan — 매 턴 라우터 다이어트 — 답 모양은 남기고 나머지는 압축, 진단 안내문은 직접 부를 때만
+
+## Overview
+
+라우터가 작아졌는데 계약은 그대로인지(남겨야 할 절은 바이트 동일, 기록 계약·명령은 존재), 진단 다듬기가 훅 경로에서만 안내문을 빼고 직접 호출은 그대로인지, 상한이 잠겼는지를 본다. 바이트 측정은 core/protocols 원본 기준(SKILL.md 는 래퍼가 자리표시자를 펼쳐 조금 더 크다).
+
+## Test scenarios
+
+### T1. 라우터 크기
+- **Setup**: 없음
+- **Run**: `wc -c core/protocols/help.md`
+- **Expected**: ≤ 7,200B (사용자 결정 2026-09-16: 손대지 않는 세 절 4,529B + 고정 문구·명령 ≈1,000B 가 바닥이라 7,000 은 못 미침). budget T1 상한 7,500B 통과.
+- **Pass criterion**: 두 숫자 모두 만족.
+
+### T2. 남겨야 할 세 절은 바이트 그대로
+- **Setup**: `git show develop:core/protocols/help.md` 를 기준으로.
+- **Run**: "## Language preference" · "## Plain language first" · "## Answer shape" 세 절을 awk 로 잘라 md5 비교.
+- **Expected**: 세 절 모두 동일. run-dry [15p] 통과(PLAIN_N=13 유지, 공통 문구 1개).
+- **Pass criterion**: md5 셋 일치 + run-dry 녹색.
+
+### T3. 배경 조사 절은 full.md 로 통째 이동
+- **Setup**: 없음
+- **Run**: help.md 에 "## Deep questions go to a background investigator" 없음, full.md 에 있음, 절 본문이 develop 의 help.md 절과 동일.
+- **Expected**: 위치만 바뀜. `test-delegate-effort.sh` 녹색(절 경로 갱신).
+- **Pass criterion**: 세 조건 모두.
+
+### T4. 기록 계약은 라우터에 남는다
+- **Setup**: 없음
+- **Run**: help.md 에 `protocol: &lt;fingerprint&gt;` · "Append, never overwrite" · `help.sh" --with-context` · `help-state.sh" mark` · `journal-append.sh" --redact-only` · "PROTOCOL: load" · "PROTOCOL: loaded" 가 각각 있다.
+- **Expected**: 전부 존재. `test-help-echo.sh`·`test-help-load-once.sh`·budget T2/T3 녹색.
+- **Pass criterion**: grep 7건 + 세 검사 녹색.
+
+### T5. 상한 잠금
+- **Setup**: 없음
+- **Run**: `test-help-budget.sh` (BODY 7,500 · TURN 9,500 · FULL 9,000 · TOTAL 32,000)
+- **Expected**: T1·T12 포함 전부 통과. 상한을 0.50.0 값(10,000/12,000)으로 되돌려도 통과(하향만 했음).
+- **Pass criterion**: 녹색.
+
+### T6. 훅의 전체 진단에는 안내문이 없다
+- **Setup**: 임시 프로젝트(표식 없음 → 첫 턴은 full).
+- **Run**: on-user-prompt.sh 실행 → 출력의 preflight 블록.
+- **Expected**: "Current project diagnosis" 있음, 의존성 줄들·raw/archive 줄 있음, "Recommended next action" 제목 + 첫 내용 줄 있음, "Learn more" 없음, `hydrate.sh" init` 줄 없음, 블록 ≤ 2,000B. 같은 디렉터리에서 `help.sh` 를 직접 실행하면 "Learn more" 와 hydrate 명령이 그대로 있다.
+- **Pass criterion**: 두 출력 비교.
+
+### T7. brief/full 전환은 그대로
+- **Setup**: T6 의 임시 프로젝트.
+- **Run**: 같은 세션 번호로 훅 두 번.
+- **Expected**: 첫 번째 full(다듬은 진단), 두 번째 "진단 변동 없음" 한 줄. 진단이 바뀌면(raw 파일 추가) 세 번째는 다시 full.
+- **Pass criterion**: 세 출력의 모양.
+
+### T8. 순수부 — 다듬기 함수
+- **Setup**: lib/force-help.sh source.
+- **Run**: `scv_force_trim_diagnosis` 에 (a) 진단+권장+Learn more 전체, (b) Learn more 없는 출력, (c) 진단 제목이 없는 출력, (d) 권장 행동 제목만 있고 내용 줄 없음.
+- **Expected**: (a) 진단 + 권장 제목 + 첫 내용 줄, Learn more 없음 · (b) 진단 + 권장 첫 줄 · (c) 입력 그대로 · (d) 진단 + 권장 제목. `check-purity.sh` 통과.
+- **Pass criterion**: 네 경우 정확 일치 + 순수성.
+
+### T9. 기존 검사 회귀 없음
+- **Setup**: 없음
+- **Run**: `for f in core/tests/test-*.sh` 전부 · `core/tests/run-dry.sh` · `tests/run.sh`
+- **Expected**: 전부 녹색.
+- **Pass criterion**: 실패 0.
+
+## How to run
+
+```bash
+bash core/tests/test-help-router-diet.sh &amp;&amp; bash core/tests/test-help-budget.sh &amp;&amp; bash core/tests/test-delegate-effort.sh
+```
+
+## Pass criteria
+
+- T1~T9 전부 녹색.
+- 실사용 한 세션(5턴 이상)에서 변동 없는 턴의 훅+라우터+헬퍼 합이 9.5KB 이하, 변동 턴 preflight 에 "Learn more" 없음.
+
+## Related Documents
+
+- core/tests/test-help-budget.sh — 상한 검사(기존)</code></pre></section>
+</div>
+</div>
+<aside class="source-panel" id="scvSourcePanel">
+      <div class="panel-resize-handle" id="scvResizeHandle" title="드래그해서 크기 조절"></div>
+      <div class="panel-head"><span class="panel-title">기획서 원문</span><button class="panel-close" onclick="scvTogglePanel()" title="숨기기 (S)">✕</button></div>
+      <div class="panel-tabs"><button class="panel-tab" data-idx="0" onclick="scvSelectSource(0)">PLAN.md</button><button class="panel-tab active" data-idx="1" onclick="scvSelectSource(1)">FEATURE_ARCHITECTURE.md</button><button class="panel-tab" data-idx="2" onclick="scvSelectSource(2)">TESTS.md</button></div>
+      <div class="panel-body"><pre class="code src-doc" data-idx="0"><code>---
+title: "매 턴 라우터 다이어트 — 답 모양은 남기고 나머지는 압축, 진단 안내문은 직접 부를 때만"
+slug: 20260916-wookiya1364-help-router-diet
+author: "wookiya1364"
+created_at: 2026-09-16
+status: planned
+kind: refactor
+epic: 20260914-help-turn-cost
+lang: korean
+tags: [help, router, token-cost, preflight, diagnosis, budget]
+raw_sources:
+  - scv/raw/stale/20260916-always-on-per-turn-cost-diet.md
+  - scv/raw/stale/20260916-graph-dependency-decision.md
+  - scv/conversations/20260914-092553-install-check-0-47-0.md
+refs: []
+invariants:
+  - "언어 절·쉬운 말 절·답 모양 절은 라우터에 바이트 그대로 남는다 (run-dry [15p] 공통 문구 · 사용자의 잊음 우려에 대한 답)"
+  - "매 턴 기록 계약은 그대로 — 기록 형식(Turn 제목 · protocol: &lt;fingerprint&gt; 줄 · User/Claude Code 블록), 헬퍼 호출, 표식 mark, 지문 규칙"
+  - "동작은 바꾸지 않는다 — 진단 내용(의존성·raw·계획 수) 과 brief/full 전환, 사용자가 직접 부른 /scv:help 의 전체 출력은 그대로"
+  - "부속 파일(full.md 등)에는 쉬운 말 절·언어 절이 없다 (budget T4)"
+  - "훅은 non-blocking, scv/journal/ 밖에 쓰지 않음"
+scope:
+  - "core/protocols/help.md (라우터: 배경 조사 절 → full.md 로 이동, 나머지 절 압축, Final notes 제거)"
+  - "core/protocols/help/full.md (배경 조사 절 수용)"
+  - "core/scripts/lib/force-help.sh (scv_force_trim_diagnosis: 진단 본문 + 권장 행동 첫 줄만, Learn more 제거)"
+  - "core/tests/test-help-budget.sh (상한 하향 · preflight 진단 크기 검사 추가) · core/tests/test-delegate-effort.sh (절 위치) · core/tests/test-force-help.sh (필요 시)"
+  - "core/tests/test-help-router-diet.sh (신설)"
+  - "CHANGELOG.md"
+---
+
+# 매 턴 라우터 다이어트 — 답 모양은 남기고 나머지는 압축, 진단 안내문은 직접 부를 때만
+
+## Summary
+
+매 턴 실리는 help 라우터는 10.9KB(SKILL.md 기준, 원본 help.md 9,670B)이고 훅 블록·헬퍼 출력을
+더한 턴 스택은 ≈12.6KB 다. 0.49 계획이 라우터 4,000B 를 목표로 잡고도 "답 모양 절은 매 턴
+남긴다(잊음 우려)" 로 9.4KB 에 멈췄다. 이번엔 그 결정을 존중해 **답 모양·언어·쉬운 말 절은
+그대로 두고**, 나머지 절(기록 계약·헬퍼 호출·규약 읽기·배경 조사·마무리)을 압축·이동해
+라우터를 ≤ 7,200B 로 만든다(실측 7,115B). 함께, 진단이 바뀐 턴에 preflight 가 싣는 전체
+진단(3.3KB) 에서 매번 같은 안내문("Learn more" 0.6KB · hydrate 방법 0.9KB) 을 빼고 진단
+본문과 권장 행동 한 줄만 싣는다 — 안내문은 사용자가 직접 /scv:help 를 쳤을 때만 보인다.
+동작은 바꾸지 않는다. 상한 검사를 낮춰 잠가 두 달 뒤 다시 자라지 않게 한다.
+
+## Goals / Non-Goals
+
+- **Goals**
+  - 라우터 ≤ 7,200B (지금 9,670B; 7,000 목표는 고정 절·문구 바닥에 걸려 7,200 으로 조정). 매 턴 스택 ≤ 9,500B (지금 ≈12.6KB).
+  - 변동 턴 preflight ≤ 2,000B (지금 3,266B) — 진단 본문 + 권장 행동 첫 줄.
+  - 답 모양·언어·쉬운 말 절과 기록 계약은 바이트/의미 그대로.
+  - 상한 검사: BODY 7,500 · TURN 9,500 · FULL 9,000 · TOTAL 32,000 유지.
+- **Non-Goals**
+  - 답 모양 절을 full.md 로 옮기는 것 (사용자 결정: 매 턴 유지).
+  - 매 턴 Skill 호출 자체를 없애는 것(훅이 명령을 대신 싣는 방식) — 계약 변경이 커서 별도.
+  - 강제 호출 블록(훅 1,082B) 문구 변경 — 강도 검사와 얽혀 있어 손대지 않는다.
+  - 진단 내용 자체의 변경.
+
+## Approach Overview
+
+1. **라우터 압축** (core/protocols/help.md): 배경 조사 절(710B)은 full.md 로 통째 이동(훅이
+   스위치 on 일 때 매 턴 같은 규칙을 싣는다). "Never hand the turn back" 은 3문장으로,
+   "Run the help script" 는 두 명령과 파싱 줄 목록만, "full protocol once" 는 load/loaded 두
+   갈래만, "Every turn" 은 기록 템플릿(지문 줄 포함)·append 명령·한 모양 규칙만, "Final notes" 는
+   삭제. 언어·쉬운 말·답 모양 절은 손대지 않는다.
+2. **진단 다듬기** (lib/force-help.sh 의 순수 함수): 이미 "Current project diagnosis" 앞을
+   버리는 `scv_force_trim_diagnosis` 를 확장해 (a) "Learn more" 블록을 통째로 버리고, (b) "Recommended
+   next action" 은 제목과 첫 내용 줄만 남긴다. 사용자가 직접 부른 help.sh 출력은 그대로(훅만
+   이 함수를 지난다).
+3. **상한 잠금** (test-help-budget.sh): BODY_MAX 10,000→7,500, TURN_MAX 12,000→9,500, FULL_MAX
+   8,000→9,000. 새 검사 T13: 훅의 전체 진단(변동 턴)에 "Learn more"·hydrate 명령 줄이 없고 ≤ 2,000B.
+4. **검사 이동**: test-delegate-effort 의 절 위치를 full.md 로.
+
+## 순수함수 · 파이프라인 (Pure functions &amp; pipeline)
+
+```
+flow(
+  readRouter,           // help.md 파일 → 텍스트                                     (입구, 부수효과 — 검사·측정만)
+  sectionSizes,         // 텍스트 → {절 이름: 바이트}                                  순수 (검사용, 기존 awk 한 줄)
+  budgetCheck,          // (바이트, 상한, 이름) → 위반 줄                                순수 (기존 scv_help_budget)
+  probeDiagnosis,       // help.sh 실행 → 전체 출력                                    (부수효과, 훅)
+  trimDiagnosis,        // 전체 출력 → 진단 본문 + 권장 행동 첫 줄 (Learn more 제거)        순수 (기존 scv_force_trim_diagnosis 확장)
+  diagMode,             // (표식, 다듬은 진단) → brief|full                              순수 (기존 scv_hstate_diag, 변경 없음)
+  emit,                 // 훅 stdout                                                  (출구)
+)
+```
+
+| # | 단계 | 받는 값 → 돌려주는 값 | 순수/부수효과 |
+|---|---|---|---|
+| 1 | readRouter | 파일 경로 → 텍스트 | 부수효과 (검사의 입구) |
+| 2 | sectionSizes | 텍스트 → 절별 바이트 | 순수 |
+| 3 | budgetCheck | 바이트·상한·이름 → 위반 줄 (없으면 빈) | 순수 (기존) |
+| 4 | probeDiagnosis | 없음 → help.sh 전체 출력 | 부수효과 (훅) |
+| 5 | trimDiagnosis | 전체 출력 → 다듬은 진단 | 순수 (기존 함수 확장: Learn more 제거 · 권장 행동 첫 줄만) |
+| 6 | diagMode | 표식·다듬은 진단 → brief/full | 순수 (기존, 변경 없음) |
+| 7 | emit | 다듬은 진단 또는 한 줄 → stdout | 부수효과 (출구) |
+
+- 부수효과 위치: 1·4(읽기/실행) · 7(출력). 2·3·5·6 은 문자열만 받는다.
+- 재사용: 3(scv_help_budget)·5(scv_force_trim_diagnosis)·6(scv_hstate_diag) 은 기존 순수부 — 5 만 확장한다.
+
+## Guardrails
+
+- 언어·쉬운 말·답 모양 절: `git show develop:core/protocols/help.md` 의 해당 절과 바이트 동일 (검사 T2).
+- 기록 템플릿의 `protocol: &lt;fingerprint&gt;` 줄과 "Append, never overwrite" 문구, 헬퍼·mark·journal-append 세 명령은 라우터에 남는다 (test-help-echo T2 가 본다).
+- 배경 조사 절은 문구 그대로 full.md 로 — 압축하지 않는다 (test-delegate-effort 가 문구를 본다).
+- 진단 다듬기는 훅 경로에만. `help.sh` 직접 출력은 바이트 그대로 (T6).
+- 권장 행동 블록이 없거나 진단 자체가 없으면(help.sh 실패) 지금처럼 전부 통과시킨다 — 잘라서 빈 진단을 만들지 않는다.
+- 상한을 낮출 뿐 올리지 않는다 (FULL 만 배경 조사 절 수용분으로 +1,000).
+
+## Exit criteria
+
+- All TESTS.md scenarios pass
+- 코어 검사 전체(48개)·run-dry·루트 계약 러너 녹색.
+- 실사용 한 세션: 변동 없는 턴의 스택 ≤ 9.5KB, 변동 턴 preflight 에 "Learn more" 없음 — 훅 출력 크기로 확인.
+
+## Suggested path
+
+1. 검사부터: test-help-router-diet.sh 신설(T1~T7) + budget 상한 하향 → 붉음 확인.
+2. help.md 압축·배경 조사 절 이동 → T1·T2·T3·T4 녹색.
+3. scv_force_trim_diagnosis 확장 → T6·T7 녹색. test-delegate-effort 위치 갱신.
+4. 코어 검사 전체·run-dry → CHANGELOG.
+
+## 성공지표 (Metrics)
+
+| 지표 | baseline (0.50.0, 2026-09-16 실측) | target |
+|---|---|---|
+| 라우터 help.md | 9,670B | ≤ 7,200B (상한 7,500) — 실측 7,115B |
+| 매 턴 스택 (변동 없는 턴: 훅 + 라우터 + 헬퍼) | ≈12.6KB (SKILL.md 기준) / budget T12 ≈11.4KB (help.md 기준) | ≤ 9,500B |
+| 변동 턴 preflight 진단 | 3,266B | ≤ 2,000B |
+| full.md | 7,151B | ≤ 9,000B |
+| 동작 변화 | — | 0 (기존 검사 전부 녹색, 진단 내용 동일) |
+
+## 예외처리 (Edge cases)
+
+- 권장 행동 블록의 첫 내용 줄이 비어 있거나 없음 → 제목만 남기고 넘어간다.
+- "Learn more" 가 없는 출력(래퍼가 다른 진단을 붙인 경우) → 그대로 통과.
+- 진단 앞에 자동 갱신 보고(stderr 고르기)가 붙는 경우 → 기존 순서(보고 → 진단) 유지.
+- 표식 해시는 다듬은 텍스트로 계산되므로 이번 변경 직후 첫 턴은 full 이 한 번 더 뜬다(정상).
+- 래퍼가 옛 full.md 를 갖고 있으면 배경 조사 절이 잠시 어디에도 없다 — 스위치 on 이면 훅이 같은 규칙을 매 턴 싣고 있어 동작 공백 없음.
+
+## Related Documents
+
+- scv/raw/20260916-always-on-per-turn-cost-diet.md — 실측·제약 (run-dry [15p], budget T4, 0.49 결정의 path delta)
+- scv/archive/20260914-wookiya1364-help-body-diet/PLAN.md — 1차 다이어트(28KB→9.4KB)와 상한 검사의 출발
+- scv/archive/20260914-wookiya1364-help-load-once/PLAN.md — 세션당 한 번 규약과 brief/full 진단
+
+## Risks / Open Questions
+
+- 라우터 압축으로 문장이 줄면 모델이 기록 계약을 덜 지킬 가능성 — 0.50.0 의 지문·린트가 잡는다. 실사용 드리프트 로그로 확인.
+- 매 턴 Skill 호출을 없애는 더 큰 다이어트(−3~4KB 추가)는 always-on 계약(강제 호출 검사들)과 얽혀 있어 별도 계획으로.
+
+## Links
+
+- Raw originals: (listed in frontmatter)
+- Related PRs: #217 (같은 브랜치에 포함)</code></pre><pre class="code src-doc active" data-idx="1"><code>---
+title: "매 턴 라우터 다이어트 — 답 모양은 남기고 나머지는 압축, 진단 안내문은 직접 부를 때만"
+slug: 20260916-wookiya1364-help-router-diet
+created_at: 2026-09-16
+status: planned
+---
+
+<mark class="src-hl"># Architecture — 매 턴 라우터 다이어트
+
+&gt; Two-diagram view of this feature. **Review and edit before `/scv:work`** —
+&gt; diagrams are LLM-generated and may have inaccuracies.
+</mark>
+## 1. Component data flow
+
+매 턴 컨텍스트에 실리는 세 덩어리와, 이번에 줄어드는 자리(노란색).
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  Hook[on-user-prompt.sh] --&gt;|"help.sh 실행 → 전체 출력"| Probe[help.sh 진단]
+  Probe --&gt;|"전체 출력"| Trim["scv_force_trim_diagnosis — 진단 본문 + 권장 첫 줄, Learn more 제거"]:::new
+  Trim --&gt;|"다듬은 진단"| Mode[scv_hstate_diag brief/full]
+  Mode --&gt;|"full: 다듬은 진단 ≤2KB · brief: 한 줄"| Ctx[(매 턴 컨텍스트)]
+  Skill["help 라우터 help.md ≤7KB — 언어·쉬운 말·답 모양 절 그대로, 기록 계약 압축"]:::new --&gt;|"Skill 호출 본문"| Ctx
+  Full["full.md — 세 모드·대화 루프·지문 + 배경 조사 절(이동)"]:::new --&gt;|"세션당 1회 · 드리프트 시 재읽기"| Ctx
+  Helper[help.sh --with-context] --&gt;|"파싱 머리 ≈0.2KB"| Ctx
+  Budget["test-help-budget.sh — BODY 7,500 · TURN 9,500 · FULL 9,000"]:::new --&gt;|"wc -c 상한"| Skill
+  Budget --&gt;|"상한"| Full
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```
+
+## 2. Position in whole architecture
+
+&gt; Source: graphify graph (built 2026-09-11) — 문서 그래프 기준으로 관련 군집만 추렸다
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart TB
+  subgraph "help 규약 · 표식 (0.49~0.51)"
+    Router[help.md 라우터]
+    FullMd[help/full.md 규약]
+    HState[help-state.sh 표식 · 지문]
+  end
+  subgraph "매 턴 훅"
+    Prompt[on-user-prompt.sh]
+    Force["lib/force-help.sh 진단 다듬기"]:::new
+    Stop[on-stop.sh 지문 · 린트]
+  end
+  subgraph "검사"
+    Budget["test-help-budget.sh 상한"]:::new
+    Diet["test-help-router-diet.sh"]:::new
+    Shape[test-help-shape.sh]
+    RunDry["run-dry [15p] 쉬운 말 공통 문구"]
+  end
+  Prompt --&gt; Force --&gt; HState
+  Router --&gt; FullMd --&gt; HState
+  Stop --&gt; HState
+  Budget -.-&gt; Router
+  Budget -.-&gt; FullMd
+  Diet -.-&gt; Router
+  Diet -.-&gt; Force
+  Shape --&gt; Router
+  RunDry --&gt; Router
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```
+
+## 3. Screen mockups
+
+화면이 없는 계획이라 그림 자리는 구성·순서 두 다이어그램이다.
+
+### 매 턴 컨텍스트 — 무엇이 얼마나 실리나
+
+```screen
+{
+  "title": "매 턴 컨텍스트 — 무엇이 얼마나 실리나",
+  "pageCode": "HELP-TURN-01",
+  "screenRefs": [
+    { "calls": "1", "name": "사용자 메시지 제출 (UserPromptSubmit)", "pageCode": "HOST-PROMPT", "element": "훅 실행", "when": "매 턴" }
+  ],
+  "diagram": [
+    { "label": "구성", "code": "flowchart LR\n  A[\"① 훅 블록 ≈1.5KB\"] --&gt; C[\"④ 컨텍스트\"]\n  B[\"② 라우터 help.md 9.7→≤7KB\"] --&gt; C\n  D[\"③ 헬퍼 출력 0.2KB\"] --&gt; C\n  E[\"⑤ full.md 7.2→≤9KB (세션당 1회)\"] -.-&gt; C\n  F[\"⑥ 전체 진단 3.3→≤2KB (변동 턴만)\"] --&gt; A" },
+    { "label": "순서", "code": "sequenceDiagram\n  autonumber\n  participant H as 호스트\n  participant P as ① on-user-prompt.sh\n  participant S as ② help 라우터\n  participant K as help-state\n  H-&gt;&gt;P: 프롬프트\n  P-&gt;&gt;P: help.sh 실행 → 다듬기(⑥)\n  P-&gt;&gt;K: diag 해시 비교\n  alt 변동 없음\n    P--&gt;&gt;H: 한 줄\n  else 변동\n    P--&gt;&gt;H: 다듬은 진단 ≤2KB\n  end\n  H-&gt;&gt;S: Skill 호출 (≤7KB)\n  S-&gt;&gt;K: PROTOCOL load/loaded\n  alt load\n    S-&gt;&gt;S: full.md 읽기 (⑤)\n  end" }
+  ],
+  "functions": [
+    { "marker": "1", "title": "훅 블록", "notes": ["역할: 강제 호출 지시 + 쉬운 말 5줄 + preflight", "변동 없는 턴 ≈1.5KB — 이번엔 손대지 않는다"] },
+    { "marker": "2", "title": "라우터 help.md", "step": "sectionSizes", "notes": ["역할: 매 턴 Skill 호출 본문", "남기는 절: 언어 · 쉬운 말 · 답 모양(바이트 동일) · 기록 계약(압축)", "옮기는 절: 배경 조사 → full.md · 지우는 절: Final notes"] },
+    { "marker": "3", "title": "헬퍼 출력", "notes": ["역할: PROTOCOL load/loaded · 대화 파일 목록", "변경 없음 ≈0.2KB"] },
+    { "marker": "4", "title": "컨텍스트", "notes": ["역할: 모델이 이번 턴에 읽는 것", "목표: 변동 없는 턴 합 ≤ 9.5KB (지금 ≈12.6KB)"] },
+    { "marker": "5", "title": "full.md", "notes": ["역할: 세션당 한 번 읽는 규약", "배경 조사 절이 여기로 — 상한 9,000B"] },
+    { "marker": "6", "title": "전체 진단 다듬기", "step": "trimDiagnosis", "notes": ["역할: 훅 경로에서만 안내문 제거", "남김: 진단 본문 · 권장 행동 제목 + 첫 줄 / 뺌: Learn more · hydrate 방법", "직접 /scv:help 는 그대로"] }
+  ],
+  "statesTitle": "데이터 모양 (상한 검사)",
+  "states": [
+    { "marker": "2", "label": "상한", "body": [ { "type": "text", "value": "BODY ≤ 7,500 · TURN ≤ 9,500 · FULL ≤ 9,000 · TOTAL ≤ 32,000 (test-help-budget.sh)" } ] }
+  ],
+  "validations": {
+    "title": "계약 · 검사 표",
+    "columns": ["번호", "조건", "검사", "결과"],
+    "rows": [
+      ["2", "언어·쉬운 말·답 모양 절 바이트 동일", "T2 md5 · run-dry [15p]", "라우터 절 3개 그대로"],
+      ["2", "기록 템플릿·명령 셋 존재", "T4 grep 7건 · test-help-echo", "지문 규칙 유지"],
+      ["5", "배경 조사 절 문구 그대로 이동", "T3 · test-delegate-effort", "위치만 바뀜"],
+      ["6", "훅 전체 진단에 Learn more 없음", "T6 · T8 순수부", "≤ 2,000B"],
+      ["6", "help.sh 직접 출력은 그대로", "T6 비교", "안내문 유지"],
+      ["4", "brief/full 전환 그대로", "T7", "해시는 다듬은 텍스트"]
+    ]
+  }
+}
+```</code></pre><pre class="code src-doc" data-idx="2"><code># Test Plan — 매 턴 라우터 다이어트 — 답 모양은 남기고 나머지는 압축, 진단 안내문은 직접 부를 때만
+
+## Overview
+
+라우터가 작아졌는데 계약은 그대로인지(남겨야 할 절은 바이트 동일, 기록 계약·명령은 존재), 진단 다듬기가 훅 경로에서만 안내문을 빼고 직접 호출은 그대로인지, 상한이 잠겼는지를 본다. 바이트 측정은 core/protocols 원본 기준(SKILL.md 는 래퍼가 자리표시자를 펼쳐 조금 더 크다).
+
+## Test scenarios
+
+### T1. 라우터 크기
+- **Setup**: 없음
+- **Run**: `wc -c core/protocols/help.md`
+- **Expected**: ≤ 7,200B (사용자 결정 2026-09-16: 손대지 않는 세 절 4,529B + 고정 문구·명령 ≈1,000B 가 바닥이라 7,000 은 못 미침). budget T1 상한 7,500B 통과.
+- **Pass criterion**: 두 숫자 모두 만족.
+
+### T2. 남겨야 할 세 절은 바이트 그대로
+- **Setup**: `git show develop:core/protocols/help.md` 를 기준으로.
+- **Run**: "## Language preference" · "## Plain language first" · "## Answer shape" 세 절을 awk 로 잘라 md5 비교.
+- **Expected**: 세 절 모두 동일. run-dry [15p] 통과(PLAIN_N=13 유지, 공통 문구 1개).
+- **Pass criterion**: md5 셋 일치 + run-dry 녹색.
+
+### T3. 배경 조사 절은 full.md 로 통째 이동
+- **Setup**: 없음
+- **Run**: help.md 에 "## Deep questions go to a background investigator" 없음, full.md 에 있음, 절 본문이 develop 의 help.md 절과 동일.
+- **Expected**: 위치만 바뀜. `test-delegate-effort.sh` 녹색(절 경로 갱신).
+- **Pass criterion**: 세 조건 모두.
+
+### T4. 기록 계약은 라우터에 남는다
+- **Setup**: 없음
+- **Run**: help.md 에 `protocol: &lt;fingerprint&gt;` · "Append, never overwrite" · `help.sh" --with-context` · `help-state.sh" mark` · `journal-append.sh" --redact-only` · "PROTOCOL: load" · "PROTOCOL: loaded" 가 각각 있다.
+- **Expected**: 전부 존재. `test-help-echo.sh`·`test-help-load-once.sh`·budget T2/T3 녹색.
+- **Pass criterion**: grep 7건 + 세 검사 녹색.
+
+### T5. 상한 잠금
+- **Setup**: 없음
+- **Run**: `test-help-budget.sh` (BODY 7,500 · TURN 9,500 · FULL 9,000 · TOTAL 32,000)
+- **Expected**: T1·T12 포함 전부 통과. 상한을 0.50.0 값(10,000/12,000)으로 되돌려도 통과(하향만 했음).
+- **Pass criterion**: 녹색.
+
+### T6. 훅의 전체 진단에는 안내문이 없다
+- **Setup**: 임시 프로젝트(표식 없음 → 첫 턴은 full).
+- **Run**: on-user-prompt.sh 실행 → 출력의 preflight 블록.
+- **Expected**: "Current project diagnosis" 있음, 의존성 줄들·raw/archive 줄 있음, "Recommended next action" 제목 + 첫 내용 줄 있음, "Learn more" 없음, `hydrate.sh" init` 줄 없음, 블록 ≤ 2,000B. 같은 디렉터리에서 `help.sh` 를 직접 실행하면 "Learn more" 와 hydrate 명령이 그대로 있다.
+- **Pass criterion**: 두 출력 비교.
+
+### T7. brief/full 전환은 그대로
+- **Setup**: T6 의 임시 프로젝트.
+- **Run**: 같은 세션 번호로 훅 두 번.
+- **Expected**: 첫 번째 full(다듬은 진단), 두 번째 "진단 변동 없음" 한 줄. 진단이 바뀌면(raw 파일 추가) 세 번째는 다시 full.
+- **Pass criterion**: 세 출력의 모양.
+
+### T8. 순수부 — 다듬기 함수
+- **Setup**: lib/force-help.sh source.
+- **Run**: `scv_force_trim_diagnosis` 에 (a) 진단+권장+Learn more 전체, (b) Learn more 없는 출력, (c) 진단 제목이 없는 출력, (d) 권장 행동 제목만 있고 내용 줄 없음.
+- **Expected**: (a) 진단 + 권장 제목 + 첫 내용 줄, Learn more 없음 · (b) 진단 + 권장 첫 줄 · (c) 입력 그대로 · (d) 진단 + 권장 제목. `check-purity.sh` 통과.
+- **Pass criterion**: 네 경우 정확 일치 + 순수성.
+
+### T9. 기존 검사 회귀 없음
+- **Setup**: 없음
+- **Run**: `for f in core/tests/test-*.sh` 전부 · `core/tests/run-dry.sh` · `tests/run.sh`
+- **Expected**: 전부 녹색.
+- **Pass criterion**: 실패 0.
+
+## How to run
+
+```bash
+bash core/tests/test-help-router-diet.sh &amp;&amp; bash core/tests/test-help-budget.sh &amp;&amp; bash core/tests/test-delegate-effort.sh
+```
+
+## Pass criteria
+
+- T1~T9 전부 녹색.
+- 실사용 한 세션(5턴 이상)에서 변동 없는 턴의 훅+라우터+헬퍼 합이 9.5KB 이하, 변동 턴 preflight 에 "Learn more" 없음.
+
+## Related Documents
+
+- core/tests/test-help-budget.sh — 상한 검사(기존)</code></pre></div>
+    </aside>
+</div>
+<div class="deck-footer">
+      <button class="deck-arrow" id="scvPrev" disabled="" onclick="scvGoto(scvIdx()-1)">‹ 이전</button>
+      <div class="deck-dots"><button class="deck-dot active" data-idx="0" onclick="scvGoto(0)" aria-label="1"></button><button class="deck-dot" data-idx="1" onclick="scvGoto(1)" aria-label="2"></button><button class="deck-dot" data-idx="2" onclick="scvGoto(2)" aria-label="3"></button><button class="deck-dot" data-idx="3" onclick="scvGoto(3)" aria-label="4"></button></div>
+      <span class="deck-counter" id="scvCounter">1 / 4</span>
+      <button class="deck-arrow" id="scvNext" onclick="scvGoto(scvIdx()+1)">다음 ›</button>
+    </div>
+</div>
+
+<script>
+  var SCV_ANCHORS = ["Architecture — 매 턴 라우터 다이어트","1. Component data flow","2. Position in whole architecture","3. Screen mockups"];
+  var scvPageIdx = 0;
+  function scvIdx(){ return scvPageIdx; }
+  function scvEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function scvHighlight(anchor){
+    var docs = document.querySelectorAll('.src-doc');
+    docs.forEach(function(el){
+      var code = el.querySelector('code');
+      if(code) code.innerHTML = scvEsc(code.textContent);
+    });
+    if(!anchor) return;
+    for (var i=0;i<docs.length;i++){
+      var code = docs[i].querySelector('code');
+      if(!code) continue;
+      var raw = code.textContent;
+      var lines = raw.split('\n');
+      var start=-1, end=lines.length;
+      for (var j=0;j<lines.length;j++){
+        var m = lines[j].match(/^#{1,6}\s+(.*)$/);
+        if (m && m[1].trim() === String(anchor).trim()) { start = j; break; }
+      }
+      if (start < 0) continue;
+      for (var k=start+1;k<lines.length;k++){ if (/^#{1,6}\s+/.test(lines[k])) { end = k; break; } }
+      var before = lines.slice(0,start).join('\n'), hl = lines.slice(start,end).join('\n'), after = lines.slice(end).join('\n');
+      code.innerHTML = scvEsc(before) + (before ? '\n' : '') + '<mark class="src-hl">' + scvEsc(hl) + '</mark>' + (after ? '\n' + scvEsc(after) : '');
+      if (typeof scvSelectSource === 'function') scvSelectSource(i);
+      var markEl = docs[i].querySelector('mark.src-hl');
+      if (markEl && markEl.scrollIntoView) markEl.scrollIntoView({ block: 'center' });
+      return;
+    }
+  }
+  function scvGoto(n){
+    var total = 4;
+    n = Math.max(0, Math.min(total - 1, n));
+    scvPageIdx = n;
+    document.querySelectorAll('.slide-page').forEach(function(p){ p.classList.toggle('active', p.dataset.idx === String(n)); });
+    document.querySelectorAll('.deck-nav-item').forEach(function(el){
+      var on = el.dataset.idx === String(n);
+      el.classList.toggle('active', on);
+      // The nav is one scrolling row now, so the active pill can sit past the
+      // right edge. Scroll the STRIP, not the page — scrollIntoView on the
+      // element would also scroll .scroll-main and lose the reader's place.
+      if (on && el.parentElement) {
+        var strip = el.parentElement;
+        var left = el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2;
+        strip.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+      }
+    });
+    document.querySelectorAll('.deck-dot').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
+    if (typeof window.scvRunMermaid === 'function') { try { window.scvRunMermaid(); } catch (e) {} }
+    var prevBtn = document.getElementById('scvPrev'), nextBtn = document.getElementById('scvNext'), counter = document.getElementById('scvCounter');
+    if (prevBtn) prevBtn.disabled = (n === 0);
+    if (nextBtn) nextBtn.disabled = (n === total - 1);
+    if (counter) counter.textContent = (n + 1) + ' / ' + total;
+    scvHighlight(SCV_ANCHORS[n]);
+    var main = document.querySelector('.scroll-main');
+    if (main) main.scrollTop = 0;
+  }
+  function scvTogglePanel(){ var p=document.getElementById('scvSourcePanel'); if(p) p.classList.toggle('closed'); }
+  function scvSelectSource(i){
+    document.querySelectorAll('.panel-tab').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+    document.querySelectorAll('.src-doc').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+  }
+  (function(){
+    // 패널 좌측 경계 드래그 리사이즈 — 원본 SourcePanel 과 같은 산식(최소 320px,
+    // 본문에 최소 420px 남김).
+    var handle = document.getElementById('scvResizeHandle');
+    var panel = document.getElementById('scvSourcePanel');
+    if (!handle || !panel) return;
+    var MOBILE_BP = 640;
+    handle.addEventListener('mousedown', function(e){
+      e.preventDefault();
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+      function onMove(ev){
+        // 버튼을 놓친 채(창 밖 등) mouseup 을 못 받은 경우 — 버튼이 눌려있지 않으면 즉시 정리.
+        if (ev.buttons === 0) { onUp(); return; }
+        var raw = window.innerWidth - ev.clientX;
+        var max = Math.max(320, window.innerWidth - 420);
+        panel.style.width = Math.min(max, Math.max(320, raw)) + 'px';
+      }
+      function onUp(){
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        window.removeEventListener('blur', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('blur', onUp);
+    });
+    // 인라인 width 는 스타일시트의 반응형 브레이크포인트(640px 모바일 전체폭·900px 좁은폭)
+    // 보다 항상 우선한다 — 창 크기가 바뀔 때마다 다시 맞춰줘야 브레이크포인트가 살아난다.
+    window.addEventListener('resize', function(){
+      if (!panel.style.width) return;
+      if (window.innerWidth <= MOBILE_BP) { panel.style.width = ''; return; }
+      var max = Math.max(320, window.innerWidth - 420);
+      if (parseFloat(panel.style.width) > max) panel.style.width = max + 'px';
+    });
+  })();
+  document.addEventListener('keydown', function(e){
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') scvGoto(scvIdx() + 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') scvGoto(scvIdx() - 1);
+    else if (e.key === 'Home') scvGoto(0);
+    else if (e.key === 'End') scvGoto(4 - 1);
+    else if (e.key === 's' || e.key === 'S') scvTogglePanel();
+  });
+  scvGoto(0);
+</script>
+
+
+
+<div class="mermaidTooltip" style="opacity: 0; position: absolute; text-align: center; max-width: 200px; padding: 2px; font-size: 12px; background: rgb(255, 255, 222); border: 1px solid rgb(51, 51, 51); border-radius: 2px; pointer-events: none; z-index: 100;"></div></body></html>
