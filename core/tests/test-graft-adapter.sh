@@ -24,7 +24,8 @@ LIB="$CORE/scripts/lib/graft.sh"; GRAFT="$CORE/scripts/graft.sh"
 command -v jq >/dev/null 2>&1 || { echo "jq 없음 — 이 검사는 jq 가 필요하다" >&2; exit 1; }
 [[ -f "$LIB" ]] || { echo "  ✖ FAIL: lib missing: $LIB"; echo; echo "test-graft-adapter: pass=0 fail=1"; exit 1; }
 source "$LIB"
-now_ms() { local n; n="$(date +%s%3N 2>/dev/null || true)"; [[ "$n" =~ ^[0-9]+$ ]] || n="$(python3 -c 'import time;print(int(time.time()*1000))' 2>/dev/null || true)"; [[ "$n" =~ ^[0-9]+$ ]] || n=$(( $(date +%s) * 1000 )); printf '%s' "$n"; }
+source "$HERE/lib/timing.sh"
+now_ms() { scv_now_ms; }
 
 echo "── [T1] 상태 판정 (순수) ──"
 [[ "$(scv_graft_status 0 0 auto)" == "absent" && "$(scv_graft_status 0 1 auto)" == "absent" ]] && ok "bin 없음 → absent" || fail "absent"
@@ -102,7 +103,7 @@ echo "── [T8] 실패 처리 ──"
 FB="$WORK/fake-broken"; mkfake "$FB" broken; FS="$WORK/fake-slow"; mkfake "$FS" slow
 [[ -z "$(run_in "$P" "$FB" bash "$GRAFT" blast)" ]] && ( run_in "$P" "$FB" bash "$GRAFT" blast ) && ok "깨진 JSON → 빈 출력, exit 0" || fail "broken"
 t0=$(now_ms); v="$( cd "$P" && PATH="$FS:$CLEANPATH" SCV_GRAFT_TIMEOUT=2 bash "$GRAFT" ask x 2>/dev/null )"; rc=$?; t1=$(now_ms)
-[[ -z "$v" && "$rc" == "0" && $((t1 - t0)) -lt 3500 ]] && ok "타임아웃(2s) → 빈 출력, exit 0, $((t1 - t0))ms" || fail "slow: rc=$rc out=[$v] $((t1 - t0))ms"
+[[ -z "$v" && "$rc" == "0" && $((t1 - t0)) -lt $(scv_budget_ms 3500) ]] && ok "타임아웃(2s) → 빈 출력, exit 0, $((t1 - t0))ms" || fail "slow: rc=$rc out=[$v] $((t1 - t0))ms"
 # coreutils timeout 이 없는 환경(macOS)의 bash 감시자 경로 — 필요한 도구만 담은 PATH 로 강제한다
 NOTO="$WORK/no-timeout"; mkdir -p "$NOTO"; for b in bash sh jq sleep kill mktemp cat rm git sed awk grep head tail tr cut sort date printf env dirname basename; do bp="$(command -v $b 2>/dev/null)"; [[ -n "$bp" ]] && ln -sf "$bp" "$NOTO/$b"; done; ln -sf "$FS/graft" "$NOTO/graft"
 t0=$(now_ms); v="$( cd "$P" && PATH="$NOTO" SCV_GRAFT_TIMEOUT=2 bash "$GRAFT" ask x 2>/dev/null )"; rc=$?; t1=$(now_ms)

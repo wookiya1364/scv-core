@@ -28,7 +28,8 @@ LIB="$CORE/scripts/lib/graph.sh"; GRAPH="$CORE/scripts/graph.sh"
 command -v jq >/dev/null 2>&1 || { echo "jq 없음 — 이 검사는 jq 가 필요하다" >&2; exit 1; }
 [[ -f "$LIB" ]] || { echo "  ✖ FAIL: lib missing: $LIB"; echo; echo "test-graph: pass=0 fail=1"; exit 1; }
 source "$LIB"
-now_ms() { local n; n="$(date +%s%3N 2>/dev/null || true)"; [[ "$n" =~ ^[0-9]+$ ]] || n="$(python3 -c 'import time;print(int(time.time()*1000))' 2>/dev/null || true)"; [[ "$n" =~ ^[0-9]+$ ]] || n=$(( $(date +%s) * 1000 )); printf '%s' "$n"; }
+source "$HERE/lib/timing.sh"
+now_ms() { scv_now_ms; }
 
 echo "── [T1] 문서 링크 추출 (순수) ──"
 MD=$'# A\n[arch](architecture.md) and [guard](../core/contracts/guard.md) and [sec](#절) and [web](https://x.y/z.md) ![img](x.png) [same](architecture.md#top)\n'
@@ -84,7 +85,8 @@ cp "$J" "$WORK/g1.json"; sleep 1; gs build >/dev/null; [[ "$(jq -S 'del(.built_a
 echo "── [T6] 이 저장소 빌드 ──"
 if (( IS_CORE_REPO )); then
   t0=$(now_ms); ( cd "$REPO" && bash "$GRAPH" build >/dev/null 2>&1 ); t1=$(now_ms); RJ="$REPO/scv/.graph/graph.json"
-  (( t1 - t0 <= 2000 )) && ok "빌드 $((t1 - t0))ms ≤ 2000ms" || fail "빌드 느림: $((t1 - t0))ms"
+  _b=$(scv_budget_ms 2000)
+  (( t1 - t0 <= _b )) && ok "빌드 $((t1 - t0))ms ≤ ${_b}ms" || fail "빌드 느림: $((t1 - t0))ms > ${_b}ms"
   [[ -f "$RJ" ]] && jq -e '(.nodes|length)>50' "$RJ" >/dev/null && ok "노드 > 50" || fail "노드 수"
   jq -e '.links[]|select(.kind=="cochange" and ((.source=="core/template/hooks/on-stop.sh" and .target=="core/scripts/lib/help-state.sh") or (.source=="core/scripts/lib/help-state.sh" and .target=="core/template/hooks/on-stop.sh")))|.evidence|index("20260916-wookiya1364-answer-lint-turn-race")' "$RJ" >/dev/null && ok "on-stop.sh–lib/help-state.sh 동시변경, 근거에 answer-lint-turn-race" || fail "알려진 동시변경 쌍 없음"
 else
