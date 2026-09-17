@@ -55,3 +55,5 @@ decision	매-턴-라우터-다이어트-답-모양은-남기고-나머지는-압
 decision	매-턴-라우터-다이어트-답-모양은-남기고-나머지는-압축-진단-안내문은-직접-부를-때만-	scv/DECISIONS.md	108250	1148	2026-09-16 23:59	[archived] 매 턴 라우터 다이어트 — 답 모양은 남기고 나머지는 압축, 진단 안내문은 직접 부를 때만 archived
 decision	scv-자체-그래프-문서-계획-동시변경을-의존성-0-으로-graphify-제거	scv/DECISIONS.md	109398	1067	2026-09-17 07:28	[adopted] SCV 자체 그래프 — 문서·계획·동시변경을 의존성 0 으로, graphify 제거
 decision	scv-자체-그래프-문서-계획-동시변경을-의존성-0-으로-graphify-제거-arch	scv/DECISIONS.md	110465	1345	2026-09-17 08:38	[archived] SCV 자체 그래프 — 문서·계획·동시변경을 의존성 0 으로, graphify 제거 archived
+decision	graft-어댑터-있으면-코드-영향-범위와-관련-코드-후보를-덧붙이고-없으면-조용히-생	scv/DECISIONS.md	111810	1020	2026-09-17 08:54	[adopted] Graft 어댑터 — 있으면 코드 영향 범위와 관련 코드 후보를 덧붙이고, 없으면 조용히 생략
+decision	graft-어댑터-있으면-코드-영향-범위와-관련-코드-후보를-덧붙이고-없으면-조용히-생	scv/DECISIONS.md	112830	978	2026-09-17 09:18	[archived] Graft 어댑터 — 있으면 코드 영향 범위와 관련 코드 후보를 덧붙이고, 없으면 조용히 생략 archived
