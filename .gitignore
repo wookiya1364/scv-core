@@ -11,3 +11,9 @@ scv/journal/
 
 # SCV 자체 그래프 산출물 — 필요할 때 자동 재생성, 저장소에 담지 않는다
 scv/.graph/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
+# graft 가 함께 만드는 파일 — 그래프를 ripgrep 으로 뒤질 수 있게 해준다.
+# graft 를 쓰는 사람의 기계에서 build 가 다시 만들어 주므로 담지 않는다.
+/.ignore
