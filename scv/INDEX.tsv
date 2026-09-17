@@ -57,3 +57,5 @@ decision	scv-자체-그래프-문서-계획-동시변경을-의존성-0-으로-g
 decision	scv-자체-그래프-문서-계획-동시변경을-의존성-0-으로-graphify-제거-arch	scv/DECISIONS.md	110465	1345	2026-09-17 08:38	[archived] SCV 자체 그래프 — 문서·계획·동시변경을 의존성 0 으로, graphify 제거 archived
 decision	graft-어댑터-있으면-코드-영향-범위와-관련-코드-후보를-덧붙이고-없으면-조용히-생	scv/DECISIONS.md	111810	1020	2026-09-17 08:54	[adopted] Graft 어댑터 — 있으면 코드 영향 범위와 관련 코드 후보를 덧붙이고, 없으면 조용히 생략
 decision	graft-어댑터-있으면-코드-영향-범위와-관련-코드-후보를-덧붙이고-없으면-조용히-생	scv/DECISIONS.md	112830	978	2026-09-17 09:18	[archived] Graft 어댑터 — 있으면 코드 영향 범위와 관련 코드 후보를 덧붙이고, 없으면 조용히 생략 archived
+decision	변경-지도-계획서가-바뀔-함수를-선언하고-graft-가-대조하고-문서가-그린다	scv/DECISIONS.md	113808	956	2026-09-17 14:52	[adopted] 변경 지도 — 계획서가 바뀔 함수를 선언하고, Graft 가 대조하고, 문서가 그린다
+decision	변경-지도-배송-고정-밀리초-예산-제거	scv/DECISIONS.md	114764	1762	2026-09-17 17:23	[archived] 변경 지도 배송 + 고정 밀리초 예산 제거
