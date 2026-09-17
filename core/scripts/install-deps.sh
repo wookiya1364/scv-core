@@ -437,6 +437,10 @@ mode_print() {
     echo ""
   done
 
+  echo "optional — code graph (not required by SCV; read when present, v0.51.0+):"
+  echo "  graft: npm i -g @nanonets/graft && graft init --no-hooks --no-statusline && graft telemetry disable"
+  echo "         (SCV only reads: graft blast / graft ask. It never installs, builds, or hooks it.)"
+
 }
 
 # ---------- Main ------------------------------------------------------------

@@ -1102,3 +1102,19 @@ merge_policy: preserve
 - path delta: as planned — 추가로 regression.sh 에 --dry/--changed, work.sh 에 IMPACT 블록. 놀란 것: 순수성 검사기가 jq 본문의 비교 연산자(>)를 리다이렉션으로, sort_by 를 sort 명령으로 읽음 → jq 프로그램을 함수 밖 상수로. bash 의 "${1:-{}}" 가 닫는 중괄호를 덧붙이는 함정. 병렬 회귀 실행 시 빌드 2초 검사(T6)가 부하로 붉을 수 있음(단독 실행 녹색).
 - refs: scv/archive/20260917-wookiya1364-scv-own-graph/PLAN.md
 - conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-17 08:54] scv-core-sync-bot — Graft 어댑터 — 있으면 코드 영향 범위와 관련 코드 후보를 덧붙이고, 없으면 조용히 생략
+
+- verdict: adopted
+- why: 자체 그래프(이력)와 Graft(현재 의존)는 겹치지 않는다. Graft 를 필수가 아닌 선택 제공자로: graft 가 PATH 에 있고 graft/ 가 있으면 회귀 앞단에 blast(정적 영향), work/promote 헤더에 ask(관련 코드 후보). 없으면 GRAFT_STATUS: absent 한 줄뿐. 설치·init·훅은 SCV 가 하지 않는다(--no-hooks --no-statusline 안내만). Graft 는 bash 미지원 — 이 저장소에선 실증 불가, 가짜 graft 픽스처로 계약 검증.
+- discarded alternatives: Graft 결과를 자체 그래프에 합치기 — 스키마가 문서화되지 않아 이번엔 나란히만 · 이번 릴리스에서 제외 — 사용자가 포함을 택함
+- refs: scv/promote/20260917-wookiya1364-graft-adapter/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md
+
+## [2026-09-17 09:18] scv-core-sync-bot — Graft 어댑터 — 있으면 코드 영향 범위와 관련 코드 후보를 덧붙이고, 없으면 조용히 생략 archived
+
+- verdict: archived
+- why: graft.sh(status/blast/ask) + lib/graft.sh. 없으면 GRAFT_STATUS: absent 한 줄이 유일한 차이. ready 면 회귀 앞단 blast 블록·work 헤더 ask 후보. 지켜야 할 것: SCV 는 graft 를 설치·init·build·훅하지 않음 · 시간 제한·실패는 exit 0 · 자체 그래프 블록 아래에만 · 소스에 제어 문자 없이 jq 유니코드 이스케이프로 구분자.
+- path delta: as planned — 놀란 것: Graft 는 bash 미지원(이 저장소에서 실증 불가, 픽스처로 계약 검증). 소스에 US 제어 문자를 넣으면 이 도구의 명령 검증에 걸린다 — jq 이스케이프로 대체.
+- refs: scv/archive/20260917-wookiya1364-graft-adapter/PLAN.md
+- conversation: scv/conversations/20260914-092553-install-check-0-47-0.md

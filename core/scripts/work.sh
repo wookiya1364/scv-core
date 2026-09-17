@@ -126,6 +126,9 @@ GRAPH_STATUS="$(bash "$SCRIPT_DIR/graph.sh" ensure 2>/dev/null | sed -n 's/^GRAP
 [[ -n "$GRAPH_STATUS" ]] || GRAPH_STATUS="unavailable"
 echo "GRAPH_STATUS: $GRAPH_STATUS"
 [[ "$GRAPH_STATUS" == "built" ]] && echo "GRAPH_DIR: $GRAPH_DIR"
+# Graft 어댑터 (v0.51.0+, 선택) — 있으면 ready, 없으면 absent 한 줄. 아래 IMPACT 절 뒤에 후보 블록.
+GRAFT_STATUS="$(bash "$SCRIPT_DIR/graft.sh" status 2>/dev/null | sed -n 's/^GRAFT_STATUS: //p' | head -1)"
+echo "GRAFT_STATUS: ${GRAFT_STATUS:-absent}"
 
 # ---------- helpers ----------
 
@@ -437,5 +440,16 @@ if [[ -n "${PLAN:-}" && -f "$PLAN" && "${GRAPH_STATUS:-}" == "built" && -f "$SCR
     bash "$SCRIPT_DIR/graph.sh" impact $(printf '%s' "$_impact_files" | tr ' ' '\n' | head -12) 2>/dev/null || echo "(graph unavailable)"
   else
     echo "(PLAN.md has no scope: paths)"
+  fi
+fi
+
+# ---------- code candidates (graft ask, v0.51.0+) ----------
+# Graft 가 준비돼 있으면 계획 제목으로 관련 코드 후보(file:line)를 싣는다. 없으면 아무것도 더하지 않는다.
+if [[ "${GRAFT_STATUS:-}" == "ready" && -n "${PLAN:-}" && -f "$PLAN" ]]; then
+  _plan_title="$(awk '/^title:/{sub(/^title: */, ""); gsub(/"/, ""); print; exit}' "$PLAN" 2>/dev/null)"
+  if [[ -n "$_plan_title" ]]; then
+    echo ""
+    echo "=== code candidates (graft ask) ==="
+    bash "$SCRIPT_DIR/graft.sh" ask "$_plan_title" 2>/dev/null || echo "  (graft unavailable)"
   fi
 fi

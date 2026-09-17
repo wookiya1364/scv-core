@@ -4,6 +4,21 @@ All notable changes to SCV Core are documented here.
 
 ## [Unreleased]
 
+### Graft 어댑터 — 있으면 코드 영향 범위와 관련 코드 후보를 덧붙이고, 없으면 조용히 생략
+
+자체 그래프는 "과거에 같이 바뀐 것"(이력)을, Graft(코드 그래프 엔진)는 "지금 코드가 의존하는 것"(현재)을
+안다. Graft 를 필수가 아닌 **선택 제공자**로 붙인다 — `graft` 가 PATH 에 있고 `graft/` 그래프가 있을 때만.
+
+- `core/scripts/graft.sh status | blast [--base <ref>] [--json] | ask <task> [--json]` + 순수부 `lib/graft.sh`
+  (상태 판정 · blast/ask JSON 요약(jq, 흔한 모양 둘) · 렌더). 시간 제한(기본 20초), 실패·타임아웃·깨진 JSON 은
+  빈 출력 + stderr 한 줄, exit 0. 설치·init·build·훅·MCP 를 절대 부르지 않는다.
+- 소비처: `regression.sh` 는 자체 그래프 영향 블록 아래에 `=== impact (graft blast) ===` (ready 일 때만);
+  `work.sh` 는 `GRAFT_STATUS:` 한 줄 + ready 면 `=== code candidates (graft ask) ===`(계획 제목, ≤10 file:line);
+  `promote-helper.sh` 는 `GRAFT_STATUS:` 한 줄. `install-deps --print` 에 선택 항목 한 줄
+  (`graft init --no-hooks --no-statusline` · `graft telemetry disable`). 설정 `SCV_GRAFT=auto|off`, `SCV_GRAFT_TIMEOUT`.
+- 확인: Graft 는 bash/shell 을 지원하지 않는다 — scv-core 자체에서는 후보가 비고, TS·Python 프로젝트에서 의미가 있다.
+  검사 `core/tests/test-graft-adapter.sh` (가짜 graft 픽스처 셋: 정상 · 깨진 JSON · 느림).
+
 ### SCV 자체 그래프 — 문서·계획·동시변경을 의존성 0 으로, graphify 제거
 
 그래프 스킬(graphify)은 보관된 52개 계획 중 실제로 쓴 계획이 0 이었고, Python 스킬 + LLM 빌드 비용이
