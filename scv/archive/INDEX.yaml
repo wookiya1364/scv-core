@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-09-17T00:18:14Z
+generated_at: 2026-09-17T08:22:59Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -243,6 +243,10 @@ archives:
     kind: refactor
     status: planned
     epic: 20260914-help-turn-cost
+  - slug: 20260917-wookiya1364-deck-change-map
+    title: "계획서가 바뀔 함수를 먼저 말하고, 문서가 그것을 그림으로 보여준다"
+    kind: feature
+    status: testing
   - slug: 20260917-wookiya1364-graft-adapter
     title: "Graft 어댑터 — 있으면 코드 영향 범위와 관련 코드 후보를 덧붙이고, 없으면 조용히 생략"
     kind: feature
