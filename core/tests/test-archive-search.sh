@@ -212,14 +212,21 @@ for f in "$HERE/test-archive-search.sh" "$CORE/scripts/archive-search.sh" "$CORE
   else ok; fi
 done
 
-echo ""
-echo "── 이 저장소에서 (실물) ──"
-# 계획이 "못 찾는다" 고 한 낱말들이 실제로 찾아지는가
-for w in 회귀 훅 설정; do
-  t="$(ls "$CORE/../scv/archive" 2>/dev/null | grep -ci "$w" || true)"
-  o="$( cd "$CORE/.." && bash "$CMD" --limit 1 "$w" 2>/dev/null )"
-  if grep -q '개 함께' <<<"$o"; then ok; else bad "실물: '$w' 을 못 찾았다 (제목 일치 ${t}건)"; fi
-done
+# 이 검사가 원본 저장소에서 도는지, 벤더링된 사본에서 도는지 (0.53.1).
+# 사본에는 보관된 계획이 없다 — 아래 "실물" 묶음은 거기서 건너뛴다.
+REPO="$(cd "$CORE/.." && pwd)"
+IS_CORE_REPO=0; [[ -f "$REPO/VERSION" && -f "$REPO/core/TEMPLATE_DIGEST" && -d "$REPO/scv/archive" ]] && IS_CORE_REPO=1
+
+if (( IS_CORE_REPO )); then
+  echo ""
+  echo "── 이 저장소에서 (실물) ──"
+  # 계획이 "못 찾는다" 고 한 낱말들이 실제로 찾아지는가
+  for w in 회귀 훅 설정; do
+    t="$(ls "$REPO/scv/archive" 2>/dev/null | grep -ci "$w" || true)"
+    o="$( cd "$REPO" && bash "$CMD" --limit 1 "$w" 2>/dev/null )"
+    if grep -q '개 함께' <<<"$o"; then ok; else bad "실물: '$w' 을 못 찾았다 (제목 일치 ${t}건)"; fi
+  done
+fi
 
 echo ""
 echo "── test-archive-search: $pass passed, $fail failed ──"
