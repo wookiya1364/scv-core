@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-09-17T08:22:59Z
+generated_at: 2026-09-18T03:32:46Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -257,3 +257,7 @@ archives:
     kind: feature
     status: testing
     epic: 20260917-scv-graph
+  - slug: 20260918-wookiya1364-archive-body-search
+    title: "지난 작업 찾기가 제목이 아니라 본문까지 훑는다"
+    kind: feature
+    status: testing
