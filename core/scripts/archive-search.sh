@@ -67,8 +67,15 @@ fi
 # 낱말을 정규식으로 해석하지 않도록 -F 로 고정한다.
 # -H 는 빼면 안 된다: 파일이 하나뿐일 때 grep 은 파일 이름을 생략하고, 그러면 줄번호가
 # 파일 이름 자리에 와서 한 건도 못 읽는다. 기록 파일이 하나뿐인 프로젝트가 그 경우다.
-sweep="$(printf '%s\n' "$TERMS" | awk 'NF>0' \
-  | grep -H -n -i -F -f /dev/stdin -- "${files[@]}" 2>/dev/null || true)"
+#
+# 두 번 훑어 합친다. 있는 그대로 한 번, 대소문자를 무시하고 한 번. -i 하나에 기대면
+# 여러 바이트 글자(한글 등)를 깨뜨리는 grep 에서 한 건도 못 찾는다 — 실제로 맥에서 그랬다.
+# 둘 중 하나만 맞아도 잡히고, 겹치는 줄은 뒤에서 하나로 합쳐진다.
+_pat="$(printf '%s\n' "$TERMS" | awk "$_SCV_AS_AWK_NONEMPTY")"
+sweep="$( { printf '%s\n' "$_pat" | grep -H -n -F -f /dev/stdin -- "${files[@]}" 2>/dev/null
+            printf '%s\n' "$_pat" | grep -H -n -i -F -f /dev/stdin -- "${files[@]}" 2>/dev/null
+          } | sort -u || true )"
+unset _pat
 if [[ -z "$sweep" ]]; then
   scv_as_render "" 0 "$NTERMS" "$LIMIT" ""
   exit 0
