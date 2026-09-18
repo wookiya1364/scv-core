@@ -143,7 +143,7 @@ for n in 1 2 3 4 5; do
     4) q=(하나 둘 셋 넷) ;; 5) q=(하나 둘 셋 넷 다섯) ;;
   esac
   o="$(run "$P" "${q[@]}")"
-  if grep -q "낱말 $n/$n개 함께" <<<"$o"; then ok
+  if grep -q "낱말 $n/${n}개 함께" <<<"$o"; then ok
   else bad "T2d 낱말 ${n}개 — 전부 전달되지 않았다: $(grep -o '낱말 [0-9]*/[0-9]*개' <<<"$o" | head -1)"; fi
 done
 
@@ -199,6 +199,18 @@ if grep -nE '^\s*(cat|rm|mv|cp|mkdir|touch|tee|>|>>)' "$LIB" | grep -v '^\s*#' |
   bad "T15 순수부에 파일 조작이 있다"
 else ok; fi
 grep -qE '^# @pure' "$LIB" && ok || bad "T15 순수성 표시가 없다"
+
+echo ""
+echo "── 옛 셸에서도 깨지지 않는가 ──"
+# 맥에는 bash 3.2 가 있고, 거기서는 "$n개" 의 한글이 변수 이름의 일부로 읽혀 unbound 가 난다.
+# 리눅스에서는 멀쩡해서 CI 의 맥 쪽만 세 번 붉었다. 같은 함정을 글자 규칙으로 막는다.
+for f in "$HERE/test-archive-search.sh" "$CORE/scripts/archive-search.sh" "$CORE/scripts/lib/archive-search.sh"; do
+  # 주석은 뺀다 — 이 함정을 설명하는 주석 자신이 걸린다.
+  if sed 's/[[:space:]]*#.*$//' "$f" \
+     | grep -qP '\$[A-Za-z_][A-Za-z0-9_]*(?=[^\x00-\x7F])'; then
+    bad "옛 셸 함정: $(basename "$f") 에 변수 뒤 곧바로 여러 바이트 글자가 온다 — \${var} 로 감쌀 것"
+  else ok; fi
+done
 
 echo ""
 echo "── 이 저장소에서 (실물) ──"
