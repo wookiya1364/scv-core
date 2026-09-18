@@ -47,7 +47,7 @@ _SCV_AS_AWK_KEEP_STRONG='NF && $1+0 >= 2'
 _SCV_AS_AWK_FIRST_PER_GROUP='!seen[$2]++'
 _SCV_AS_AWK_SCORE='
     BEGIN {
-      nt = split(TERMS, T, "\n"); k = 0
+      nt = split(TERMS, T, "\t"); k = 0
       for (i = 1; i <= nt; i++) if (length(T[i]) > 0) { k++; O[k] = T[i]; L[k] = tolower(T[i]) }
       nt = k
     }
@@ -144,7 +144,10 @@ scv_as_count_terms() {
 scv_as_score_lines() {
   local sweep="${1:-}" terms="${2:-}"
   [[ -n "$sweep" ]] || return 0
-  printf '%s\n' "$sweep" | awk -v TERMS="$terms" -v US="$_SCV_AS_US" "$_SCV_AS_AWK_SCORE"
+  # awk 의 -v 는 값 안의 줄바꿈을 보장하지 않는다 — 맥에서 낱말 목록이 통째로 비어
+  # 여러 낱말 물음이 한 건도 안 잡혔다. 한 줄짜리 구분자로 이어 붙여 넘긴다.
+  local joined; joined="$(printf '%s' "$terms" | tr '\n' '\t')"
+  printf '%s\n' "$sweep" | awk -v TERMS="$joined" -v US="$_SCV_AS_US" "$_SCV_AS_AWK_SCORE"
 }
 
 # @deterministic
