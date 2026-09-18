@@ -48,7 +48,7 @@ _SCV_AS_AWK_FIRST_PER_GROUP='!seen[$2]++'
 _SCV_AS_AWK_SCORE='
     BEGIN {
       nt = split(TERMS, T, "\n"); k = 0
-      for (i = 1; i <= nt; i++) if (length(T[i]) > 0) { k++; L[k] = tolower(T[i]) }
+      for (i = 1; i <= nt; i++) if (length(T[i]) > 0) { k++; O[k] = T[i]; L[k] = tolower(T[i]) }
       nt = k
     }
     function kind_of(f) {
@@ -71,8 +71,9 @@ _SCV_AS_AWK_SCORE='
       c2 = index(r, ":");  if (c2 == 0) next
       ln = substr(r, 1, c2 - 1); body = substr(r, c2 + 1)
       if (ln !~ /^[0-9]+$/) next
+      # 있는 그대로 먼저, 없을 때만 소문자로 — BSD awk 의 tolower() 는 한글을 깨뜨린다.
       lo = tolower(body); n = 0
-      for (i = 1; i <= nt; i++) if (index(lo, L[i]) > 0) n++
+      for (i = 1; i <= nt; i++) if (index(body, O[i]) > 0 || index(lo, L[i]) > 0) n++
       if (n == 0) next
       printf "%d%s%s%s%s%s%s%s%s\n", n, US, group_of(f), US, kind_of(f), US, ln, US, body
     }'
@@ -119,9 +120,13 @@ scv_as_group_of() {
 scv_as_count_terms() {
   local line="${1:-}" terms="${2:-}" t n=0
   local lower; lower="$(printf '%s' "$line" | tr '[:upper:]' '[:lower:]')"
+  local tl
   while IFS= read -r t; do
     [[ -n "$t" ]] || continue
-    case "$lower" in *"$(printf '%s' "$t" | tr '[:upper:]' '[:lower:]')"*) n=$((n+1)) ;; esac
+    # 있는 그대로 먼저 — 문자 변환이 여러 바이트 글자를 깨뜨리는 환경이 있다.
+    case "$line" in *"$t"*) n=$((n+1)); continue ;; esac
+    tl="$(printf '%s' "$t" | tr '[:upper:]' '[:lower:]')"
+    case "$lower" in *"$tl"*) n=$((n+1)) ;; esac
   done <<< "$terms"
   printf '%s' "$n"
 }
@@ -148,11 +153,17 @@ scv_as_excerpt() {
   local line="${1:-}" term="${2:-}" max="${3:-100}"
   [[ "$max" =~ ^[0-9]+$ ]] || max=100
   (( ${#line} <= max )) && { printf '%s' "$line"; return 0; }
-  local lower tl pos start
-  lower="$(printf '%s' "$line" | tr '[:upper:]' '[:lower:]')"
-  tl="$(printf '%s' "$term" | tr '[:upper:]' '[:lower:]')"
-  local pre="${lower%%"$tl"*}"
-  if [[ "$pre" == "$lower" ]]; then start=0; else pos=${#pre}; start=$(( pos - max / 3 )); fi
+  local pre start pos
+  # 있는 그대로 먼저 찾는다 — 소문자 변환이 여러 바이트 글자를 깨뜨리는 환경이 있다.
+  pre="${line%%"$term"*}"
+  if [[ "$pre" == "$line" ]]; then
+    local lower tl
+    lower="$(printf '%s' "$line" | tr '[:upper:]' '[:lower:]')"
+    tl="$(printf '%s' "$term" | tr '[:upper:]' '[:lower:]')"
+    pre="${lower%%"$tl"*}"
+  fi
+  if [[ "$pre" == "$line" || "$pre" == "$(printf '%s' "$line" | tr '[:upper:]' '[:lower:]')" ]]; then start=0
+  else pos=${#pre}; start=$(( pos - max / 3 )); fi
   (( start < 0 )) && start=0
   (( start > 0 )) && printf '…'
   printf '%s' "${line:start:max}"
