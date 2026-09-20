@@ -1152,3 +1152,39 @@ merge_policy: preserve
 - path delta: 계획대로 갔지만 구현 중 내 실수 넷을 잡았다. (1) 계획에 적어둔 '한 번에 끝내라' 를 내가 어겨 줄마다 셸로 돌려 11초가 걸렸다 — 그 규칙은 훑기 뒤 계산에도 적용된다. (2) 따옴표가 깨진 줄이 74KB 에 셸 치환을 돌려 1.5초를 먹었다. (3) 검색 도구는 파일이 하나뿐이면 이름을 생략한다 — 이름 표시를 강제하지 않으면 기록이 하나인 프로젝트에서 항상 빈손이 된다. (4) 이 시스템의 문자 도구가 한글을 바이트로 세어 자르기가 글자를 깼다 — 자르기를 보여줄 몇 줄로 옮겼다. 그리고 외부 명령을 쓰는 함수는 순수가 아니라 결정적으로 표시해야 하고, awk 프로그램 글은 함수 밖 상수로 둬야 검사기가 오해하지 않는다.
 - refs: scv/archive/20260918-wookiya1364-archive-body-search/PLAN.md
 - conversation: scv/conversations/20260917-133700-release-0512-verify.md
+
+## [2026-09-20 12:13] wookiya1364 — 규칙 헌법 — 최상위 불변식과 해소 순서 한 문장
+
+- verdict: adopted
+- why: 규칙이 프로토콜 3,811줄·훅·계약·템플릿에 흩어져 서로 어긋나는 쌍이 여섯(A~F) 확인됐고, 근본 원인은 우선순위를 말하는 자리가 세 곳에 국소적으로만 있고 전역 규칙이 없다는 것. SCV.md Top-level rules 를 최상위 층으로 승격해 조항 7개 이하 + 해소 순서 한 문장을 한 곳에만 두고, 옛 3곳은 참조로 바꾸고, 유일성 검사와 중복 요구 래칫으로 재발을 막는다.
+- discarded alternatives: 저장소 전용 계약 문서(core/contracts)에 두기 — 런타임 에이전트가 읽지 못하고 다운스트림에 배송되지 않는다. / 개념 1(삭감 일괄 결정 표)을 먼저 도입 — regression.md 21행과 정면 충돌, 기존 충돌을 먼저 해소해야 한다. / 결정 프리미티브화(개념 5)를 먼저 — 위계 없이 큰 규칙을 하나 더 얹는 것과 같다. / 검사 b 를 첫날부터 게이트로 — 의도된 반복 문장이 많아 오탐으로 막힌다, 래칫으로 시작. / 옛 우선순위 문장 3곳을 그대로 두고 헌법이 인용 — '한 곳에만' 이 약해진다.
+- refs: scv/promote/20260920-wookiya1364-rule-constitution/PLAN.md
+- conversation: scv/conversations/20260920-112254-jev-laya-concepts-scv.md
+
+## [2026-09-20 12:25] wookiya1364 — 충돌 A 해소를 규칙 헌법 계획에 합친다
+
+- verdict: adopted
+- why: 해소 순서만 두면 지금 텍스트에서는 더 좁은 regression 규칙(슬러그마다 질문)이 이겨, 배송 직후 판정이 사용자 결정(help 쪽 결정 표 하나)과 반대가 되는 공백이 생긴다. regression.md 의 삭감 질문 규칙 한 곳을 원문 불변 예외에 더해 이 계획에서 함께 고치고 대체 선언을 붙여 공백을 없앤다. 구현체를 보고 어색하면 되돌린다.
+- discarded alternatives: 후속 계획 ②로 미루기 — 릴리스 사이에 결정과 반대인 판정 공백이 남는다. / work.md 9c 의 슬러그별 supersede 확인까지 함께 고치기 — 삭감과 다른 상황, 범위가 번진다.
+- refs: scv/promote/20260920-wookiya1364-rule-constitution/PLAN.md
+- conversation: scv/conversations/20260920-112254-jev-laya-concepts-scv.md
+
+## [2026-09-20 14:27] wookiya1364 — journal-index 계약을 obsolete 로 — 검사 파일이 decision-index 에서 지워졌다
+
+- verdict: obsolete
+- why: 보관 계약의 실행 명령이 core/tests/test-journal-index.sh 를 가리키는데, 그 파일은 20260824 decision-index(f124557 '결정이 스스로 색인된다')가 지웠다. decision-index 가 supersedes 를 선언했어야 했으나 비어 있어 회귀에서 붉었다. 기능은 decision-index 가 이어받았다.
+- refs: scv/archive/20260823-wookiya1364-journal-index/PLAN.md
+
+## [2026-09-20 14:27] wookiya1364 — deck-change-map 계약을 obsolete 로 — 배송되지 않은 검사 파일을 가리킨다
+
+- verdict: obsolete
+- why: 실행 명령이 core/tests/test-timing-budget.sh 를 요구하지만 그 파일은 git 이력에 없다 — 같은 배송에서 고정 밀리초 예산을 제거하며 검사도 함께 사라졌다. 기능(변경 지도)은 살아 있고 test-deck-change-map.sh 가 core 검사 루프와 CI 에서 계속 돈다. 회귀 목록에서만 뺀다.
+- refs: scv/archive/20260917-wookiya1364-deck-change-map/PLAN.md
+
+## [2026-09-20 17:59] wookiya1364 — 규칙 헌법 배송 — 조항 7 + 해소 순서 한 곳, 충돌 A 닫힘, 재발 검사
+
+- verdict: archived
+- why: scv/SCV.md Top-level rules 가 최상위 층이 됐다: 조항 7개(묻고 추측하지 않는다·보관 불변·영수증 없는 쓰기 금지·같은 요구는 한 곳에만·검증 없는 완료 선언 금지·순수함수 파이프라인·사용자에게 양보)와 출처, 해소 순서 한 문단. 우선순위를 말하던 3곳은 참조로. regression 삭감은 결정 표 하나로(옛 규칙 대체 선언). 검사 (a) 우선순위 서술 유일성 게이트 + (b) 중복 요구 래칫(기준선 11, 그중 2는 13개 프로토콜에 복제된 쉬운 말 절 — 4조의 최대 위반이 첫날 드러남). 지켜야 할 것: 새 규칙 문서는 우선순위를 적지 말고 Top-level rules 를 참조한다. 허용목록에 후속이 참조로 바꿀 work.md 두 줄이 남아 있다.
+- path delta: 넷. (1) 조항 구성 — 옛 1·2조를 합치고 순수함수 파이프라인을 6조로: codegen 의 'Guardrails 는 파이프라인 규칙을 못 이긴다' 를 참조로 바꾸려면 파이프라인이 헌법 층이어야 뜻이 보존된다. (2) TEMPLATE_VERSION 을 올리지 않음 — 릴리스 규칙(스키마 변경에만)과 지문 기반 자동 갱신을 구현 중 확인. (3) 순수부를 core/scripts/lib 로 — 순수성 검사기가 거기만 본다; 첫 판에 awk 비교 연산자를 리다이렉션으로 오해한 위반 2건을 잡아 상수로 뺐다. (4) 사용자 지시로 계획 밖 수정 5건: 맥 전용 테스트 버그 2건(GNU sed -i, awk \x 16진 BOM), 회귀 실행기가 설정값(SCV_LANG)을 자식에 흘리던 것(env_load 가 새로 내보낸 키만 지움, T7), 보관 색인이 보관 때만 재생성되어 obsolete 표시가 효력 없던 것(archive-index.sh 추출 + 삭감 절차에 새로 고침 단계), 지워진 검사 파일을 가리키던 계약 2건 obsolete. 회귀 17건 붉음 → 43/43 초록. 리눅스 실측은 PR CI 에서.
+- refs: scv/archive/20260920-wookiya1364-rule-constitution/PLAN.md
+- conversation: scv/conversations/20260920-112254-jev-laya-concepts-scv.md
