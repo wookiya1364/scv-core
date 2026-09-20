@@ -3,7 +3,7 @@ title: "저널 색인 — 의미 있는 것만 표시하고, 훑지 않고 바�
 slug: 20260823-wookiya1364-journal-index
 author: "wookiya1364"
 created_at: 2026-08-23
-status: done
+status: obsolete
 kind: feature
 lang: korean
 tags: [journal, index, context, purity, pure-function]
@@ -23,6 +23,8 @@ invariants:
   - "표시는 쓰는 시점에 붙는다 — 읽는 시점에 판단하지 않는다"
   - "색인 레코드는 append-only. 기존 줄을 고치지 않는다"
   - "저널 내용은 redaction 을 거친 뒤에만 위치가 기록된다"
+obsoleted_at: 2026-09-20
+obsoleted_by: 20260824-wookiya1364-decision-index
 ---
 
 # 저널 색인

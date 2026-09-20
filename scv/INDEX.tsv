@@ -61,3 +61,8 @@ decision	변경-지도-계획서가-바뀔-함수를-선언하고-graft-가-대�
 decision	변경-지도-배송-고정-밀리초-예산-제거	scv/DECISIONS.md	114764	1762	2026-09-17 17:23	[archived] 변경 지도 배송 + 고정 밀리초 예산 제거
 decision	지난-작업-찾기-제목이-아니라-본문까지-훑는다	scv/DECISIONS.md	116526	1045	2026-09-18 11:22	[adopted] 지난 작업 찾기 — 제목이 아니라 본문까지 훑는다
 decision	지난-작업-찾기-본문-훑기-배송	scv/DECISIONS.md	117571	1909	2026-09-18 12:33	[archived] 지난 작업 찾기 본문 훑기 배송
+decision	규칙-헌법-최상위-불변식과-해소-순서-한-문장	scv/DECISIONS.md	119480	1404	2026-09-20 12:13	[adopted] 규칙 헌법 — 최상위 불변식과 해소 순서 한 문장
+decision	충돌-a-해소를-규칙-헌법-계획에-합친다	scv/DECISIONS.md	120884	941	2026-09-20 12:25	[adopted] 충돌 A 해소를 규칙 헌법 계획에 합친다
+decision	journal-index-계약을-obsolete-로-검사-파일이-decision-ind	scv/DECISIONS.md	121825	551	2026-09-20 14:27	[obsolete] journal-index 계약을 obsolete 로 — 검사 파일이 decision-index 에서 지워졌다
+decision	deck-change-map-계약을-obsolete-로-배송되지-않은-검사-파일을-가리	scv/DECISIONS.md	122376	570	2026-09-20 14:27	[obsolete] deck-change-map 계약을 obsolete 로 — 배송되지 않은 검사 파일을 가리킨다
+decision	규칙-헌법-배송-조항-7-해소-순서-한-곳-충돌-a-닫힘-재발-검사	scv/DECISIONS.md	122946	2204	2026-09-20 17:59	[archived] 규칙 헌법 배송 — 조항 7 + 해소 순서 한 곳, 충돌 A 닫힘, 재발 검사
