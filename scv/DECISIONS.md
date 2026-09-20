@@ -1209,3 +1209,10 @@ merge_policy: preserve
 - why: graft.sh status 가 absent/no-graph 이고 저장소에 Graft 지원 언어 파일이 있을 때 GRAFT_NOTICE 한 줄(효과 + 설치 또는 init 명령)을 낸다. promote·work 헬퍼가 헤더에 그대로 실고 프로토콜은 '그대로 전달' 한 문장. 지원 언어 판별은 추적 파일 확장자 ∩ README 언어 목록(lib 상수). 문구·설치 명령은 lib/graft.sh 한 곳, install-deps 도 상수 참조. 지켜야 할 것: 안내는 한 줄이고 묻지도 막지도 않는다; 문구를 다른 파일에 복제하지 않는다.
 - path delta: 셋. (1) 이 저장소는 bash 만이 아니었다 — DeckUI JS/TS 29개가 지원 언어로 잡혀 여기서도 안내가 나온다(규칙대로, 거짓 안내 아님); 비율 임계값은 두지 않았다. (2) codegen 프로토콜에는 문장을 더하지 않았다 — work Steps 1–5b 를 verbatim 으로 따른다고 이미 적혀 있어 더하면 4조 위반. (3) no-graph 는 설치 명령이 아니라 graft init 안내로 확정. 그 외 as planned.
 - refs: scv/archive/20260920-wookiya1364-graft-guidance/PLAN.md
+
+## [2026-09-21 00:52] wookiya1364 — 규칙 충돌 후속 배송 — B~E 닫힘, 기록 계약 한 곳, 누출 차단 함수 하나
+
+- verdict: archived
+- why: B: help B0 에 '주제가 명백히 다르면 묻지 않고 새로 열고 한 줄' 예외. C: 상시 문구에 '실행 중 액션의 단계 규칙이 먼저(해소 순서 참조)' + 래퍼 둘에 핸드오프 이슈(#269, #206). D: core/contracts/recording.md 가 기록 의무의 유일한 본문, Core 프로토콜 13개가 ## Recording 한 줄로 가리킨다. E: sync 동의 기준 한 문장(삭제 없는 갱신 자동, 삭제 있으면 미리보기+승인). work.md 두 문장 참조화 → 허용목록의 '후속' 줄 0. env_settings_unset_args 를 lib 로 올려 실행기·pr-helper 가 같은 함수(T8). 지켜야 할 것: 새 프로토콜은 ## Recording 절과 우선순위 참조형을 갖는다; 보관 계약이 고정한 구절은 문장을 고칠 때 한 줄 안에 살려 둔다.
+- path delta: 다섯. (1) ## Recording 절은 쉬운 말 절 뒤에 — run-dry 가 쉬운 말 절의 위치를 고정한다. (2) 절 삽입으로 guard 계약의 줄 번호 앵커 3개가 +4 밀려 고쳤다 — 줄 번호 앵커는 깨지기 쉽다(후속: 문구 앵커). (3) help.md 크기 예산(7200B) 때문에 포인터를 한 줄로 줄여 13개 모두 같은 한 줄. (4) regression 프로토콜도 포함(12→13). (5) 8월 보관 계약 T3 가 'Guardrails override them' 구절을 grep 으로 고정하고 있어, 새 참조형 문장 안에 그 구절을 한 줄로 살렸다 — supersedes 로 그 계획을 통째 건너뛰는 것은 과했다.
+- refs: scv/archive/20260920-wookiya1364-rule-conflicts-followup/PLAN.md
