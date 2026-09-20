@@ -81,9 +81,9 @@ if [[ "${1:-}" == "--self-test" ]]; then
   [[ -z "$A_VIOLATIONS" ]] && ok "사본 그대로: 검사 a 통과" || fail "사본 그대로인데 검사 a 가 실패" "$A_VIOLATIONS"
   [[ -z "$B_NEW" ]]        && ok "사본 그대로: 검사 b 통과" || fail "사본 그대로인데 검사 b 가 실패" "$B_NEW"
   # 호스트 표기로 바뀐 사본에서도 허용목록이 맞아야 한다 (0.54.1 — 코덱스 사본에서 붉던 것)
-  sed -i.bak -E 's/action:([a-z-]+)/$scv:\1/g' "$TMP/protocols/promote.md" && rm -f "$TMP/protocols/promote.md.bak"
+  sed -i.bak -E 's/action:([a-z-]+)/$host:\1/g' "$TMP/protocols/promote.md" && rm -f "$TMP/protocols/promote.md.bak"
   run_checks "$TMP" "$base"
-  [[ -z "$A_VIOLATIONS" ]] && ok "호스트 표기(\$scv:)로 바뀐 사본에서도 검사 a 통과" || fail "호스트 표기 사본에서 허용목록이 어긋난다" "$A_VIOLATIONS"
+  [[ -z "$A_VIOLATIONS" ]] && ok "호스트 접두어로 표기가 바뀐 사본에서도 검사 a 통과" || fail "호스트 표기 사본에서 허용목록이 어긋난다" "$A_VIOLATIONS"
   # (a) 우선순위 문장을 프로토콜 사본에 심는다
   cat "$FIX/inject-precedence.txt" >> "$TMP/protocols/status.md"
   run_checks "$TMP" "$base"
