@@ -34,3 +34,11 @@
 - `20260917-wookiya1364-deck-change-map` → `core/tests/test-timing-budget.sh` (git 이력에 없음 — 커밋된 적 없거나 같은 계획에서 제거)
 - 규칙대로면 테스트를 지운 계획이 `supersedes:` 를 선언했어야 한다. 삭감에서 obsolete(수동) 또는 후속 계획의
   supersedes 로 정리.
+
+## 남은 것 — pr-helper 의 증거 재실행도 같은 누출을 탄다 (2026-09-20 PR #244 생성 중 관측)
+
+pr-helper 는 첨부 증거가 없으면 계획의 `## How to run` 을 한 번 다시 돌리는데, 자기 환경(env_load 로 올린
+SCV_LANG 포함)을 그대로 넘긴다. 이 저장소에서는 run-dry 의 영어 라벨 검사 2건이 붉어 "re-run exited non-zero —
+continuing without it" 으로 끝났다. PR 자체는 만들어졌고 계획의 검사 명령은 직접 실행에서 전부 초록이었다.
+고칠 곳: pr-helper 의 재실행도 regression.sh 의 settings_unset_args 와 같은 목록으로 자식 환경을 정리한다 —
+정리 함수를 lib 로 올려 두 호출자가 같은 것을 부르게(4조).
