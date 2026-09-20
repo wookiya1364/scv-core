@@ -65,6 +65,10 @@ setting now shows there. Want the exact lines?"
 This governs everything the user reads: answers, questions, plans, progress
 reports, summaries, and explanations of what went wrong.
 
+## Recording
+
+Turns are recorded per `core/contracts/recording.md`.
+
 ## Protocol
 
 <!-- SCV:GUIDANCE -->
@@ -279,8 +283,9 @@ Fan-out is the dominant cost, and a standard plan has not contracted for it.
   or more steps, ask ONE two-option question (run per the band / run per the
   session posture); continue immediately with the chosen shape. Never restart
   the action over this. When the gap is smaller, behave as `auto`.
-- Any mode: the user's explicit instruction in the conversation overrides the
-  judgment — record `declared by user` as the reason and proceed.
+- Any mode: an explicit instruction from the user in the conversation settles the band
+  (Top-level rules, clause 7 — the SCV rule yields to the user) — record `declared by user` as
+  the reason and proceed.
 
 **Auto-promotion (upward only; active whenever a judgment was made):**
 
@@ -304,8 +309,10 @@ Follow `PLAN.md`'s `Suggested path` (legacy PLANs: `Steps`) as the default route
 2. Use `Read` / `Edit` / `Write` as needed.
 3. After each significant change, surface any document-split proposal per Step 3.
 
-**Implementation principles** — Core defaults. A plan's Guardrails override them
-whenever the two disagree:
+**Implementation principles** — Core defaults. Where a plan's Guardrails and these principles
+disagree, the resolution order in `scv/SCV.md` Top-level rules decides: Guardrails override them
+as the narrower rule, except against clause 6 (pure functions in a pipeline), which no plan may
+displace:
 
 - **Pure functions composed into a pipeline — this one does not bend.** Each step takes
   its input as arguments and returns its output, with no hidden reads or writes, and the
