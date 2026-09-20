@@ -3,7 +3,7 @@ title: 계획서가 바뀔 함수를 먼저 말하고, 문서가 그것을 그�
 slug: 20260917-wookiya1364-deck-change-map
 author: wookiya1364
 created_at: 2026-09-17
-status: testing
+status: obsolete
 kind: feature
 lang: korean
 tags: [deck, graft, pipeline]
@@ -15,6 +15,8 @@ invariants:
   - "Graft 어댑터는 설치·init·build·훅·MCP 를 절대 실행하지 않는다"
   - "머메이드 정적화(오프라인 SVG) 동작을 깨지 않는다"
   - "파이프라인 절이 없는 기존 계획서도 지금처럼 경고만 뜨고 문서는 만들어진다"
+obsoleted_at: 2026-09-20
+obsoleted_by: manual
 ---
 
 # 계획서가 바뀔 함수를 먼저 말하고, 문서가 그것을 그림으로 보여준다
