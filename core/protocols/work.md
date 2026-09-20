@@ -98,7 +98,10 @@ stale (bash + jq, about a second). Nothing to ask.
 present (`graft` on PATH + `graft/`), and the helper appends `=== code candidates (graft ask) ===`
 — file:line candidates for this plan's title — below the impact block; use them as starting
 points, not as facts. `absent` / `no-graph` / `off` change nothing. SCV never installs, builds
-or hooks Graft; `action:install-deps --print` shows the optional one-liner.
+or hooks Graft; `action:install-deps --print` shows the optional one-liner. When the header also
+carries a `GRAFT_NOTICE:` line (Graft absent, and the project has files in a language Graft indexes —
+0.55.0), relay that line verbatim as the first line of your output; the wording lives once, in the
+graft library, and this protocol does not restate or extend it.
 
 ### Step 3 — Load PLAN.md (required)
 
