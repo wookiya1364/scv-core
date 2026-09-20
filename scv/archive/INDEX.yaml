@@ -1,6 +1,6 @@
-# scv/archive/INDEX.yaml — auto-managed by /scv:work --archive (v0.11.0+).
-# Do not edit manually. Regenerated on every archive.
-generated_at: 2026-09-20T08:59:10Z
+# scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
+# Do not edit manually. Regenerated on every archive and on every obsolete marking.
+generated_at: 2026-09-20T15:52:02Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -261,6 +261,14 @@ archives:
     epic: 20260917-scv-graph
   - slug: 20260918-wookiya1364-archive-body-search
     title: "지난 작업 찾기가 제목이 아니라 본문까지 훑는다"
+    kind: feature
+    status: testing
+  - slug: 20260920-wookiya1364-graft-guidance
+    title: "Graft 안내 — 계획·구현 때 먼저 알리고 설치까지"
+    kind: feature
+    status: testing
+  - slug: 20260920-wookiya1364-rule-conflicts-followup
+    title: "규칙 충돌 후속 — B~E 해소, 허용목록 두 줄 참조화, pr-helper 재실행 누출"
     kind: feature
     status: testing
   - slug: 20260920-wookiya1364-rule-constitution
