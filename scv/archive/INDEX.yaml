@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive (v0.11.0+).
 # Do not edit manually. Regenerated on every archive.
-generated_at: 2026-09-18T03:32:46Z
+generated_at: 2026-09-20T08:59:10Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -110,7 +110,8 @@ archives:
   - slug: 20260823-wookiya1364-journal-index
     title: "저널 색인 — 의미 있는 것만 표시하고, 훑지 않고 바로 읽는다"
     kind: feature
-    status: done
+    status: obsolete
+    obsoleted_by: 20260824-wookiya1364-decision-index
   - slug: 20260823-wookiya1364-purity-contract
     title: "순수부와 효과부 — 원칙을 규칙으로, 검사로 강제한다"
     kind: feature
@@ -246,7 +247,8 @@ archives:
   - slug: 20260917-wookiya1364-deck-change-map
     title: "계획서가 바뀔 함수를 먼저 말하고, 문서가 그것을 그림으로 보여준다"
     kind: feature
-    status: testing
+    status: obsolete
+    obsoleted_by: manual
   - slug: 20260917-wookiya1364-graft-adapter
     title: "Graft 어댑터 — 있으면 코드 영향 범위와 관련 코드 후보를 덧붙이고, 없으면 조용히 생략"
     kind: feature
@@ -259,5 +261,9 @@ archives:
     epic: 20260917-scv-graph
   - slug: 20260918-wookiya1364-archive-body-search
     title: "지난 작업 찾기가 제목이 아니라 본문까지 훑는다"
+    kind: feature
+    status: testing
+  - slug: 20260920-wookiya1364-rule-constitution
+    title: "규칙 헌법 — 최상위 불변식과 해소 순서 한 문장"
     kind: feature
     status: testing
