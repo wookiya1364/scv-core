@@ -1188,3 +1188,31 @@ merge_policy: preserve
 - path delta: 넷. (1) 조항 구성 — 옛 1·2조를 합치고 순수함수 파이프라인을 6조로: codegen 의 'Guardrails 는 파이프라인 규칙을 못 이긴다' 를 참조로 바꾸려면 파이프라인이 헌법 층이어야 뜻이 보존된다. (2) TEMPLATE_VERSION 을 올리지 않음 — 릴리스 규칙(스키마 변경에만)과 지문 기반 자동 갱신을 구현 중 확인. (3) 순수부를 core/scripts/lib 로 — 순수성 검사기가 거기만 본다; 첫 판에 awk 비교 연산자를 리다이렉션으로 오해한 위반 2건을 잡아 상수로 뺐다. (4) 사용자 지시로 계획 밖 수정 5건: 맥 전용 테스트 버그 2건(GNU sed -i, awk \x 16진 BOM), 회귀 실행기가 설정값(SCV_LANG)을 자식에 흘리던 것(env_load 가 새로 내보낸 키만 지움, T7), 보관 색인이 보관 때만 재생성되어 obsolete 표시가 효력 없던 것(archive-index.sh 추출 + 삭감 절차에 새로 고침 단계), 지워진 검사 파일을 가리키던 계약 2건 obsolete. 회귀 17건 붉음 → 43/43 초록. 리눅스 실측은 PR CI 에서.
 - refs: scv/archive/20260920-wookiya1364-rule-constitution/PLAN.md
 - conversation: scv/conversations/20260920-112254-jev-laya-concepts-scv.md
+
+## [2026-09-20 20:52] wookiya1364 — Graft 안내 — 계획·구현 때 먼저 알리고 설치까지
+
+- verdict: adopted
+- why: Graft 는 선택 제공자라 없으면 status 한 줄만 찍히고 끝나, 사용자가 무엇이 좋아지는지·어떻게 설치하는지 들을 기회가 없었다. absent 이고 Graft 지원 언어 파일이 있을 때만 promote·work·codegen 헤더에 안내 한 줄(효과 + 설치 명령)을 실어 프로토콜이 그대로 전달한다. 문구·설치 명령은 lib 한 곳(4조). 강제 아님 — 묻지도 막지도 않는다.
+- discarded alternatives: 설치를 묻는 질문 추가 — 강제로 읽힌다, 사용자가 '강제는 아니다' 라고 함. / 모든 액션에 안내 — 매 턴 반복은 피로. / 언어 판별 없이 항상 안내 — bash 저장소에서 설치해도 빈 결과가 나와 신뢰를 잃는다. / 프로토콜마다 문구를 적기 — 4조 위반, 검사 (b) 에 걸린다.
+- refs: scv/promote/20260920-wookiya1364-graft-guidance/PLAN.md
+
+## [2026-09-20 20:52] wookiya1364 — 규칙 충돌 후속 — B~E 해소, 허용목록 두 줄 참조화, pr-helper 재실행 누출
+
+- verdict: adopted
+- why: 규칙 헌법이 남긴 것들을 한 계획으로 닫는다. B 는 B0 에 '주제가 명백히 다르면 새로 열고 한 줄' 예외, C 는 상시 문구에 단계 규칙 우선(참조) + 래퍼 두 곳 핸드오프 이슈, D 는 기록 의무를 contracts/recording.md 한 곳에 두고 대화 있는 액션 7개에 포인터, E 는 sync 동의 기준 한 문장. work.md 두 문장을 참조화해 허용목록의 '후속' 줄을 비우고, 실행기의 설정 누출 차단 함수를 lib 로 올려 pr-helper 재실행도 같은 것을 쓴다.
+- discarded alternatives: C 를 래퍼 파일 직접 수정으로 — 어댑터 소유 영역, 이 저장소에서 안 고친다. / D 를 헌법 조항으로 — 조항은 7개 상한이고 절차 본문은 계약이 맞다. / D 를 변경 액션 4개로만 — 읽기 액션도 사용자 말이 오가므로 7개. / 기존 5개 기록 문장을 계약으로 통째 이전 — 원문 수정이 커져 이번엔 링크만.
+- refs: scv/promote/20260920-wookiya1364-rule-conflicts-followup/PLAN.md
+
+## [2026-09-20 21:46] wookiya1364 — Graft 안내 배송 — 없으면 무엇이 좋아지는지와 설치 방법을 헤더 한 줄로
+
+- verdict: archived
+- why: graft.sh status 가 absent/no-graph 이고 저장소에 Graft 지원 언어 파일이 있을 때 GRAFT_NOTICE 한 줄(효과 + 설치 또는 init 명령)을 낸다. promote·work 헬퍼가 헤더에 그대로 실고 프로토콜은 '그대로 전달' 한 문장. 지원 언어 판별은 추적 파일 확장자 ∩ README 언어 목록(lib 상수). 문구·설치 명령은 lib/graft.sh 한 곳, install-deps 도 상수 참조. 지켜야 할 것: 안내는 한 줄이고 묻지도 막지도 않는다; 문구를 다른 파일에 복제하지 않는다.
+- path delta: 셋. (1) 이 저장소는 bash 만이 아니었다 — DeckUI JS/TS 29개가 지원 언어로 잡혀 여기서도 안내가 나온다(규칙대로, 거짓 안내 아님); 비율 임계값은 두지 않았다. (2) codegen 프로토콜에는 문장을 더하지 않았다 — work Steps 1–5b 를 verbatim 으로 따른다고 이미 적혀 있어 더하면 4조 위반. (3) no-graph 는 설치 명령이 아니라 graft init 안내로 확정. 그 외 as planned.
+- refs: scv/archive/20260920-wookiya1364-graft-guidance/PLAN.md
+
+## [2026-09-21 00:52] wookiya1364 — 규칙 충돌 후속 배송 — B~E 닫힘, 기록 계약 한 곳, 누출 차단 함수 하나
+
+- verdict: archived
+- why: B: help B0 에 '주제가 명백히 다르면 묻지 않고 새로 열고 한 줄' 예외. C: 상시 문구에 '실행 중 액션의 단계 규칙이 먼저(해소 순서 참조)' + 래퍼 둘에 핸드오프 이슈(#269, #206). D: core/contracts/recording.md 가 기록 의무의 유일한 본문, Core 프로토콜 13개가 ## Recording 한 줄로 가리킨다. E: sync 동의 기준 한 문장(삭제 없는 갱신 자동, 삭제 있으면 미리보기+승인). work.md 두 문장 참조화 → 허용목록의 '후속' 줄 0. env_settings_unset_args 를 lib 로 올려 실행기·pr-helper 가 같은 함수(T8). 지켜야 할 것: 새 프로토콜은 ## Recording 절과 우선순위 참조형을 갖는다; 보관 계약이 고정한 구절은 문장을 고칠 때 한 줄 안에 살려 둔다.
+- path delta: 다섯. (1) ## Recording 절은 쉬운 말 절 뒤에 — run-dry 가 쉬운 말 절의 위치를 고정한다. (2) 절 삽입으로 guard 계약의 줄 번호 앵커 3개가 +4 밀려 고쳤다 — 줄 번호 앵커는 깨지기 쉽다(후속: 문구 앵커). (3) help.md 크기 예산(7200B) 때문에 포인터를 한 줄로 줄여 13개 모두 같은 한 줄. (4) regression 프로토콜도 포함(12→13). (5) 8월 보관 계약 T3 가 'Guardrails override them' 구절을 grep 으로 고정하고 있어, 새 참조형 문장 안에 그 구절을 한 줄로 살렸다 — supersedes 로 그 계획을 통째 건너뛰는 것은 과했다.
+- refs: scv/archive/20260920-wookiya1364-rule-conflicts-followup/PLAN.md
