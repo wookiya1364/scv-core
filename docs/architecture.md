@@ -173,6 +173,18 @@ belongs to planned work"; only the merge-time gate enforces the second.
 Both gates ship in the Core payload and run from each wrapper's own branch-flow
 workflow, against that wrapper's vendored copy.
 
+## Process dashboard
+
+The layers above enforce the process; `core/scripts/metrics.sh` measures it
+from the records the process already leaves behind — the archive index, each
+archived plan, its conversation file, and the decision log — and prints four
+numbers with their coverage: conversation turns per plan, approval-to-archive
+lead time, follow-up recurrence (structural signals only: `obsoleted_by` and a
+non-empty `supersedes`), and how many plans carry the pure-function section. It
+reads only, calls no clock, and reports "none" rather than zero for a plan
+without data. It is a per-project gauge, not product telemetry: nothing is
+collected across users, and it diagnoses rather than proves.
+
 ## Version axes
 
 - `VERSION` tracks behavior and release payload changes.
