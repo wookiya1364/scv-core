@@ -1247,3 +1247,19 @@ merge_policy: preserve
 - path delta: 계획대로 — 단, 예상 못 한 두 가지: guard.md 의 줄 번호 앵커 재지정(986→975), 범위 목록의 줄 끝 주석이 드리프트 검사 글로브를 깨서 주석을 별도 줄로.
 - refs: scv/archive/20260921-wookiya1364-open-items-followup/PLAN.md
 - conversation: scv/conversations/20260921-073800-plugin-0550-apply-check.md
+
+## [2026-09-21 15:28] wookiya1364 — 후속 다섯 — 문구 앵커, 경계 계약 한 곳, 재실행 시간 초과 안내
+
+- verdict: adopted
+- why: 0.56.0 배송이 남긴 후속 다섯을 한 번에 닫는다: 가드 예외 앵커를 줄 번호에서 문구로(문서를 줄여도 어긋나지 않게), 세 프로토콜의 경계 문장을 contracts/boundaries.md 한 곳으로(검사 (b) 기준선 0), pr-helper 증거 재실행이 시간 초과면 그렇게 말하게(원인 추정: 600초 제한). 코덱스 갱신 명령 문구는 래퍼 PR #215 로 이미 정정. 끝나면 코어 0.57.0 + 래퍼 둘.
+- discarded alternatives: 재실행 기본 제한 상향 — 일반 프로젝트엔 600초가 충분하고 이 저장소는 설정으로 올린다. 9c 질문 템플릿 반복을 한 문서로 모으기 — 두 액션이 각자 사용자에게 보여주는 템플릿이라 허용목록에 이유와 함께.
+- refs: scv/promote/20260921-wookiya1364-followup-five/PLAN.md
+- conversation: scv/conversations/20260921-152000-plugin-0560-apply-check.md
+
+## [2026-09-21 16:39] wookiya1364 — 후속 다섯 배송 — 문구 앵커, 경계 계약 한 곳, 재실행 종료 사유 안내
+
+- verdict: archived
+- why: 가드 예외는 문구 앵커(path:"문구" — 이유)로, 검사는 문구가 한 줄에만 있고 그 줄이 어휘에 걸리는지 보며 자가검사 3건이 잠근다. 경계 요구 셋은 contracts/boundaries.md 한 곳, 세 프로토콜은 규범 어휘 없는 포인터 한 줄(포인터가 규범 어휘를 담으면 그 자체가 새 중복 키가 된다 — 배운 것). 검사 (b) 기준선 0. pr-helper 재실행은 124 면 시간 초과 문구 + 설정 키, 그 외 종료 코드. 아침의 비정상 종료 원인은 미확정 — 단독 272초라 시간 초과 단독으론 아니고, 61건 회귀와 동시 실행 중이었다; 이제 메시지가 구분해 준다. 코덱스 갱신 명령은 래퍼 PR #215 + 릴리스 본문 편집으로 정정.
+- path delta: 계획대로 — 단, 원인 조사(5)는 재현 실패로 '가설 + 관측 가능성 확보' 에서 멈췄다. 편집 도구 실수(perl 치환이 파일 앞에 삽입) 두 번을 줄 번호 스플라이스로 복구.
+- refs: scv/archive/20260921-wookiya1364-followup-five/PLAN.md
+- conversation: scv/conversations/20260921-152000-plugin-0560-apply-check.md

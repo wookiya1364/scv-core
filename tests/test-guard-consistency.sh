@@ -58,56 +58,98 @@ fi
 # violation, not against it. Exceptions are explicit file:line anchors instead.
 PHRASES='by hand|hand-write|hand-author|write .{0,20}yourself|수동 작성|손으로 (쓰|작성|만들)|직접 작성'
 
-# Anchors: "<path>:<line> — reason"
-mapfile -t ANCHORS < <(block exceptions | grep -E '^[^ ].*:[0-9]+' || true)
-anchor_matches() {  # anchor_matches <relpath> <line>
-  local rel="$1" line="$2" a
+# Anchors: '<path>:"<phrase>" — reason' (0.57.0). A phrase unique to the excused
+# line, not a line number: shortening a protocol above the excused line used to
+# orphan the excuse (0.56.0 shipped one such stale anchor). [3] fails when the
+# phrase vanishes, matches more than one line, or its line no longer trips PHRASES.
+mapfile -t ANCHORS < <(block exceptions | grep -E '^[^ ]+:"' || true)
+anchor_file()   { local a="$1"; printf '%s' "${a%%:\"*}"; }
+anchor_phrase() { local a="$1"; a="${a#*:\"}"; printf '%s' "${a%%\" —*}"; }
+anchor_matches() {  # anchor_matches <relpath> <line text>
+  local rel="$1" text="$2" a
   for a in "${ANCHORS[@]}"; do
-    [[ "${a%% —*}" == "$rel:$line" ]] && return 0
+    [[ "$(anchor_file "$a")" == "$rel" && "$text" == *"$(anchor_phrase "$a")"* ]] && return 0
   done
   return 1
 }
 
-scanned=0; matched=0; violations=""
-for dir in "${SCAN_DIRS[@]}"; do
-  [[ -d "$dir" ]] || continue
-  while IFS= read -r file; do
-    scanned=$((scanned+1))
-    while IFS=: read -r lineno text; do
-      [[ -n "$lineno" ]] || continue
-      matched=$((matched+1))
-      rel="${file#$ROOT/}"
-      # Every hit needs an explicit anchor. There is deliberately no automatic
-      # "this sentence forbids it" heuristic: a negation-word test on the line
-      # passed "Don't create now. You can create it later via action:promote or
-      # by hand." — the negation belonged to a different clause than the bypass.
-      # The phrase set matches a handful of lines across the whole payload, so
-      # naming each one costs little and cannot misfire.
-      anchor_matches "$rel" "$lineno" && continue
-      violations="$violations$rel:$lineno: ${text:0:110}"$'\n'
-    done < <(grep -nEi "$PHRASES" "$file" || true)
-  done < <(find "$dir" -type f -name '*.md')
-done
+# sweep <root> → one violation per line on stdout; SCANNED / MATCHED as globals.
+sweep() {
+  local root="$1" dir file lineno text rel
+  SCANNED=0; MATCHED=0
+  for dir in core/protocols core/template core/integrations; do
+    [[ -d "$root/$dir" ]] || continue
+    while IFS= read -r file; do
+      SCANNED=$((SCANNED+1))
+      while IFS=: read -r lineno text; do
+        [[ -n "$lineno" ]] || continue
+        MATCHED=$((MATCHED+1))
+        rel="${file#$root/}"
+        # Every hit needs an explicit anchor. There is deliberately no automatic
+        # "this sentence forbids it" heuristic: a negation-word test on the line
+        # passed "Don't create now. You can create it later via action:promote or
+        # by hand." — the negation belonged to a different clause than the bypass.
+        anchor_matches "$rel" "$text" && continue
+        printf '%s:%s: %s\n' "$rel" "$lineno" "${text:0:110}"
+      done < <(grep -nEi "$PHRASES" "$file" || true)
+    done < <(find "$root/$dir" -type f -name '*.md')
+  done
+}
 
+# stale_anchors <root> → one stale anchor per line on stdout.
+stale_anchors() {
+  local root="$1" a rel phrase loc n
+  for a in "${ANCHORS[@]}"; do
+    rel="$(anchor_file "$a")"; phrase="$(anchor_phrase "$a")"; loc="$rel:\"$phrase\""
+    [[ -f "$root/$rel" ]] || { printf '%s (file gone)\n' "$loc"; continue; }
+    n="$(grep -cF -- "$phrase" "$root/$rel" || true)"
+    case "$n" in
+      0) printf '%s (the excused phrase is no longer there)\n' "$loc" ;;
+      1) grep -F -- "$phrase" "$root/$rel" | grep -qEi "$PHRASES" \
+           || printf '%s (the line no longer needs an exception)\n' "$loc" ;;
+      *) printf '%s (ambiguous — the phrase matches %s lines)\n' "$loc" "$n" ;;
+    esac
+  done
+}
+
+SWEEP_OUT="$(mktemp)"; sweep "$ROOT" > "$SWEEP_OUT"   # not a $(…) capture: the counters must land in this shell
+violations="$(cat "$SWEEP_OUT")"; rm -f "$SWEEP_OUT"; scanned=$SCANNED; matched=$MATCHED
 if [[ -z "$violations" ]]; then
   pass "[2] no shipped document sanctions a guard-denied action"
 else
   fail "[2] shipped documents sanction guard-denied actions" "$violations"
 fi
 
-# ---- [3] every anchor still matches its recorded line ----------------------
-stale=""
-for a in "${ANCHORS[@]}"; do
-  loc="${a%% —*}"; rel="${loc%%:*}"; line="${loc##*:}"
-  [[ -f "$ROOT/$rel" ]] || { stale="$stale$loc (file gone)"$'\n'; continue; }
-  text="$(sed -n "${line}p" "$ROOT/$rel")"
-  printf '%s' "$text" | grep -qEi "$PHRASES" \
-    || stale="$stale$loc (the excused phrase is no longer there)"$'\n'
-done
+# ---- [3] every anchor still matches exactly one excusable line ------------
+stale="$(stale_anchors "$ROOT")"
 if [[ -z "$stale" ]]; then
   pass "[3] every sanctioned-exception anchor still matches"
 else
   fail "[3] stale exception anchors — an excuse outlived its text" "$stale"
+fi
+
+# ---- [3b] the anchor check is alive (0.57.0) --------------------------------
+# A checker that only ever passes is worth less than none: on a scratch copy,
+# shift lines (must stay green), erase the phrase (must go red), duplicate it
+# (must go red as ambiguous).
+if (( ${#ANCHORS[@]} > 0 )); then
+  TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+  for d in core/protocols core/template core/integrations; do
+    mkdir -p "$TMP/$(dirname "$d")"; cp -R "$ROOT/$d" "$TMP/$d"
+  done
+  frel="$(anchor_file "${ANCHORS[0]}")"; fphrase="$(anchor_phrase "${ANCHORS[0]}")"
+  { printf '\n\n\n'; cat "$ROOT/$frel"; } > "$TMP/$frel"
+  if [[ -z "$(sweep "$TMP")" && -z "$(stale_anchors "$TMP")" ]]; then
+    pass "[3b] shifting lines does not orphan an anchor"
+  else
+    fail "[3b] a line shift broke an anchor" "$(stale_anchors "$TMP")"
+  fi
+  grep -vF -- "$fphrase" "$ROOT/$frel" > "$TMP/$frel"
+  stale_anchors "$TMP" | grep -q 'no longer there' \
+    && pass "[3b] a vanished phrase is reported" || fail "[3b] a vanished phrase went unnoticed"
+  { cat "$ROOT/$frel"; grep -F -- "$fphrase" "$ROOT/$frel"; } > "$TMP/$frel"
+  stale_anchors "$TMP" | grep -q 'ambiguous' \
+    && pass "[3b] a duplicated phrase is reported as ambiguous" || fail "[3b] a duplicated phrase went unnoticed"
 fi
 
 # ---- [4] the scan actually scanned something ------------------------------
