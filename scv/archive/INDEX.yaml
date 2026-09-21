@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-09-20T15:52:02Z
+generated_at: 2026-09-21T00:05:28Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -273,5 +273,9 @@ archives:
     status: testing
   - slug: 20260920-wookiya1364-rule-constitution
     title: "규칙 헌법 — 최상위 불변식과 해소 순서 한 문장"
+    kind: feature
+    status: testing
+  - slug: 20260921-wookiya1364-open-items-followup
+    title: "미결 6건 후속 — 결정 계약 한 곳, 중복 검사 허용목록, 갱신 거부 때 커밋 안내"
     kind: feature
     status: testing
