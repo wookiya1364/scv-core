@@ -106,3 +106,10 @@ protocol: 45c4ad9a
 **User**: (자동 알림 — 회귀 완료) 실행 48 · 통과 48 · 실패 0 · 폐기 15 건너뜀.
 
 **Claude Code**: 보관 완료(scv/archive/20260921-wookiya1364-process-metrics), deck 재생성, 결정 로그에 archived 엔트리(path delta: yaml 도우미 대신 텍스트 파서). 이 대화 파일을 archive 로 옮기고 대화·저널·promote→archive·설정·.gitignore 전부를 한 커밋에 담아 PR 을 연다. VERSION 0.58.0, CHANGELOG 항목 추가.
+
+## Turn 11 — 2026-09-21T21:30:00+09:00
+protocol: 45c4ad9a
+
+**User**: 머지하고 릴리스까지 진행해
+
+**Claude Code**: PR 262 를 develop 에 머지하고 core promote 워크플로(develop→stage→main, 태그·릴리스)를 돌린 뒤, 래퍼 두 저장소(scv-claude-code, scv-codex)의 core-sync PR 머지 → 릴리스 PR → promote 순으로 진행한다.
