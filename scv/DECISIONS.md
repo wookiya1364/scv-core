@@ -1216,3 +1216,34 @@ merge_policy: preserve
 - why: B: help B0 에 '주제가 명백히 다르면 묻지 않고 새로 열고 한 줄' 예외. C: 상시 문구에 '실행 중 액션의 단계 규칙이 먼저(해소 순서 참조)' + 래퍼 둘에 핸드오프 이슈(#269, #206). D: core/contracts/recording.md 가 기록 의무의 유일한 본문, Core 프로토콜 13개가 ## Recording 한 줄로 가리킨다. E: sync 동의 기준 한 문장(삭제 없는 갱신 자동, 삭제 있으면 미리보기+승인). work.md 두 문장 참조화 → 허용목록의 '후속' 줄 0. env_settings_unset_args 를 lib 로 올려 실행기·pr-helper 가 같은 함수(T8). 지켜야 할 것: 새 프로토콜은 ## Recording 절과 우선순위 참조형을 갖는다; 보관 계약이 고정한 구절은 문장을 고칠 때 한 줄 안에 살려 둔다.
 - path delta: 다섯. (1) ## Recording 절은 쉬운 말 절 뒤에 — run-dry 가 쉬운 말 절의 위치를 고정한다. (2) 절 삽입으로 guard 계약의 줄 번호 앵커 3개가 +4 밀려 고쳤다 — 줄 번호 앵커는 깨지기 쉽다(후속: 문구 앵커). (3) help.md 크기 예산(7200B) 때문에 포인터를 한 줄로 줄여 13개 모두 같은 한 줄. (4) regression 프로토콜도 포함(12→13). (5) 8월 보관 계약 T3 가 'Guardrails override them' 구절을 grep 으로 고정하고 있어, 새 참조형 문장 안에 그 구절을 한 줄로 살렸다 — supersedes 로 그 계획을 통째 건너뛰는 것은 과했다.
 - refs: scv/archive/20260920-wookiya1364-rule-conflicts-followup/PLAN.md
+
+## [2026-09-21 07:51] wookiya1364 — 미결 6건 후속 — 결정 계약 한 곳, 중복 검사 허용목록, 갱신 거부 때 커밋 안내
+
+- verdict: adopted
+- why: 어제 보관한 세 계획이 남긴 미결 여섯을 사용자 결정대로 닫는다: 1 Graft 언어 목록은 README 와 일치 확인(날짜 갱신), 2 no-graph 분기는 0.55.0 에 이미 있음, 3 대화 있는 액션 7개 유지, 4 결정 로그 설명 단락을 contracts/decisions.md 한 곳으로, 5 자동 갱신 PARTIAL·drift 문구에 커밋 안내, 6 검사 (b) 의도된 반복은 이유 있는 허용목록으로. 끝나면 코어 0.56.0 과 래퍼 둘 릴리스.
+- discarded alternatives: help 라우터의 턴 기록 블록 축약 — full.md 없이도 서야 하는 계약이고 예산 안이라 두었다. 검사 (b) 알고리즘 변경 — 오탐은 허용목록으로 충분하다. 미결 2 를 다시 구현 — 이미 있고 검사가 잠근다.
+- refs: scv/promote/20260921-wookiya1364-open-items-followup/PLAN.md
+- conversation: scv/conversations/20260921-073800-plugin-0550-apply-check.md
+
+## [2026-09-21 07:51] wookiya1364 — 미결 2 — Graft no-graph 분기는 0.55.0 에 이미 닫혔다
+
+- verdict: not-needed
+- why: graft-guidance 계획서의 미결 메모는 구현 중에 적혔고, 배송본의 scv_graft_notice 에 no-graph 분기(graft init 안내)가 있으며 test-graft-adapter.sh 가 잠근다. 사용자 결정 '분기 하나 추가' 는 확인 결과 이미 충족 — 새 코드 없음.
+- refs: core/scripts/lib/graft.sh, core/tests/test-graft-adapter.sh
+- conversation: scv/conversations/20260921-073800-plugin-0550-apply-check.md
+
+## [2026-09-21 07:51] wookiya1364 — 미결 3 — 대화가 있는 액션은 7개로 유지
+
+- verdict: adopted
+- why: rule-conflicts-followup 의 D 범위 해석(status 처럼 읽기만 하는 액션도 사용자가 출력을 보고 말을 덧붙일 수 있어 포함)을 사용자가 2026-09-21 확정. 줄이지 않는다.
+- discarded alternatives: 읽기 전용 액션 제외 — 그 턴의 사용자 발언이 기록되지 않는 구멍이 다시 생긴다.
+- refs: scv/archive/20260920-wookiya1364-rule-conflicts-followup/PLAN.md
+- conversation: scv/conversations/20260921-073800-plugin-0550-apply-check.md
+
+## [2026-09-21 09:05] wookiya1364 — 미결 6건 후속 배송 — 결정 계약 한 곳, 허용목록으로 기준선 11→3, 갱신 거부 때 커밋 안내
+
+- verdict: archived
+- why: 결정 로그 규칙은 core/contracts/decisions.md 한 곳 — promote·work·regression 은 스크립트 블록 + 자기 엔트리 블록 + 포인터만 갖는다(run-dry [16] 계약은 그대로). 자동 갱신 PARTIAL 머리줄과 drift 설명이 '커밋(또는 되돌리기)하면 다음 액션이 갱신' 을 말한다. 검사 (b) 는 이유 있는 허용목록(6건)을 래칫 앞에서 빼고 기준선은 빚 3건만. Graft 언어 목록은 README 와 일치(23개) 확인, no-graph 는 이미 있음, 대화 액션 7개 유지. 배운 것: bash 의 local 한 줄에서 앞 변수를 참조하면 확장이 먼저라 바깥 값을 본다 — ratchet_new 가 전역 base 를 읽던 잠복 버그를 함께 고쳤다. 줄 번호 앵커(guard.md)는 프로토콜을 줄이면 반드시 어긋난다 — 후속에서 문구 앵커로.
+- path delta: 계획대로 — 단, 예상 못 한 두 가지: guard.md 의 줄 번호 앵커 재지정(986→975), 범위 목록의 줄 끝 주석이 드리프트 검사 글로브를 깨서 주석을 별도 줄로.
+- refs: scv/archive/20260921-wookiya1364-open-items-followup/PLAN.md
+- conversation: scv/conversations/20260921-073800-plugin-0550-apply-check.md
