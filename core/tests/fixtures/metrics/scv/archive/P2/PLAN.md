@@ -1,7 +1,11 @@
 ---
 title: P2
 slug: P2
-status: done                # 뒤에 주석이 붙은 status 줄
+author: tester
+created_at: 2026-09-01
+tags: [fixture]
+status: done
+lang: korean                # 뒤에 주석이 붙은 줄 — 파서가 주석을 떼는지 (status 는 게이트 스키마가 검사하므로 여기서)
 raw_sources:
   - scv/conversations/conv-b.md
 ---
