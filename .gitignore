@@ -6,8 +6,11 @@ coverage/
 /SHA256SUMS
 /core-manifest.json
 
-# SCV journal — 기본 ignore (core/template/.gitignore.fragment 와 동일 정책)
-scv/journal/
+# SCV journal — 이 저장소는 저널을 커밋한다 (2026-09-21 결정: 대화·계획·저널 전부가
+# 발전의 투명한 근거다). 세션 표식 파일만 뺀다 — 세션마다 바뀌는 잡음.
+scv/journal/.help-nonce
+scv/journal/.help-state
+scv/journal/.help-drift
 
 # SCV 자체 그래프 산출물 — 필요할 때 자동 재생성, 저장소에 담지 않는다
 scv/.graph/
