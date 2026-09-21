@@ -1263,3 +1263,27 @@ merge_policy: preserve
 - path delta: 계획대로 — 단, 원인 조사(5)는 재현 실패로 '가설 + 관측 가능성 확보' 에서 멈췄다. 편집 도구 실수(perl 치환이 파일 앞에 삽입) 두 번을 줄 번호 스플라이스로 복구.
 - refs: scv/archive/20260921-wookiya1364-followup-five/PLAN.md
 - conversation: scv/conversations/20260921-152000-plugin-0560-apply-check.md
+
+## [2026-09-21 19:43] wookiya1364 — 과정 계기판 — 이 프로젝트의 파일로 SCV 과정을 숫자로 본다
+
+- verdict: adopted
+- why: SCV 는 과정을 강제하는 장치는 촘촘한데 그 과정이 도움이 됐는지 재는 장치가 없다. 기존 파일(아카이브 색인·계획서·대화·결정 로그)만 읽는 읽기 전용 스크립트 하나로 지표 넷(계획당 턴 수·승인→보관 리드타임·후속 재발률·순수 절 보유율)을 적용 범위와 함께 결정적으로 찍는다. 각 프로젝트가 자기를 재는 계기판이지 제품 통계가 아니다 — 진단이지 증명이 아니다.
+- discarded alternatives: 원격 텔레메트리·옵트인 수집: 대화 파일을 읽는 플러그인이 밖으로 보내면 신뢰 문제, 옵트인 비율 낮아 전수 불가 · 훅에 새 로깅: 지표가 쓸모 있는지 먼저 보고 · TESTS 첫 통과율 포함: 기존 파일에 구조적 기록이 없어 계산 불가, 후속으로 · status 액션에 한 줄: 숫자 검증 뒤 후속 · 후속 재발을 이름 패턴으로: 정밀도 우선, 구조 신호만 · 실제 저장소 숫자를 테스트 기대값으로: 보관마다 바뀜 · 사용자 언어 순수성 기계 게이트: 별도 계획 · 다른 첫걸음(열린 고리 닫기·아카이브 교훈 합성·위험 등급별 의식·적응형 발판·추정 보정): 측정이 나머지의 근거
+- refs: scv/promote/20260921-wookiya1364-process-metrics/PLAN.md
+- conversation: scv/conversations/20260921-192248-scv-growth-directions.md
+
+## [2026-09-21 20:08] wookiya1364 — 저널 커밋은 scv-core 만 — 템플릿 기본값은 선택 사항 유지
+
+- verdict: not-needed
+- why: scv-core 는 대화·계획·저널 전부를 커밋한다(발전의 투명한 근거). 템플릿 .gitignore.fragment 의 저널 무시 기본값은 바꾸지 않는다 — 다른 프로젝트에서 저널 커밋은 여전히 선택 사항.
+- discarded alternatives: 템플릿 기본값도 저널 커밋으로: 모든 사용자 프로젝트의 git 정책이 바뀌어 CHANGELOG·sync 안내가 필요 — 사용자가 불필요하다고 결정
+- refs: .gitignore
+- conversation: scv/conversations/20260921-192248-scv-growth-directions.md
+
+## [2026-09-21 21:07] wookiya1364 — 과정 계기판 배송 — 기존 파일만 읽어 지표 넷을 적용 범위와 함께 찍는다
+
+- verdict: archived
+- why: metrics.sh 가 아카이브 색인·계획서·대화·결정 로그만 읽어 계획당 턴 수 · 승인→보관 리드타임 · 후속 재발률(구조 신호만) · 순수 절 보유율을 n/m 과 함께 결정적으로 찍는다. 순수부 14 함수는 bash 3.2 내장만 쓰고 check-purity 를 통과한다. 첫 측정: 순수 절 28/63, 턴 수 적용 29/63(중앙값 6), 리드타임 적용 43/63(중앙값 51분), 후속 6/63. 배운 것: 탭 구분 레코드의 첫 필드가 비면 read 가 앞 탭을 잘라 필드가 밀린다(빈 값은 '-'); bash 3.2 는 단락 평가 뒤에도 음수 첨자를 오류로 보고 빈 배열 "${a[@]}" 를 unbound 로 본다 — 픽스처가 셋 다 잡았다. 이제부터 깨지면 안 되는 것: 읽기 전용, 시각·난수 없음, 데이터 없는 계획은 0 이 아니라 none.
+- path delta: 계획은 lib/yaml.sh 재사용을 적었으나 그 도우미는 파일을 직접 읽어 순수부에서 부를 수 없다 — 텍스트 파서를 새로 썼다. 나머지는 계획대로.
+- refs: scv/archive/20260921-wookiya1364-process-metrics/PLAN.md
+- conversation: scv/conversations/20260921-192248-scv-growth-directions.md
