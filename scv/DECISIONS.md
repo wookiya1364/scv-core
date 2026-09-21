@@ -1287,3 +1287,10 @@ merge_policy: preserve
 - path delta: 계획은 lib/yaml.sh 재사용을 적었으나 그 도우미는 파일을 직접 읽어 순수부에서 부를 수 없다 — 텍스트 파서를 새로 썼다. 나머지는 계획대로.
 - refs: scv/archive/20260921-wookiya1364-process-metrics/PLAN.md
 - conversation: scv/conversations/20260921-192248-scv-growth-directions.md
+
+## [2026-09-21 22:52] wookiya1364 — 코어 테스트는 벤더 사본에서도 돈다 — 저장소 상태에 기대는 검사는 그 상태가 없을 때의 계약을 함께 적는다
+
+- verdict: lesson
+- why: 0.58.0 의 test-metrics T4 가 저장소 루트의 scv/archive 를 전제해 코덱스 래퍼 core-sync 가 붉었다(벤더 사본에는 아카이브가 없다). 래퍼는 코어 테스트 전부를 벤더 사본 안에서 돌리므로, '실제 저장소' 검사는 색인이 없을 때의 계약(exit 0 · stderr 한 줄 · 빈 stdout)도 검사해야 한다. 0.58.1 로 고침.
+- refs: core/tests/test-metrics.sh
+- conversation: scv/conversations/archive/20260921-192248-scv-growth-directions.md
