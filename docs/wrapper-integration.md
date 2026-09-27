@@ -17,11 +17,11 @@ SCV_ROOT_ENV=EXAMPLE_PLUGIN_ROOT
 SCV_GRAPH_SKILL_PATHS (deprecated 0.51.0, ignored — see contracts/host-profile.md)='$HOME/.example/graph/SKILL.md'
 SCV_UPDATE_OWNER=adapter
 SCV_MODEL_POLICY_OWNER=adapter
-SCV_PROMPTING_GUIDES=../../../prompting
+SCV_PROMPTING_GUIDES=prompting
 ```
 
 `SCV_PROMPTING_GUIDES` is optional (v0.59.0+, §9); leave it out when the wrapper ships no
-per-model prompting guides.
+per-model prompting guides. Its value is relative to the Core root the help action runs from — see §9.
 
 Validate it before vendoring:
 
@@ -394,9 +394,13 @@ repository (`core/protocols/help/prompt-refine.md`). Core never carries a guide 
 
    Model ids match **exactly** after normalization (lowercase, trimmed, a trailing `[…]` marker
    removed) — never by prefix, because ids like `x-5` and `x-5-5` coexist.
-3. **Point the profile at the folder**: `SCV_PROMPTING_GUIDES=<path>` — relative to the Core root
-   (the directory holding `host-profile.env`; for a Core vendored at `<plugin>/vendor/scv-core/core`,
-   `../../../<folder>`) or absolute. Path characters only.
+3. **Point the profile at the folder**: `SCV_PROMPTING_GUIDES=<path>` — relative to the Core root the
+   help action **runs from** (the directory whose `host-profile.env` the running `scripts/help.sh`
+   reads), or absolute. Path characters only. That root differs by wrapper: the Claude wrapper runs its
+   projected `<plugin>/scripts/help.sh`, so its value is `prompting`; the Codex wrapper runs the vendored
+   `<plugin>/vendor/scv-core/core/scripts/help.sh`, so its value is `../../../prompting`. 0.59.0 shipped
+   the Claude wrapper with the vendored-core form and every real turn answered `GUIDE: none` — test the
+   resolution from the path the host actually executes, not from the vendored copy.
 4. **Tell the model its id where the host does not.** The help protocol asks the model to pass the
    exact model id its system prompt names; a host whose system prompt does not name it should say,
    in its runtime reference, where the model can read it.

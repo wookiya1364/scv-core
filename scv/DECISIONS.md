@@ -1332,3 +1332,9 @@ merge_policy: preserve
 - verdict: lesson
 - why: 0.59.0 에서 help 규약 합계가 원본 31,999B 로 상한 안이었지만 코덱스 사본은 인자 안내 문장이 붙어 32,047B 가 되어 코덱스 core-sync 가 붉었다(0.58.0 의 벤더 사본 아카이브 부재 문제에 이은 같은 종류의 두 번째). 클로드 래퍼 계약 CI 는 그 검사를 안 돌려 초록이라 가려졌다. 이제 릴리스 전 절차: 코덱스 vendor-core.sh 로 임시 벤더링 → 격리 폴더에서 core/tests/test-*.sh 전부. 원본에서 상한에 1바이트까지 붙이지 않는다 — 사본 확장분(~150B)만큼 여유.
 - refs: core/protocols/help/prompt-refine.md
+
+## [2026-09-27 15:59] wookiya1364 — 래퍼 기능은 호스트가 실제로 실행하는 경로에서 검증한다 — 클로드는 플러그인 최상위 투영본, 코덱스는 벤더 코어
+
+- verdict: lesson
+- why: 0.59.0 클로드 래퍼가 SCV_PROMPTING_GUIDES 를 벤더 코어 기준(../../../prompting)으로 적어, 설치 뒤 헤드리스 실측에서 help 가 --model claude-opus-5-5 를 받고도 GUIDE: none 이었다. 클로드 help 스킬은 플러그인 최상위의 scripts/help.sh(투영본)를 부르고 코덱스는 벤더 코어의 것을 부른다 — 같은 상대 경로가 두 래퍼에서 다른 곳을 가리킨다. 제 끝에서 끝까지 확인은 벤더 경로로 해서 이를 못 봤다. 래퍼 0.59.1 에서 값을 prompting 으로 고치고 플러그인 최상위에서 해석을 잠그는 CI 검사를 넣었다. 교훈: 설치본으로, 호스트가 부르는 경로로, 실제 모델 한 턴을 돌려야 끝이다.
+- refs: docs/wrapper-integration.md
