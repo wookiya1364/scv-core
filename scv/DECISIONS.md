@@ -1326,3 +1326,9 @@ merge_policy: preserve
 - path delta: 계획은 모델 전환 훅으로 감지할 예정이었으나 사용자 제안으로 help 가 모델 id 를 받는 구조로 바뀜(계획 수정 결정 참조). 계획 범위 밖으로 tools/validate-host-profile.sh · tools/materialize-profile.sh · tests/test-profile-and-export.sh · core/scripts/help-state.sh(CLI) · core/scripts/model-prompting.sh · 설정 예시 · 템플릿 지문을 고쳤다 — 선택 키를 검증·구체화하고 컨텍스트 재표시를 옮기려면 필요했다. help 규약 합계 상한 때문에 prompt-refine.md 를 1.1KB 로 압축.
 - refs: scv/archive/20260927-wookiya1364-per-model-prompting/PLAN.md
 - conversation: scv/conversations/20260926-212911-per-model-prompt-overlay.md
+
+## [2026-09-27 14:25] wookiya1364 — 코어 릴리스 전에 코덱스 벤더 사본에서 코어 테스트 전부를 돌린다 — 크기 상한 · 호스트 이름 검사는 사본에서만 깨질 수 있다
+
+- verdict: lesson
+- why: 0.59.0 에서 help 규약 합계가 원본 31,999B 로 상한 안이었지만 코덱스 사본은 인자 안내 문장이 붙어 32,047B 가 되어 코덱스 core-sync 가 붉었다(0.58.0 의 벤더 사본 아카이브 부재 문제에 이은 같은 종류의 두 번째). 클로드 래퍼 계약 CI 는 그 검사를 안 돌려 초록이라 가려졌다. 이제 릴리스 전 절차: 코덱스 vendor-core.sh 로 임시 벤더링 → 격리 폴더에서 core/tests/test-*.sh 전부. 원본에서 상한에 1바이트까지 붙이지 않는다 — 사본 확장분(~150B)만큼 여유.
+- refs: core/protocols/help/prompt-refine.md
