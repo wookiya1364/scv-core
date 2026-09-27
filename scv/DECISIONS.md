@@ -1369,3 +1369,9 @@ merge_policy: preserve
 - path delta: as planned
 - refs: scv/archive/20260927-wookiya1364-prompting-warn-delivery/PLAN.md
 - conversation: scv/conversations/20260927-160059-per-model-prompting-live-check.md
+
+## [2026-09-27 23:05] wookiya1364 — 흐름 검사는 실제 턴의 순서를 그대로 따른다 — 규약을 새로 읽는 턴은 help 뒤에 규약 표시가 끼어든다
+
+- verdict: lesson
+- why: 0.60.1 의 재개 흐름 검사(T16)는 help → 멈춤 → 재개만 보고, 규약을 새로 읽는 턴의 순서(help → 규약 표시 → 멈춤)를 빼먹었다. 그 사이의 지문 옮기기가 이번 턴 기록의 둘째 줄부터를 지워 경고에서 원문 경로 · 명령이 빠졌고, 설치본 두 턴 실측에서야 드러났다. 0.60.2 에서 T17 로 그 순서를 잠갔다. 한 파일을 여러 단계가 고쳐 쓰면, 검사는 실제로 끼어드는 단계를 모두 넣은 순서로 돌린다.
+- refs: scv/archive/20260927-wookiya1364-prompting-warn-delivery/PLAN.md
