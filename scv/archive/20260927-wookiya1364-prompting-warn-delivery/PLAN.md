@@ -4,7 +4,7 @@ slug: 20260927-wookiya1364-prompting-warn-delivery
 author: wookiya1364
 created_at: 2026-09-27
 status: in_progress
-kind: fix
+kind: feature
 lang: korean
 tags: [model, prompting, help, stop-hook, warn, session-start]
 raw_sources:
