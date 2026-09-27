@@ -235,11 +235,16 @@ grep -q -- '--with-context --model' "$BODY" && w=$((w + 1))
 grep -q 'GUIDE:' "$FULL" && w=$((w + 1))
 leak=0
 # 금지 낱말을 이 파일에 그대로 쓰면 호스트 중립 검사가 이 파일을 잡는다 — 조각으로 조립한다.
-_h1="Cla""ude"; _h2="Cod""ex"; _mn="(op""us|son""net|hai""ku|gp""t-[0-9])"
-for f in "$REFINE" "$FULL" "$BODY" "$LIB" "$MP"; do
-  grep -qF -e "$_h1" -e "$_h2" "$f" && leak=1
-  grep -qE "\\b$_mn" "$f" && leak=1
-done
+# 원본 저장소에서만 본다: 래퍼가 벤더링한 사본은 규약에 호스트 이름을 채워 넣는 것이 정상이다
+# (test-help-router-diet.sh 의 IS_CORE_REPO 와 같은 판별).
+_repo="$(cd "$CORE/.." && pwd)"
+if [[ -f "$_repo/VERSION" && -f "$_repo/core/TEMPLATE_DIGEST" && -d "$_repo/scv/archive" ]]; then
+  _h1="Cla""ude"; _h2="Cod""ex"; _mn="(op""us|son""net|hai""ku|gp""t-[0-9])"
+  for f in "$REFINE" "$FULL" "$BODY" "$LIB" "$MP"; do
+    grep -qF -e "$_h1" -e "$_h2" "$f" && leak=1
+    grep -qE "\\b$_mn" "$f" && leak=1
+  done
+fi
 if [[ $c -eq $total && $w -eq 3 && $leak -eq 0 ]]; then ok "OK [T5] $c/$total clauses"; else fail "[T5] clauses $c/$total, wiring $w/3, leak=$leak"; fi
 
 echo
