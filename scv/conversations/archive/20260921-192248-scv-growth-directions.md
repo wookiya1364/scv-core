@@ -113,3 +113,24 @@ protocol: 45c4ad9a
 **User**: 머지하고 릴리스까지 진행해
 
 **Claude Code**: PR 262 를 develop 에 머지하고 core promote 워크플로(develop→stage→main, 태그·릴리스)를 돌린 뒤, 래퍼 두 저장소(scv-claude-code, scv-codex)의 core-sync PR 머지 → 릴리스 PR → promote 순으로 진행한다.
+
+## Turn 12 — 2026-09-22T00:05:00+09:00
+protocol: 45c4ad9a
+
+**User**: (자동 알림 — 릴리스 체인 완료)
+
+**Claude Code**: 배송 끝. 코어 PR #262 → v0.58.0; 코덱스 래퍼 core-sync 가 붉어(벤더 사본에 scv/archive 없음 → test-metrics T4) 핫픽스 PR #265 → v0.58.1(promote 가 stage→main 에서 일시적 "최신 아님" 으로 한 번 실패, 재실행으로 성공). 클로드 코드용: 핀 #282·#283 → 릴리스 #284 → v0.58.0 Latest. 코덱스용: 핀 #220 → 릴리스 #221 → v0.58.0-codex.1 Latest. 배운 것은 결정 로그 lesson 과 메모리에. 로컬 플러그인 갱신은 사용자 슬래시 명령 몫. 이 기록은 docs PR 로 커밋.
+
+## Turn 13 — 2026-09-22T00:20:00+09:00
+protocol: 45c4ad9a
+
+**User**: (플러그인 갱신 후) 잘 적용됐나
+
+**Claude Code**: update 액션: 설치 0.58.0 = 최신 0.58.0. 설치본에 metrics.sh 와 lib/metrics.sh 가 있고 이 저장소에서 표가 나온다.
+
+## Turn 14 — 2026-09-22T00:25:00+09:00
+protocol: 2003f62c
+
+**User**: 응 올려줘
+
+**Claude Code**: 코덱스 로컬 플러그인 0.57.0-codex.1 → 0.58.0-codex.1 (marketplace upgrade → plugin add). 설치본 확인은 아래 명령 결과로.
