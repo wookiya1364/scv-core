@@ -17,7 +17,11 @@ SCV_ROOT_ENV=EXAMPLE_PLUGIN_ROOT
 SCV_GRAPH_SKILL_PATHS (deprecated 0.51.0, ignored — see contracts/host-profile.md)='$HOME/.example/graph/SKILL.md'
 SCV_UPDATE_OWNER=adapter
 SCV_MODEL_POLICY_OWNER=adapter
+SCV_PROMPTING_GUIDES=../../../prompting
 ```
+
+`SCV_PROMPTING_GUIDES` is optional (v0.59.0+, §9); leave it out when the wrapper ships no
+per-model prompting guides.
 
 Validate it before vendoring:
 
@@ -367,3 +371,37 @@ Optional second provider (v0.51.0+): when the user has installed Graft (`graft` 
 `graft/` graph), `core/scripts/graft.sh` reads `graft blast` / `graft ask` and the helpers print
 `GRAFT_STATUS: ready` plus the extra blocks; otherwise `GRAFT_STATUS: absent` is the only
 difference. Wrappers need no change; SCV never installs, initialises or hooks Graft.
+
+## 9. Per-model prompting guides (v0.59.0+, optional)
+
+Each model family publishes its own prompting guide. A wrapper may ship offline copies of the
+official guides for the models its host runs, and the help action then makes the answering
+model read the guide for itself (once per model per context) and rewrite each request against
+it, asking one Socratic question only when a gap cannot be filled from the conversation or the
+repository (`core/protocols/help/prompt-refine.md`). Core never carries a guide or a model name
+— the guides stay in the wrapper, and Core reads them as data.
+
+1. **Put the guides in one folder** of the wrapper, verbatim, one file per guide. Head each file
+   with its source URL, the date it was fetched, and the copyright holder.
+2. **Index them** in `INDEX.tsv` in the same folder (tab-separated; `#` lines and blank lines are
+   ignored):
+
+   ```text
+   @refresh   <script path, relative to the folder>        # optional: the stale notice shows it
+   <model id> <key> <file> <source url> <fetched YYYY-MM-DD>
+   *          <key> <file> <source url> <fetched YYYY-MM-DD>  # optional: a guide for every model
+   ```
+
+   Model ids match **exactly** after normalization (lowercase, trimmed, a trailing `[…]` marker
+   removed) — never by prefix, because ids like `x-5` and `x-5-5` coexist.
+3. **Point the profile at the folder**: `SCV_PROMPTING_GUIDES=<path>` — relative to the Core root
+   (the directory holding `host-profile.env`; for a Core vendored at `<plugin>/vendor/scv-core/core`,
+   `../../../<folder>`) or absolute. Path characters only.
+4. **Tell the model its id where the host does not.** The help protocol asks the model to pass the
+   exact model id its system prompt names; a host whose system prompt does not name it should say,
+   in its runtime reference, where the model can read it.
+
+Without the key, or for a model the index does not list, help prints `GUIDE: none` and behaves
+exactly as before. The Stop hook also tags each journaled answer with the answering model when
+the transcript carries it (`### [HH:MM:SS] assistant · <model id>`), which `scripts/metrics.sh`
+counts per model.
