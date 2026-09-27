@@ -1375,3 +1375,18 @@ merge_policy: preserve
 - verdict: lesson
 - why: 0.60.1 의 재개 흐름 검사(T16)는 help → 멈춤 → 재개만 보고, 규약을 새로 읽는 턴의 순서(help → 규약 표시 → 멈춤)를 빼먹었다. 그 사이의 지문 옮기기가 이번 턴 기록의 둘째 줄부터를 지워 경고에서 원문 경로 · 명령이 빠졌고, 설치본 두 턴 실측에서야 드러났다. 0.60.2 에서 T17 로 그 순서를 잠갔다. 한 파일을 여러 단계가 고쳐 쓰면, 검사는 실제로 끼어드는 단계를 모두 넣은 순서로 돌린다.
 - refs: scv/archive/20260927-wookiya1364-prompting-warn-delivery/PLAN.md
+
+## [2026-09-28 07:46] wookiya1364 — 모델별 프롬프팅 — 새 컨텍스트의 첫 턴부터 가이드 원문을 읽게 한다
+
+- verdict: adopted
+- why: 0.60.2 실측에서 모델은 첫 턴에 help 출력의 가이드 줄을 건너뛰고, 둘째 턴 매 턴 훅으로 경로 · 명령을 받자 읽었다. 매 턴 훅은 모델이 거르지 못한다. 훅 입력에 모델 이름이 없어(확인) help 가 마지막으로 본 모델의 원문 경로 · 명령을 기록해 두고 첫 턴에 싣는다. 맨 첫 SCV 턴 · 모델 전환 직후 첫 턴은 제외.
+- refs: scv/promote/20260928-wookiya1364-prompting-first-turn/PLAN.md
+- conversation: scv/conversations/20260927-160059-per-model-prompting-live-check.md
+
+## [2026-09-28 08:07] wookiya1364 — 모델별 프롬프팅 — 새 컨텍스트의 첫 턴부터 가이드 원문을 읽게 한다
+
+- verdict: archived
+- why: help 가 마지막으로 본 모델의 원문 경로 · 표시 명령을 기록(.help-guide-last, 없는 모델은 none)하고, 매 턴 훅이 이 컨텍스트에서 아직 안 읽었으면(지문 불일치 또는 세션 전환) 지시 바로 뒤에 읽으라는 블록을 싣는다. 가이드 경고가 예약돼 있으면 싣지 않는다. 지켜야 할 것: 읽은 뒤 평상시 턴의 훅 출력은 늘지 않는다(매 턴 스택 불변). 한계: 맨 첫 SCV 턴 · 모델 전환 직후 첫 턴.
+- path delta: 훅이 표식 갱신(세션 비교)보다 먼저 판단하므로, 세션 번호를 넘겨 세션이 바뀌었으면 안 읽음으로 보게 했다(계획에 없던 보강). 나머지는 계획대로.
+- refs: scv/archive/20260928-wookiya1364-prompting-first-turn/PLAN.md
+- conversation: scv/conversations/20260927-160059-per-model-prompting-live-check.md

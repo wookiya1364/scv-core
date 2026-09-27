@@ -417,4 +417,6 @@ turn, through the same `.help-warn` channel as the fingerprint echo, when the ma
 next help prints `load` again), or when the turn's conversation block carries a rewritten-request
 paragraph but the answer shows no `>` quote. Each verdict is one line in `.help-drift`. Since v0.60.1 the
 unread warning carries the exact guide paths and read-mark command help printed that turn, and a context
-reset (resume · compaction · clear) keeps the guide warning block while dropping the others.
+reset (resume · compaction · clear) keeps the guide warning block while dropping the others. Since v0.61.0
+the prompt hook also tells the model, on the first turn of a new context, to read the guides help last
+resolved (`scv/journal/.help-guide-last`) before answering — hook input carries no model id.
