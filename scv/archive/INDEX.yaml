@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-09-27T04:58:11Z
+generated_at: 2026-09-27T11:06:20Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -291,3 +291,7 @@ archives:
     title: "모델별 프롬프팅 — help 가 그 모델의 공식 가이드 원문을 보고 요청을 최선의 프롬프트로 다시 쓴다"
     kind: feature
     status: testing
+  - slug: 20260927-wookiya1364-prompting-read-verdict
+    title: "모델별 프롬프팅 — 원문을 읽었는지 · 다시 쓴 요청을 보였는지 결과로 판정한다"
+    kind: feature
+    status: in_progress
