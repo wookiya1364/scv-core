@@ -415,4 +415,6 @@ help printed `GUIDE: load`, it gives the exact read-mark command (`GUIDE_MARK_CM
 record (`scv/journal/.help-guide-turn`); the Stop hook (`model-prompting.sh stop`) then warns on the next
 turn, through the same `.help-warn` channel as the fingerprint echo, when the mark is missing (and the
 next help prints `load` again), or when the turn's conversation block carries a rewritten-request
-paragraph but the answer shows no `>` quote. Each verdict is one line in `.help-drift`.
+paragraph but the answer shows no `>` quote. Each verdict is one line in `.help-drift`. Since v0.60.1 the
+unread warning carries the exact guide paths and read-mark command help printed that turn, and a context
+reset (resume · compaction · clear) keeps the guide warning block while dropping the others.
