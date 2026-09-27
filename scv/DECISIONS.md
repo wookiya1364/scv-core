@@ -1294,3 +1294,35 @@ merge_policy: preserve
 - why: 0.58.0 의 test-metrics T4 가 저장소 루트의 scv/archive 를 전제해 코덱스 래퍼 core-sync 가 붉었다(벤더 사본에는 아카이브가 없다). 래퍼는 코어 테스트 전부를 벤더 사본 안에서 돌리므로, '실제 저장소' 검사는 색인이 없을 때의 계약(exit 0 · stderr 한 줄 · 빈 stdout)도 검사해야 한다. 0.58.1 로 고침.
 - refs: core/tests/test-metrics.sh
 - conversation: scv/conversations/archive/20260921-192248-scv-growth-directions.md
+
+## [2026-09-27 09:05] wookiya1364 — 모델별 프롬프팅 — 모델을 바꿔도 그 모델의 공식 가이드 원문을 읽고 맞춘다
+
+- verdict: adopted
+- why: 모델마다 공식 프롬프팅 가이드가 따로 있다. 현재 모델을 훅 셋(전환 · 세션 시작 · 멈춤의 대화 기록)으로 알아채고, 그 모델의 영문 원문 사본을 모델이 바뀐 턴에 한 번 읽게 한 뒤 한 줄만 싣는다. 원문·모델 이름 색인은 클로드 래퍼, 장치는 코어(호스트 중립 검사가 코어에 제공자·모델 이름을 막는다). 저널에 답한 모델을 남겨 계기판이 모델별로 본다.
+- discarded alternatives: 사용자 문장 재작성: 매 턴 훅은 덧붙이기만 가능 · 출처 링크만 주기: 오프라인에서 못 읽음(사용자) · 한국어 원문: 번역본이라 갱신·뉘앙스 차이 · 한·영 둘 다: 파일·검사 두 배 · 매 턴 원문 전체: 턴마다 수천 토큰 · 코어에 원문 두고 검사 예외: 코어가 호스트를 알게 됨, 코덱스에도 클로드 가이드 배포 · 설치 때 받기(사본 없음): 오프라인 첫 사용에 원문 없음 · 모델이 가이드 요약: 틀려도 모름 · 코덱스 동시 진행: 감지 수단 미확인 · 사고량 자동 변경: 사용자 다이얼
+- refs: scv/promote/20260927-wookiya1364-per-model-prompting/PLAN.md
+- conversation: scv/conversations/20260926-212911-per-model-prompt-overlay.md
+
+## [2026-09-27 11:14] wookiya1364 — 모델별 프롬프팅 계획 수정 — 훅 감지 대신 help 가 원문을 보고 다시 쓰고 되묻는다
+
+- verdict: adopted
+- why: 사용자 제안: help 가 이미 같은 모델에게 지침을 덧붙이는 통로이므로, 그 통로로 모델별 원문(SCV 클로드 플러그인 안 md)을 참조해 요청을 최선의 프롬프트로 다시 쓰고, 빈 곳은 소크라테스식으로 묻는다. 모델은 자기 id 를 알아 help 가 load/loaded 로 한 번 읽게 한다.
+- discarded alternatives: 모델 전환 훅 + 매 턴 한 줄 + mark-read 명령(이전 계획): 훅 둘과 래퍼 훅 등록이 더 필요하고 다시 쓰기가 사용자에게 안 보임 · 사용자 문장 교체: 훅도 help 도 불가 · 되묻기를 모호할 때만 기존 되묻기로: 사용자가 help 의 되묻기를 다시 쓰기의 필수 단계로 정함
+- refs: scv/promote/20260927-wookiya1364-per-model-prompting/PLAN.md
+- conversation: scv/conversations/20260926-212911-per-model-prompt-overlay.md
+
+## [2026-09-27 12:06] wookiya1364 — 모델별 프롬프팅 범위 확장 — 코덱스 래퍼도 OpenAI 원문으로 같은 장치를 쓴다
+
+- verdict: adopted
+- why: OpenAI 도 모델별 공식 가이드(GPT-5.6 · Codex · GPT-5.2/5.1/5)와 .md 원문을 제공한다(확인). 코어 장치는 모델 이름을 모르게 설계되어 있어, 코덱스 래퍼가 OpenAI 원문 · 색인 · 같은 프로필 키를 실으면 코어 변경 없이 동작한다. 사용자는 자기 제공자의 원문만 받는다. 되묻기는 알아낼 수 없을 때만(확정).
+- discarded alternatives: 가이드 원문을 코어에 두기: 호스트 중립 검사가 제공자·모델 이름을 막고, 한쪽 사용자에게 다른 제공자 가이드까지 배포됨 · 코덱스는 후속 계획으로: 코어 변경이 없어 한 계획에 담는 비용이 작음 · 다시 쓸 때마다 확인 질문: 사용자 피로
+- refs: scv/promote/20260927-wookiya1364-per-model-prompting/PLAN.md
+- conversation: scv/conversations/20260926-212911-per-model-prompt-overlay.md
+
+## [2026-09-27 13:58] wookiya1364 — 모델별 프롬프팅 배송 — help 가 모델의 공식 가이드 원문으로 요청을 다시 쓰고, 못 찾는 빈 곳만 묻는다
+
+- verdict: archived
+- why: help.sh --model 이 GUIDE: load|loaded|none 을 내고, 모델이 원문을 읽어 요청을 그 가이드 기준으로 다시 써 답 앞에 보이며, 대화·저장소에서 못 찾는 요소만 추천 답과 함께 한 번 묻는다(prompt-refine.md). 코어는 모델 이름을 모른다 — 원문·id 색인은 래퍼, 선택 프로필 키 SCV_PROMPTING_GUIDES. 읽음 기록은 규약 지문에 묶여 컨텍스트가 바뀌면 다시 읽는다. 배운 것: (1) 새 프로필 키는 검증기뿐 아니라 구체화 도구의 키 목록에도 넣어야 배포본에 산다 (2) bash 3.2 + UTF-8 에서 글자 범위 [A-Z] 는 소문자까지 맞는다 — 명시 문자열로 (3) '같은 세션' 은 컨텍스트 동일성의 대리 지표로 부족하다 — 규약 지문이 맞다 (4) help 규약 가족은 본문 7,200B · 합계 32,000B 상한에 거의 붙어 있다 — 다음 추가는 무엇을 빼야 할지부터.
+- path delta: 계획은 모델 전환 훅으로 감지할 예정이었으나 사용자 제안으로 help 가 모델 id 를 받는 구조로 바뀜(계획 수정 결정 참조). 계획 범위 밖으로 tools/validate-host-profile.sh · tools/materialize-profile.sh · tests/test-profile-and-export.sh · core/scripts/help-state.sh(CLI) · core/scripts/model-prompting.sh · 설정 예시 · 템플릿 지문을 고쳤다 — 선택 키를 검증·구체화하고 컨텍스트 재표시를 옮기려면 필요했다. help 규약 합계 상한 때문에 prompt-refine.md 를 1.1KB 로 압축.
+- refs: scv/archive/20260927-wookiya1364-per-model-prompting/PLAN.md
+- conversation: scv/conversations/20260926-212911-per-model-prompt-overlay.md

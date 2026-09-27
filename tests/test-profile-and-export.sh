@@ -23,6 +23,7 @@ SCV_ROOT_ENV=FIXTURE_PLUGIN_ROOT
 SCV_GRAPH_SKILL_PATHS='$HOME/.fixture/graph/SKILL.md'
 SCV_UPDATE_OWNER=adapter
 SCV_MODEL_POLICY_OWNER=adapter
+SCV_PROMPTING_GUIDES=../../../prompting
 EOF
 
 "$ROOT/tools/validate-host-profile.sh" --profile "$PROFILE" >/dev/null
@@ -36,6 +37,8 @@ VENDOR="$TMP/vendor/scv-core"
 grep -qF '$scv:help' "$VENDOR/core/protocols/help.md"
 grep -qF '$ARGUMENTS' "$VENDOR/core/protocols/help.md"
 grep -qF 'SCV_ACTION_TEMPLATE=$scv:{action}' "$VENDOR/core/host-profile.env"
+# 0.59.0: 선택 키 SCV_PROMPTING_GUIDES 가 구체화에서 살아남는다 (빠지면 모델별 프롬프팅이 배포본에서 영영 꺼진다)
+grep -qxF 'SCV_PROMPTING_GUIDES=../../../prompting' "$VENDOR/core/host-profile.env"
 grep -qF '"artifact_sha256": null' "$VENDOR/core.lock.json"
 
 ARTIFACT_HASH='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
