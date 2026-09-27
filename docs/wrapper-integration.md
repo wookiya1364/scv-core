@@ -409,3 +409,10 @@ Without the key, or for a model the index does not list, help prints `GUIDE: non
 exactly as before. The Stop hook also tags each journaled answer with the answering model when
 the transcript carries it (`### [HH:MM:SS] assistant · <model id>`), which `scripts/metrics.sh`
 counts per model.
+
+Since v0.60.0 the Stop hook also **judges the result** — no wrapper change is needed. On a turn where
+help printed `GUIDE: load`, it gives the exact read-mark command (`GUIDE_MARK_CMD:`) and leaves a turn
+record (`scv/journal/.help-guide-turn`); the Stop hook (`model-prompting.sh stop`) then warns on the next
+turn, through the same `.help-warn` channel as the fingerprint echo, when the mark is missing (and the
+next help prints `load` again), or when the turn's conversation block carries a rewritten-request
+paragraph but the answer shows no `>` quote. Each verdict is one line in `.help-drift`.

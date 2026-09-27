@@ -1338,3 +1338,19 @@ merge_policy: preserve
 - verdict: lesson
 - why: 0.59.0 클로드 래퍼가 SCV_PROMPTING_GUIDES 를 벤더 코어 기준(../../../prompting)으로 적어, 설치 뒤 헤드리스 실측에서 help 가 --model claude-opus-5-5 를 받고도 GUIDE: none 이었다. 클로드 help 스킬은 플러그인 최상위의 scripts/help.sh(투영본)를 부르고 코덱스는 벤더 코어의 것을 부른다 — 같은 상대 경로가 두 래퍼에서 다른 곳을 가리킨다. 제 끝에서 끝까지 확인은 벤더 경로로 해서 이를 못 봤다. 래퍼 0.59.1 에서 값을 prompting 으로 고치고 플러그인 최상위에서 해석을 잠그는 CI 검사를 넣었다. 교훈: 설치본으로, 호스트가 부르는 경로로, 실제 모델 한 턴을 돌려야 끝이다.
 - refs: docs/wrapper-integration.md
+
+## [2026-09-27 16:29] wookiya1364 — 모델별 프롬프팅 — 원문을 읽었는지 · 다시 쓴 요청을 보였는지 결과로 판정한다
+
+- verdict: adopted
+- why: 설치본 실측에서 help 가 원문을 정확히 알렸지만 모델이 읽지 않고 다시 썼고, 다시 쓴 요청이 답 화면에 없었다. 부탁 대신 결과로 판정: 원문을 읽으라고 한 턴에 읽음 표시가 없거나, 다시 쓴 요청을 기록했는데 답에 인용이 없으면 멈춤 훅이 다음 턴 경고 한 줄을 예약한다(규약 지문 경고와 같은 통로). 사용자 결정.
+- discarded alternatives: help 가 원문 본문을 직접 출력: 도구 출력 길이 제한(약 3만 자)으로 큰 원문이 잘림 · 파일 끝 토큰으로 끝까지 읽음 증명: 범위 확장, 후속 후보 · 원문 읽기만 판정: 사용자가 답 화면 표시도 함께 잡기로
+- refs: scv/promote/20260927-wookiya1364-prompting-read-verdict/PLAN.md
+- conversation: scv/conversations/20260927-160059-per-model-prompting-live-check.md
+
+## [2026-09-27 20:06] wookiya1364 — 모델별 프롬프팅 — 원문을 읽었는지 · 다시 쓴 요청을 보였는지 결과로 판정한다
+
+- verdict: archived
+- why: help 가 GUIDE: load 를 낸 턴은 이번 턴 기록을 남기고 읽음 표시 명령을 절대 경로로 준다. 멈춤 훅이 결과로 판정해 안 읽음(표시 없음)이나 안 보임(다시 쓴 요청을 기록했는데 답에 > 인용 없음)이면 다음 턴 경고를 기존 경고 통로에 덧붙이고, 안 읽은 모델은 다음 help 가 다시 load 한다. 지켜야 할 것: 같은 멈춤에서 드리프트 재설정이 지문을 비워도 거짓 경고가 없어야 한다(재표시가 턴 기록 지문을 옮김 — 변이 시험으로 잠금). 한계: 표시만 하고 안 읽는 경우는 못 잡는다.
+- path delta: 턴 기록이 4필드(키 포함)라 기존 재도장 함수 대신 새 순수 함수를 썼다. 호스트가 주는 답은 마지막 메시지뿐이라 도구 호출 전 첫 메시지의 인용을 놓쳐 거짓 경고가 나므로, 원본에서 이번 턴 답 텍스트 전부를 함께 본다. 코덱스 사본 합계 여유(15B)가 기준 100B 에 못 미쳐 full.md 모델별 절 문구도 줄였다.
+- refs: scv/archive/20260927-wookiya1364-prompting-read-verdict/PLAN.md
+- conversation: scv/conversations/20260927-160059-per-model-prompting-live-check.md
