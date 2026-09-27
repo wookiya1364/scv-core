@@ -1354,3 +1354,18 @@ merge_policy: preserve
 - path delta: 턴 기록이 4필드(키 포함)라 기존 재도장 함수 대신 새 순수 함수를 썼다. 호스트가 주는 답은 마지막 메시지뿐이라 도구 호출 전 첫 메시지의 인용을 놓쳐 거짓 경고가 나므로, 원본에서 이번 턴 답 텍스트 전부를 함께 본다. 코덱스 사본 합계 여유(15B)가 기준 100B 에 못 미쳐 full.md 모델별 절 문구도 줄였다.
 - refs: scv/archive/20260927-wookiya1364-prompting-read-verdict/PLAN.md
 - conversation: scv/conversations/20260927-160059-per-model-prompting-live-check.md
+
+## [2026-09-27 21:13] wookiya1364 — 모델별 프롬프팅 — 가이드 경고가 모델에게 닿게 한다
+
+- verdict: adopted
+- why: 0.60.0 실측에서 판정은 정확했지만 경고가 다음 턴 모델에게 닿지 않았다: 재개 훅의 초기화가 경고 파일을 지우고, 경고가 모델이 걸러 버린 help 출력 줄을 가리켰다. 초기화 때 가이드 경고만 남기고, 경고에 원문 경로와 표시 명령을 그대로 담는다.
+- refs: scv/promote/20260927-wookiya1364-prompting-warn-delivery/PLAN.md
+- conversation: scv/conversations/20260927-160059-per-model-prompting-live-check.md
+
+## [2026-09-27 21:33] wookiya1364 — 모델별 프롬프팅 — 가이드 경고가 모델에게 닿게 한다
+
+- verdict: archived
+- why: 안 읽음 경고가 help 가 그 턴에 낸 원문 경로와 읽음 표시 명령을 그대로 싣고, 재개 · 압축 · 지우기 초기화가 경고 파일에서 가이드 경고 블록만 남긴다(규약 지문 · 답 모양 경고는 지금처럼 버림). 지켜야 할 것: 경로는 help 가 실제로 낸 값만 쓴다 — 멈춤 훅은 벤더 코어에서 돌아 다시 계산하면 클로드 래퍼에서 틀린다.
+- path delta: as planned
+- refs: scv/archive/20260927-wookiya1364-prompting-warn-delivery/PLAN.md
+- conversation: scv/conversations/20260927-160059-per-model-prompting-live-check.md
