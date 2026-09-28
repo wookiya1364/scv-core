@@ -1411,3 +1411,10 @@ merge_policy: preserve
 - path delta: 계획의 '판정은 드리프트 로그에 한 줄' 을 없앴다 — 목록이 켜진 코덱스 사본에서 드리프트 로그를 읽는 검사와 '스위치 off 면 안 씀' 약속을 깨서. 블록의 표 노출을 뺐고(같은 상태 같은 출력), 등록 상태에 na 를 더했고, 매 턴 상한을 11,000B 로 올렸다.
 - refs: scv/archive/20260928-wookiya1364-prompting-every-turn-checklist/PLAN.md
 - conversation: scv/conversations/20260927-160059-per-model-prompting-live-check.md
+
+## [2026-09-28 13:21] wookiya1364 — 래퍼에 검사를 넣으면 두 래퍼의 CI 로그에서 그 검사 줄을 각각 확인한다
+
+- verdict: lesson
+- why: 0.62.0 에서 요구 항목 인용 검사를 두 래퍼의 prompting/check.sh 에 넣었는데, 클로드 래퍼 CI 는 그 스크립트를 우분투 · 맥에서 돌리지만 코덱스 CI 는 어디서도 부르지 않았다 — 릴리스 PR 이 초록이어도 그 검사를 통과했다는 뜻이 아니었다. 릴리스 PR 의 CI 로그를 검색해 드러났고, 코덱스 어댑터 잡에 단계를 더해 막았다(맥 · 우분투 로그 확인).
+- refs: scv-codex#249
+- conversation: scv/conversations/20260927-160059-per-model-prompting-live-check.md
