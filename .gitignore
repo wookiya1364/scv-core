@@ -15,6 +15,8 @@ scv/journal/.help-warn
 scv/journal/.help-guide
 scv/journal/.help-guide-turn
 scv/journal/.help-guide-last
+scv/journal/.help-turn
+scv/journal/.help-rewrite
 
 # SCV 자체 그래프 산출물 — 필요할 때 자동 재생성, 저장소에 담지 않는다
 scv/.graph/
