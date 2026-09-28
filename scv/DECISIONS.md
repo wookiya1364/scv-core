@@ -1390,3 +1390,24 @@ merge_policy: preserve
 - path delta: 훅이 표식 갱신(세션 비교)보다 먼저 판단하므로, 세션 번호를 넘겨 세션이 바뀌었으면 안 읽음으로 보게 했다(계획에 없던 보강). 나머지는 계획대로.
 - refs: scv/archive/20260928-wookiya1364-prompting-first-turn/PLAN.md
 - conversation: scv/conversations/20260927-160059-per-model-prompting-live-check.md
+
+## [2026-09-28 09:53] wookiya1364 — 모델별 프롬프팅 — 매 턴 요청을 모델 가이드 요구 항목과 1:1 비교 · 등록하고, 빠지면 같은 턴에 막는다
+
+- verdict: adopted
+- why: 사용자 요구: 매 턴(글자 수 무관) 모델 버전별 추천 프롬프트로 바꿔 전달, 확실한 보장. 앞선 설계(틀린 뒤 경고)는 첫 시도에 맞지 않았다. 결정: 공식 원문에서 인용과 함께 뽑은 요구 항목 목록, 매 턴 알림으로 비교 · 등록 지시, SCV 가 항목 완전성을 기계로 확인, 등록 전 파일 쓰기 거절 + 등록 · 인용 없는 종료 차단(같은 턴 한 번). 2026-08-31 에 비싸다고 없앤 종료 차단을 마지막 그물로 되살림 — 사용자 결정.
+- refs: scv/promote/20260928-wookiya1364-prompting-every-turn-checklist/PLAN.md
+- conversation: scv/conversations/20260927-160059-per-model-prompting-live-check.md
+
+## [2026-09-28 10:19] wookiya1364 — 엄격 모드 훅에 새 코드를 넣으면 모든 환경 변수에 기본값을 붙이고, 그 변수를 비운 채로도 검사한다
+
+- verdict: lesson
+- why: 0.62.0 개발 중 가드(set -u)에 넣은 규칙이 SCV_GUARD_SCRIPTS 를 기본값 없이 읽어, 변수가 없는 환경에서 스크립트가 죽고 가드의 모든 거절(계획 위조 · 영수증 없는 쓰기)이 풀렸다. 새 규칙의 검사(T22)는 그 변수를 명시해 돌아서 못 잡았고, 기존 test-guard 가 잡았다(커밋 전). T22 에 변수 없이 도는 경우를 더해 잠갔다(되살린 변이에서 붉음 확인). 보안 경로 훅은 실패하면 열리는 방향이라 특히 치명적이다.
+- refs: core/template/hooks/guard.sh
+
+## [2026-09-28 11:05] wookiya1364 — 모델별 프롬프팅 — 매 턴 요청을 모델 가이드 요구 항목과 1:1 비교 · 등록하고, 빠지면 같은 턴에 막는다
+
+- verdict: archived
+- why: 모든 사용자 메시지를 그 모델의 요구 항목 목록(원문 인용 58개, 래퍼 데이터)과 1:1 비교해 등록하게 한다. 매 턴 훅이 절차와 목록을 싣고, register 가 항목 완전성을 기계로 확인, 가드 Rule P 가 등록 전 편집 쓰기를 거절, 종료 훅이 등록 · 인용 없는 종료를 같은 턴 한 번 막는다. 지켜야 할 것: 계속 중이면 절대 막지 않는다 · 깨진 입력은 아무것도 쓰지 않는다 · 스위치 off 면 종료 훅은 저널 외 안 쓴다 · 가드 새 코드는 변수 기본값.
+- path delta: 계획의 '판정은 드리프트 로그에 한 줄' 을 없앴다 — 목록이 켜진 코덱스 사본에서 드리프트 로그를 읽는 검사와 '스위치 off 면 안 씀' 약속을 깨서. 블록의 표 노출을 뺐고(같은 상태 같은 출력), 등록 상태에 na 를 더했고, 매 턴 상한을 11,000B 로 올렸다.
+- refs: scv/archive/20260928-wookiya1364-prompting-every-turn-checklist/PLAN.md
+- conversation: scv/conversations/20260927-160059-per-model-prompting-live-check.md
