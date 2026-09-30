@@ -1434,3 +1434,19 @@ merge_policy: preserve
 - path delta: 코덱스 필수 주제에서 재개 요약 · 배경 조사를 뺐다(코덱스 플러그인에 세션 시작 훅 · 조사 에이전트가 없음) — 계획 표 반영. 과정 계기판 표식은 status 가 아니라 독립 스크립트 metrics.sh. 검사에 링크 실재 · 다른 호스트 문법을 더했고 버전 검사는 코어에도 적용. 코어 CI 는 설정 수정 없이 tests/run.sh 자동 수집으로 연결. 옛 자료 검토는 세 검토자 기준 차이를 '문제 서술은 역사'로 통일(1번만 유효로). 사용함 표시(T11)는 보관 커밋 뒤로 미룸 — outdated 가 파일 이름 끝부분으로 맞춰(readpath.sh:cmd_outdated) 이번 커밋의 PLAN · TESTS · README 가 옛 자료를 다시 표시하기 때문. T12 는 병합 뒤.
 - refs: scv/archive/20260930-wookiya1364-readme-refresh-core-wrappers/PLAN.md
 - conversation: scv/conversations/archive/20260930-002143-readme-refresh-core-wrappers.md
+
+## [2026-09-30 22:08] wookiya1364 — 다시 쓴 요청에 SCV 원칙을 붙인다 — 정확한 피드백, 단위 표 · 문제 표, 위치를 콕 집은 문제
+
+- verdict: adopted
+- why: SCV 사용자는 정확한 피드백을 가장 중요하게 여긴다 — 다시 쓴 요청마다 원칙(듣기 좋은 말 대신 사실, 단위 표 '단위 | 해결책 | 추천 | 생길 수 있는 문제' + 문제 표 '번호 | 위치 | 조건 | 깨지는 것 | 확인', 표는 터미널 한 줄 폭)을 붙이고 답은 검사하지 않는다. 인용에는 짧은 표식, 전문은 모델만 받는다.
+- discarded alternatives: 답이 실제로 나눠졌는지 종료 훅으로 검사 — 품질 판정은 SCV 원칙 밖이고 막으면 다시 써야 해서 비쌈 / 매 턴 안내문에 원칙 싣기 — 매 턴 용량 상한 / 인용에 원칙 전문 — 매 답 머리가 길어짐 / 세 칸 표 — 해결책과 추천은 다를 수 있음(사용자) / 한 표에 문제 설명까지 — 칸이 길어 터미널에서 줄글로 풀림(사용자 화면으로 확인)
+- refs: scv/promote/20260930-wookiya1364-rewrite-direct-feedback-principle/PLAN.md
+- conversation: scv/conversations/20260930-213802-rewrite-direct-feedback-principle.md
+
+## [2026-10-01 07:52] wookiya1364 — 다시 쓴 요청에 SCV 원칙을 붙인다 — 정확한 피드백, 단위 표 · 문제 표, 위치를 콕 집은 문제 archived
+
+- verdict: archived
+- why: 등록 결과의 다시 쓴 요청 끝에 원칙 표식, 그 아래 원칙 전문(SCV_LANG 구역)을 싣는다 — 문구는 core/contracts/rewrite-principle.md 한 곳, 스위치 SCV_REWRITE_PRINCIPLE(기본 on, off 면 출력이 예전과 바이트 단위로 같음). 저장된 제출 · 종료 훅 판정 · 매 턴 안내문(9192B)은 그대로 — 앞으로도 깨면 안 된다. 순수성 검사는 < > 를 리다이렉션으로 보므로 순수부의 꺾쇠는 글자 코드로 쓴다.
+- path delta: 원칙 파일을 protocols/help/ 가 아니라 contracts/ 에 둠 — 도움말 부속 폴더의 파일 목록을 확인하는 용량 검사가 깨지므로. 도움말 답 모양 절은 2026-09-16 잠금(바이트 그대로)과 부딪혀 고치지 않음(사용자 결정 2026-10-01) — 표 통일은 원칙 파일의 '항목 표 대신' 선언 + 다시 쓰기 규약으로, 계획 검사 T10 도 그에 맞춤. 기존 검사 T21(4) 기대값은 기본 on 으로 표식 포함. 투영된 플러그인 루트에서도 원칙을 찾게 후보 경로를 더함.
+- refs: scv/archive/20260930-wookiya1364-rewrite-direct-feedback-principle/PLAN.md
+- conversation: scv/conversations/archive/20260930-213802-rewrite-direct-feedback-principle.md
