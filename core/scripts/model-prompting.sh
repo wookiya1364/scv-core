@@ -7,7 +7,9 @@
 #   model-prompting.sh prompt              (v0.61.0+) 매 턴 훅이 부른다: 이 컨텍스트에서 아직 원문을 안 읽었으면, help 가
 #                                            마지막으로 본 모델의 원문 경로 · 표시 명령 블록을 낸다(아니면 아무것도)
 #   model-prompting.sh checklist --model <id> (v0.62.0+) 이 모델의 요구 항목 목록(공통 + 모델) — 매 턴 1:1 비교의 기준
-#   model-prompting.sh register --model <id> < 제출  (v0.62.0+) 이번 턴 비교 결과를 등록 — 항목이 모두 채워졌을 때만
+#   model-prompting.sh register --model <id> < 제출  (v0.62.0+) 이번 턴 비교 결과를 등록 — 항목이 모두 채워졌을 때만.
+#                                            (v0.63.0+) 출력의 REWRITE 끝에 SCV 원칙 표식, 그 아래 PRINCIPLE: 전문 —
+#                                            contracts/rewrite-principle.md 의 SCV_LANG 구역, 설정 SCV_REWRITE_PRINCIPLE(on|off)
 #   model-prompting.sh gate                 (v0.62.0+) 가드가 부른다: 이번 턴 등록 전이면 거절 사유를 낸다(아니면 아무것도)
 #   model-prompting.sh stop < 답본문        (v0.60.0+) 종료 훅이 부른다: 이번 턴에 원문을 읽었는지 · 다시 쓴 요청을
 #                                            답에 보였는지 결과로 판정 → 어긋나면 다음 턴 경고(.help-warn 에 덧붙임)
@@ -51,6 +53,13 @@ done
 # ---------------------------------------------------------------- 효과: 읽기 (입구)
 _setting() { declare -F settings_get >/dev/null 2>&1 && settings_get "$1" 2>/dev/null || true; }
 _first_line() { [[ -f "$1" && ! -L "$1" ]] && head -c 4096 "$1" 2>/dev/null | head -1 || printf ''; }
+_principle_body() {  # (v0.63.0+) 원칙 파일 본문 — 후보 중 처음 있는 것. 심볼릭 링크는 읽지 않고, 64KB 까지만.
+  local c
+  while IFS= read -r c; do
+    [[ -n "$c" && -f "$c" && ! -L "$c" ]] && { head -c 65536 "$c" 2>/dev/null; return 0; }
+  done <<< "$(scv_mp_principle_candidates "$CORE_ROOT")"
+  return 0
+}
 _put() {  # <파일> <본문> — 임시 파일 뒤 mv. 심볼릭 링크면 안 쓴다.
   local file="$1" body="$2" tmp
   mkdir -p "$JOURNAL_DIR" 2>/dev/null || return 0
@@ -210,7 +219,14 @@ case "$cmd" in
     _put "$REG_FILE" "$(printf '%s\x1f%s' "$_tok" "$ID")"$'\n'"$_red"
     _n="$(printf '%s\n' "$_list" | grep -c . || true)"
     echo "REGISTERED: turn ${_tok:-?} · model $ID · $_n item(s)"
-    echo "REWRITE: $(scv_mp_register_rewrite "$_red")"
+    # (v0.63.0+) SCV 원칙 — 저장된 제출에는 넣지 않고 출력에만 붙인다. off · 원칙 파일 없음이면 이 기능 전과 같은 출력.
+    _psw="$(scv_mp_switch "$(_setting SCV_REWRITE_PRINCIPLE)")"
+    _psec=""; [[ "$_psw" == "on" ]] && _psec="$(scv_mp_principle_section "$(_principle_body)" "$(_setting SCV_LANG)")"
+    echo "REWRITE: $(scv_mp_rewrite_tagged "$(scv_mp_register_rewrite "$_red")" "$_psw" "$(scv_mp_principle_tag "$_psec")")"
+    if [[ -n "$_psec" ]]; then
+      echo "PRINCIPLE:"
+      printf '%s\n' "$(scv_mp_principle_text "$_psec")"
+    fi
     ;;
   gate)
     [[ "$SWITCH" == "on" && -n "$(_checklist_for "")" ]] || exit 0
