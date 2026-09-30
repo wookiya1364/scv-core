@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-09-28T02:05:07Z
+generated_at: 2026-09-30T01:41:23Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -307,3 +307,7 @@ archives:
     title: "모델별 프롬프팅 — 새 컨텍스트의 첫 턴부터 가이드 원문을 읽게 한다"
     kind: feature
     status: in_progress
+  - slug: 20260930-wookiya1364-readme-refresh-core-wrappers
+    title: "README 최신화 — 코어와 두 래퍼의 첫 화면 안내를 지금 기능에 맞추고, 낡았다고 표시된 옛 자료 21건을 검토한다"
+    kind: feature
+    status: testing
