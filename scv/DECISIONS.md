@@ -1411,3 +1411,26 @@ merge_policy: preserve
 - path delta: 계획의 '판정은 드리프트 로그에 한 줄' 을 없앴다 — 목록이 켜진 코덱스 사본에서 드리프트 로그를 읽는 검사와 '스위치 off 면 안 씀' 약속을 깨서. 블록의 표 노출을 뺐고(같은 상태 같은 출력), 등록 상태에 na 를 더했고, 매 턴 상한을 11,000B 로 올렸다.
 - refs: scv/archive/20260928-wookiya1364-prompting-every-turn-checklist/PLAN.md
 - conversation: scv/conversations/20260927-160059-per-model-prompting-live-check.md
+
+## [2026-09-28 13:21] wookiya1364 — 래퍼에 검사를 넣으면 두 래퍼의 CI 로그에서 그 검사 줄을 각각 확인한다
+
+- verdict: lesson
+- why: 0.62.0 에서 요구 항목 인용 검사를 두 래퍼의 prompting/check.sh 에 넣었는데, 클로드 래퍼 CI 는 그 스크립트를 우분투 · 맥에서 돌리지만 코덱스 CI 는 어디서도 부르지 않았다 — 릴리스 PR 이 초록이어도 그 검사를 통과했다는 뜻이 아니었다. 릴리스 PR 의 CI 로그를 검색해 드러났고, 코덱스 어댑터 잡에 단계를 더해 막았다(맥 · 우분투 로그 확인).
+- refs: scv-codex#249
+- conversation: scv/conversations/20260927-160059-per-model-prompting-live-check.md
+
+## [2026-09-30 00:44] wookiya1364 — README 최신화 — 코어와 두 래퍼의 첫 화면 안내를 지금 기능에 맞추고, 낡았다고 표시된 옛 자료 21건을 검토한다
+
+- verdict: adopted
+- why: 세 저장소 README 가 2026-08-25 이후 그대로라 그 뒤 릴리스 30여 번의 기능(매 턴 함께 · 쉬운 말 · 재개 요약 · 모델별 프롬프팅 등)과 업데이트 방법이 빠졌다. 구조는 유지하고 사실을 맞추며, 검사 스크립트가 명령 · 설정 실재 · 필수 주제 · 세 언어판 일치를 기계로 본다. 계획마다 반복되던 옛 자료 경고 21건은 자료마다 대조 판정을 남긴 뒤 검토를 마친 것만 다시 사용 표시해 끈다(consume 이 ref_commit 을 다시 찍음 — 코드 추가 없음).
+- discarded alternatives: README 전면 재작성 — 범위 · 번역 부담이 크고 요청은 최신화; 옛 자료 본문 수정 — 사용이 끝난 자료는 내용 불변 규칙; 검토 전 일괄 consume — 경고만 끄고 낡은 내용을 가림; 래퍼 CI 즉시 연결 — 검사 스크립트가 래퍼에 아직 없음(다음 코어 배포 뒤로); 릴리스 — README 만 바뀌므로 release=false 로 main 까지
+- refs: scv/promote/20260930-wookiya1364-readme-refresh-core-wrappers/PLAN.md
+- conversation: scv/conversations/20260930-002143-readme-refresh-core-wrappers.md
+
+## [2026-09-30 10:41] wookiya1364 — README 최신화 — 코어와 두 래퍼의 첫 화면 안내를 지금 기능에 맞추고, 낡았다고 표시된 옛 자료 21건을 검토한다 archived
+
+- verdict: archived
+- why: 세 저장소 README 12개를 지금 기능에 맞췄다 — 매 턴 함께 · 쉬운 말 · 재개 요약 · 모델별 프롬프팅 · 배경 조사 · 번호식 기획서 · 자체 그래프와 Graft · 본문 검색 · 과정 계기판 · 래퍼 업데이트 방법. tools/check-readme.sh 가 명령 · 설정 · 링크 실재, 필수 주제, 세 언어판 일치, 버전 번호와 다른 호스트 문법 부재를 기계로 보고(tests/test-check-readme.sh 붉은 사본 6가지, 코어 CI 는 tests/run.sh 로 자동 연결), 만들자마자 기존 불일치 둘을 잡았다. 옛 자료 21건은 유효 8 · 일부 낡음 12 · 대체됨 1 로 판정해 검토표에 남겼다. 지켜야 할 것: 래퍼 README 에 버전 번호를 쓰지 않는다, 코덱스에 없는 기능(재개 요약 · 배경 조사)은 코덱스 README 에 적지 않는다.
+- path delta: 코덱스 필수 주제에서 재개 요약 · 배경 조사를 뺐다(코덱스 플러그인에 세션 시작 훅 · 조사 에이전트가 없음) — 계획 표 반영. 과정 계기판 표식은 status 가 아니라 독립 스크립트 metrics.sh. 검사에 링크 실재 · 다른 호스트 문법을 더했고 버전 검사는 코어에도 적용. 코어 CI 는 설정 수정 없이 tests/run.sh 자동 수집으로 연결. 옛 자료 검토는 세 검토자 기준 차이를 '문제 서술은 역사'로 통일(1번만 유효로). 사용함 표시(T11)는 보관 커밋 뒤로 미룸 — outdated 가 파일 이름 끝부분으로 맞춰(readpath.sh:cmd_outdated) 이번 커밋의 PLAN · TESTS · README 가 옛 자료를 다시 표시하기 때문. T12 는 병합 뒤.
+- refs: scv/archive/20260930-wookiya1364-readme-refresh-core-wrappers/PLAN.md
+- conversation: scv/conversations/archive/20260930-002143-readme-refresh-core-wrappers.md
