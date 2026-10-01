@@ -19,6 +19,7 @@ SCV_UPDATE_OWNER=adapter
 SCV_MODEL_POLICY_OWNER=adapter
 SCV_PROMPTING_GUIDES=prompting
 SCV_AUTO_PROMPT_TAGS=machine-event
+SCV_CHOICE_TOOL=PickTool
 ```
 
 `SCV_PROMPTING_GUIDES` is optional (v0.59.0+, §9); leave it out when the wrapper ships no
@@ -28,6 +29,11 @@ per-model prompting guides. Its value is relative to the Core root the help acti
 separated) of the blocks the host sends on its own, such as a background-task notification. An input made
 only of those blocks opens no new turn; leave the key out when the host's notification shape is unknown —
 every input is then a person turn, exactly as before.
+
+`SCV_CHOICE_TOOL` is optional (v0.64.0+): the name of the host's tool that shows the user selectable options.
+When set, every decision SCV puts to the user goes through it (rule: `core/contracts/choices.md`), the per-turn
+hook says so in one line, and the stop hook blocks a final message that asks in text. Leave it out when the host
+has no such tool — decisions are then asked as a numbered table answered by number, exactly as before.
 
 Validate it before vendoring:
 

@@ -559,6 +559,42 @@ scv_mp_stop_gate() {
 }
 
 # @pure
+# <답> → 1 | 0. (v0.64.0+) 코드 블록 · 인용 줄 밖에 문제 표 머리('위치' 와 '깨지는 것' 칸)나 '생길 수 있는 문제' 칸이
+# 있는가 — 한국어 · 영어 · 일본어. SCV 원칙은 문제를 따로 보이지 않고 해결책 안에서 막는다(사용자 결정 2026-10-01).
+scv_mp_answer_has_problem_table() {
+  local text="${1:-}" line t fence=0 q=$'\x3e' hit=0 nc=0
+  shopt -q nocasematch && nc=1
+  shopt -s nocasematch
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    t="${line#"${line%%[![:space:]]*}"}"
+    if [[ "$t" == '```'* ]]; then fence=$(( 1 - fence )); continue; fi
+    (( fence )) && continue
+    [[ "${t:0:1}" == "$q" ]] && continue
+    [[ "${t:0:1}" == "|" ]] || continue
+    if [[ "$t" == *"생길 수 있는 문제"* || "$t" == *"possible problems"* || "$t" == *"起こりうる問題"* ]] \
+       || [[ "$t" == *"위치"* && "$t" == *"깨지는 것"* ]] \
+       || [[ "$t" == *"location"* && "$t" == *"what breaks"* ]] \
+       || [[ "$t" == *"場所"* && "$t" == *"壊れるもの"* ]]; then hit=1; break; fi
+  done <<< "$text"
+  (( nc )) || shopt -u nocasematch
+  printf '%s' "$hit"
+}
+
+# @pure
+# <문제 표 있음 0|1> <원칙 스위치 on|off> <이미 계속 중 0|1> → ok | block | warn. 같은 턴 한 번 — 계속 중이면 다음 턴 경고.
+scv_mp_principle_gate() {
+  local hit="${1:-0}" sw="${2:-on}" active="${3:-0}"
+  [[ "$sw" == "on" && "$hit" == "1" ]] || { printf 'ok'; return 0; }
+  if [[ "$active" == "1" ]]; then printf 'warn'; else printf 'block'; fi
+}
+
+# @pure
+# → 막는 이유 한 줄. 모델이 이것만 읽고 다시 쓸 수 있게 원칙 요지를 담는다.
+scv_mp_principle_reason() {
+  printf '%s' "[SCV 원칙] 답에 문제 표나 '생길 수 있는 문제' 칸을 넣었다 — 문제는 보여 주지 말고 해결책 안에서 막아 다시 써라: '단위 | 해결책 | 추천' 세 칸, 방법마다 그 방법이 부를 문제를 막는 길을 담고, 정할 것은 선택지로 묻고, 남는 한계는 추천 칸 이유에 한 줄(contracts/rewrite-principle.md)."
+}
+
+# @pure
 # <스위치> <토큰> <모델 id 또는 ""> <병합 목록 또는 ""> <스크립트 경로> → 매 턴 훅이 싣는 블록(스위치 off · 토큰 없음이면 빈 값).
 # 토큰은 싣지 않는다 — 같은 상태면 출력이 늘 같아야 한다(등록은 표 파일을 스스로 읽는다).
 scv_mp_turn_block() {
