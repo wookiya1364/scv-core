@@ -65,11 +65,11 @@ for _ in 1 2 3; do
 done
 if command -v iconv >/dev/null 2>&1; then
   _scv_clean="$(printf '%s' "$SUMMARY" | iconv -c -f UTF-8 -t UTF-8 2>/dev/null || true)"
-  [[ -n "${_scv_clean//[[:space:]]/}" ]] && SUMMARY="$_scv_clean"
+  [[ "$_scv_clean" == *[![:space:]]* ]] && SUMMARY="$_scv_clean"
 fi
 if command -v python3 >/dev/null 2>&1; then
   _scv_clean="$(printf '%s' "$SUMMARY" | python3 -c 'import sys; sys.stdout.buffer.write(sys.stdin.buffer.read().decode("utf-8","ignore").encode("utf-8"))' 2>/dev/null || true)"
-  [[ -n "${_scv_clean//[[:space:]]/}" ]] && SUMMARY="$_scv_clean"
+  [[ "$_scv_clean" == *[![:space:]]* ]] && SUMMARY="$_scv_clean"
 fi
 # ---------- drift check (v0.50.0+, 본문 출처 v0.51.0+) -----------------------
 # 규약 지문 메아리 + 답 모양 린트. 이번 턴의 대화 기록에 이 세션의 규약 지문이 있는지, 직전 답의
@@ -83,10 +83,14 @@ fi
 # v0.64.0+ — (1) 호스트의 내부 메시지(내부 표시 isMeta — 스킬 불러오기 · 종료 훅 피드백 등)는 사람 프롬프트가 아니다. 그것을
 # U 로 세면 같은 턴에서 그보다 앞서 보인 답(다시 쓴 요청 인용 등)이 이번 턴에서 빠진다. (2) 자르기는 jq 한 번에 한다 — 마지막
 # U 뒤만, 앞쪽 A 400개 + 마지막 A 하나로 낸다(긴 턴에서도 뒤의 bash 처리가 작다). U 가 없으면 아무것도 내지 않는다.
+# (3) 도구가 만든 사용자 몫 글(도구 출처 표시 sourceToolUseID)도 사람 프롬프트가 아니다 — 내부 표시와 둘 중 하나만 있어도 뺀다
+# (호스트가 한쪽 이름을 바꿔도 다른 쪽이 남는다; 로컬 원본 25개에서 사람 프롬프트에 출처 표시가 붙은 일은 0건). (4) 창 안에
+# 사람 · 모델 줄이 하나도 없으면(이 형식이 아닌 원본 — 예: 코덱스 세션 기록) "N" 하나만 낸다: 넓혀 찾지 않고, 경계 기록도 남기지
+# 않는다(자르기는 빈 값 — 이 기능 전과 같은 판정).
 _scv_turn_stream() {  # [원본 끝에서 읽을 줄 수 — 기본 400]
   tail -n "${1:-400}" "$TRANSCRIPT" 2>/dev/null \
     | jq -Rrn '[inputs | fromjson? | if .type? == "user" then
-                  (if (.isMeta? == true) then empty
+                  (if (.isMeta? == true) or (.sourceToolUseID? != null) then empty
                    elif ((.message.content|type) == "string")
                       or ((.message.content|type) == "array" and any(.message.content[]?; .type? == "text"))
                    then "U" else empty end)
@@ -94,13 +98,14 @@ _scv_turn_stream() {  # [원본 끝에서 읽을 줄 수 — 기본 400]
                   ("A\u001f" + ([.message.content[]? | select(.type? == "text") | .text] | join("\n") | gsub("\n"; "\u001e")))
                 else empty end] as $s
                | ([range(0; $s | length) | select($s[.] == "U")] | last) as $i
-               | if $i == null then empty
+               | if ($s | length) == 0 then "N" elif $i == null then empty
                  else ($s[($i + 1):]) as $t
                    | "U", ($t[:400][]), (if ($t | length) > 400 then $t[-1] else empty end)
                  end' 2>/dev/null || true
 }
 # v0.64.0+ — 창 안에 사람 프롬프트가 없으면(선택지 질문 · 도구 결과가 많은 긴 턴) 창을 넓혀 이번 사람 턴의 경계를 찾는다:
 # 400 → 4000 → 40000 줄. 끝내 못 찾으면 아무것도 내지 않는다(자르기는 빈 값 — 지금처럼 안전 쪽). 기록은 부른 쪽이 한 번 남긴다.
+# 창이 이 형식이 아니면("N") 그대로 돌려준다 — 넓혀도 찾을 것이 없다.
 _scv_turn_stream_wide() {
   local n s="" total
   total="$(wc -l < "$TRANSCRIPT" 2>/dev/null | tr -d ' ')"; [[ "$total" =~ ^[0-9]+$ ]] || total=0
@@ -132,11 +137,12 @@ if [[ -f "$_scv_hs" && -f "$_scv_hslib" ]]; then
     if [[ "$_scv_lint" == "on" ]] && declare -F scv_turn_slice >/dev/null 2>&1 && declare -F scv_stop_pick_source >/dev/null 2>&1; then
       _scv_host="$(printf '%s' "$INPUT" | jq -r 'try (.last_assistant_message // empty)' 2>/dev/null | head -c 65536 || true)"
       _scv_turn=""
-      if [[ -z "${_scv_host//[[:space:]]/}" ]]; then
+      if [[ "$_scv_host" != *[![:space:]]* ]]; then
         for _scv_try in 1 2 3 4; do
           _scv_stream="$(_scv_turn_stream_wide)"
           _scv_turn="$(scv_turn_slice "$_scv_stream" | head -c 65536)"
-          [[ -n "${_scv_turn//[[:space:]]/}" ]] && break
+          [[ "$_scv_turn" == *[![:space:]]* ]] && break
+          [[ "$_scv_stream" == "N" ]] && break   # 이 형식이 아닌 원본 — 다시 읽어도 같다
           [[ "$_scv_try" -lt 4 ]] && sleep 0.25
         done
       fi
@@ -158,7 +164,7 @@ _scv_mp="${SCV_CORE_ROOT:-$SCRIPT_DIR/../..}/scripts/model-prompting.sh"
 _scv_block_reason=""
 if [[ -f "$_scv_mp" ]]; then
   _scv_ans="${_scv_last:-}"   # 린트가 꺼져 본문을 안 골랐으면 호스트가 준 답만 본다
-  [[ -n "${_scv_ans//[[:space:]]/}" ]] || _scv_ans="$(printf '%s' "$INPUT" | jq -r 'try (.last_assistant_message // empty)' 2>/dev/null | head -c 65536 || true)"
+  [[ "$_scv_ans" == *[![:space:]]* ]] || _scv_ans="$(printf '%s' "$INPUT" | jq -r 'try (.last_assistant_message // empty)' 2>/dev/null | head -c 65536 || true)"
   # 호스트가 준 답은 마지막 메시지뿐이다 — 도구를 부르기 전 첫 메시지에 인용을 보였을 수 있으니, 원본에서 이번 턴의
   # 답 텍스트 전부도 덧붙여 본다(이미 적힌 앞 메시지만 필요하므로 다시 읽기는 하지 않는다).
   if declare -F scv_turn_slice >/dev/null 2>&1; then
@@ -170,7 +176,7 @@ if [[ -f "$_scv_mp" ]]; then
              "$(wc -l < "$TRANSCRIPT" 2>/dev/null | tr -d ' ')" >> "$_scv_jd/.help-drift" 2>/dev/null
     fi
     _scv_all="$(scv_turn_slice "$_scv_tstream" | head -c 65536)"
-    [[ -n "${_scv_all//[[:space:]]/}" ]] && _scv_ans="$(printf '%s\n\n%s' "$_scv_ans" "$_scv_all")"
+    [[ "$_scv_all" == *[![:space:]]* ]] && _scv_ans="$(printf '%s\n\n%s' "$_scv_ans" "$_scv_all")"
   fi
   _scv_active=0
   [[ "$(printf '%s' "$INPUT" | jq -r 'try (.stop_hook_active // false)' 2>/dev/null)" == "true" ]] && _scv_active=1
@@ -193,7 +199,7 @@ if [[ -z "$_scv_block_reason" ]] && [[ -f "$_scv_mp" || -f "$_scv_cg" ]]; then
   _scv_lastmsg="$(printf '%s' "$INPUT" | jq -r 'try (.last_assistant_message // empty)' 2>/dev/null | head -c 65536 || true)"
   [[ "$(printf '%s' "$INPUT" | jq -r 'try (.stop_hook_active // false)' 2>/dev/null)" == "true" ]] && _scv_tail_active=1
 fi
-[[ -n "${_scv_lastmsg//[[:space:]]/}" ]] || _scv_lastmsg=""
+[[ "$_scv_lastmsg" == *[![:space:]]* ]] || _scv_lastmsg=""
 if [[ -z "$_scv_block_reason" && -n "$_scv_lastmsg" && -f "$_scv_mp" ]]; then
   _scv_pgo="$(printf '%s' "$_scv_lastmsg" | bash "$_scv_mp" principle-gate --active "$_scv_tail_active" 2>/dev/null || true)"
   if grep -qx 'PRINCIPLE_GATE: block' <<<"$_scv_pgo"; then
@@ -214,7 +220,7 @@ _scv_emit_block() {
 }
 trap '_scv_emit_block' EXIT
 
-[[ -n "${SUMMARY//[[:space:]]/}" ]] || exit 0
+[[ "$SUMMARY" == *[![:space:]]* ]] || exit 0
 
 # v0.59.0+ — 답한 모델을 화자 이름에 붙인다 (계기판의 모델별 답 수). 대화 기록의 마지막 답 메시지에
 # 모델 id 가 있을 때만: "assistant · <id>". 없으면 이전과 같은 "assistant". 이름을 만드는 판단은 순수부.

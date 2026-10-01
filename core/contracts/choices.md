@@ -33,7 +33,9 @@ tables, the help item table — stay as text.
 ## When the host names none
 
 Nothing changes: a decision is asked as before — a numbered table with a recommendation on every row,
-answered by number.
+answered by number. A run in which the host offers no choice tool counts as naming none — the host profile
+says how to recognize it (`SCV_CHOICE_OFF_WHEN`, e.g. a headless run where no person can answer): the
+per-turn hook adds no line and the stop hook does not block.
 
 ## What this rule replaces
 

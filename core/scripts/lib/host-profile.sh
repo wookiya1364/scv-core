@@ -24,6 +24,9 @@ SCV_PROMPTING_GUIDES=""
 SCV_AUTO_PROMPT_TAGS=""
 # 0.64.0+ 선택 키: 사용자에게 고르게 하는 호스트의 선택지 도구 이름(contracts/choices.md). 비면 결정은 지금처럼 번호 표로 묻는다.
 SCV_CHOICE_TOOL=""
+# 0.64.0+ 선택 키: 선택지 도구가 없는 실행(사람이 답할 수 없는 헤드리스 등)을 알리는 환경 조건 "이름=값". 그 환경 변수가
+# 그 값이면 이 실행에서는 도구가 없는 것과 같다(choice-gate.sh). 비면 조건 없음.
+SCV_CHOICE_OFF_WHEN=""
 
 _scv_profile_assign() {
   local key="$1" value="$2"
@@ -42,6 +45,7 @@ _scv_profile_assign() {
     SCV_PROMPTING_GUIDES) SCV_PROMPTING_GUIDES="$value" ;;
     SCV_AUTO_PROMPT_TAGS) SCV_AUTO_PROMPT_TAGS="$value" ;;
     SCV_CHOICE_TOOL) SCV_CHOICE_TOOL="$value" ;;
+    SCV_CHOICE_OFF_WHEN) SCV_CHOICE_OFF_WHEN="$value" ;;
   esac
 }
 
