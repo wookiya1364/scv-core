@@ -1434,3 +1434,35 @@ merge_policy: preserve
 - path delta: 코덱스 필수 주제에서 재개 요약 · 배경 조사를 뺐다(코덱스 플러그인에 세션 시작 훅 · 조사 에이전트가 없음) — 계획 표 반영. 과정 계기판 표식은 status 가 아니라 독립 스크립트 metrics.sh. 검사에 링크 실재 · 다른 호스트 문법을 더했고 버전 검사는 코어에도 적용. 코어 CI 는 설정 수정 없이 tests/run.sh 자동 수집으로 연결. 옛 자료 검토는 세 검토자 기준 차이를 '문제 서술은 역사'로 통일(1번만 유효로). 사용함 표시(T11)는 보관 커밋 뒤로 미룸 — outdated 가 파일 이름 끝부분으로 맞춰(readpath.sh:cmd_outdated) 이번 커밋의 PLAN · TESTS · README 가 옛 자료를 다시 표시하기 때문. T12 는 병합 뒤.
 - refs: scv/archive/20260930-wookiya1364-readme-refresh-core-wrappers/PLAN.md
 - conversation: scv/conversations/archive/20260930-002143-readme-refresh-core-wrappers.md
+
+## [2026-09-30 22:08] wookiya1364 — 다시 쓴 요청에 SCV 원칙을 붙인다 — 정확한 피드백, 단위 표 · 문제 표, 위치를 콕 집은 문제
+
+- verdict: adopted
+- why: SCV 사용자는 정확한 피드백을 가장 중요하게 여긴다 — 다시 쓴 요청마다 원칙(듣기 좋은 말 대신 사실, 단위 표 '단위 | 해결책 | 추천 | 생길 수 있는 문제' + 문제 표 '번호 | 위치 | 조건 | 깨지는 것 | 확인', 표는 터미널 한 줄 폭)을 붙이고 답은 검사하지 않는다. 인용에는 짧은 표식, 전문은 모델만 받는다.
+- discarded alternatives: 답이 실제로 나눠졌는지 종료 훅으로 검사 — 품질 판정은 SCV 원칙 밖이고 막으면 다시 써야 해서 비쌈 / 매 턴 안내문에 원칙 싣기 — 매 턴 용량 상한 / 인용에 원칙 전문 — 매 답 머리가 길어짐 / 세 칸 표 — 해결책과 추천은 다를 수 있음(사용자) / 한 표에 문제 설명까지 — 칸이 길어 터미널에서 줄글로 풀림(사용자 화면으로 확인)
+- refs: scv/promote/20260930-wookiya1364-rewrite-direct-feedback-principle/PLAN.md
+- conversation: scv/conversations/20260930-213802-rewrite-direct-feedback-principle.md
+
+## [2026-10-01 07:52] wookiya1364 — 다시 쓴 요청에 SCV 원칙을 붙인다 — 정확한 피드백, 단위 표 · 문제 표, 위치를 콕 집은 문제 archived
+
+- verdict: archived
+- why: 등록 결과의 다시 쓴 요청 끝에 원칙 표식, 그 아래 원칙 전문(SCV_LANG 구역)을 싣는다 — 문구는 core/contracts/rewrite-principle.md 한 곳, 스위치 SCV_REWRITE_PRINCIPLE(기본 on, off 면 출력이 예전과 바이트 단위로 같음). 저장된 제출 · 종료 훅 판정 · 매 턴 안내문(9192B)은 그대로 — 앞으로도 깨면 안 된다. 순수성 검사는 < > 를 리다이렉션으로 보므로 순수부의 꺾쇠는 글자 코드로 쓴다.
+- path delta: 원칙 파일을 protocols/help/ 가 아니라 contracts/ 에 둠 — 도움말 부속 폴더의 파일 목록을 확인하는 용량 검사가 깨지므로. 도움말 답 모양 절은 2026-09-16 잠금(바이트 그대로)과 부딪혀 고치지 않음(사용자 결정 2026-10-01) — 표 통일은 원칙 파일의 '항목 표 대신' 선언 + 다시 쓰기 규약으로, 계획 검사 T10 도 그에 맞춤. 기존 검사 T21(4) 기대값은 기본 on 으로 표식 포함. 투영된 플러그인 루트에서도 원칙을 찾게 후보 경로를 더함.
+- refs: scv/archive/20260930-wookiya1364-rewrite-direct-feedback-principle/PLAN.md
+- conversation: scv/conversations/archive/20260930-213802-rewrite-direct-feedback-principle.md
+
+## [2026-10-01 08:37] wookiya1364 — 자동 알림은 사람 턴이 아니다 · PR 은 저장소 브랜치 규칙대로 — 자동 입력 판별, PR 대상 브랜치 설정, PR 커밋 범위 점검
+
+- verdict: adopted
+- why: 자동 입력은 호스트 설정의 머리말(SCV_AUTO_PROMPT_PREFIXES)로 판별해 새 턴 표 · 등록 안내 · 종료 차단 · 다시 읽기 횟수 없이 지나가게 하고, PR 도구는 SCV_PR_BASE 로 대상 브랜치를 정하며 SCV 기록은 함께 올리고 그 밖의 커밋 안 된 변경이 있으면 멈춘다. 세 결함 모두 이번 세션에서 실제로 겪거나 코드로 확인했다.
+- discarded alternatives: 코어에 알림 모양을 고정 — 호스트 중립 원칙 위반, 래퍼 호스트 설정이 맞는 자리 / 자동 턴에 등록 면제 표시만 남기고 새 표는 여는 방식 — 가드 · 종료 훅 두 곳을 모두 고쳐야 하고 직전 등록이 끊김 / PR 대상 브랜치 자동 감지(BRANCHING 문서 · develop 존재) — 저장소마다 규칙이 달라 추측이 됨, 설정이 단순 · 명시적 / PR 도구가 구현을 알아서 커밋 — 엉뚱한 파일이 섞일 수 있음
+- refs: scv/promote/20261001-wookiya1364-auto-turns-pr-base-fixes/PLAN.md
+- conversation: scv/conversations/20261001-083005-auto-turns-pr-base-fixes.md
+
+## [2026-10-01 13:17] wookiya1364 — 자동 알림은 사람 턴이 아니다 · PR 은 저장소 브랜치 규칙대로 — 자동 입력 판별, PR 대상 브랜치 설정, PR 커밋 범위 점검 archived
+
+- verdict: archived
+- why: 호스트 설정 키 SCV_AUTO_PROMPT_TAGS(태그 이름)의 블록과 공백만으로 된 입력은 자동 입력 — 새 턴 표 · 등록 안내 · 지시 · 진단 · 다시 읽기 횟수 없이 지나가고 예약 경고는 다음 사람 턴으로, 사람 턴이 끝난 뒤(종료 판정이 막지 않은 끝난 턴 표)에만 표시를 남겨 종료 판정 · 쓰기 거절을 건너뛴다. 태그가 비면 출력 · 파일이 이전과 같다(검사가 기능 전 훅과 바이트 비교) — 앞으로도 깨면 안 된다. PR 도구는 에픽 > SCV_PR_BASE > origin 기본 > main 으로 대상을 정하고, SCV 기록을 보관 폴더와 같은 커밋에 올리며(세션 표식 · 비밀 설정 파일 제외), 그 밖에 커밋 안 된 변경이 있으면 검사 재실행 · 첨부보다 먼저 멈춘다. 상태는 -z · quotepath 끔으로 읽는다(한글 경로 · 이름 바뀜 두 쪽). 매 턴 훅 경로의 bash 3.2 결함 두 줄도 고쳤다 — 훅 안쪽까지 3.2 로 돌려야 보이고 CI 는 bash 5 라 못 봤다.
+- path delta: 키를 머리말 문자열(SCV_AUTO_PROMPT_PREFIXES) 대신 태그 이름(SCV_AUTO_PROMPT_TAGS)으로 — 호스트 설정 검증기가 꺾쇠 값을 막고 이름이면 정규식 하나로 검증된다. 판별은 '머리말로 시작'에서 '태그 블록과 공백만'으로 좁혔다(독립 검토: 알림 뒤 · 사이 사람 글), 패턴 잘라 내기는 64KB 에 2초라 정규식 검색으로. 자동 표시는 끝난 사람 턴에만(턴 중간 알림이 사람 턴 검사를 끄던 위험), 사람 입력마다 지우고, 가드도 자동 턴엔 거절 안 함 · 전체 스위치 off 면 표시 없음. PR 도구 멈춤은 커밋 전이 아니라 첨부 수집 · 재실행 전으로, 상태 읽기는 -z, 스테이징에서 세션 표식 · 비밀 파일 제외, SCV_PR_BASE 는 설정 라이브러리 공개 키 등록. bash 3.2 두 줄 · load-once [T7] 은 계획 밖(사용자 결정 Turn 3~4). 독립 검토 2회가 이 차이의 대부분을 만들었다. 알려진 한계: 종료 판정 없이 끊긴 턴 뒤 알림은 이전처럼 검사, 중첩 모듈의 PR 대상은 최상위 설정. 다음 계획 메모: scv/raw/20261001-hook-path-bash32-audit.md(훅 경로 3.2 나머지 · 에픽 브랜치 출발점).
+- refs: scv/archive/20261001-wookiya1364-auto-turns-pr-base-fixes/PLAN.md
+- conversation: scv/conversations/archive/20261001-083005-auto-turns-pr-base-fixes.md
