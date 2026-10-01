@@ -6,7 +6,9 @@
 #                                                 CHOICE_GATE: block + CHOICE_REASON: <이유>. 호스트가 이미 계속 중이면
 #                                                 CHOICE_GATE: warn — 막지 않고 다음 턴 경고(.help-warn)에 덧붙인다. 그 밖에는 ok.
 #
-# 입력: 호스트 프로필 SCV_CHOICE_TOOL (래퍼가 준다). 비면 두 하위 명령 모두 이 기능 전과 같다(아무것도 내지 않음 · ok).
+# 입력: 호스트 프로필 SCV_CHOICE_TOOL (래퍼가 준다), 설정 SCV_CHOICE_GATE(on 기본 | off — 이 프로젝트에서 끄기).
+# 도구가 없거나 스위치가 off 면 두 하위 명령 모두 이 기능 전과 같다(아무것도 내지 않음 · ok).
+# 다음 턴 경고는 "[SCV 가이드] 직전 턴: …" 머리말로 남긴다 — 컨텍스트 초기화(clear · 압축 · 재개)에도 살아남는 경고와 같은 꼴.
 # 어떤 실패도 exit 0 — 판정을 못 하면 막지 않는다.
 set -u
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" 2>/dev/null && pwd )" || exit 0
@@ -14,7 +16,12 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" 2>/dev/null && pwd )" || ex
 source "$SCRIPT_DIR/lib/choices.sh" 2>/dev/null || exit 0
 # shellcheck source=lib/host-profile.sh
 source "$SCRIPT_DIR/lib/host-profile.sh" 2>/dev/null || exit 0
+# shellcheck source=lib/settings.sh
+source "$SCRIPT_DIR/lib/settings.sh" 2>/dev/null || true
 TOOL="${SCV_CHOICE_TOOL:-}"
+_sw=""; declare -F settings_get >/dev/null 2>&1 && _sw="$(settings_get SCV_CHOICE_GATE 2>/dev/null || true)"
+_sw="$(printf '%s' "$_sw" | tr -d '"[:space:]' | tr -d "'" | tr '[:upper:]' '[:lower:]')"
+[[ "$_sw" == "off" ]] && TOOL=""   # 스위치 off — 도구가 없는 것과 같다
 JOURNAL_DIR="${SCV_JOURNAL_DIR:-scv/journal}"
 
 case "${1:-}" in
@@ -26,7 +33,7 @@ case "${1:-}" in
     ACTIVE=0
     while [[ $# -gt 0 ]]; do
       case "$1" in
-        --active) ACTIVE="${2:-0}"; shift 2 ;;
+        --active) ACTIVE="${2:-0}"; shift 2 2>/dev/null || shift ;;
         *) shift ;;
       esac
     done
@@ -41,7 +48,7 @@ case "${1:-}" in
       echo "CHOICE_REASON: $_why"
       if [[ "$_gate" == "warn" ]]; then
         mkdir -p "$JOURNAL_DIR" 2>/dev/null && [[ ! -L "$JOURNAL_DIR/.help-warn" ]] \
-          && printf '%s\n' "직전 턴: $_why" >> "$JOURNAL_DIR/.help-warn" 2>/dev/null
+          && printf '%s\n' "[SCV 가이드] 직전 턴: $_why" >> "$JOURNAL_DIR/.help-warn" 2>/dev/null
       fi
     fi
     ;;

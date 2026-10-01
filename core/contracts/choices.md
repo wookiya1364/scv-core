@@ -22,9 +22,10 @@ turns included:
 6. Cancelled or unanswered: do not go ahead on the recommendation. Say so in one line and stop,
    without ending on a question.
 7. Never end a turn by asking in text. An offer of more detail is a decision too — ask it with the
-   tool, or state it without a question. The stop hook blocks a final message that asks the user
-   something or asks for an answer by number — once per turn; when the host reports that it is
-   already continuing, it leaves a warning for the next turn instead.
+   tool, or state it without a question; a remaining open point is stated, not asked. The stop hook
+   blocks a final message that asks the user something or asks for an answer by number — once per
+   turn; when the host reports that it is already continuing, it leaves a warning for the next turn
+   instead. A project can turn the rule off with the setting `SCV_CHOICE_GATE=off`.
 
 Information is not a decision. Tables that report — the unit table of the rewrite principle, result
 tables, the help item table — stay as text.
