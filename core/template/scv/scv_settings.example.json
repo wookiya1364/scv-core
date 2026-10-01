@@ -26,6 +26,7 @@
     "NOTIFIER_RETRY_MAX": "보고 전송·첨부 업로드 재시도 횟수. 기본 3.",
     "SCV_PR_NOTIFY": "PR 생성/갱신 후 slug 증적(성공 포함)을 알림 채널에도 게시: on(기본) | off. NOTIFIER_PROVIDER 설정 시에만 동작.",
     "SCV_PR_PLATFORM": "PR/MR 플랫폼: github | gitlab. 비우면 원격 주소로 감지.",
+    "SCV_PR_BASE": "PR 대상 브랜치 (예: develop). 에픽 계획은 epic/<slug> 가 먼저. 비우면 origin 기본 브랜치.",
     "GITLAB_HOST": "GitLab 주소 (gitlab 일 때). 기본 https://gitlab.com.",
     "SCV_ATTACHMENTS_BACKEND": "PR 영상 저장 방식: git-orphan (기본). s3/r2 는 예정.",
     "SCV_ATTACHMENTS_BRANCH": "영상을 두는 고아 브랜치 이름. 기본 scv-attachments.",
@@ -74,6 +75,7 @@
   "SCV_PR_NOTIFY": "on",
 
   "SCV_PR_PLATFORM": "",
+  "SCV_PR_BASE": "",
   "GITLAB_HOST": "https://gitlab.com",
 
   "SCV_ATTACHMENTS_BACKEND": "git-orphan",
