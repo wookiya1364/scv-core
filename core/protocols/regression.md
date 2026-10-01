@@ -195,7 +195,7 @@ Do not auto-add tags to existing PLANs. The user owns the tag taxonomy.
 - `--ci` — No user interaction. Failures exit 2. Auto-writes `test-results/regression-summary.json`.
 - `--quiet` — Trims output of passing scenarios. Used by `action:work`'s Step 9a pre-flight.
 - `--json <path>` — Write JSON summary to a specific path (works outside `--ci` too).
-- `--timeout <sec>` — Per-scenario timeout. Default 300.
+- `--timeout <sec>` — Per-scenario timeout (a whole-suite gate runs once under it). Default 1200.
 
 ## Never
 
