@@ -25,6 +25,8 @@ SCV_UPDATE_OWNER=adapter
 SCV_MODEL_POLICY_OWNER=adapter
 SCV_PROMPTING_GUIDES=../../../prompting
 SCV_AUTO_PROMPT_TAGS='machine-event other-event'
+SCV_CHOICE_TOOL=PickTool
+SCV_CHOICE_OFF_WHEN=FIXTURE_ATTENDED=0
 EOF
 
 "$ROOT/tools/validate-host-profile.sh" --profile "$PROFILE" >/dev/null
@@ -46,6 +48,25 @@ for bad in '<machine-event>' "'machine-event  other-event'" 'Machine-event'; do
   sed "s|^SCV_AUTO_PROMPT_TAGS=.*|SCV_AUTO_PROMPT_TAGS=$bad|" "$PROFILE" > "$TMP/bad-tags.env"
   if "$ROOT/tools/validate-host-profile.sh" --profile "$TMP/bad-tags.env" >/dev/null 2>&1; then
     echo "validator accepted SCV_AUTO_PROMPT_TAGS=$bad" >&2
+    exit 1
+  fi
+done
+# 0.64.0: 선택 키 SCV_CHOICE_TOOL 도 살아남고(빠지면 배포본에서 결정이 다시 글 속 표로 나간다), 도구 이름 하나만 받는다
+grep -qxF 'SCV_CHOICE_TOOL=PickTool' "$VENDOR/core/host-profile.env"
+for bad in 'Pick Tool' '1pick' 'pick;rm' '$(x)'; do
+  sed "s|^SCV_CHOICE_TOOL=.*|SCV_CHOICE_TOOL=$bad|" "$PROFILE" > "$TMP/bad-choice.env"
+  if "$ROOT/tools/validate-host-profile.sh" --profile "$TMP/bad-choice.env" >/dev/null 2>&1; then
+    echo "validator accepted SCV_CHOICE_TOOL=$bad" >&2
+    exit 1
+  fi
+done
+# 0.64.0: 선택 키 SCV_CHOICE_OFF_WHEN 도 살아남고(빠지면 배포본의 헤드리스 실행이 없는 도구로 다시 묻게 막힌다),
+# "환경 변수 이름=값" 하나만 받는다
+grep -qxF 'SCV_CHOICE_OFF_WHEN=FIXTURE_ATTENDED=0' "$VENDOR/core/host-profile.env"
+for bad in 'FIXTURE_ATTENDED' '1BAD=0' 'FIXTURE_ATTENDED=' 'A=0 B=1' 'A=$(x)' 'A=0;rm'; do
+  sed "s|^SCV_CHOICE_OFF_WHEN=.*|SCV_CHOICE_OFF_WHEN=$bad|" "$PROFILE" > "$TMP/bad-off.env"
+  if "$ROOT/tools/validate-host-profile.sh" --profile "$TMP/bad-off.env" >/dev/null 2>&1; then
+    echo "validator accepted SCV_CHOICE_OFF_WHEN=$bad" >&2
     exit 1
   fi
 done
