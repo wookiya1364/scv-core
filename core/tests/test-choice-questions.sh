@@ -198,6 +198,22 @@ for L in C en_US.UTF-8; do
 done
 [[ $c -eq 8 ]] && ok "3차 사례도 로캘과 무관 — C · UTF-8 같은 판정" || fail "T31 3차 로캘 $c/8"
 
+echo "── [T31] 판정 정확도 — 마지막 검토(2026-10-02)의 사례 — 여러 줄 · 빈 줄 · 흔한 추천 말투 · 답한 굵은 질문 ──"
+c=0
+C_I=( $'현재 상태: 통과.\n다음 행동: CHANGELOG 도 고칠까요? 추천은 예입니다.\n검증 기준: 테스트 통과.'
+      $'Summary:\n- Next: should I bump VERSION? I recommend yes.' 'Should I deploy now? CI is green. Let me know.'
+      $'Should I update the CHANGELOG?\n\nI recommend yes.' $'Which option?\n1. A\n2. B\nI recommend option 2.'
+      "Should I merge? I'd recommend yes." 'どちらにしますか？Aがおすすめです。' 'A안으로 할까요? A안을 권장합니다.'
+      '어떻게 할까요? 말씀해 주시면 진행하겠습니다.' )
+for x in "${C_I[@]}"; do [[ "$(asks "$x")" == 1 ]] && c=$((c + 1)) || echo "      ✖ not caught: $(head -c 60 <<<"$x")"; done
+[[ $c -eq 9 ]] && ok "가운데 줄의 질문 · 목록 줄 · 다음 문장의 요청 · 빈 줄 뒤 추천 · 보기 뒤 추천 · I'd recommend · がおすすめ · 권장 · 말씀해 주시면 — 9/9" || fail "T31 마지막 잡을 것 $c/9"
+c=0
+N_I=( $'**Is it safe to merge?**\nYes — I recommend merging after CI.' 'Why did it fail? The window was short. Recommended: widen it.'
+      '왜 막혔을까요? 창이 짧았습니다. 추천은 넓혀 찾기입니다.' 'Was it the cache? Yes - I recommend clearing it.'
+      'Was it the cache? It was. If you need anything else, let me know.' )
+for x in "${N_I[@]}"; do [[ "$(asks "$x")" == 0 ]] && c=$((c + 1)) || echo "      ✖ wrongly caught: $(head -c 60 <<<"$x")"; done
+[[ $c -eq 5 ]] && ok "굵은 질문 뒤 줄의 답 · Why · 왜 …을까요 · Yes - · 조건부 제안 — 5/5" || fail "T31 마지막 잡지 않을 것 $c/5"
+
 echo "── [T3] 막기 판정 — 순수 함수 ──"
 g() { bash -c 'source "$1"; scv_choice_gate "$2" "$3" "$4"' _ "$LIB" "$@"; }
 c=0
