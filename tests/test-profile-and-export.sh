@@ -24,6 +24,7 @@ SCV_GRAPH_SKILL_PATHS='$HOME/.fixture/graph/SKILL.md'
 SCV_UPDATE_OWNER=adapter
 SCV_MODEL_POLICY_OWNER=adapter
 SCV_PROMPTING_GUIDES=../../../prompting
+SCV_AUTO_PROMPT_TAGS='machine-event other-event'
 EOF
 
 "$ROOT/tools/validate-host-profile.sh" --profile "$PROFILE" >/dev/null
@@ -39,6 +40,15 @@ grep -qF '$ARGUMENTS' "$VENDOR/core/protocols/help.md"
 grep -qF 'SCV_ACTION_TEMPLATE=$scv:{action}' "$VENDOR/core/host-profile.env"
 # 0.59.0: 선택 키 SCV_PROMPTING_GUIDES 가 구체화에서 살아남는다 (빠지면 모델별 프롬프팅이 배포본에서 영영 꺼진다)
 grep -qxF 'SCV_PROMPTING_GUIDES=../../../prompting' "$VENDOR/core/host-profile.env"
+# 0.63.0: 선택 키 SCV_AUTO_PROMPT_TAGS 도 살아남고(빠지면 배포본에서 자동 알림이 다시 사람 턴이 된다), 태그 이름만 받는다
+grep -qxF 'SCV_AUTO_PROMPT_TAGS=machine-event other-event' "$VENDOR/core/host-profile.env"
+for bad in '<machine-event>' "'machine-event  other-event'" 'Machine-event'; do
+  sed "s|^SCV_AUTO_PROMPT_TAGS=.*|SCV_AUTO_PROMPT_TAGS=$bad|" "$PROFILE" > "$TMP/bad-tags.env"
+  if "$ROOT/tools/validate-host-profile.sh" --profile "$TMP/bad-tags.env" >/dev/null 2>&1; then
+    echo "validator accepted SCV_AUTO_PROMPT_TAGS=$bad" >&2
+    exit 1
+  fi
+done
 grep -qF '"artifact_sha256": null' "$VENDOR/core.lock.json"
 
 ARTIFACT_HASH='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
