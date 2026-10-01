@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-10-01T04:16:46Z
+generated_at: 2026-10-01T19:19:46Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -317,5 +317,9 @@ archives:
     status: testing
   - slug: 20261001-wookiya1364-auto-turns-pr-base-fixes
     title: "자동 알림은 사람 턴이 아니다 · PR 은 저장소 브랜치 규칙대로 — 자동 입력 판별, PR 대상 브랜치 설정, PR 커밋 범위 점검"
+    kind: feature
+    status: testing
+  - slug: 20261001-wookiya1364-restore-choice-questions
+    title: "결정은 고르는 선택지로 — 클로드에서 SCV 가 묻는 결정을 객관식으로 되돌린다"
     kind: feature
     status: testing
