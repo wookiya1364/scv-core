@@ -170,6 +170,34 @@ for L in C en_US.UTF-8; do
 done
 [[ $c -eq 2 ]] && ok "넓힌 판정도 로캘과 무관 — C · UTF-8 같은 판정" || fail "T31 로캘 $c/2"
 
+echo "── [T31] 판정 정확도 — 3차 독립 검토(2026-10-02)의 사례 — 고친 곳을 되돌리면 붉어지는 모양으로 ──"
+c=0
+C_H=( 'Should I delete `old.sh`? I recommend yes.' 'Should I bump `VERSION`? Let me know.'
+      'Should I deploy? Logs: https://x.example/run?id=3 — I recommend yes.'
+      "Should I merge it? You asked 'is it done?' — I recommend merging."
+      'A안으로 갈지 B안으로 갈지 알려 주세요. 다른 궁금한 점도 언제든지 알려 주세요.'
+      'Should I deploy now?? I recommend yes.' 'Should I merge? Yes or no — I recommend yes.'
+      $'Should I deploy now?\n\xc2\xa0' '진행하시겠습니까? 추천은 예입니다.' $'어느 쪽으로 할까요?\n추천은 A입니다.' )
+for x in "${C_H[@]}"; do [[ "$(asks "$x")" == 1 ]] && c=$((c + 1)) || echo "      ✖ not caught: $(head -c 60 <<<"$x")"; done
+[[ $c -eq 10 ]] && ok "코드 조각 뒤 물음표 · 주소 · 옮긴 질문 뒤로 걷기 · 맺음 인사와 함께 둔 요청 · ?? · Yes or no · NBSP 줄 · 습니까 · 두 줄 — 10/10" || fail "T31 3차 잡을 것 $c/10"
+c=0
+N_H=( 'テストは通りましたか？　はい、すべて通りました。おすすめは今の設定のままです。'
+      'ご質問「どちらが良いですか？」への答え：おすすめはAです。'
+      '原因は何だったのか？古いキャッシュでした。おすすめは毎回の削除です。'
+      '무엇이 문제였나? 캐시였습니다. 궁금한 점이 있으면 언제든지 알려 주세요.'
+      'Was it the cache? It was. If you need anything else, let me know.'
+      '왜 느렸나? 캐시 때문이었다. 설정을 추천 값으로 되돌렸습니다.'
+      'Did it pass? Yes — I recommend keeping the current settings.'
+      'The fix uses `a ?? b`, which I recommend here.' )
+for x in "${N_H[@]}"; do [[ "$(asks "$x")" == 0 ]] && c=$((c + 1)) || echo "      ✖ wrongly caught: $(head -c 60 <<<"$x")"; done
+[[ $c -eq 8 ]] && ok "전각 공백 뒤 답 · 옮긴 ？ · 혼잣말(のか · 나?) · 답한 질문 뒤 추천 · 코드 조각 안 ?? — 8/8" || fail "T31 3차 잡지 않을 것 $c/8"
+c=0
+for L in C en_US.UTF-8; do
+  for x in "${C_H[0]}" "${C_H[7]}"; do [[ "$(LC_ALL=$L bash -c 'source "$1"; scv_asks_in_text "$(scv_answer_body "$2")"' _ "$LIB" "$x")" == 1 ]] && c=$((c + 1)); done
+  for x in "${N_H[0]}" "${N_H[2]}"; do [[ "$(LC_ALL=$L bash -c 'source "$1"; scv_asks_in_text "$(scv_answer_body "$2")"' _ "$LIB" "$x")" == 0 ]] && c=$((c + 1)); done
+done
+[[ $c -eq 8 ]] && ok "3차 사례도 로캘과 무관 — C · UTF-8 같은 판정" || fail "T31 3차 로캘 $c/8"
+
 echo "── [T3] 막기 판정 — 순수 함수 ──"
 g() { bash -c 'source "$1"; scv_choice_gate "$2" "$3" "$4"' _ "$LIB" "$@"; }
 c=0

@@ -41,22 +41,20 @@ scv_answer_body() {
 #   (c) 실제 끝 줄이 물음표로 끝남 — 끝에 붙은 보기 목록(1. · - · ①)은 건너뛰고 그 앞 줄을 본다. 끝의 괄호 덧붙임
 #       "(추천: 예)" · 굵게 · 따옴표 · 이모티콘은 걷어 내고 본다. 걷는 것은 글자 그대로의 꼬리라 로캘과 무관하다.
 #       표의 행으로 끝나는 답은 (c) 를 보지 않는다 — 표 안의 물음표는 정보다.
-#   (d) 끝 문단(표 줄 제외)의 마지막 '문장 끝 물음표' 뒤에 분명한 추천("추천은" · "(추천" · "I recommend" …)이나 요청("알려
-#       주세요" · "let me know" …)이 온다 — "…할까요? 추천은 …입니다." · "…맞나요? 아니면 알려 주세요." 뒤가 공백 · 줄 끝 · 괄호 ·
-#       굵게가 아닌 물음표(주소의 ?id=3 · 옮겨 적은 질문의 ?')와 앞이 물음표 · 공백 · 백틱인 것(연산자 ??)은 건너뛰고 그 앞을 본다.
-#       전각 물음표(？)는 늘 문장 끝이다. 물음표 바로 뒤에 "네," · "Yes —" 같은 답이 오면 혼잣말 질문이라 묻는 것이 아니다.
-#       끝 4000글자만 본다(큰 글에서 패턴 자르기가 제곱으로 느려진다).
+#   (d) 끝 문단의 마지막 줄(표 · 보기 줄 제외)이 사용자에게 묻는 물음표를 담고(scv_choice_q_after), 그 뒤 글이 묻는 꼴이다
+#       (scv_choice_q_asks) — "…할까요? 추천은 …입니다." · "…맞나요? 아니면 알려 주세요." 또는 앞 줄이 그런 물음표로 끝나고 끝 줄이
+#       분명한 추천으로 시작한다("어느 쪽으로 할까요?" / "추천은 A입니다.").
 #   (a) 와 (d) 는 실제 답 모음(로컬 원본 230턴)에서 놓친 모양으로 넓혔다 — 질문 뒤 추천 문장, "답해 주시면 됩니다",
 #       "할지 알려 주세요", "라고 해 주세요", 한 줄 보기 목록 "[1] … / [2] …" (2026-10-01 실측).
 # 본문 중간의 물음표, 평서문으로 끝나는 답, 정보 표, "필요하면 말씀해 주세요" · "언제든지 알려 주세요" 같은 제안 · 맺음 인사는
 # 묻는 것이 아니다. 빈 줄(문단 경계)은 ASCII 공백만으로 이뤄진 줄이다 — 로캘에 따라 문단이 달라지지 않게.
 scv_asks_in_text() {
-  local body="${1:-}" line t cue hit=0 nc=0 n=0 i last="" para="" ppara="" reset=0 prev pre ptext="" after="" q=0 c1 a1 a2 f1 f2 k np=0
+  local body="${1:-}" line t cue hit=0 nc=0 n=0 i last="" para="" ppara="" reset=0 prev pre after="" np=0
   local -a PL=()
   local item_re='^([-*+]|[0-9]+[.)]|\([0-9]+\)|\[[0-9]+\]|①|②|③|④|⑤|⑥|⑦|⑧|⑨|⑩)[[:space:]]'
   local -a L=()
   while IFS= read -r line || [[ -n "$line" ]]; do
-    if [[ "$line" != *[!$' \t\r\v\f']* ]]; then reset=1; continue; fi
+    if _scv_choice_blank "$line"; then reset=1; continue; fi
     if (( reset )); then ppara="$para"; para=""; reset=0; fi
     para+="$line"$'\n'
     L[n]="$line"; n=$((n + 1))
@@ -83,7 +81,9 @@ scv_asks_in_text() {
              "let me know whether" "tell me which" "tell me whether" "か教えてください" "とお答えください"; do
     if [[ "$para" == *"$cue"* || "$ppara" == *"$cue"* || "$last" == *"$cue"* ]]; then
       # "언제든지 알려 주세요" · "얼마든지 말씀해 주세요" 는 맺음 인사다 — "…할지 · …인지 알려 주세요" 만 묻는 말이다
-      if [[ "$cue" == "지 "* ]] && [[ "$para" == *"든$cue"* || "$ppara" == *"든$cue"* || "$last" == *"든$cue"* ]]; then continue; fi
+      if [[ "$cue" == "지 "* ]]; then
+        _scv_choice_cue_real "$para" "$cue" || _scv_choice_cue_real "$ppara" "$cue" || _scv_choice_cue_real "$last" "$cue" || continue
+      fi
       hit=1; break
     fi
   done
@@ -134,49 +134,16 @@ scv_asks_in_text() {
     while IFS= read -r line || [[ -n "$line" ]]; do
       t="${line#"${line%%[![:space:]]*}"}"
       [[ "${t:0:1}" == "|" ]] && continue
+      [[ "$t" =~ $item_re ]] && continue
+      _scv_choice_blank "$t" && continue
       PL[np]="$t"; np=$((np + 1))
     done <<< "$para"
-    # 끝 40줄만 — 질문은 문단 끝 가까이 있고, ##*? · %?* 는 큰 글에서 제곱으로 느려진다(3.2 에서 64KB 13초). 줄 수로 자르면
-    # 로캘과 무관하다. 한 줄이 아주 길 때만 글자 수로 한 번 더 자른다.
-    k=0; (( np > 40 )) && k=$((np - 40))
-    for (( ; k < np; k++ )); do ptext+="${PL[k]}"$'\n'; done
-    (( ${#ptext} > 4000 )) && ptext="${ptext: -4000}"
-    k=0
-    while (( k < 20 )); do
-      k=$((k + 1)); f1=0; f2=0; a1=""; a2=""
-      [[ "$ptext" == *'?'* ]] && { a1="${ptext##*\?}"; f1=1; }
-      [[ "$ptext" == *'？'* ]] && { a2="${ptext##*'？'}"; f2=1; }
-      (( f1 || f2 )) || break
-      if (( f2 )) && { (( ! f1 )) || (( ${#a2} <= ${#a1} )); }; then
-        after="$a2"; ptext="${ptext%'？'*}"; c1="ok"
-      else
-        after="$a1"; ptext="${ptext%\?*}"; c1="${after:0:1}"
-        case "${ptext: -1}" in '?'|' '|$'\t'|'`'|'') c1="x" ;; esac
-        if [[ "$c1" != "x" ]]; then
-          case "$c1" in ''|' '|$'\t'|$'\n'|')'|'('|'*'|'_') c1="ok" ;; *) if [[ "$after" == '　'* ]]; then c1="ok"; else c1="x"; fi ;; esac
-        fi
+    if (( np > 0 )); then
+      if after="$(scv_choice_q_after "${PL[np-1]}")"; then
+        hit="$(scv_choice_q_asks "$after")"
+      elif (( np > 1 )) && after="$(scv_choice_q_after "${PL[np-2]}")" && ! _scv_choice_has_text "$after"; then
+        hit="$(scv_choice_q_asks " ${PL[np-1]}" reco-only)"
       fi
-      [[ "$c1" == "ok" ]] || continue
-      q=1; break
-    done
-    if (( q )); then
-      nc=0; shopt -q nocasematch && nc=1
-      shopt -s nocasematch
-      t="${after#"${after%%[![:space:]]*}"}"
-      for cue in "네," "네." "네!" "네 —" "네—" "예," "예." "예!" "예 —" "예—" "아니요" "아니오" "아뇨" \
-                 "Yes," "Yes." "Yes!" "Yes —" "Yes—" "Yes " "No," "No." "No!" "No —" "No—" "はい" "いいえ"; do
-        [[ "$t" == "$cue"* ]] && { q=0; break; }
-      done
-      if (( q )); then
-        for cue in "추천은" "추천:" "추천 :" "(추천" "（추천" "추천합니다" "를 추천" "을 추천" "제 추천" \
-                   "i recommend" "my recommendation" "(recommended" "recommended:" "recommendation:" \
-                   "おすすめは" "おすすめします" "推奨は" "(推奨" "（推奨" "推奨します" \
-                   "알려 주세요" "알려주세요" "말씀해 주세요" "말씀해주세요" "답해 주세요" "답해주세요" \
-                   "let me know" "tell me" "教えてください" "お知らせください"; do
-          [[ "$after" == *"$cue"* ]] && { hit=1; break; }
-        done
-      fi
-      (( nc )) || shopt -u nocasematch
     fi
   fi
   printf '%s' "$hit"
@@ -207,4 +174,116 @@ scv_choice_off_when() {
   name="${spec%%=*}"; want="${spec#*=}"
   [[ "$name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ && -n "$want" ]] || { printf '0'; return 0; }
   [[ "$now" == "$want" ]] && printf '1' || printf '0'
+}
+
+# @pure
+# <줄> → 0(빈 줄: ASCII 공백 · NBSP · 전각 공백뿐) | 1. 로캘과 무관하다 — [[:space:]] 는 로캘마다 NBSP 를 다르게 본다.
+_scv_choice_blank() {
+  local t="${1:-}" k=0
+  [[ "$t" == *[!$' \t\r\v\f']* ]] || return 0
+  while (( k < 16 )); do
+    k=$((k + 1))
+    case "$t" in
+      '') return 0 ;;
+      [$' \t\r\v\f']*) t="${t#?}" ;;
+      $'\xc2\xa0'*) t="${t#$'\xc2\xa0'}" ;;
+      '　'*) t="${t#'　'}" ;;
+      *) return 1 ;;
+    esac
+  done
+  return 1
+}
+
+# @pure
+# <글> → 0(공백 · 굵게 · 닫는 괄호 말고 글이 있다) | 1.
+_scv_choice_has_text() {
+  local t="${1:-}"
+  [[ "$t" == *[!$' \t\r\v\f*_)']* ]]
+}
+
+# @pure
+# <글> <요청 말> → 0(맺음 인사가 아닌 요청이 한 군데라도 있다) | 1. "언제든지 · 얼마든지 알려 주세요" 처럼 "든" · "든지" 바로
+# 뒤에 오는 것은 맺음 인사다 — 자리마다 본다(한 글에 진짜 요청과 맺음 인사가 같이 있어도 요청을 놓치지 않게).
+_scv_choice_cue_real() {
+  local s="${1:-}" cue="${2:-}" pre k=0
+  while [[ "$s" == *"$cue"* ]] && (( k < 8 )); do
+    k=$((k + 1)); pre="${s%%"$cue"*}"
+    [[ "$pre" == *든 || "$pre" == *든지 || "$pre" == *"든지 " ]] || return 0
+    s="${s#*"$cue"}"
+  done
+  return 1
+}
+
+# @pure
+# <줄> → 그 줄에서 사용자에게 묻는 마지막 '문장 끝 물음표' 뒤의 글. 없으면 아무것도 내지 않고 1.
+#   줄은 끝 2000바이트만 본다(바이트로 자른다 — 로캘과 무관, 큰 글에서 패턴 자르기가 제곱으로 느려지지 않게).
+#   건너뛰는 물음표: 코드 조각(`…`) 안(앞의 백틱이 홀수), 뒤가 닫는 따옴표(옮겨 적은 질문), 뒤가 공백 · 줄 끝 · 괄호 · 굵게 ·
+#   NBSP · 전각 공백이 아닌 것(주소의 ?id=), 반말 · 혼잣말 물음("…나?" · "…까?" — "…습니까?" 는 존댓말, "…のか？").
+#   전각 물음표(？)는 뒤에 띄어 쓰지 않아도 문장 끝이다.
+scv_choice_q_after() {
+  local x="${1:-}" head after k=0 f1 f2 a1 a2 q c
+  local -a bt=()
+  x="$(LC_ALL=C; if (( ${#x} > 2000 )); then printf '%s' "${x: -2000}"; else printf '%s' "$x"; fi)"
+  head="$x"
+  while (( k < 8 )); do
+    k=$((k + 1)); f1=0; f2=0; a1=""; a2=""
+    [[ "$head" == *'?'* ]] && { a1="${head##*\?}"; f1=1; }
+    [[ "$head" == *'？'* ]] && { a2="${head##*'？'}"; f2=1; }
+    (( f1 || f2 )) || return 1
+    if (( f2 )) && { (( ! f1 )) || (( ${#a2} <= ${#a1} )); }; then q='？'; head="${head%'？'*}"; else q='?'; head="${head%\?*}"; fi
+    after="${x:${#head}}"; after="${after:${#q}}"
+    bt=(); IFS='`' read -r -d '' -a bt <<<"$head" || true
+    (( ${#bt[@]} % 2 == 0 )) && continue
+    c="${after:0:1}"
+    case "$c" in "'"|'"'|'`') continue ;; esac
+    [[ "$after" == "”"* || "$after" == "’"* || "$after" == "」"* || "$after" == "』"* ]] && continue
+    if [[ "$q" == '?' ]]; then
+      case "$c" in ''|' '|$'\t'|')'|'('|'*'|'_') ;; *) [[ "$after" == $'\xc2\xa0'* || "$after" == '　'* ]] || continue ;; esac
+    fi
+    case "$head" in *니까) ;; *나|*까|*가|*지|*니|*냐|*래|*대|*のか|*だろうか|*かな) continue ;; esac
+    printf '%s' "$after"; return 0
+  done
+  return 1
+}
+
+# @pure
+# <물음표 뒤 글> [reco-only] → 1 | 0. 바로 답이 오면("네, …" · "Yes — …") 혼잣말 질문이라 0. 첫 문장에 요청("알려 주세요" ·
+# "let me know" · "여쭤봅니다" …, "언제든지 …" 맺음 인사는 아님)이 있거나, 뒤 어디든 분명한 추천 말("추천은" · "(추천" ·
+# "I recommend" · "おすすめは" …)이 있으면 1. reco-only 면 추천 말만 본다(앞 줄 질문 · 끝 줄 추천 꼴).
+scv_choice_q_asks() {
+  local a="${1:-}" mode="${2:-}" t first cue nc=0 hit=0 k=0
+  t="$a"
+  while (( k < 16 )); do
+    k=$((k + 1))
+    case "$t" in
+      [$' \t\r\v\f']*) t="${t#?}" ;;
+      $'\xc2\xa0'*) t="${t#$'\xc2\xa0'}" ;;
+      '　'*) t="${t#'　'}" ;;
+      *) break ;;
+    esac
+  done
+  shopt -q nocasematch && nc=1
+  shopt -s nocasematch
+  if [[ "$mode" != "reco-only" ]]; then
+    for cue in "네," "네." "네!" "네 —" "네—" "예," "예." "예!" "예 —" "예—" "아니요" "아니오" "아뇨" \
+               "Yes," "Yes." "Yes!" "Yes —" "Yes—" "No," "No." "No!" "No —" "No—" "はい" "いいえ"; do
+      [[ "$t" == "$cue"* ]] && { (( nc )) || shopt -u nocasematch; printf '0'; return 0; }
+    done
+    first="$t"
+    first="${first%%. *}"; first="${first%%! *}"; first="${first%%\? *}"; first="${first%%$'\n'*}"
+    first="${first%%。*}"; first="${first%%！*}"; first="${first%%？*}"
+    for cue in "알려 주세요" "알려주세요" "알려 주시면" "알려주시면" "말씀해 주세요" "말씀해주세요" "답해 주세요" "답해주세요" \
+               "여쭤" "여쭙" "let me know" "tell me" "教えてください" "お知らせください"; do
+      if [[ "$first" == *"$cue"* ]] && _scv_choice_cue_real "$first" "$cue"; then hit=1; break; fi
+    done
+  fi
+  if (( ! hit )); then
+    for cue in "추천은" "추천:" "추천 :" "(추천" "（추천" "추천합니다" "를 추천" "을 추천" "제 추천" \
+               "i recommend" "my recommendation" "(recommended" "recommended:" "recommendation:" \
+               "おすすめは" "おすすめします" "推奨は" "(推奨" "（推奨" "推奨します"; do
+      [[ "$t" == *"$cue"* ]] && { hit=1; break; }
+    done
+  fi
+  (( nc )) || shopt -u nocasematch
+  printf '%s' "$hit"
 }
