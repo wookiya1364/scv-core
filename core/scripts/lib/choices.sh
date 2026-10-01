@@ -33,50 +33,82 @@ scv_answer_body() {
 }
 
 # @pure
-# <본문> → 1 | 0. 끝 문단이 사용자에게 고르게 하거나 묻는가:
-#   (a) 번호로 답하라는 말 · "다 추천대로" (한국어 · 영어 · 일본어)
-#   (b) 질문 · 추천 칸이 있는 결정 표
-#   (c) 마지막 줄이 물음표로 끝남 — 끝의 괄호 덧붙임 "(추천: 예)" 와 꾸밈 글자는 걷어 내고 본다
-#   (d) 끝 줄이 표의 행이고 표 안에 물음표로 끝나는 칸이 있음
-# 본문 중간의 물음표와 평서문으로 끝나는 답은 묻는 것이 아니다.
+# <본문> → 1 | 0. 답이 사용자에게 고르게 하거나 묻는 글로 끝나는가:
+#   (a) 요청하는 말 — 번호로 답해 달라 · 골라 / 정해 / 선택해 달라 · "'다 추천대로'라고"(한 · 영 · 일). 요청형만 본다 —
+#       "다 추천대로 반영했습니다" 같은 평서문은 잡지 않는다.
+#   (b) 끝 문단이 결정 표 — 머리에 질문 · 추천 칸이 있고, 고른 것 · 답 · 결과 칸은 없다(되짚는 표는 정보다).
+#   (c) 실제 끝 줄이 물음표로 끝남 — 끝에 붙은 보기 목록(1. · - · ①)은 건너뛰고 그 앞 줄을 본다. 끝의 괄호 덧붙임
+#       "(추천: 예)" · 굵게 · 따옴표 · 이모티콘은 걷어 내고 본다. 걷는 것은 글자 그대로의 꼬리라 로캘과 무관하다.
+#       표의 행으로 끝나는 답은 (c) 를 보지 않는다 — 표 안의 물음표는 정보다.
+# 본문 중간의 물음표, 평서문으로 끝나는 답, 정보 표는 묻는 것이 아니다.
 scv_asks_in_text() {
-  local body="${1:-}" line last="" para="" reset=0 t cue hit=0 nc=0
+  local body="${1:-}" line t cue hit=0 nc=0 n=0 i last="" para="" reset=0 prev pre
+  local item_re='^([-*+]|[0-9]+[.)]|\([0-9]+\)|①|②|③|④|⑤|⑥|⑦|⑧|⑨|⑩)[[:space:]]'
+  local -a L=()
   while IFS= read -r line || [[ -n "$line" ]]; do
     if [[ -z "${line//[[:space:]]/}" ]]; then reset=1; continue; fi
     if (( reset )); then para=""; reset=0; fi
-    para+="$line"$'\n'; last="$line"
+    para+="$line"$'\n'
+    L[n]="$line"; n=$((n + 1))
   done <<< "$body"
-  [[ -n "$last" ]] || { printf '0'; return 0; }
+  (( n )) || { printf '0'; return 0; }
+  i=$((n - 1))
+  while (( i > 0 )); do
+    t="${L[i]#"${L[i]%%[![:space:]]*}"}"
+    [[ "$t" =~ $item_re ]] || break
+    i=$((i - 1))
+  done
+  last="${L[i]}"
   shopt -q nocasematch && nc=1
   shopt -s nocasematch
-  for cue in "번호로 답" "번호만 알려" "번호로 골라" "번호로 알려" "다 추천대로" "추천대로'라고" "추천대로라고" \
-             "answer by number" "reply with the number" "answer with the number" "reply with a number" "pick a number" \
-             "番号で答" "番号でお答" "番号だけ"; do
-    [[ "$para" == *"$cue"* ]] && { hit=1; break; }
+  for cue in "번호로 답해 주세요" "번호로 답해주세요" "번호로 답해 줘" "번호만 알려 주세요" "번호만 알려주세요" \
+             "번호로 알려 주세요" "번호로 알려주세요" "추천대로'라고" "추천대로라고" "골라 주세요" "골라주세요" \
+             "정해 주세요" "정해주세요" "선택해 주세요" "선택해주세요" "결정해 주세요" "결정해주세요" \
+             "answer by number" "reply with the number" "answer with the number" "reply with a number" \
+             "let me know which" "which one would you" "which would you prefer" "which do you prefer" \
+             "please choose" "please pick" "please select" "please decide" \
+             "番号でお答え" "番号で答えて" "番号でご回答" "選んでください" "決めてください" "お選びください"; do
+    [[ "$para" == *"$cue"* || "$last" == *"$cue"* ]] && { hit=1; break; }
   done
   if (( ! hit )); then
     while IFS= read -r line || [[ -n "$line" ]]; do
       t="${line#"${line%%[![:space:]]*}"}"
       [[ "${t:0:1}" == "|" ]] || continue
       if [[ "$t" == *"질문"* || "$t" == *"question"* || "$t" == *"質問"* ]] \
-         && [[ "$t" == *"추천"* || "$t" == *"recommend"* || "$t" == *"推奨"* ]]; then hit=1; break; fi
+         && [[ "$t" == *"추천"* || "$t" == *"recommend"* || "$t" == *"推奨"* ]] \
+         && [[ "$t" != *"고른"* && "$t" != *"답"* && "$t" != *"결과"* && "$t" != *"chosen"* && "$t" != *"answer"* \
+               && "$t" != *"result"* && "$t" != *"選んだ"* && "$t" != *"結果"* ]]; then hit=1; break; fi
     done <<< "$para"
   fi
   (( nc )) || shopt -u nocasematch
   if (( ! hit )); then
-    t="${last%"${last##*[![:space:]]}"}"
-    if [[ "${t#"${t%%[![:space:]]*}"}" == "|"* ]]; then
-      [[ "$para" == *"?|"* || "$para" == *"? |"* || "$para" == *"？|"* || "$para" == *"？ |"* ]] && hit=1
-    else
-      if [[ "$t" == *")" && "$t" == *"("* ]]; then t="${t%(*}"; t="${t%"${t##*[![:space:]]}"}"; fi
-      while [[ -n "$t" ]]; do
-        case "$t" in
-          *'**'|*'__') t="${t%??}" ;;
-          *'*'|*'_'|*'"'|*"'"|*'`'|*')') t="${t%?}" ;;
-          *'」'|*'』'|*'”'|*'’') t="${t%?}" ;;
-          *) break ;;
-        esac
+    t="${last#"${last%%[![:space:]]*}"}"
+    if [[ "${t:0:1}" != "|" ]]; then
+      prev=""
+      while [[ "$t" != "$prev" ]]; do
+        prev="$t"
         t="${t%"${t##*[![:space:]]}"}"
+        case "$t" in
+          *':-)') t="${t%???}" ;;
+          *'**'|*'__'|*':)'|*';)'|*'^^') t="${t%??}" ;;
+          *'*'|*'_'|*'"'|*"'"|*'`'|*'~'|*'!'|*'.') t="${t%?}" ;;
+          *'ㅎㅎ') t="${t%'ㅎㅎ'}" ;;
+          *'ㅋㅋ') t="${t%'ㅋㅋ'}" ;;
+          *'」') t="${t%'」'}" ;;
+          *'』') t="${t%'』'}" ;;
+          *'”') t="${t%'”'}" ;;
+          *'’') t="${t%'’'}" ;;
+          *'🙂') t="${t%'🙂'}" ;;
+          *'😊') t="${t%'😊'}" ;;
+          *'😀') t="${t%'😀'}" ;;
+          *'🙏') t="${t%'🙏'}" ;;
+          *'👍') t="${t%'👍'}" ;;
+          *')')
+            if [[ "$t" == *"("* ]]; then
+              pre="${t%(*}"
+              if [[ -n "${pre//[[:space:]]/}" ]]; then t="$pre"; else t="${t#(}"; t="${t%)}"; fi
+            fi ;;
+        esac
       done
       case "$t" in *'?'|*'？') hit=1 ;; esac
     fi

@@ -77,13 +77,38 @@ N_E=$'왜 그럴까? 원인은 설정이다.\n\n그래서 고쳤습니다.'
 
 echo "── [T1] 글로 묻는 답 판정 — 잡을 것 ──"
 c=0
-for x in "$C_A" "$C_B" "$C_C" "$C_D1" "$C_D2" "$C_E"; do [[ "$(asks "$x")" == 1 ]] && c=$((c + 1)) || echo "      ✖ not caught: $(head -c 60 <<<"$x")"; done
-[[ $c -eq 6 ]] && ok "화면 문구 · (추천: 예) 질문 · 번호로 답 · 영어 두 가지 · 물음표 끝 — 6/6" || fail "T1 $c/6"
+# 독립 검토가 찾은 누락 모양: 질문 뒤 보기 목록 · 요청형("정해 주세요" · "Let me know which") · 이모티콘 · 괄호 · 굵은 괄호 · 따옴표
+C_F1=$'어떻게 진행할까요?\n\n1. A 방식 (추천)\n2. B 방식'
+C_F2=$'Which approach do you prefer?\n- Option A (recommended)\n- Option B'
+C_F3='…어느 쪽으로 할지 정해 주세요.'
+C_F4='Let me know which one you want.'
+C_F5='진행할까요? 🙂'
+C_F6='(이대로 진행할까요?)'
+C_F7='Ready to merge? :)'
+C_F8='진행할까요? **(추천: 예)**'
+C_F9=$'Done.\n\nShall I \xe2\x80\x9cship it?\xe2\x80\x9d'
+for x in "$C_A" "$C_B" "$C_C" "$C_D1" "$C_D2" "$C_E" "$C_F1" "$C_F2" "$C_F3" "$C_F4" "$C_F5" "$C_F6" "$C_F7" "$C_F8" "$C_F9"; do
+  [[ "$(asks "$x")" == 1 ]] && c=$((c + 1)) || echo "      ✖ not caught: $(head -c 60 <<<"$x")"
+done
+[[ $c -eq 15 ]] && ok "화면 문구 · (추천: 예) · 번호로 답 · 영어 · 물음표 끝 + 검토 누락 9 모양 — 15/15" || fail "T1 $c/15"
+c=0
+for L in C en_US.UTF-8; do [[ "$(LC_ALL=$L bash -c 'source "$1"; scv_asks_in_text "$2"' _ "$LIB" "$C_F9")" == 1 ]] && c=$((c + 1)); done
+[[ $c -eq 2 ]] && ok "로캘과 무관 — C · UTF-8 같은 판정" || fail "T1 로캘 $c/2"
 
 echo "── [T2] 글로 묻는 답 판정 — 잡지 않을 것 ──"
 c=0
-for x in "$N_A" "$N_B" "$N_C" "$N_D" "$N_E"; do [[ "$(asks "$x")" == 0 ]] && c=$((c + 1)) || echo "      ✖ wrongly caught: $(head -c 60 <<<"$x")"; done
-[[ $c -eq 5 ]] && ok "정보 표 · 인용 줄 · 코드 블록 · 평서문 끝 · 본문 중간 물음표 — 5/5" || fail "T2 $c/5"
+# 독립 검토가 찾은 오탐 모양: 되짚는 표 · 상태 표의 물음표 · 평서문 속 "추천대로" · "番号だけ" · "번호로 골라 주신" · "pick a number"
+N_F1=$'| 질문 | 고른 것 |\n|---|---|\n| 릴리스할까? | 예 |'
+N_F2=$'| 항목 | 상태 |\n|---|---|\n| 원격 CI | ? |'
+N_F3='말씀하신 대로 다 추천대로 반영했습니다.'
+N_F4='バージョン番号だけ上げました。'
+N_F5='번호로 골라 주신 2번으로 바꿨습니다.'
+N_F6='The script will pick a number between 1 and 10.'
+N_F7=$'바꾼 것:\n- a\n- b'
+for x in "$N_A" "$N_B" "$N_C" "$N_D" "$N_E" "$N_F1" "$N_F2" "$N_F3" "$N_F4" "$N_F5" "$N_F6" "$N_F7"; do
+  [[ "$(asks "$x")" == 0 ]] && c=$((c + 1)) || echo "      ✖ wrongly caught: $(head -c 60 <<<"$x")"
+done
+[[ $c -eq 12 ]] && ok "정보 표 · 인용 · 코드 · 평서문 · 중간 물음표 + 검토 오탐 7 모양 — 12/12" || fail "T2 $c/12"
 if [[ -f "$CORE/scripts/check-purity.sh" ]]; then
   o="$(bash "$CORE/scripts/check-purity.sh" "$LIB" "$CORE/scripts/lib/help-state.sh" 2>&1)"
   grep -q '^OK  purity' <<<"$o" && ok "순수성 계약 통과 (판정 함수 · 턴 끝 메시지)" || fail "순수성: $(head -2 <<<"$o")"
@@ -105,8 +130,11 @@ if [[ "$(jq -r .decision <<<"$o" 2>/dev/null)" == block ]] && grep -q 'SCV 선�
    && grep -q '첫 보기가 추천' <<<"$o" && grep -q '4개를 넘으면' <<<"$o"; then ok "첫 번째: 막음 — 이유에 도구 이름 · 추천 첫 보기 · 나누기"; else fail "T4 첫 번째: [$o]"; fi
 rm -f "$R/scv/journal/.help-warn"
 o="$(stop_p "$R" "$WORK/profile-full.env" "$(printf '%s\n\n%s\n\n%s' "결론." "$QUOTE" "$C_A")" true)"
-[[ -z "$o" ]] && grep -q '^직전 턴: \[SCV 선택지\]' "$R/scv/journal/.help-warn" 2>/dev/null \
+[[ -z "$o" ]] && grep -q '^\[SCV 가이드\] 직전 턴: \[SCV 선택지\]' "$R/scv/journal/.help-warn" 2>/dev/null \
   && ok "이미 계속 중: 막지 않고 다음 턴 경고" || fail "T4 계속 중: [$o] / $(cat "$R/scv/journal/.help-warn" 2>/dev/null)"
+(cd "$R" && bash "$CORE/scripts/help-state.sh" reset >/dev/null 2>&1)
+grep -q '^\[SCV 가이드\] 직전 턴: \[SCV 선택지\]' "$R/scv/journal/.help-warn" 2>/dev/null \
+  && ok "경고는 컨텍스트 초기화(clear · 압축 · 재개) 뒤에도 남는다" || fail "T4 초기화 뒤 경고 사라짐"
 o="$(stop_p "$R" "$WORK/profile-full.env" "$(printf '%s\n\n%s' "결론." "$C_A")" false)"
 grep -q 'SCV 프롬프트' <<<"$o" && ! grep -q 'SCV 선택지' <<<"$o" && ok "등록 · 인용 판정이 먼저 막으면 선택지 판정은 보지 않는다(한 번에 한 이유)" \
   || fail "T4 한 이유: [$o]"
@@ -254,7 +282,7 @@ o="$(stop_p "$R" "$WORK/profile-full.env" "$(printf '%s\n\n%s\n\n%s\n\n%s' "결�
   && ok "문제 칸이 있는 끝 메시지 — 막음, 이유에 해결책 안에서 막으라는 말" || fail "T23 막기: [$o]"
 rm -f "$R/scv/journal/.help-warn"
 o="$(stop_p "$R" "$WORK/profile-full.env" "$(printf '%s\n\n%s\n\n%s' "결론." "$QUOTE" "$PTA")" true)"
-[[ -z "$o" ]] && grep -q '^직전 턴: \[SCV 원칙\]' "$R/scv/journal/.help-warn" 2>/dev/null && ok "이미 계속 중: 막지 않고 다음 턴 경고" || fail "T23 계속 중: [$o]"
+[[ -z "$o" ]] && grep -q '^\[SCV 가이드\] 직전 턴: \[SCV 원칙\]' "$R/scv/journal/.help-warn" 2>/dev/null && ok "이미 계속 중: 막지 않고 다음 턴 경고" || fail "T23 계속 중: [$o]"
 o="$(stop_p "$R" "$WORK/profile-full.env" "$(printf '%s\n\n%s\n\n%s\n\n%s' "결론." "$QUOTE" "$PTA" "릴리스할까요?")" false)"
 grep -q 'SCV 원칙' <<<"$o" && ! grep -q 'SCV 선택지' <<<"$o" && ok "문제 표와 글 질문이 함께 있으면 원칙 이유 하나만(한 번에 한 이유)" || fail "T23 한 이유: [$o]"
 R="$(fresh_turn t23off)"; printf '{\n  "SCV_REWRITE_PRINCIPLE": "off"\n}\n' > "$R/scv/scv_settings.json"
@@ -262,6 +290,24 @@ o="$(stop_p "$R" "$WORK/profile-full.env" "$(printf '%s\n\n%s\n\n%s' "결론." "
 [[ -z "$o" ]] && ok "원칙 스위치 off — 판정 없음(이 기능 전과 같다)" || fail "T23 off: [$o]"
 o="$(stop_p "$(new_repo t23nc)" "$WORK/profile-pick.env" "$(printf '%s\n\n%s' "결론." "$PTA")" false)"
 [[ -z "$o" ]] && ok "원칙이 실리지 않는 호스트(요구 항목 데이터 없음) — 판정 없음" || fail "T23 no checklist: [$o]"
+
+echo "── [T25] 프로젝트 스위치 · 끝 메시지 없음 · 실행부 인자 ──"
+R="$(new_repo t25)"; printf '{\n  "SCV_CHOICE_GATE": "off"\n}\n' > "$R/scv/scv_settings.json"
+o="$(hook_p "$R" "$WORK/profile-pick.env" "안녕")"; ! grep -q 'SCV choices' <<<"$o" && ok "SCV_CHOICE_GATE=off — 안내 줄 없음" || fail "T25 off 안내"
+o="$(stop_p "$R" "$WORK/profile-pick.env" "$C_E" false)"; [[ -z "$o" ]] && ok "SCV_CHOICE_GATE=off — 글로 물어도 막지 않음" || fail "T25 off 판정: [$o]"
+R="$(new_repo t25b)"; TR="$WORK/t25b.jsonl"; { jl_user "q"; jl_asst "$C_E"; } > "$TR"
+o="$(cd "$R" && jq -cn --arg p "$TR" '{transcript_path:$p}' | SCV_CORE_ROOT="$CORE" SCV_HOST_PROFILE="$WORK/profile-pick.env" GIT_AUTHOR_NAME=t bash "$STOP_HOOK" 2>/dev/null)"
+[[ -z "$o" ]] && ok "호스트가 끝 메시지를 주지 않으면 판정하지 않는다(원본의 앞선 글로 막지 않음)" || fail "T25 끝 메시지 없음: [$o]"
+rc="$(printf 'x?' | SCV_HOST_PROFILE="$WORK/profile-pick.env" perl -e 'alarm 5; exec @ARGV' bash "$GATE" stop --active >/dev/null 2>&1; echo $?)"
+[[ "$rc" == 0 ]] && ok "값 없는 --active 에도 끝난다" || fail "T25 --active 값 없음 rc=$rc"
+
+echo "── [T26] 긴 턴 — 종료 훅이 이번 턴만 작게 잘라 빨리 끝난다 ──"
+R="$(fresh_turn t26)"; TR="$WORK/t26.jsonl"
+{ jl_user "로그인 고쳐"; jl_asst "$(printf '결론.\n\n%s' "$QUOTE")"
+  for i in $(seq 1 1500); do jl_tool; jl_asst "진행 메모 $i — 이번 단계에서 확인한 것을 적는다. 다음 단계로 넘어간다."; done; } > "$TR"
+t0=$(date +%s); o="$(stop_tr "$R" "$WORK/profile-full.env" "$TR" "끝났습니다.")"; t1=$(date +%s)
+[[ -z "$o" ]] && ok "$(wc -l < "$TR" | tr -d ' ')줄 · 답 1501개 턴: 앞선 인용을 찾고 막지 않음 ($((t1 - t0))s)" || fail "T26: [$o]"
+(( t1 - t0 <= 30 )) && ok "30초 안에 끝난다 (검토 전 방식은 같은 꼴에서 수십 초)" || fail "T26 느림: $((t1 - t0))s"
 
 echo; echo "test-choice-questions: pass=$PASS fail=$FAIL"
 (( FAIL == 0 ))

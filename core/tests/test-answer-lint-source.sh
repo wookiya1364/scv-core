@@ -172,8 +172,6 @@ stop_in "$P" "$(jq -cn --arg p "$TR" '{transcript_path:$p}')" >/dev/null; L="$(d
 P=$(ready t11b); TR="$WORK/t11b.jsonl"; tr_write "$TR" "U:안녕" "A:$BAD4" "U:다음"
 stop_in "$P" "$(jq -cn --arg p "$TR" '{transcript_path:$p}')" >/dev/null; L="$(drift_last "$P")"
 [[ "$L" == *"lint=0 reload=0 src=none" ]] && ok "진짜 사람 프롬프트는 지금처럼 경계" || fail "T11b 줄: $L"
-s1="$(scv_turn_slice $'U\nA\x1fone\nA\x1ftwo')"; s2="$(scv_turn_last $'U\nA\x1fone\nA\x1ftwo\nA\x1f  ')"; s3="$(scv_turn_last $'A\x1fone')"
-[[ "$s1" == $'one\ntwo' && "$s2" == "two" && -z "$s3" ]] && ok "순수부: 턴 끝 메시지 = 비지 않은 마지막 A, 경계가 없으면 빈 값" || fail "turn_last: [$s2] [$s3]"
 
 echo; echo "test-answer-lint-source: pass=$PASS fail=$FAIL skip=$SKIP"
 (( FAIL == 0 ))

@@ -270,7 +270,7 @@ case "$cmd" in
       _why="$(scv_mp_principle_reason)"
       echo "PRINCIPLE_REASON: $_why"
       if [[ "$_pg" == "warn" ]]; then
-        mkdir -p "$JOURNAL_DIR" 2>/dev/null && [[ ! -L "$JOURNAL_DIR/.help-warn" ]] && printf '%s\n' "직전 턴: $_why" >> "$JOURNAL_DIR/.help-warn" 2>/dev/null
+        mkdir -p "$JOURNAL_DIR" 2>/dev/null && [[ ! -L "$JOURNAL_DIR/.help-warn" ]] && printf '%s\n' "[SCV 가이드] 직전 턴: $_why" >> "$JOURNAL_DIR/.help-warn" 2>/dev/null
       fi
     fi
     ;;
