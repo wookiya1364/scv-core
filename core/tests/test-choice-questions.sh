@@ -6,7 +6,9 @@
 # 경고). 도구가 없으면(기본 · 코덱스) 모든 출력과 판정이 이 기능 전과 같다. 규칙은 contracts/choices.md 한 곳뿐이다.
 #
 # Covers TESTS.md T1~T9 · T13~T15 of 20261001-wookiya1364-restore-choice-questions
-#   and T19 · T20 (등록 판정 경로 — 답 모양 검사 경로의 T19 는 test-answer-lint-source [T11]).
+#   and T19 · T20 (등록 판정 경로 — 답 모양 검사 경로의 T19 는 test-answer-lint-source [T11]), T23 · T25 · T26,
+#   T27~T31 · T33 (추정 해소 — 사람 없는 실행 · 코덱스 모양 원본 · 도구 출처 표시 · 실제 긴 턴 모양 · 판정 정확도 ·
+#   시스템 bash 3.2 속도와 출력).
 #   (T16 = test-host-neutral · test-model-prompting · test-help-budget, T21 · T22 = test-model-prompting,
 #    T10~T12 · T17 · T18 = 설치본 · CI 실측).
 # 픽스처는 중립 도구 이름(PickTool)만 쓴다 — 코어에는 호스트 도구 이름을 적지 않는다.
@@ -113,6 +115,44 @@ if [[ -f "$CORE/scripts/check-purity.sh" ]]; then
   o="$(bash "$CORE/scripts/check-purity.sh" "$LIB" "$CORE/scripts/lib/help-state.sh" 2>&1)"
   grep -q '^OK  purity' <<<"$o" && ok "순수성 계약 통과 (판정 함수 · 턴 끝 메시지)" || fail "순수성: $(head -2 <<<"$o")"
 fi
+
+echo "── [T31] 판정 정확도 — 실제 답 모음에서 놓친 모양 · 잡지 않을 모양 ──"
+# 로컬 원본 230턴 실측(2026-10-01): 고치기 전 실제로 묻는 답 60개 중 35개(58%)를 잡음, 고친 뒤 60개 모두 · 잘못 잡은 것 0.
+# "필요하면 말씀해 주세요" 같은 조건부 제안(약 17개)은 묻는 것이 아니다(contracts/choices.md 7 — 질문 없이 적는 제안).
+# 아래는 실측에서 놓친 모양을 바꿔 쓴 것이다(원문 아님).
+c=0
+C_G1='지금 계획서 초안을 만들까요? 추천은 바로 만드는 것입니다. 이 대화가 근거로 남습니다.'
+C_G2='어느 쪽으로 할까요? 제 추천은 A입니다.'
+C_G3='다음 계획으로 넘길까요? (추천: 예) 예라고 하시면 이어서 진행합니다.'
+C_G4='전부 다시 돌릴까요? 에픽 건은 다음 메모로 넘깁니다. (추천: 예)'
+C_G5='번호로 답해 주시면 됩니다 (예: "추천대로").'
+C_G6='다음으로 커밋까지 할지 알려 주세요.'
+C_G7='맞다면 "2"라고만 답해 주세요. 그러면 저장하겠습니다.'
+C_G8=$'예를 들어 "4번"이라고 하시면 바로 넣겠습니다. 추천대로 하려면 "1번"이라고 해 주세요.\n\n지금 코드 파일은 그대로입니다.'
+C_G9='말씀하신 증상이 이것이 맞나요? 다른 증상이면 알려 주세요.'
+C_G10=$'**질문 하나:** 출력 언어를 무엇으로 할까요? **[2] 한국어**를 추천합니다.\n[1] English / [2] 한국어 / [3] 日本語'
+C_G11='Should I open the PR now? I recommend yes, since the checks are green.'
+C_G12='어떤 맥락에서 보신 것인지 알려주시면 좋겠습니다.'
+for x in "$C_G1" "$C_G2" "$C_G3" "$C_G4" "$C_G5" "$C_G6" "$C_G7" "$C_G8" "$C_G9" "$C_G10" "$C_G11" "$C_G12"; do
+  [[ "$(asks "$x")" == 1 ]] && c=$((c + 1)) || echo "      ✖ not caught: $(head -c 60 <<<"$x")"
+done
+[[ $c -eq 12 ]] && ok "질문 뒤 추천 · 요청 문장, 넓힌 요청 말투, 한 줄 보기 목록, 앞 문단의 요청 — 12/12" || fail "T31 잡을 것 $c/12"
+c=0
+N_G1='PR 번호나 링크가 필요하면 말씀해 주세요.'
+N_G2='원하시면 로그인한 뒤 알려 주세요.'
+N_G3="'다 끝난거 맞아?'에 답하면, 네 — 모두 끝났습니다. 더 필요하면 알려 주세요."
+N_G4='결과: https://example.com/run?id=3 — 추천 설정 그대로 통과했습니다.'
+N_G5='어느 부분이 걸리시는지 짚어 주시면 그 부분만 더 풀어 드리겠습니다.'
+N_G6=$'왜 막혔나? 이번 턴이 길어서였다.\n\n추천 수정은 넓혀 찾기였고, 반영했습니다.'
+for x in "$N_G1" "$N_G2" "$N_G3" "$N_G4" "$N_G5" "$N_G6"; do
+  [[ "$(asks "$x")" == 0 ]] && c=$((c + 1)) || echo "      ✖ wrongly caught: $(head -c 60 <<<"$x")"
+done
+[[ $c -eq 6 ]] && ok "조건부 제안 둘 · 옮겨 적은 질문 · 주소 속 물음표 · 짚어 주시면 · 앞 문단의 혼잣말 질문 — 6/6" || fail "T31 잡지 않을 것 $c/6"
+c=0
+for L in C en_US.UTF-8; do
+  [[ "$(LC_ALL=$L bash -c 'source "$1"; scv_asks_in_text "$2"' _ "$LIB" "$C_G2")" == 1 && "$(LC_ALL=$L bash -c 'source "$1"; scv_asks_in_text "$2"' _ "$LIB" "$N_G3")" == 0 ]] && c=$((c + 1))
+done
+[[ $c -eq 2 ]] && ok "넓힌 판정도 로캘과 무관 — C · UTF-8 같은 판정" || fail "T31 로캘 $c/2"
 
 echo "── [T3] 막기 판정 — 순수 함수 ──"
 g() { bash -c 'source "$1"; scv_choice_gate "$2" "$3" "$4"' _ "$LIB" "$@"; }
@@ -308,6 +348,84 @@ R="$(fresh_turn t26)"; TR="$WORK/t26.jsonl"
 t0=$(date +%s); o="$(stop_tr "$R" "$WORK/profile-full.env" "$TR" "끝났습니다.")"; t1=$(date +%s)
 [[ -z "$o" ]] && ok "$(wc -l < "$TR" | tr -d ' ')줄 · 답 1501개 턴: 앞선 인용을 찾고 막지 않음 ($((t1 - t0))s)" || fail "T26: [$o]"
 (( t1 - t0 <= 30 )) && ok "30초 안에 끝난다 (검토 전 방식은 같은 꼴에서 수십 초)" || fail "T26 느림: $((t1 - t0))s"
+
+# ---------------------------------------------------------------- 추정 해소 (다섯 번째 요구)
+echo "── [T27] 사람 없는 실행(호스트가 도구를 빼는 조건) — 안내도 막기도 없다 ──"
+ow() { bash -c 'source "$1"; scv_choice_off_when "$2" "$3"' _ "$LIB" "$1" "$2"; }
+c=0
+[[ "$(ow 'X_ATT=0' '0')" == 1 ]] && c=$((c + 1)); [[ "$(ow 'X_ATT=0' '1')" == 0 ]] && c=$((c + 1))
+[[ "$(ow 'X_ATT=0' '')" == 0 ]] && c=$((c + 1)); [[ "$(ow '' '0')" == 0 ]] && c=$((c + 1))
+[[ "$(ow 'bad name=0' '0')" == 0 ]] && c=$((c + 1)); [[ "$(ow 'X_ATT=' '')" == 0 ]] && c=$((c + 1))
+[[ $c -eq 6 ]] && ok "순수 판정 6가지(값 같음만 1 · 다름 · 비어 있음 · 조건 없음 · 틀린 이름 · 빈 값은 0)" || fail "T27 순수 $c/6"
+{ cat "$WORK/profile-pick.env"; printf 'SCV_CHOICE_OFF_WHEN=SCV_TEST_ATTENDED=0\n'; } > "$WORK/profile-off.env"
+R="$(new_repo t27)"
+o="$(SCV_TEST_ATTENDED=0 hook_p "$R" "$WORK/profile-off.env" "안녕")"; ! grep -q 'SCV choices' <<<"$o" && ok "조건이 맞는 실행(값 0) — 매 턴 안내 줄 없음" || fail "T27 안내 0"
+o="$(SCV_TEST_ATTENDED=0 stop_p "$R" "$WORK/profile-off.env" "$C_E" false)"; [[ -z "$o" ]] && ok "조건이 맞는 실행 — 글로 물어도 막지 않음(번호 표로 묻는 예전 길)" || fail "T27 막기 0: [$o]"
+o="$(SCV_TEST_ATTENDED=1 hook_p "$R" "$WORK/profile-off.env" "안녕")"; grep -q 'SCV choices' <<<"$o" && ok "사람이 있는 실행(값 1) — 안내 줄 그대로" || fail "T27 안내 1"
+o="$(SCV_TEST_ATTENDED=1 stop_p "$R" "$WORK/profile-off.env" "$C_E" false)"; [[ "$(jq -r .decision <<<"$o" 2>/dev/null)" == block ]] && ok "사람이 있는 실행 — 글로 물으면 그대로 막는다" || fail "T27 막기 1: [$o]"
+o="$(env -u SCV_TEST_ATTENDED bash -c 'cd "$1" && jq -cn "{prompt:\"안녕\",session_id:\"s1\"}" | SCV_CORE_ROOT="$2" SCV_HOST_PROFILE="$3" bash "$2/template/hooks/on-user-prompt.sh" 2>/dev/null' _ "$R" "$CORE" "$WORK/profile-off.env")"
+grep -q 'SCV choices' <<<"$o" && ok "환경 변수가 없는 실행 — 도구가 있다고 본다(조건은 값이 같을 때만)" || fail "T27 변수 없음"
+
+echo "── [T28] 코덱스 모양 원본 — 넓혀 찾지 않고, 판정은 이 기능 전과 같다 ──"
+cx_line() { jq -cn --arg r "$1" --arg t "$2" '{type:"response_item",payload:{type:"message",role:$r,content:[{type:(if $r=="user" then "input_text" else "output_text" end),text:$t}]}}'; }
+R="$(fresh_turn t28)"; TR="$WORK/t28.jsonl"
+{ printf '%s\n' '{"type":"session_meta","payload":{"originator":"fixture"}}'; cx_line user "로그인 고쳐"; cx_line assistant "$(printf '결론.\n\n%s' "$QUOTE")"
+  awk 'BEGIN { for (i = 0; i < 45000; i++) printf "{\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"n\":%d}}\n", i }'; cx_line assistant "끝났습니다."; } > "$TR"
+t0=$(date +%s); o="$(stop_tr "$R" "$WORK/profile-full.env" "$TR" "$(printf '결론.\n\n%s' "$QUOTE")")"; t1=$(date +%s)
+[[ -z "$o" ]] && ! grep -q 'turn-boundary=not-found' "$R/scv/journal/.help-drift" 2>/dev/null \
+  && ok "$(wc -l < "$TR" | tr -d ' ')줄 코덱스 모양: 끝 메시지의 인용으로 통과, 경계 없음 기록을 남기지 않는다 ($((t1 - t0))s)" || fail "T28 (a): [$o] / $(tail -1 "$R/scv/journal/.help-drift" 2>/dev/null)"
+(( t1 - t0 <= 10 )) && ok "넓혀 찾지 않아 빠르다(10초 안)" || fail "T28 느림: $((t1 - t0))s"
+R="$(fresh_turn t28b)"
+o="$(stop_tr "$R" "$WORK/profile-full.env" "$TR" "끝났습니다.")"
+[[ "$(jq -r .decision <<<"$o" 2>/dev/null)" == block ]] && ok "끝 메시지에 인용이 없으면 이 기능 전처럼 막는다(코덱스는 끝 메시지로만 판정)" || fail "T28 (b): [$o]"
+
+echo "── [T29] 도구 출처 표시만 있는 사용자 몫 글도 경계가 아니다 ──"
+R="$(fresh_turn t29)"; TR="$WORK/t29.jsonl"
+{ jl_user "로그인 고쳐"; jl_asst "$(printf '결론.\n\n%s' "$QUOTE")"
+  jq -cn '{type:"user",sourceToolUseID:"toolu_fixture",message:{content:[{type:"text",text:"Base directory for this skill: /x"}]}}'; jl_tool; jl_asst "끝났습니다."; } > "$TR"
+o="$(stop_tr "$R" "$WORK/profile-full.env" "$TR" "끝났습니다.")"
+[[ -z "$o" ]] && ok "내부 표시가 없어도 도구 출처 표시가 있으면 경계가 아니다 — 막지 않음" || fail "T29: [$o]"
+
+echo "── [T30] 실제 긴 턴 모양 — 이 릴리스를 마무리하던 세션에서 이전 종료 훅이 막은 꼴 ──"
+# 원본 467줄: 16번째 줄 사람 프롬프트 · 43번째 줄 스킬 불러오기(내부 표시 + 도구 출처) · 231번째 줄 인용 · 끝은 인용 없는 답.
+jl_attach() { printf '%s\n' '{"type":"attachment","attachment":{"type":"fixture"}}'; }
+R="$(fresh_turn t30)"; TR="$WORK/t30.jsonl"
+{ for i in $(seq 1 15); do jl_attach; done; jl_user "어디까지 됐어?"; for i in $(seq 1 13); do jl_tool; done
+  jq -cn '{type:"user",isMeta:true,sourceToolUseID:"toolu_fixture",message:{content:[{type:"text",text:"Base directory for this skill: /x"}]}}'
+  for i in $(seq 1 93); do jl_tool; done; jl_attach; jl_asst "$(printf '결론.\n\n%s' "$QUOTE")"
+  for i in $(seq 1 117); do jl_tool; done; jl_attach; jl_asst "검사 사슬을 배경에 걸어 두었습니다."; } > "$TR"
+_qline="$(grep -n 'Rewritten request' "$TR" | head -1 | cut -d: -f1)"
+_win_u="$(tail -n 400 "$TR" | jq -Rr 'fromjson? | select(.type == "user" and (.isMeta != true) and ((.message.content | type) == "array") and any(.message.content[]; .type == "text")) | "U"' | grep -c U)"
+[[ "$(wc -l < "$TR" | tr -d ' ')" == 467 && "$_qline" == 231 && "$_win_u" == 0 ]] && ok "모양 그대로: 467줄 · 인용 231번째 줄 · 끝 400줄 안의 사람 프롬프트 0개(이전 훅이 빈 턴으로 본 조건)" || fail "T30 모양: $(wc -l < "$TR") / $_qline / $_win_u"
+o="$(stop_tr "$R" "$WORK/profile-full.env" "$TR" "검사 사슬을 배경에 걸어 두었습니다.")"
+[[ -z "$o" ]] && ok "넓혀 찾아 16번째 줄을 경계로 삼고, 231번째 줄의 인용을 인정한다 — 막지 않음" || fail "T30: [$o]"
+
+echo "── [T33] 시스템 bash(맥 기본 3.2)로 — 긴 답 · 긴 턴의 종료 훅이 빠르고, 매 턴 출력이 같다 ──"
+# 훅은 PATH 의 bash 로 돈다 — 맥 기본 PATH 면 bash 3.2. 3.2 는 큰 글의 패턴 치환(${x//…/…})이 매우 느려, 고치기 전에는 답 하나
+# 10만 바이트에서 158초 · 4,500줄 턴에서 79초 걸렸다(2026-10-01 실측). 리눅스의 /bin/bash 는 최신이라 그냥 통과하고, 맥 CI 가 지킨다.
+if [[ -x /bin/bash ]]; then
+  SYSB="$WORK/sysbash"; mkdir -p "$SYSB"; ln -sf /bin/bash "$SYSB/bash"; v="$(/bin/bash -c 'echo "$BASH_VERSION"')"
+  stop_sys() {  # <저장소> <프로필> <원본> <마지막 답> → 시스템 bash 로 돈 종료 훅 stdout
+    (cd "$1" && jq -cn --arg p "$3" --arg a "$4" '{transcript_path:$p,last_assistant_message:$a,stop_hook_active:false}' \
+       | PATH="$SYSB:$PATH" SCV_CORE_ROOT="$CORE" SCV_HOST_PROFILE="$2" GIT_AUTHOR_NAME="Hook User" /bin/bash "$STOP_HOOK" 2>/dev/null)
+  }
+  R="$(fresh_turn t33a)"; TR="$WORK/t33a.jsonl"
+  BIG="$(printf '결론.\n\n%s\n\n' "$QUOTE"; for i in $(seq 1 1500); do printf '진행 메모 %s — 이번 단계에서 확인한 것을 적는다.\n' "$i"; done)"
+  { jl_user "로그인 고쳐"; jl_asst "$BIG"; } > "$TR"
+  t0=$(date +%s); o="$(stop_sys "$R" "$WORK/profile-full.env" "$TR" "$BIG")"; t1=$(date +%s)
+  [[ -z "$o" ]] && (( t1 - t0 <= 30 )) && ok "답 하나 $(printf '%s' "$BIG" | wc -c | tr -d ' ')바이트 — 시스템 bash $v 로 $((t1 - t0))s, 막지 않음" || fail "T33 (a) $((t1 - t0))s: [$o]"
+  R="$(fresh_turn t33b)"
+  t0=$(date +%s); o="$(stop_sys "$R" "$WORK/profile-full.env" "$WORK/t26.jsonl" "끝났습니다.")"; t1=$(date +%s)
+  [[ -z "$o" ]] && (( t1 - t0 <= 30 )) && ok "$(wc -l < "$WORK/t26.jsonl" | tr -d ' ')줄 턴 — 시스템 bash $v 로 $((t1 - t0))s, 앞선 인용을 찾고 막지 않음" || fail "T33 (b) $((t1 - t0))s: [$o]"
+  R="$(new_repo t33c)"; cp -R "$R" "$R.bak"
+  o1="$(cd "$R" && jq -cn '{prompt:"로그인 고쳐",session_id:"s1"}' | PATH="$SYSB:$PATH" SCV_CORE_ROOT="$CORE" SCV_HOST_PROFILE="$WORK/profile-full.env" /bin/bash "$PROMPT_HOOK" 2>/dev/null)"
+  rm -rf "$R"; cp -R "$R.bak" "$R"
+  o2="$(hook_p "$R" "$WORK/profile-full.env" "로그인 고쳐")"
+  [[ -n "$o1" && "$o1" == "$o2" ]] && ! grep -qF 'id\}' <<<"$o1" \
+    && ok "매 턴 출력이 시스템 bash $v 와 지금 bash 에서 같다(모델 id 자리 표시에 역슬래시 없음)" || fail "T33 (c): $(diff <(printf '%s\n' "$o1") <(printf '%s\n' "$o2") | head -3)"
+else
+  echo "  (시스템 bash 없음 — T33 생략)"
+fi
 
 echo; echo "test-choice-questions: pass=$PASS fail=$FAIL"
 (( FAIL == 0 ))

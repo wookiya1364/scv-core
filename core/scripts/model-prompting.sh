@@ -109,7 +109,7 @@ CFILE="$(scv_mp_safe_name "$CFILE")"
 _cl_file() { local k; k="$(scv_mp_safe_name "checklist-${1:-}.tsv")"; [[ -n "${1:-}" && -n "$k" && -f "$GUIDES_DIR/$k" && ! -L "$GUIDES_DIR/$k" ]] && head -c 16384 "$GUIDES_DIR/$k" 2>/dev/null; }
 _checklist_for() {  # <모델 키 또는 ""> → 병합 목록 (공통 목록이 없으면 빈 값 — 이 호스트에 요구 항목 데이터가 없다)
   local common; common="$(_cl_file "$(scv_mp_common_key "$INDEX")")"
-  [[ -n "${common//[[:space:]]/}" ]] || return 0
+  [[ "$common" == *[![:space:]]* ]] || return 0
   scv_mp_checklist_merge "$common" "$(_cl_file "${1:-}")"
 }
 _token_new() { local n; n="$(head -c 4 /dev/urandom 2>/dev/null | od -An -tx1 2>/dev/null | tr -d ' \n')"; [[ "$n" =~ ^[0-9a-f]{8}$ ]] || n="$(printf '%04x%04x' "$RANDOM" "$RANDOM")"; printf '%s' "$n"; }
@@ -263,7 +263,7 @@ case "$cmd" in
     ANSWER="$(head -c 65536 2>/dev/null || true)"
     _psw="$(scv_mp_switch "$(_setting SCV_REWRITE_PRINCIPLE)")"
     [[ "$SWITCH" == "on" && -n "$(_checklist_for "")" ]] || _psw="off"
-    _hit=0; [[ -n "${ANSWER//[[:space:]]/}" ]] && _hit="$(scv_mp_answer_has_problem_table "$ANSWER")"
+    _hit=0; [[ "$ANSWER" == *[![:space:]]* ]] && _hit="$(scv_mp_answer_has_problem_table "$ANSWER")"
     _pg="$(scv_mp_principle_gate "$_hit" "$_psw" "$ACTIVE_ARG")"
     echo "PRINCIPLE_GATE: $_pg"
     if [[ "$_pg" != "ok" ]]; then
@@ -284,11 +284,11 @@ case "$cmd" in
       if [[ -n "$_tok" ]]; then
         _rt="$(_first_line "$REG_FILE")"; _reg=0; [[ "${_rt%%$'\x1f'*}" == "$_tok" ]] && _reg=1
         _rw=""; (( _reg )) && _rw="$(scv_mp_register_rewrite "$(head -c 16384 "$REG_FILE" 2>/dev/null | tail -n +2)")"
-        _shown=""; [[ -n "${ANSWER//[[:space:]]/}" ]] && _shown="$(scv_mp_answer_shows_rewrite "$ANSWER" "$_rw")"
+        _shown=""; [[ "$ANSWER" == *[![:space:]]* ]] && _shown="$(scv_mp_answer_shows_rewrite "$ANSWER" "$_rw")"
         _sg="$(scv_mp_stop_gate "$_reg" "$_shown" "$ACTIVE_ARG")"
         echo "STOP_GATE: $_sg"
         # v0.63.0+ — 막지 않으면 이 턴은 끝난다: 자동 입력 턴 표시의 근거(끝난 턴 표). 자동 태그가 없으면 쓰지 않는다(이전과 같은 파일들).
-        [[ "$_sg" != "block" && -n "${SCV_AUTO_PROMPT_TAGS//[[:space:]]/}" ]] && _put "$DONE_FILE" "$_tok"
+        [[ "$_sg" != "block" && "$SCV_AUTO_PROMPT_TAGS" == *[![:space:]]* ]] && _put "$DONE_FILE" "$_tok"
         _lm="$(_last_model)"
         if [[ "$_sg" != "ok" ]]; then
           if (( _reg )); then
@@ -327,7 +327,7 @@ case "$cmd" in
         RECORDED="$(scv_mp_rewrite_recorded "$_blk")"
       fi
     fi
-    QUOTED=""; [[ -n "${ANSWER//[[:space:]]/}" ]] && QUOTED="$(scv_mp_answer_has_quote "$ANSWER")"
+    QUOTED=""; [[ "$ANSWER" == *[![:space:]]* ]] && QUOTED="$(scv_mp_answer_has_quote "$ANSWER")"
     VERDICT="$(scv_mp_turn_verdict "$TDEC" "$WAS_READ" "$RECORDED" "$QUOTED")"
     _drop "$TURN_FILE"
     if [[ -n "$VERDICT" ]]; then

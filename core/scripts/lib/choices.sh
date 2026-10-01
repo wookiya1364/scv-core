@@ -6,6 +6,7 @@
 #   scv_asks_in_text <본문>                    → 1(글로 묻거나 번호로 고르게 하면서 끝남) | 0
 #   scv_choice_gate <묻나> <도구 이름> <계속 중> → ok | block | warn
 #   scv_choice_reason <도구 이름>              → 막는 이유 한 줄
+#   scv_choice_off_when <조건 이름=값> <지금 값> → 1(이 실행에는 선택지 도구가 없다) | 0
 #
 # 꺾쇠 글자는 쓰지 않는다 — 순수성 검사가 리다이렉션으로 본다(인용 표시는 \x3e 로 만든다).
 
@@ -34,20 +35,24 @@ scv_answer_body() {
 
 # @pure
 # <본문> → 1 | 0. 답이 사용자에게 고르게 하거나 묻는 글로 끝나는가:
-#   (a) 요청하는 말 — 번호로 답해 달라 · 골라 / 정해 / 선택해 달라 · "'다 추천대로'라고"(한 · 영 · 일). 요청형만 본다 —
+#   (a) 요청하는 말(끝 두 문단에서) — 번호로 답해 달라 · 골라 / 정해 / 선택해 달라 · "'다 추천대로'라고"(한 · 영 · 일). 요청형만 본다 —
 #       "다 추천대로 반영했습니다" 같은 평서문은 잡지 않는다.
 #   (b) 끝 문단이 결정 표 — 머리에 질문 · 추천 칸이 있고, 고른 것 · 답 · 결과 칸은 없다(되짚는 표는 정보다).
 #   (c) 실제 끝 줄이 물음표로 끝남 — 끝에 붙은 보기 목록(1. · - · ①)은 건너뛰고 그 앞 줄을 본다. 끝의 괄호 덧붙임
 #       "(추천: 예)" · 굵게 · 따옴표 · 이모티콘은 걷어 내고 본다. 걷는 것은 글자 그대로의 꼬리라 로캘과 무관하다.
 #       표의 행으로 끝나는 답은 (c) 를 보지 않는다 — 표 안의 물음표는 정보다.
-# 본문 중간의 물음표, 평서문으로 끝나는 답, 정보 표는 묻는 것이 아니다.
+#   (d) 끝 문단(표 줄 제외)의 마지막 물음표 뒤에 추천이나 요청이 온다 — "…할까요? 추천은 …입니다." · "…맞나요? 아니면
+#       알려 주세요." 물음표 바로 뒤가 따옴표면 옮겨 적은 질문, 공백 · 줄 끝 · 괄호 · 굵게가 아니면(주소의 ?a=1 등) 문장 끝이 아니다.
+#   (a) 와 (d) 는 실제 답 모음(로컬 원본 230턴)에서 놓친 모양으로 넓혔다 — 질문 뒤 추천 문장, "답해 주시면 됩니다",
+#       "할지 알려 주세요", "라고 해 주세요", 한 줄 보기 목록 "[1] … / [2] …" (2026-10-01 실측).
+# 본문 중간의 물음표, 평서문으로 끝나는 답, 정보 표, "필요하면 말씀해 주세요" 같은 조건부 제안은 묻는 것이 아니다.
 scv_asks_in_text() {
-  local body="${1:-}" line t cue hit=0 nc=0 n=0 i last="" para="" reset=0 prev pre
-  local item_re='^([-*+]|[0-9]+[.)]|\([0-9]+\)|①|②|③|④|⑤|⑥|⑦|⑧|⑨|⑩)[[:space:]]'
+  local body="${1:-}" line t cue hit=0 nc=0 n=0 i last="" para="" ppara="" reset=0 prev pre ptext="" after="" q=0 c1
+  local item_re='^([-*+]|[0-9]+[.)]|\([0-9]+\)|\[[0-9]+\]|①|②|③|④|⑤|⑥|⑦|⑧|⑨|⑩)[[:space:]]'
   local -a L=()
   while IFS= read -r line || [[ -n "$line" ]]; do
-    if [[ -z "${line//[[:space:]]/}" ]]; then reset=1; continue; fi
-    if (( reset )); then para=""; reset=0; fi
+    if [[ "$line" != *[![:space:]]* ]]; then reset=1; continue; fi
+    if (( reset )); then ppara="$para"; para=""; reset=0; fi
     para+="$line"$'\n'
     L[n]="$line"; n=$((n + 1))
   done <<< "$body"
@@ -67,8 +72,11 @@ scv_asks_in_text() {
              "answer by number" "reply with the number" "answer with the number" "reply with a number" \
              "let me know which" "which one would you" "which would you prefer" "which do you prefer" \
              "please choose" "please pick" "please select" "please decide" \
-             "番号でお答え" "番号で答えて" "番号でご回答" "選んでください" "決めてください" "お選びください"; do
-    [[ "$para" == *"$cue"* || "$last" == *"$cue"* ]] && { hit=1; break; }
+             "番号でお答え" "番号で答えて" "番号でご回答" "選んでください" "決めてください" "お選びください" \
+             "답해 주시면" "답해주시면" "답해 주세요" "답해주세요" "라고 해 주세요" "라고 해주세요" \
+             "지 알려 주세요" "지 알려주세요" "지 알려 주시면" "지 알려주시면" "지 말씀해 주세요" "지 말씀해주세요" \
+             "let me know whether" "tell me which" "tell me whether" "か教えてください" "とお答えください"; do
+    [[ "$para" == *"$cue"* || "$ppara" == *"$cue"* || "$last" == *"$cue"* ]] && { hit=1; break; }
   done
   if (( ! hit )); then
     while IFS= read -r line || [[ -n "$line" ]]; do
@@ -106,11 +114,36 @@ scv_asks_in_text() {
           *')')
             if [[ "$t" == *"("* ]]; then
               pre="${t%(*}"
-              if [[ -n "${pre//[[:space:]]/}" ]]; then t="$pre"; else t="${t#(}"; t="${t%)}"; fi
+              if [[ "$pre" == *[![:space:]]* ]]; then t="$pre"; else t="${t#(}"; t="${t%)}"; fi
             fi ;;
         esac
       done
       case "$t" in *'?'|*'？') hit=1 ;; esac
+    fi
+  fi
+  if (( ! hit )); then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      t="${line#"${line%%[![:space:]]*}"}"
+      [[ "${t:0:1}" == "|" ]] && continue
+      ptext+="$t"$'\n'
+    done <<< "$para"
+    if [[ "$ptext" == *'?'* ]]; then after="${ptext##*\?}"; q=1; fi
+    if [[ "$ptext" == *'？'* ]]; then
+      t="${ptext##*'？'}"
+      if (( ! q )) || (( ${#t} < ${#after} )); then after="$t"; q=1; fi
+    fi
+    if (( q )); then
+      c1="${after:0:1}"
+      case "$c1" in ''|' '|$'\t'|$'\n'|')'|'('|'*'|'_') ;; *) q=0 ;; esac
+    fi
+    if (( q )); then
+      nc=0; shopt -q nocasematch && nc=1
+      shopt -s nocasematch
+      for cue in "추천" "recommend" "推奨" "おすすめ" "お勧め" "알려 주세요" "알려주세요" "말씀해 주세요" "말씀해주세요" \
+                 "답해 주세요" "답해주세요" "let me know" "tell me" "教えてください" "お知らせください"; do
+        [[ "$after" == *"$cue"* ]] && { hit=1; break; }
+      done
+      (( nc )) || shopt -u nocasematch
     fi
   fi
   printf '%s' "$hit"
@@ -130,4 +163,15 @@ scv_choice_gate() {
 scv_choice_reason() {
   local tool="${1:-the choice tool}"
   printf '%s' "[SCV 선택지] 사용자에게 고르게 하거나 묻는 글로 턴을 끝냈다 — $tool 로 다시 물어라: 결정 하나에 질문 하나, 첫 보기가 추천, 보기마다 그 보기가 부를 문제를 막는 방법, 질문이 4개를 넘으면 중요한 것부터 나눠 연달아, 보기가 4개를 넘으면 두 단계로. 고를 것이 아니면 질문 없이 끝내라(contracts/choices.md)."
+}
+
+# @pure
+# <조건 "이름=값"> <지금 그 이름의 환경 값> → 1 | 0. 호스트가 선택지 도구를 빼는 실행(사람이 답할 수 없는 헤드리스 등)을
+# 호스트 설정의 조건으로 알아본다 — 조건이 비었거나 모양이 틀리면 0(지금처럼 도구가 있다고 본다).
+scv_choice_off_when() {
+  local spec="${1:-}" now="${2:-}" name want
+  [[ "$spec" == *=* ]] || { printf '0'; return 0; }
+  name="${spec%%=*}"; want="${spec#*=}"
+  [[ "$name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ && -n "$want" ]] || { printf '0'; return 0; }
+  [[ "$now" == "$want" ]] && printf '1' || printf '0'
 }

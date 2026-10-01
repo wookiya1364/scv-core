@@ -20,6 +20,7 @@ SCV_MODEL_POLICY_OWNER=adapter
 SCV_PROMPTING_GUIDES=prompting
 SCV_AUTO_PROMPT_TAGS=machine-event
 SCV_CHOICE_TOOL=PickTool
+SCV_CHOICE_OFF_WHEN=EXAMPLE_ATTENDED=0
 ```
 
 `SCV_PROMPTING_GUIDES` is optional (v0.59.0+, §9); leave it out when the wrapper ships no
@@ -34,6 +35,11 @@ every input is then a person turn, exactly as before.
 When set, every decision SCV puts to the user goes through it (rule: `core/contracts/choices.md`), the per-turn
 hook says so in one line, and the stop hook blocks a final message that asks in text. Leave it out when the host
 has no such tool — decisions are then asked as a numbered table answered by number, exactly as before.
+
+`SCV_CHOICE_OFF_WHEN` is optional (v0.64.0+): one `NAME=VALUE` condition on the hook environment for runs in
+which the host drops the choice tool — a headless run where no person can answer, for example. When the variable
+holds that value, the run behaves as if no tool were named (no per-turn line, no block). Leave it out when the
+tool is always present.
 
 Validate it before vendoring:
 
