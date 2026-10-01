@@ -18,10 +18,16 @@ SCV_GRAPH_SKILL_PATHS (deprecated 0.51.0, ignored — see contracts/host-profile
 SCV_UPDATE_OWNER=adapter
 SCV_MODEL_POLICY_OWNER=adapter
 SCV_PROMPTING_GUIDES=prompting
+SCV_AUTO_PROMPT_TAGS=machine-event
 ```
 
 `SCV_PROMPTING_GUIDES` is optional (v0.59.0+, §9); leave it out when the wrapper ships no
 per-model prompting guides. Its value is relative to the Core root the help action runs from — see §9.
+
+`SCV_AUTO_PROMPT_TAGS` is optional (v0.63.0+): the tag names (lowercase letters, digits, hyphens; space
+separated) of the blocks the host sends on its own, such as a background-task notification. An input made
+only of those blocks opens no new turn; leave the key out when the host's notification shape is unknown —
+every input is then a person turn, exactly as before.
 
 Validate it before vendoring:
 
