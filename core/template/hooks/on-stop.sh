@@ -80,15 +80,34 @@ fi
 # 마지막 사람 프롬프트 이후의 어시스턴트 텍스트만 보고, 아직 안 적혔으면 짧게(4회 × 250ms) 다시 읽는다.
 # (3) 그래도 없으면 이번 턴 린트를 생략한다 — 낡은 답(한 턴 전)을 보느니 안 본다. 지문 검사는 그대로 돈다.
 # 원본 → 턴 스트림: 줄마다 "U"(사람이 쓴 프롬프트) 또는 "A\x1f<텍스트, 줄바꿈은 \x1e>". 자르기는 scv_turn_slice.
-_scv_turn_stream() {
-  tail -n 400 "$TRANSCRIPT" 2>/dev/null \
+# v0.64.0+ — 호스트의 내부 메시지(내부 표시 isMeta 가 붙은 사용자 몫 글 — 스킬을 불러올 때 기록된다)는 사람 프롬프트가
+# 아니다. 그것을 U 로 세면 같은 턴에서 그보다 앞서 보인 답(다시 쓴 요청 인용 등)이 이번 턴에서 빠진다.
+_scv_turn_stream() {  # [원본 끝에서 읽을 줄 수 — 기본 400]
+  tail -n "${1:-400}" "$TRANSCRIPT" 2>/dev/null \
     | jq -Rr 'fromjson? | if .type? == "user" then
-                (if ((.message.content|type) == "string")
+                (if (.isMeta? == true) then empty
+                 elif ((.message.content|type) == "string")
                     or ((.message.content|type) == "array" and any(.message.content[]?; .type? == "text"))
                  then "U" else empty end)
               elif .type? == "assistant" then
                 ("A\u001f" + ([.message.content[]? | select(.type? == "text") | .text] | join("\n") | gsub("\n"; "\u001e")))
               else empty end' 2>/dev/null || true
+}
+# v0.64.0+ — 창 안에 사람 프롬프트가 없으면(선택지 질문 · 도구 결과가 많은 긴 턴) 창을 넓혀 이번 사람 턴의 경계를 찾는다:
+# 400 → 4000 → 40000 줄. 끝내 못 찾으면 지금처럼 안전 쪽(경계 없음 → 자르기는 빈 값)으로 가고, 그 사실을 판정 기록
+# (.help-drift)에 한 줄 남긴다.
+_scv_turn_stream_wide() {
+  local n s="" total
+  total="$(wc -l < "$TRANSCRIPT" 2>/dev/null | tr -d ' ')"; [[ "$total" =~ ^[0-9]+$ ]] || total=0
+  for n in 400 4000 40000; do
+    s="$(_scv_turn_stream "$n")"
+    if grep -qx 'U' <<<"$s"; then printf '%s' "$s"; return 0; fi
+    (( total <= n )) && break
+  done
+  local jd="${SCV_JOURNAL_DIR:-scv/journal}"
+  mkdir -p "$jd" 2>/dev/null && [[ ! -L "$jd/.help-drift" ]] \
+    && printf '%s turn-boundary=not-found lines=%s\n' "$(date -Iseconds 2>/dev/null || date +%Y-%m-%dT%H:%M:%S)" "$total" >> "$jd/.help-drift" 2>/dev/null
+  printf '%s' "$s"
 }
 _scv_core="${SCV_CORE_ROOT:-$SCRIPT_DIR/../..}"
 _scv_hs="$_scv_core/scripts/help-state.sh"
@@ -113,7 +132,7 @@ if [[ -f "$_scv_hs" && -f "$_scv_hslib" ]]; then
       _scv_turn=""
       if [[ -z "${_scv_host//[[:space:]]/}" ]]; then
         for _scv_try in 1 2 3 4; do
-          _scv_stream="$(_scv_turn_stream)"
+          _scv_stream="$(_scv_turn_stream_wide)"
           _scv_turn="$(scv_turn_slice "$_scv_stream" | head -c 65536)"
           [[ -n "${_scv_turn//[[:space:]]/}" ]] && break
           [[ "$_scv_try" -lt 4 ]] && sleep 0.25
@@ -141,7 +160,7 @@ if [[ -f "$_scv_mp" ]]; then
   # 호스트가 준 답은 마지막 메시지뿐이다 — 도구를 부르기 전 첫 메시지에 인용을 보였을 수 있으니, 원본에서 이번 턴의
   # 답 텍스트 전부도 덧붙여 본다(이미 적힌 앞 메시지만 필요하므로 다시 읽기는 하지 않는다).
   if declare -F scv_turn_slice >/dev/null 2>&1; then
-    _scv_all="$(scv_turn_slice "$(_scv_turn_stream)" | head -c 65536)"
+    _scv_all="$(scv_turn_slice "$(_scv_turn_stream_wide)" | head -c 65536)"
     [[ -n "${_scv_all//[[:space:]]/}" ]] && _scv_ans="$(printf '%s\n\n%s' "$_scv_ans" "$_scv_all")"
   fi
   _scv_active=0
@@ -150,6 +169,34 @@ if [[ -f "$_scv_mp" ]]; then
   if grep -qx 'STOP_GATE: block' <<<"$_scv_gate"; then
     _scv_block_reason="$(grep -m1 '^STOP_REASON: ' <<<"$_scv_gate" | sed 's/^STOP_REASON: //')"
     [[ -n "$_scv_block_reason" ]] || _scv_block_reason="[SCV 프롬프트] 이번 턴 요청을 비교 · 등록하고 다시 쓴 요청을 보여라."
+  fi
+fi
+# v0.64.0+ — 답의 끝 메시지 판정 둘: (1) SCV 원칙 — 문제 표 · '생길 수 있는 문제' 칸(model-prompting.sh principle-gate,
+# 원칙이 실리는 곳에서만), (2) 고르게 할 때 규칙(contracts/choices.md) — 호스트 설정에 선택지 도구가 있을 때, 글로 묻거나 번호로
+# 고르게 하면서 끝남(choice-gate.sh). 등록 판정이 이미 막았으면 보지 않고, 한 번에 한 이유만 낸다. 둘 다 같은 턴 한 번 —
+# 호스트가 이미 계속 중이면 막지 않고 다음 턴 경고. 자동 알림 턴에도 적용된다. 마지막 메시지만 본다 — 앞에서 선택지로
+# 물었어도 끝을 글 질문으로 맺으면 막는다. 판정할 것이 없으면(원칙이 안 실림 · 도구 없음) 이 기능 전과 같다.
+_scv_cg="${SCV_CORE_ROOT:-$SCRIPT_DIR/../..}/scripts/choice-gate.sh"
+_scv_lastmsg=""; _scv_tail_active=0
+if [[ -z "$_scv_block_reason" ]] && [[ -f "$_scv_mp" || -f "$_scv_cg" ]]; then
+  _scv_lastmsg="$(printf '%s' "$INPUT" | jq -r 'try (.last_assistant_message // empty)' 2>/dev/null | head -c 65536 || true)"
+  if [[ -z "${_scv_lastmsg//[[:space:]]/}" ]] && declare -F scv_turn_last >/dev/null 2>&1; then
+    _scv_lastmsg="$(scv_turn_last "$(_scv_turn_stream_wide)" | head -c 65536)"
+  fi
+  [[ "$(printf '%s' "$INPUT" | jq -r 'try (.stop_hook_active // false)' 2>/dev/null)" == "true" ]] && _scv_tail_active=1
+fi
+if [[ -z "$_scv_block_reason" && -f "$_scv_mp" ]]; then
+  _scv_pgo="$(printf '%s' "$_scv_lastmsg" | bash "$_scv_mp" principle-gate --active "$_scv_tail_active" 2>/dev/null || true)"
+  if grep -qx 'PRINCIPLE_GATE: block' <<<"$_scv_pgo"; then
+    _scv_block_reason="$(grep -m1 '^PRINCIPLE_REASON: ' <<<"$_scv_pgo" | sed 's/^PRINCIPLE_REASON: //')"
+    [[ -n "$_scv_block_reason" ]] || _scv_block_reason="[SCV 원칙] 문제 표 · 문제 칸 없이, 해결책 안에서 막아 다시 써라."
+  fi
+fi
+if [[ -z "$_scv_block_reason" && -f "$_scv_cg" ]]; then
+  _scv_cgo="$(printf '%s' "$_scv_lastmsg" | bash "$_scv_cg" stop --active "$_scv_tail_active" 2>/dev/null || true)"
+  if grep -qx 'CHOICE_GATE: block' <<<"$_scv_cgo"; then
+    _scv_block_reason="$(grep -m1 '^CHOICE_REASON: ' <<<"$_scv_cgo" | sed 's/^CHOICE_REASON: //')"
+    [[ -n "$_scv_block_reason" ]] || _scv_block_reason="[SCV 선택지] 고를 것은 선택지 도구로 다시 물어라(contracts/choices.md)."
   fi
 fi
 _scv_emit_block() {

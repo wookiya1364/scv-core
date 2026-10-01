@@ -22,6 +22,8 @@ SCV_PROMPTING_GUIDES=""
 # 입력이 이 태그 블록과 공백만으로 이뤄지면 자동 입력 — 새 턴을 열지 않는다(lib/model-prompting.sh scv_mp_prompt_kind).
 # 비면 모든 입력이 사람 입력.
 SCV_AUTO_PROMPT_TAGS=""
+# 0.64.0+ 선택 키: 사용자에게 고르게 하는 호스트의 선택지 도구 이름(contracts/choices.md). 비면 결정은 지금처럼 번호 표로 묻는다.
+SCV_CHOICE_TOOL=""
 
 _scv_profile_assign() {
   local key="$1" value="$2"
@@ -39,6 +41,7 @@ _scv_profile_assign() {
     SCV_MODEL_POLICY_OWNER) SCV_MODEL_POLICY_OWNER="$value" ;;
     SCV_PROMPTING_GUIDES) SCV_PROMPTING_GUIDES="$value" ;;
     SCV_AUTO_PROMPT_TAGS) SCV_AUTO_PROMPT_TAGS="$value" ;;
+    SCV_CHOICE_TOOL) SCV_CHOICE_TOOL="$value" ;;
   esac
 }
 

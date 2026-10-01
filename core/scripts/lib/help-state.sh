@@ -278,6 +278,23 @@ scv_turn_slice() {
 }
 
 # @pure
+# 턴 스트림 → 이번 턴의 마지막 어시스턴트 텍스트(마지막 U 이후, 비지 않은 마지막 A 하나). U 가 없으면 빈값.
+# (v0.64.0+) 호스트가 마지막 답을 주지 않을 때 종료 훅의 선택지 판정이 이것을 본다 — 판정은 끝 메시지만 본다.
+scv_turn_last() {
+  local stream="${1:-}" line last="" seen=0 us=$'\x1f' rs=$'\x1e' t
+  while IFS= read -r line; do
+    case "$line" in
+      U) seen=1; last="" ;;
+      A"$us"*)
+        t="${line#A"$us"}"; t="${t//$rs/$'\n'}"
+        [[ -n "${t//[[:space:]]/}" ]] && last="$t" ;;
+    esac
+  done <<<"$stream"
+  (( seen )) || return 0
+  printf '%s' "$last"
+}
+
+# @pure
 # <호스트가 넘긴 마지막 답> <원본의 이번 턴 텍스트> → "<src>\x1f<본문>". src ∈ host | transcript | none.
 # 호스트 값이 1순위(공식 문서: 원본은 늦게 적힐 수 있다), 없으면 원본의 이번 턴, 그래도 없으면 none(린트 생략).
 scv_stop_pick_source() {
