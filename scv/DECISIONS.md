@@ -1466,3 +1466,27 @@ merge_policy: preserve
 - path delta: 키를 머리말 문자열(SCV_AUTO_PROMPT_PREFIXES) 대신 태그 이름(SCV_AUTO_PROMPT_TAGS)으로 — 호스트 설정 검증기가 꺾쇠 값을 막고 이름이면 정규식 하나로 검증된다. 판별은 '머리말로 시작'에서 '태그 블록과 공백만'으로 좁혔다(독립 검토: 알림 뒤 · 사이 사람 글), 패턴 잘라 내기는 64KB 에 2초라 정규식 검색으로. 자동 표시는 끝난 사람 턴에만(턴 중간 알림이 사람 턴 검사를 끄던 위험), 사람 입력마다 지우고, 가드도 자동 턴엔 거절 안 함 · 전체 스위치 off 면 표시 없음. PR 도구 멈춤은 커밋 전이 아니라 첨부 수집 · 재실행 전으로, 상태 읽기는 -z, 스테이징에서 세션 표식 · 비밀 파일 제외, SCV_PR_BASE 는 설정 라이브러리 공개 키 등록. bash 3.2 두 줄 · load-once [T7] 은 계획 밖(사용자 결정 Turn 3~4). 독립 검토 2회가 이 차이의 대부분을 만들었다. 알려진 한계: 종료 판정 없이 끊긴 턴 뒤 알림은 이전처럼 검사, 중첩 모듈의 PR 대상은 최상위 설정. 다음 계획 메모: scv/raw/20261001-hook-path-bash32-audit.md(훅 경로 3.2 나머지 · 에픽 브랜치 출발점).
 - refs: scv/archive/20261001-wookiya1364-auto-turns-pr-base-fixes/PLAN.md
 - conversation: scv/conversations/archive/20261001-083005-auto-turns-pr-base-fixes.md
+
+## [2026-10-01 17:57] wookiya1364 — 결정은 고르는 선택지로 — 클로드에서 SCV 가 묻는 결정을 객관식으로 되돌린다
+
+- verdict: adopted
+- why: 클로드에서 SCV 가 고르게 하는 모든 결정을 선택지 도구로 묻는다 — 도구 이름은 호스트 설정이 주고, 규칙은 한 자리에 두며, 글로 묻고 끝내면 종료 훅이 같은 턴에 한 번 막는다(사용자 결정: 강제). 객관식 지시가 처음부터 없던 상태에서 매 턴 '표로' 규칙이 늘자 줄글 표로 흘렀다(원인은 추정 — 실측으로 확인).
+- discarded alternatives: 다음 턴 경고만 — 사용자가 강제를 원함 / 지시 문장만 — 지금처럼 다시 줄글로 흐를 수 있음 / 코어에 도구 이름 직접 — 호스트 중립 검사 위반 / 코덱스도 함께 — 선택 화면 지원 미확인, 이번엔 번호 표 유지(사용자 결정) / 4개만 묻고 나머지는 추천대로 — 사용자가 4개씩 나눠 묻기를 고름
+- refs: scv/promote/20261001-wookiya1364-restore-choice-questions/PLAN.md
+- conversation: scv/conversations/20261001-170437-restore-multiple-choice-questions.md
+
+## [2026-10-01 21:26] wookiya1364 — SCV 원칙에서 문제 표 · '생길 수 있는 문제' 칸을 없앤다 — 해결책이 문제를 막도록
+
+- verdict: adopted
+- why: 문제를 따로 표로 나열하면 정보만 과다하다(사용자) — 해결책을 낼 때 각 방법이 부를 문제를 막는 길까지 담아 제시하고, 막을 수 없는 것 중 정할 것은 선택지로(보기 설명에 해결 방법), 남는 한계는 추천 칸 이유에 한 줄. 위치 · 확인 표시 문장도 원칙에서 뺀다. 0.63.0 의 두 표 원칙(2026-09-30 결정)을 바꾸며, 선택지 계획과 같은 릴리스.
+- discarded alternatives: 문제 표 유지 — 사용자가 정보 과다로 거절 / 위치 · 확인 표시만 남기기 — 사용자: '그게 필요하냐' / 막을 수 없는 것도 적지 않기 — 확인 못 한 것을 숨기게 됨, 사용자가 '한계는 한 줄'을 고름
+- refs: scv/promote/20261001-wookiya1364-restore-choice-questions/PLAN.md
+- conversation: scv/conversations/20261001-170437-restore-multiple-choice-questions.md
+
+## [2026-10-02 04:20] wookiya1364 — 결정은 고르는 선택지로 — 클로드에서 SCV 가 묻는 결정을 객관식으로 되돌린다
+
+- verdict: archived
+- why: 클로드에서 SCV 결정은 선택지 도구로 묻는다(호스트 설정 SCV_CHOICE_TOOL, 규칙은 contracts/choices.md 한 곳, 글로 묻고 끝나면 종료 훅이 같은 턴에 한 번 막음 — 사람 없는 실행은 SCV_CHOICE_OFF_WHEN 으로 끔). 종료 훅의 턴 자르기는 내부 메시지 · 도구 출처 글을 경계로 세지 않고 긴 턴도 넓혀 찾으며, SCV 원칙은 단위 표 하나(문제 표를 넣으면 막음). 배운 것: 글 질문 판정은 실제 답 230턴 실측과 반박 검토 네 번으로 다듬어야 했다 — 고친 곳을 하나씩 되돌려 검사가 붉어지는지까지 볼 것. 맥 기본 bash 3.2 는 큰 글의 패턴 치환이 분 단위로 느리다(종료 훅 158초) — 훅 경로의 큰 글에는 ${x//…} 를 쓰지 않는다.
+- path delta: 길 1~7 위에 사용자 요구 셋(원칙 단위 표 하나 · 답 모양 직접 적기와 상한 · 추정 해소)이 더해졌고, 추정 해소에서 헤드리스에 선택지 도구가 없음 · 코덱스 원본 모양 · bash 3.2 속도 · 판정 놓침 42% 를 찾아 고쳤다(원인 실측은 추정을 지지하지 않음) — 회귀 게이트 시간 제한도 1200초로.
+- refs: scv/archive/20261001-wookiya1364-restore-choice-questions/PLAN.md
+- conversation: scv/conversations/archive/20261001-170437-restore-multiple-choice-questions.md
