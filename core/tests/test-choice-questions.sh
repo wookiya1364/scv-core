@@ -133,10 +133,14 @@ C_G9='말씀하신 증상이 이것이 맞나요? 다른 증상이면 알려 주
 C_G10=$'**질문 하나:** 출력 언어를 무엇으로 할까요? **[2] 한국어**를 추천합니다.\n[1] English / [2] 한국어 / [3] 日本語'
 C_G11='Should I open the PR now? I recommend yes, since the checks are green.'
 C_G12='어떤 맥락에서 보신 것인지 알려주시면 좋겠습니다.'
-for x in "$C_G1" "$C_G2" "$C_G3" "$C_G4" "$C_G5" "$C_G6" "$C_G7" "$C_G8" "$C_G9" "$C_G10" "$C_G11" "$C_G12"; do
+# 독립 검토(2026-10-02)가 찾은 누락 — 전각 물음표 뒤 붙여 쓴 추천, 주소의 ? 뒤에 숨은 질문
+C_G13='どちらにしますか？おすすめはAです。'
+C_G14='Should I deploy? I recommend yes. Logs: https://x.example/run?id=3'
+C_G15='어떤 걸 할까요? 네 가지 방법이 있습니다. 추천은 A입니다.'
+for x in "$C_G1" "$C_G2" "$C_G3" "$C_G4" "$C_G5" "$C_G6" "$C_G7" "$C_G8" "$C_G9" "$C_G10" "$C_G11" "$C_G12" "$C_G13" "$C_G14" "$C_G15"; do
   [[ "$(asks "$x")" == 1 ]] && c=$((c + 1)) || echo "      ✖ not caught: $(head -c 60 <<<"$x")"
 done
-[[ $c -eq 12 ]] && ok "질문 뒤 추천 · 요청 문장, 넓힌 요청 말투, 한 줄 보기 목록, 앞 문단의 요청 — 12/12" || fail "T31 잡을 것 $c/12"
+[[ $c -eq 15 ]] && ok "질문 뒤 추천 · 요청 문장, 넓힌 요청 말투, 한 줄 보기 목록, 앞 문단의 요청, 전각 물음표, 주소 뒤 — 15/15" || fail "T31 잡을 것 $c/15"
 c=0
 N_G1='PR 번호나 링크가 필요하면 말씀해 주세요.'
 N_G2='원하시면 로그인한 뒤 알려 주세요.'
@@ -144,13 +148,25 @@ N_G3="'다 끝난거 맞아?'에 답하면, 네 — 모두 끝났습니다. 더 
 N_G4='결과: https://example.com/run?id=3 — 추천 설정 그대로 통과했습니다.'
 N_G5='어느 부분이 걸리시는지 짚어 주시면 그 부분만 더 풀어 드리겠습니다.'
 N_G6=$'왜 막혔나? 이번 턴이 길어서였다.\n\n추천 수정은 넓혀 찾기였고, 반영했습니다.'
-for x in "$N_G1" "$N_G2" "$N_G3" "$N_G4" "$N_G5" "$N_G6"; do
+# 독립 검토(2026-10-02)가 찾은 오탐 — 맺음 인사("언제든지"), 답한 혼잣말 질문, 연산자 ??, 낱말만 "recommended", 특수 공백 줄
+N_G7='모두 반영했습니다. 궁금한 점이 있으면 언제든지 알려 주세요.'
+N_G8='얼마든지 말씀해 주세요.'
+N_G9='Did all tests pass? Yes — all 55 passed with the recommended settings.'
+N_G10='Is it merged? Yes. If you need anything else, let me know.'
+N_G11='The fix uses `a ?? b`, which is the recommended idiom here.'
+N_G12='왜 막혔나? 이번 턴이 길어서였다. 추천 수정은 넓혀 찾기였고, 반영했습니다.'
+N_G13=$'Was it the cache? It was.\n\xc2\xa0\nThe recommended settings are unchanged.'
+N_G14='어떤 걸 할까요? 네 가지 방법이 있습니다.'
+for x in "$N_G1" "$N_G2" "$N_G3" "$N_G4" "$N_G5" "$N_G6" "$N_G7" "$N_G8" "$N_G9" "$N_G10" "$N_G11" "$N_G12" "$N_G13"; do
   [[ "$(asks "$x")" == 0 ]] && c=$((c + 1)) || echo "      ✖ wrongly caught: $(head -c 60 <<<"$x")"
 done
-[[ $c -eq 6 ]] && ok "조건부 제안 둘 · 옮겨 적은 질문 · 주소 속 물음표 · 짚어 주시면 · 앞 문단의 혼잣말 질문 — 6/6" || fail "T31 잡지 않을 것 $c/6"
+[[ $c -eq 13 ]] && ok "조건부 제안 · 맺음 인사 · 옮겨 적은 질문 · 주소 · 연산자 ?? · 답한 혼잣말 질문 · 특수 공백 줄 — 13/13" || fail "T31 잡지 않을 것 $c/13"
+# "네 가지" 는 "네(예)" 가 아니다 — 답한 혼잣말 질문으로 보지 않는다(추천이 없으면 묻는 말로도 잡지 않는다)
+[[ "$(asks "$N_G14")" == 0 && "$(asks "$C_G15")" == 1 ]] && ok "\"네 가지\" 는 답이 아니다 — 추천이 붙으면 잡고, 없으면 잡지 않는다" || fail "T31 네 가지"
 c=0
 for L in C en_US.UTF-8; do
-  [[ "$(LC_ALL=$L bash -c 'source "$1"; scv_asks_in_text "$2"' _ "$LIB" "$C_G2")" == 1 && "$(LC_ALL=$L bash -c 'source "$1"; scv_asks_in_text "$2"' _ "$LIB" "$N_G3")" == 0 ]] && c=$((c + 1))
+  [[ "$(LC_ALL=$L bash -c 'source "$1"; scv_asks_in_text "$2"' _ "$LIB" "$C_G2")" == 1 && "$(LC_ALL=$L bash -c 'source "$1"; scv_asks_in_text "$2"' _ "$LIB" "$N_G3")" == 0 \
+     && "$(LC_ALL=$L bash -c 'source "$1"; scv_asks_in_text "$2"' _ "$LIB" "$N_G13")" == 0 && "$(LC_ALL=$L bash -c 'source "$1"; scv_asks_in_text "$2"' _ "$LIB" "$C_G13")" == 1 ]] && c=$((c + 1))
 done
 [[ $c -eq 2 ]] && ok "넓힌 판정도 로캘과 무관 — C · UTF-8 같은 판정" || fail "T31 로캘 $c/2"
 
@@ -374,7 +390,9 @@ R="$(fresh_turn t28)"; TR="$WORK/t28.jsonl"
 t0=$(date +%s); o="$(stop_tr "$R" "$WORK/profile-full.env" "$TR" "$(printf '결론.\n\n%s' "$QUOTE")")"; t1=$(date +%s)
 [[ -z "$o" ]] && ! grep -q 'turn-boundary=not-found' "$R/scv/journal/.help-drift" 2>/dev/null \
   && ok "$(wc -l < "$TR" | tr -d ' ')줄 코덱스 모양: 끝 메시지의 인용으로 통과, 경계 없음 기록을 남기지 않는다 ($((t1 - t0))s)" || fail "T28 (a): [$o] / $(tail -1 "$R/scv/journal/.help-drift" 2>/dev/null)"
-(( t1 - t0 <= 10 )) && ok "넓혀 찾지 않아 빠르다(10초 안)" || fail "T28 느림: $((t1 - t0))s"
+_fns="$(sed -n '/^_scv_turn_stream() {/,/^}/p;/^_scv_turn_stream_wide() {/,/^}/p' "$STOP_HOOK")"
+_wide="$(TRANSCRIPT="$TR" bash -c 'eval "$1"; _scv_turn_stream_wide' _ "$_fns")"
+[[ "$_wide" == "N" ]] && ok "첫 창(400줄)에서 '이 형식이 아님'(N)으로 끝난다 — 넓혀 찾지 않는다" || fail "T28 넓혀 찾기: [$(head -c 40 <<<"$_wide")]"
 R="$(fresh_turn t28b)"
 o="$(stop_tr "$R" "$WORK/profile-full.env" "$TR" "끝났습니다.")"
 [[ "$(jq -r .decision <<<"$o" 2>/dev/null)" == block ]] && ok "끝 메시지에 인용이 없으면 이 기능 전처럼 막는다(코덱스는 끝 메시지로만 판정)" || fail "T28 (b): [$o]"
@@ -414,6 +432,10 @@ if [[ -x /bin/bash ]]; then
   { jl_user "로그인 고쳐"; jl_asst "$BIG"; } > "$TR"
   t0=$(date +%s); o="$(stop_sys "$R" "$WORK/profile-full.env" "$TR" "$BIG")"; t1=$(date +%s)
   [[ -z "$o" ]] && (( t1 - t0 <= 30 )) && ok "답 하나 $(printf '%s' "$BIG" | wc -c | tr -d ' ')바이트 — 시스템 bash $v 로 $((t1 - t0))s, 막지 않음" || fail "T33 (a) $((t1 - t0))s: [$o]"
+  # 첫 줄에 물음표가 있는 큰 끝 메시지 — 판정의 (d) 가 큰 글을 제곱으로 자르면 3.2 에서 수십 초(독립 검토 2026-10-02)
+  BIGQ="$(printf 'What did it find? Log:\n'; for i in $(seq 1 2000); do printf -- '- note %s: verified this step. 확인했다.\n' "$i"; done)"
+  t0=$(date +%s); o="$(PATH="$SYSB:$PATH" /bin/bash -c 'source "$1"; scv_asks_in_text "$(scv_answer_body "$2")"' _ "$LIB" "$(printf '%s' "$BIGQ" | head -c 65536)")"; t1=$(date +%s)
+  [[ "$o" == 0 ]] && (( t1 - t0 <= 10 )) && ok "첫 줄 물음표 · 64KB 끝 메시지 판정 — 시스템 bash $v 로 $((t1 - t0))s, 묻지 않음" || fail "T33 (d) $((t1 - t0))s: [$o]"
   R="$(fresh_turn t33b)"
   t0=$(date +%s); o="$(stop_sys "$R" "$WORK/profile-full.env" "$WORK/t26.jsonl" "끝났습니다.")"; t1=$(date +%s)
   [[ -z "$o" ]] && (( t1 - t0 <= 30 )) && ok "$(wc -l < "$WORK/t26.jsonl" | tr -d ' ')줄 턴 — 시스템 bash $v 로 $((t1 - t0))s, 앞선 인용을 찾고 막지 않음" || fail "T33 (b) $((t1 - t0))s: [$o]"
