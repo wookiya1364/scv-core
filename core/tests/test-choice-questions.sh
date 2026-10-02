@@ -707,6 +707,22 @@ o2="$(stop_tra "$R" "$TR" "$A2" true)"
 [[ "$(sg_tags "$o1")" == "block:principle" && "$(sg_tags "$o2")" == pass ]] \
   && ok "원칙에 막힌 뒤 인용 없이 표만 고친 답 — 등록 이유로 새로 막지 않음" || fail "T35.16: $(sg_tags "$o1") / $(sg_tags "$o2") [$o2]"
 
+echo "── [T35.17] 첫 멈춤에서 새 기록 쓰기만 실패 — 지난 기록을 먼저 지워 같은 검사가 한 번 더 막지 않는다 ──"
+# 재검토(2026-10-02)가 재현한 꼴: 자동 알림 턴(턴 표 그대로)의 첫 멈춤이 막으면서 기록을 못 쓰면 지난 턴 기록이 남아, 다음 멈춤이
+# 같은 검사를 또 막았다. 첫 멈춤은 기록을 쓰기 전에 같은 세션의 지난 기록부터 지운다. 쓰기 실패는 가짜 mktemp 로 만든다.
+mkdir -p "$WORK/nomktemp"; printf '#!/bin/sh\nexit 1\n' > "$WORK/nomktemp/mktemp"; chmod +x "$WORK/nomktemp/mktemp"
+R="$(fresh_turn sg17)"
+stop_p "$R" "$WORK/profile-full.env" "$(printf '%s\n\n%s\n\n%s' "결론." "$QUOTE" "$PTA")" false >/dev/null   # 사람 턴: 원칙을 전달
+stop_p "$R" "$WORK/profile-full.env" "$(printf '%s\n\n%s' "$QUOTE" "끝났습니다.")" true >/dev/null       # 사람 턴이 끝난다
+hook_p "$R" "$WORK/profile-full.env" $'<machine-event>\n<status>completed</status>\n</machine-event>' >/dev/null
+TR="$WORK/sg17.jsonl"; { jl_user "q"; jl_asst "$C_J"; } > "$TR"
+o1="$(cd "$R" && jq -cn --arg p "$TR" --arg a "$C_J" '{transcript_path:$p,last_assistant_message:$a,stop_hook_active:false}' \
+       | PATH="$WORK/nomktemp:$PATH" SCV_CORE_ROOT="$CORE" SCV_HOST_PROFILE="$WORK/profile-full.env" GIT_AUTHOR_NAME="Hook User" bash "$STOP_HOOK" 2>/dev/null)"
+gone=0; [[ ! -e "$R/scv/journal/.help-turn-gates" ]] && gone=1
+o2="$(stop_p "$R" "$WORK/profile-full.env" "$C_J" true)"
+[[ "$(sg_tags "$o1")" == "block:choice" && "$gone" == 1 && "$(sg_tags "$o2")" == pass ]] \
+  && ok "첫 멈춤: 지난 기록 지우고 막음(새 기록은 못 씀) → 계속 중 같은 질문은 막지 않음" || fail "T35.17: $(sg_tags "$o1") gone=$gone / $(sg_tags "$o2")"
+
 echo "── [T35.11] 맥 기본 bash 3.2 와 지금 bash 에서 같은 결과 ──"
 stop_g() {  # <bash 실행 파일> <저장소> <답> <계속 중 true|false> → 종료 훅 stdout (프로필 full)
   local b="$1" r="$2" tr="$WORK/tr-g-$RANDOM$RANDOM.jsonl" pth="$PATH"
