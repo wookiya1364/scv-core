@@ -29,8 +29,9 @@ turns included:
    one block with their reasons together (v0.64.2+). Once this rule's reason has gone out in the turn,
    a later violation leaves a warning for the next turn instead — and so does a continuing stop for
    which the hook holds no record of this turn's checks (another hook made the turn continue first, no
-   turn token, or a record it cannot read back as this session's). A project can turn the rule off with
-   the setting `SCV_CHOICE_GATE=off`.
+   turn token, or a record it cannot read back as this session's). Rare limit: when the turn's first
+   stop can neither clear nor write that record, the rule may block once more in the turn — never more
+   than twice. A project can turn the rule off with the setting `SCV_CHOICE_GATE=off`.
 
 Information is not a decision. Tables that report — the unit table of the rewrite principle, result
 tables, the help item table — stay as text.

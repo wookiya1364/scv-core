@@ -249,6 +249,11 @@ if declare -F scv_gates_reason >/dev/null 2>&1 && declare -F scv_gates_record >/
   _scv_block_reason="$(scv_gates_reason "$_scv_r_prompt" "$_scv_r_principle" "$_scv_r_choice")"
   _scv_gfile="$_scv_jdir/.help-turn-gates"
   _scv_newrec="$(scv_gates_record "$_scv_sess" "$_scv_tok" "$_scv_grec" "$_scv_active" "$_scv_blocked")"
+  # 첫 멈춤은 같은 세션의 지난 기록을 먼저 지운다 — 막으면서 새 기록 쓰기에 실패해도 지난 턴 기록이 이번 것으로 남지 않게
+  # (재검토 2026-10-02). 지우지도 쓰지도 못한 첫 멈춤 뒤에는 같은 검사가 한 번 더 막을 수 있다 — 상한 2, 끝없는 반복은 없다.
+  if [[ "$(scv_gates_drop "$_scv_sess" "$_scv_grec" "$_scv_active")" == 1 && -f "$_scv_gfile" && ! -L "$_scv_gfile" ]]; then
+    rm -f "$_scv_gfile" 2>/dev/null
+  fi
   if [[ -n "$_scv_newrec" ]]; then
     if mkdir -p "$_scv_jdir" 2>/dev/null && [[ ! -L "$_scv_gfile" ]]; then
       _scv_tmp="$(mktemp "$_scv_gfile.XXXXXX" 2>/dev/null)" \
@@ -264,8 +269,6 @@ if declare -F scv_gates_reason >/dev/null 2>&1 && declare -F scv_gates_record >/
       fi
       _scv_block_reason=""
     fi
-  elif [[ "$(scv_gates_drop "$_scv_sess" "$_scv_grec" "$_scv_active")" == 1 && -f "$_scv_gfile" && ! -L "$_scv_gfile" ]]; then
-    rm -f "$_scv_gfile" 2>/dev/null
   fi
 else
   _scv_block_reason="${_scv_r_prompt:-${_scv_r_principle:-$_scv_r_choice}}"

@@ -453,11 +453,14 @@ quoted. Without checklist files the registration check does not run.
 principle check and the choice check (`core/contracts/choices.md` rule 7) — each block at most once per turn
 on their own, so one check blocking first no longer uses up the others' block; checks that fire at the same
 stop share one block with their reasons together. The hook keeps the checks whose reason went out in
-`scv/journal/.help-turn-gates` (session id, turn token, checks — written only when it blocks, cleared at the
-turn's first stop) and blocks a continuing stop only after reading that record back. Without such a record of
-this turn — another hook made the turn continue first, no turn token, a record from another session or turn,
-a record it cannot write — it keeps the earlier rule: no block while the host reports it is already
-continuing, a warning for the next turn instead. Where the transcript cannot show the turn's earlier messages (a Codex-shaped transcript), the
+`scv/journal/.help-turn-gates` (session id, turn token, checks — written only when it blocks; the turn's
+first stop removes that session's old record before writing) and blocks a continuing stop only after reading
+that record back. Without such a record of this turn — another hook made the turn continue first, no turn
+token, a record from another session (told apart only when the host passes `session_id`) or turn, a record
+it cannot write — it keeps the earlier rule: no block while the host reports it is already continuing, a
+warning for the next turn instead. Two limits remain: if a first stop can neither remove nor write the record
+(a journal that is read-only just then), a check may block once more in that turn — at most twice, never
+endlessly; and without `session_id`, two sessions in one repository share the record the same way. Where the transcript cannot show the turn's earlier messages (a Codex-shaped transcript), the
 registration check also keeps the earlier rule while continuing, since a rewrite quoted earlier in the turn
 cannot be seen.
 The guides folder is searched from the Core root up to three levels, so one profile value serves both the
