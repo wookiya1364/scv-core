@@ -59,7 +59,7 @@ stop_p() {  # <저장소> <프로필> <마지막 답> <계속 중 true|false> [�
   local r="$1" core="${5:-$CORE}" tr="$WORK/tr-$RANDOM$RANDOM.jsonl"
   printf '{"type":"user","message":{"content":[{"type":"text","text":"q"}]}}\n' > "$tr"
   jq -cn --arg t "$3" '{type:"assistant",message:{model:"vendor-model-a",content:[{type:"text",text:$t}]}}' >> "$tr"
-  (cd "$r" && jq -cn --arg p "$tr" --arg a "$3" --argjson act "$4" '{transcript_path:$p,last_assistant_message:$a,stop_hook_active:$act}' \
+  (cd "$r" && jq -cn --arg p "$tr" --arg a "$3" --argjson act "$4" '{session_id:"s1",transcript_path:$p,last_assistant_message:$a,stop_hook_active:$act}' \
      | SCV_CORE_ROOT="$core" SCV_HOST_PROFILE="$2" GIT_AUTHOR_NAME="Hook User" bash "$core/template/hooks/on-stop.sh" 2>/dev/null)
 }
 reg_full() { (cd "$1" && printf '%s\n' "$SUB_OK" | SCV_HOST_PROFILE="$WORK/profile-full.env" bash "$MP" register --model vendor-model-a 2>/dev/null); }
@@ -532,6 +532,7 @@ U=$'\x1f'; c=0; n=0
 sgc() { n=$((n + 1)); [[ "$2" == "$3" ]] && c=$((c + 1)) || echo "      ✖ $1: [$(printf '%s' "$2" | tr '\037' '|')] ≠ [$(printf '%s' "$3" | tr '\037' '|')]"; }
 sgc "첫 멈춤은 아무것도 전달 전"        "$(sgf scv_gates_delivered choice 0 S T "S${U}T${U}choice")" 0
 sgc "턴 표 없음 — 이 기능 전과 같다"     "$(sgf scv_gates_delivered choice 1 S "" "")" 1
+sgc "세션 id 없음 — 이 기능 전과 같다"   "$(sgf scv_gates_delivered choice 1 "" T "${U}T${U}prompt")" 1
 sgc "계속 중 · 이번 턴 기록 없음 — 이 기능 전과 같다" "$(sgf scv_gates_delivered choice 1 S T "")" 1
 sgc "기록에 있는 검사"                 "$(sgf scv_gates_delivered choice 1 S T "S${U}T${U}prompt,choice")" 1
 sgc "기록에 없는 검사"                 "$(sgf scv_gates_delivered principle 1 S T "S${U}T${U}prompt,choice")" 0
@@ -695,7 +696,7 @@ a2="$(sg_tags "$(stop_s "$R" sess-a "$SG_QJ" true)")"
 
 echo "── [T35.16] 코덱스 모양 원본 — 앞선 인용을 못 보니 계속 중 등록 검사는 막지 않는다 ──"
 stop_tra() {  # <저장소> <원본> <마지막 답> <계속 중 true|false> → 종료 훅 stdout (프로필 full)
-  (cd "$1" && jq -cn --arg p "$2" --arg a "$3" --argjson act "$4" '{transcript_path:$p,last_assistant_message:$a,stop_hook_active:$act}' \
+  (cd "$1" && jq -cn --arg p "$2" --arg a "$3" --argjson act "$4" '{session_id:"s1",transcript_path:$p,last_assistant_message:$a,stop_hook_active:$act}' \
      | SCV_CORE_ROOT="$CORE" SCV_HOST_PROFILE="$WORK/profile-full.env" GIT_AUTHOR_NAME="Hook User" bash "$STOP_HOOK" 2>/dev/null)
 }
 R="$(fresh_turn sg16)"; TR="$WORK/sg16.jsonl"; A1="$(printf '%s\n\n%s\n\n%s' "결론." "$QUOTE" "$PTA")"
@@ -716,12 +717,27 @@ stop_p "$R" "$WORK/profile-full.env" "$(printf '%s\n\n%s\n\n%s' "결론." "$QUOT
 stop_p "$R" "$WORK/profile-full.env" "$(printf '%s\n\n%s' "$QUOTE" "끝났습니다.")" true >/dev/null       # 사람 턴이 끝난다
 hook_p "$R" "$WORK/profile-full.env" $'<machine-event>\n<status>completed</status>\n</machine-event>' >/dev/null
 TR="$WORK/sg17.jsonl"; { jl_user "q"; jl_asst "$C_J"; } > "$TR"
-o1="$(cd "$R" && jq -cn --arg p "$TR" --arg a "$C_J" '{transcript_path:$p,last_assistant_message:$a,stop_hook_active:false}' \
+o1="$(cd "$R" && jq -cn --arg p "$TR" --arg a "$C_J" '{session_id:"s1",transcript_path:$p,last_assistant_message:$a,stop_hook_active:false}' \
        | PATH="$WORK/nomktemp:$PATH" SCV_CORE_ROOT="$CORE" SCV_HOST_PROFILE="$WORK/profile-full.env" GIT_AUTHOR_NAME="Hook User" bash "$STOP_HOOK" 2>/dev/null)"
 gone=0; [[ ! -e "$R/scv/journal/.help-turn-gates" ]] && gone=1
 o2="$(stop_p "$R" "$WORK/profile-full.env" "$C_J" true)"
 [[ "$(sg_tags "$o1")" == "block:choice" && "$gone" == 1 && "$(sg_tags "$o2")" == pass ]] \
   && ok "첫 멈춤: 지난 기록 지우고 막음(새 기록은 못 씀) → 계속 중 같은 질문은 막지 않음" || fail "T35.17: $(sg_tags "$o1") gone=$gone / $(sg_tags "$o2")"
+
+echo "── [T35.18] 세션 id 를 주지 않는 호스트 — 계속 중이면 이 기능 전과 같다 ──"
+# 재검토(2026-10-02): 세션 id 가 없으면 한 저장소의 두 세션을 가를 수 없어, 한 검사가 한 턴에 세 번까지 막혔다.
+stop_ns() {  # <저장소> <답> <계속 중 true|false> → 종료 훅 stdout (프로필 full, 세션 id 없음)
+  local r="$1" tr="$WORK/tr-ns-$RANDOM$RANDOM.jsonl"
+  printf '{"type":"user","message":{"content":[{"type":"text","text":"q"}]}}\n' > "$tr"
+  jq -cn --arg t "$2" '{type:"assistant",message:{model:"vendor-model-a",content:[{type:"text",text:$t}]}}' >> "$tr"
+  (cd "$r" && jq -cn --arg p "$tr" --arg a "$2" --argjson act "$3" '{transcript_path:$p,last_assistant_message:$a,stop_hook_active:$act}' \
+     | SCV_CORE_ROOT="$CORE" SCV_HOST_PROFILE="$WORK/profile-full.env" GIT_AUTHOR_NAME="Hook User" bash "$STOP_HOOK" 2>/dev/null)
+}
+R="$(new_repo sg18)"; hook_p "$R" "$WORK/profile-full.env" "로그인 고쳐" >/dev/null
+o1="$(stop_ns "$R" "$SG_DONE" false)"; reg_full "$R" >/dev/null
+o2="$(stop_ns "$R" "$SG_QJ" true)"
+[[ "$(sg_tags "$o1")" == "block:prompt" && "$(sg_tags "$o2")" == pass ]] \
+  && ok "세션 id 없음 — 첫 멈춤은 막고, 계속 중 글 질문은 막지 않음(이 기능 전과 같다)" || fail "T35.18: $(sg_tags "$o1") / $(sg_tags "$o2")"
 
 echo "── [T35.11] 맥 기본 bash 3.2 와 지금 bash 에서 같은 결과 ──"
 stop_g() {  # <bash 실행 파일> <저장소> <답> <계속 중 true|false> → 종료 훅 stdout (프로필 full)
@@ -729,7 +745,7 @@ stop_g() {  # <bash 실행 파일> <저장소> <답> <계속 중 true|false> →
   [[ "$b" == /bin/bash ]] && pth="$SYSB:$PATH"
   printf '{"type":"user","message":{"content":[{"type":"text","text":"q"}]}}\n' > "$tr"
   jq -cn --arg t "$3" '{type:"assistant",message:{model:"vendor-model-a",content:[{type:"text",text:$t}]}}' >> "$tr"
-  (cd "$r" && jq -cn --arg p "$tr" --arg a "$3" --argjson act "$4" '{transcript_path:$p,last_assistant_message:$a,stop_hook_active:$act}' \
+  (cd "$r" && jq -cn --arg p "$tr" --arg a "$3" --argjson act "$4" '{session_id:"s1",transcript_path:$p,last_assistant_message:$a,stop_hook_active:$act}' \
      | PATH="$pth" SCV_CORE_ROOT="$CORE" SCV_HOST_PROFILE="$WORK/profile-full.env" GIT_AUTHOR_NAME="Hook User" "$b" "$STOP_HOOK" 2>/dev/null)
 }
 sg_run() {  # <bash 실행 파일> <이름> → T35.1 · T35.3 · T35.5 순서의 결과 한 줄
