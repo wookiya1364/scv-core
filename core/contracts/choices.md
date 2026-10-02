@@ -27,7 +27,9 @@ turns included:
    turn for this rule, even when another stop check (registration, principle) blocked earlier in the
    turn: each stop check gets its own one block per turn, and checks that fire at the same stop share
    one block with their reasons together (v0.64.2+). Once this rule's reason has gone out in the turn,
-   a later violation leaves a warning for the next turn instead. A project can turn the rule off with
+   a later violation leaves a warning for the next turn instead — and so does a continuing stop for
+   which the hook holds no record of this turn's checks (another hook made the turn continue first, no
+   turn token, or a record it cannot read back as this session's). A project can turn the rule off with
    the setting `SCV_CHOICE_GATE=off`.
 
 Information is not a decision. Tables that report — the unit table of the rewrite principle, result

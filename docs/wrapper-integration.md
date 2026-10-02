@@ -447,11 +447,18 @@ present, every user message — however short — is compared 1:1 with the answe
 model, same id: the model's label wins) and registered (`model-prompting.sh register`, each item `msg`,
 `ctx`, `na` or `asked`); the guard refuses editor-style writes before the turn's registration, and the Stop
 hook blocks the stop once (`{"decision":"block"}`) when the turn is unregistered or its rewrite is not
-quoted. Since v0.64.2 each stop check — this registration check, the principle check and the choice check
-(`core/contracts/choices.md` rule 7) — blocks at most once per turn on its own, so one check blocking first
-no longer uses up the others' block; checks that fire at the same stop share one block with their reasons
-together. While the host reports it is already continuing, a check blocks only if its reason has not gone
-out yet in this turn — the hook keeps the checks that did in `scv/journal/.help-turn-gates`, written only
-when it blocks — and otherwise leaves a warning for the next turn. Without checklist files nothing of this runs.
+quoted. Without checklist files the registration check does not run.
+
+**One block per check per turn (v0.64.2+).** The Stop hook's checks — the registration check above, the
+principle check and the choice check (`core/contracts/choices.md` rule 7) — each block at most once per turn
+on their own, so one check blocking first no longer uses up the others' block; checks that fire at the same
+stop share one block with their reasons together. The hook keeps the checks whose reason went out in
+`scv/journal/.help-turn-gates` (session id, turn token, checks — written only when it blocks, cleared at the
+turn's first stop) and blocks a continuing stop only after reading that record back. Without such a record of
+this turn — another hook made the turn continue first, no turn token, a record from another session or turn,
+a record it cannot write — it keeps the earlier rule: no block while the host reports it is already
+continuing, a warning for the next turn instead. Where the transcript cannot show the turn's earlier messages (a Codex-shaped transcript), the
+registration check also keeps the earlier rule while continuing, since a rewrite quoted earlier in the turn
+cannot be seen.
 The guides folder is searched from the Core root up to three levels, so one profile value serves both the
 projected scripts and the vendored hooks.
