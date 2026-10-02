@@ -447,6 +447,11 @@ present, every user message — however short — is compared 1:1 with the answe
 model, same id: the model's label wins) and registered (`model-prompting.sh register`, each item `msg`,
 `ctx`, `na` or `asked`); the guard refuses editor-style writes before the turn's registration, and the Stop
 hook blocks the stop once (`{"decision":"block"}`) when the turn is unregistered or its rewrite is not
-quoted — never while the host reports it is already continuing. Without checklist files nothing of this runs.
+quoted. Since v0.64.2 each stop check — this registration check, the principle check and the choice check
+(`core/contracts/choices.md` rule 7) — blocks at most once per turn on its own, so one check blocking first
+no longer uses up the others' block; checks that fire at the same stop share one block with their reasons
+together. While the host reports it is already continuing, a check blocks only if its reason has not gone
+out yet in this turn — the hook keeps the checks that did in `scv/journal/.help-turn-gates`, written only
+when it blocks — and otherwise leaves a warning for the next turn. Without checklist files nothing of this runs.
 The guides folder is searched from the Core root up to three levels, so one profile value serves both the
 projected scripts and the vendored hooks.
