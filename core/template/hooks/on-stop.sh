@@ -159,21 +159,16 @@ fi
 # 그러면 "보였나" 는 판정하지 않는다). 어떤 실패도 막지 않는다.
 # v0.62.0+ — 매 턴 등록 판정도 같은 호출이 한다: 이번 턴 요청을 등록하지 않았거나 다시 쓴 요청을 답에 보이지 않았으면
 # 끝내기를 막고 계속하게 한다. 막는 출력은 저널 기록을 마친 뒤, 훅이 끝날 때 한 번 낸다.
-# v0.64.2+ — 검사마다 한 턴에 한 번(계획 stop-gates-each-once). 세 검사(등록 · 원칙 · 선택지)는 각자 한 턴에 한 번 막는다 —
-# 한 검사가 먼저 막았어도 다른 검사는 제 몫이 남는다. 한 멈춤에 걸린 이유는 함께 싣는다(등록 → 원칙 → 선택지). 판단은
-# lib/stop-gates.sh(순수): 계속 중이 아닌 멈춤은 턴의 첫 멈춤 — 아직 어떤 검사도 전달하지 않았고, 같은 세션의 지난 전달 기록은
-# 지운다. 계속 중이면 이번 턴 전달 기록(.help-turn-gates — 세션 · 턴 표와 함께, 막을 때만 쓴다)에 있는 검사만 '이미 전달'이다.
-# 이번 턴 기록이 없거나(다른 훅이 먼저 이어 간 턴 등) 호스트가 세션 id 를 주지 않거나 턴 표가 없거나 기록이 깨졌거나 다른 세션 ·
-# 다른 턴 표의 것이면 모든 검사를
-# '이미 전달'로 본다 — 이 기능 전과 같은 동작(계속 중이면 막지 않음). 이미 전달한 검사가 또 걸리면 막지 않고 다음 턴 경고.
-# 계속 중인 멈춤은 전달 기록을 남긴 것을 다시 읽어 확인했을 때만 막는다 — 쓰기에 실패하면(읽기 전용 저널 · 심볼릭 링크) 같은
-# 검사가 끝없이 막지 않게 다음 턴 경고로 돌린다. 0.64.1 까지는 막을 기회가 턴 전체에 하나뿐이라, 등록 판정이 먼저 막은 턴에는
-# 선택지 · 원칙 판정이 차례를 받지 못했다(2026-10-02 설치본 대화형 재현).
+# v0.64.2+ — 검사마다 한 턴에 한 번(계획 stop-gates-each-once). 규칙은 contracts/choices.md 7항 한 곳, '이미 전달' 판단은
+# lib/stop-gates.sh(순수 — 그 머리말이 경우를 모두 적는다). 여기는 효과만: 훅 입력 · 턴 표 · 이번 턴 전달 기록(.help-turn-gates)을
+# 읽고, 막을 때만 기록을 쓰고, 첫 멈춤에서 같은 세션의 지난 기록을 지우고, 계속 중인 멈춤은 쓴 기록을 다시 읽어 확인했을 때만
+# 막는다(못 남겼으면 다음 턴 경고). 0.64.1 까지는 막을 기회가 턴 전체에 하나뿐이라, 등록 판정이 먼저 막은 턴에는 선택지 · 원칙
+# 판정이 차례를 받지 못했다(2026-10-02 설치본 대화형 재현).
 _scv_jdir="${SCV_JOURNAL_DIR:-scv/journal}"
 _scv_sgl="${SCV_CORE_ROOT:-$SCRIPT_DIR/../..}/scripts/lib/stop-gates.sh"
 _scv_active=0
 [[ "$(printf '%s' "$INPUT" | jq -r 'try (.stop_hook_active // false)' 2>/dev/null)" == "true" ]] && _scv_active=1
-_scv_sess="$(printf '%s' "$INPUT" | jq -r 'try (.session_id // empty)' 2>/dev/null | head -c 256 | tr -d '\n\r\037' || true)"
+_scv_sess="$(printf '%s' "$INPUT" | jq -r 'try (.session_id // empty)' 2>/dev/null | head -c 256 | LC_ALL=C tr -d '\n\r\037' 2>/dev/null || true)"
 _scv_line1() { [[ -f "$1" && ! -L "$1" ]] && head -c 4096 "$1" 2>/dev/null | head -1 || printf ''; }
 _scv_tok="$(_scv_line1 "$_scv_jdir/.help-turn")"; _scv_grec="$(_scv_line1 "$_scv_jdir/.help-turn-gates")"
 _scv_d_prompt="$_scv_active"; _scv_d_principle="$_scv_active"; _scv_d_choice="$_scv_active"   # 순수부가 없으면 이 기능 전과 같다
