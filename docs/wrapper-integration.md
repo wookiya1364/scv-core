@@ -447,6 +447,14 @@ present, every user message — however short — is compared 1:1 with the answe
 model, same id: the model's label wins) and registered (`model-prompting.sh register`, each item `msg`,
 `ctx`, `na` or `asked`); the guard refuses editor-style writes before the turn's registration, and the Stop
 hook blocks the stop once (`{"decision":"block"}`) when the turn is unregistered or its rewrite is not
-quoted — never while the host reports it is already continuing. Without checklist files nothing of this runs.
+quoted. Without checklist files neither the write refusal nor this registration check runs.
 The guides folder is searched from the Core root up to three levels, so one profile value serves both the
 projected scripts and the vendored hooks.
+
+**One block per check per turn (v0.64.2+).** The Stop hook's checks — the registration check above, the
+principle check and the choice check — share one rule, written once in `core/contracts/choices.md` rule 7. What
+a wrapper needs to know: the hook applies that rule to continuing stops only when the Stop input carries
+`session_id` (without it, continuing stops keep the earlier rule); it keeps its per-turn state in
+`scv/journal/.help-turn-gates` (and `.help-turn-gates.*` while writing) — add both to any ignore list that names
+journal markers one by one; and where the transcript cannot show the turn's earlier messages (a Codex-shaped
+transcript), the registration check keeps the earlier rule while continuing.
