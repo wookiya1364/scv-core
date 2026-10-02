@@ -1,8 +1,9 @@
 {
   "version": 2,
-  "updated_at": "2026-10-01T09:00:32Z",
+  "updated_at": "2026-10-02T06:00:43Z",
   "files": {
     "scv/raw/20261001-hook-path-bash32-audit.md": { "size": 3354, "mtime": "2026-10-01T02:15:20Z" },
+    "scv/raw/20261001-resume-recap-stale-conversation.md": { "size": 1918, "mtime": "2026-10-01T13:52:26Z" },
     "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "size": 4974, "mtime": "2026-08-23T10:56:58Z" },
     "scv/raw/stale/20260812-wookiya1364-forced-invocation.md": { "size": 9860, "mtime": "2026-08-23T10:56:58Z" },
     "scv/raw/stale/20260813-wookiya1364-deck-redesign.md": { "size": 8895, "mtime": "2026-08-23T10:56:58Z" },
