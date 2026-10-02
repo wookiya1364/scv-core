@@ -301,6 +301,7 @@ case "$cmd" in
             mkdir -p "$JOURNAL_DIR" 2>/dev/null && [[ ! -L "$JOURNAL_DIR/.help-warn" ]] && printf '%s\n' "[SCV 가이드] 직전 턴: $_why" >> "$JOURNAL_DIR/.help-warn" 2>/dev/null
           fi
         fi
+        # (v0.64.2+ 종료 훅 on-stop.sh 는 막을 때 이번 턴 전달 기록 .help-turn-gates 도 쓴다 — 이 스크립트의 일이 아니다.)
         # 판정은 파일에 남기지 않는다 — 종료 훅이 쓰는 것은 저널과(계속 중일 때만) 다음 턴 경고, 그리고(0.63.0+, 자동 태그가
         # 있을 때만) 끝난 턴 표뿐이다.
         # 막을 때의 사유는 호스트가 대화 기록에 남긴다.
