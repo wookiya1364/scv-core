@@ -2,8 +2,9 @@
 # test-choice-questions.sh — "결정은 고르는 선택지로" 검사 (v0.64.0+).
 #
 # 왜 있나: 호스트 설정에 선택지 도구가 있으면 SCV 가 사용자에게 고르게 하는 결정은 그 도구로 묻는다 — 매 턴 안내 한 줄이
-# 실리고, 마지막 답이 글로 묻거나 번호로 고르게 하면서 끝나면 종료 훅이 같은 턴에 한 번 막는다(이미 계속 중이면 다음 턴
-# 경고). 도구가 없으면(기본 · 코덱스) 모든 출력과 판정이 이 기능 전과 같다. 규칙은 contracts/choices.md 한 곳뿐이다.
+# 실리고, 마지막 답이 글로 묻거나 번호로 고르게 하면서 끝나면 종료 훅이 같은 턴에 한 번 막는다(v0.64.2+ 검사마다 한 턴에 한 번 —
+# 이 검사가 이미 이유를 냈으면 다음 턴 경고). 도구가 없으면(기본 · 코덱스) 모든 출력과 판정이 이 기능 전과 같다. 규칙은
+# contracts/choices.md 한 곳뿐이다.
 #
 # Covers TESTS.md T1~T9 · T13~T15 of 20261001-wookiya1364-restore-choice-questions
 #   and T19 · T20 (등록 판정 경로 — 답 모양 검사 경로의 T19 는 test-answer-lint-source [T11]), T23 · T25 · T26,
@@ -505,7 +506,8 @@ fi
 # ---------------------------------------------------------------- 검사마다 한 턴에 한 번 (v0.64.2+, 계획 stop-gates-each-once)
 # 2026-10-02 설치본 0.64.1 대화형 재현: 등록 없이 결정 표로 끝난 답이 등록 이유로만 막히고, 등록 뒤 같은 결정 표는 계속 중이라
 # 다음 턴 경고로만 남아 화면에 그대로 보였다. 이제 세 검사(등록 · 원칙 · 선택지)가 각자 한 턴에 한 번씩 막고, 한 멈춤에 걸린 이유는
-# 함께 싣는다. [T35.n] 의 n 은 그 계획 TESTS.md 의 시나리오 번호다.
+# 함께 싣는다. 계획 TESTS.md 번호와의 대응: T35.1~T35.9 · T35.11 · T35.12 = T1~T9 · T11 · T12, T35.0 = T14, T35.10 = T15,
+# T35.13~T35.18 = T16~T21 (T10 은 이 파일 · test-model-prompting 전체가 통과하는 것, T13 은 릴리스 뒤 설치본 실측).
 sg_tags() {  # <종료 훅 출력> → "pass" | "block:<꼬리표들>" — 이유 줄 머리의 꼬리표를 나온 순서대로(prompt · principle · choice)
   local o="$1" r l names=""
   [[ "$(jq -r .decision <<<"$o" 2>/dev/null)" == block ]] || { printf 'pass'; return 0; }
@@ -739,31 +741,56 @@ o2="$(stop_ns "$R" "$SG_QJ" true)"
 [[ "$(sg_tags "$o1")" == "block:prompt" && "$(sg_tags "$o2")" == pass ]] \
   && ok "세션 id 없음 — 첫 멈춤은 막고, 계속 중 글 질문은 막지 않음(이 기능 전과 같다)" || fail "T35.18: $(sg_tags "$o1") / $(sg_tags "$o2")"
 
-echo "── [T35.11] 맥 기본 bash 3.2 와 지금 bash 에서 같은 결과 ──"
-stop_g() {  # <bash 실행 파일> <저장소> <답> <계속 중 true|false> → 종료 훅 stdout (프로필 full)
+echo "── [T35.11] 맥 기본 bash 3.2 와 지금 bash 에서 같은 결과 — 출력 · 전달 기록 · 다음 턴 경고를 바이트로 ──"
+# 계획 TESTS T11: T1~T9 의 흐름을 두 bash 로 돌려, 멈춤마다 훅 출력과 남긴 파일(전달 기록 · 다음 턴 경고)을 바이트로 비교한다.
+# 저장소마다 다른 턴 표(8자리 16진)만 TOK 로 바꾼다 — 그 밖의 바이트는 그대로 같아야 한다(재검토 2026-10-02: 꼬리표 요약만
+# 비교하던 것을 넓힘).
+SG_PROF="$WORK/profile-full.env"
+stop_g() {  # <bash 실행 파일> <저장소> <답> <계속 중 true|false> → 종료 훅 stdout (프로필 SG_PROF, 세션 s1)
   local b="$1" r="$2" tr="$WORK/tr-g-$RANDOM$RANDOM.jsonl" pth="$PATH"
   [[ "$b" == /bin/bash ]] && pth="$SYSB:$PATH"
   printf '{"type":"user","message":{"content":[{"type":"text","text":"q"}]}}\n' > "$tr"
   jq -cn --arg t "$3" '{type:"assistant",message:{model:"vendor-model-a",content:[{type:"text",text:$t}]}}' >> "$tr"
   (cd "$r" && jq -cn --arg p "$tr" --arg a "$3" --argjson act "$4" '{session_id:"s1",transcript_path:$p,last_assistant_message:$a,stop_hook_active:$act}' \
-     | PATH="$pth" SCV_CORE_ROOT="$CORE" SCV_HOST_PROFILE="$WORK/profile-full.env" GIT_AUTHOR_NAME="Hook User" "$b" "$STOP_HOOK" 2>/dev/null)
+     | PATH="$pth" SCV_CORE_ROOT="$CORE" SCV_HOST_PROFILE="$SG_PROF" GIT_AUTHOR_NAME="Hook User" "$b" "$STOP_HOOK" 2>/dev/null)
 }
-sg_run() {  # <bash 실행 파일> <이름> → T35.1 · T35.3 · T35.5 순서의 결과 한 줄
-  local b="$1" R out=""
-  R="$(new_repo "$2-a")"; hook_p "$R" "$WORK/profile-full.env" "로그인 고쳐" >/dev/null
-  out="$(sg_tags "$(stop_g "$b" "$R" "$C_J" false)")"; reg_full "$R" >/dev/null
-  out="$out|$(sg_tags "$(stop_g "$b" "$R" "$SG_QJ" true)")"
-  R="$(new_repo "$2-b")"; hook_p "$R" "$WORK/profile-full.env" "로그인 고쳐" >/dev/null
-  out="$out|$(sg_tags "$(stop_g "$b" "$R" "$SG_DONE" false)")"; reg_full "$R" >/dev/null
-  out="$out|$(sg_tags "$(stop_g "$b" "$R" "$SG_QP" true)")|$(sg_tags "$(stop_g "$b" "$R" "$SG_QJ" true)")"
-  out="$out|$(sg_tags "$(stop_g "$b" "$R" "$SG_ALL" true)")|warn=$(sg_warns "$R")"
-  printf '%s' "$out"
+sg_dump() {  # <저장소> <훅 출력> → 정규화한 출력 · 전달 기록 · 다음 턴 경고 (턴 표 → TOK, 칸 구분 → |)
+  { printf 'OUT %s\n' "$2"; printf 'REC %s\n' "$(cat "$1/scv/journal/.help-turn-gates" 2>/dev/null)"
+    printf 'WARN %s\n' "$(cat "$1/scv/journal/.help-warn" 2>/dev/null)"; } \
+    | tr '\037' '|' | sed -E 's/턴\([0-9a-f]{8}\)/턴(TOK)/g; s/^(REC [^|]*)\|[0-9a-f]{8}\|/\1|TOK|/'
+}
+sg_step() {  # <bash> <저장소> <답> <계속 중> — 꼬리표는 SG_T 에, 정규화한 덤프는 SG_D 에 덧붙인다
+  local o; o="$(stop_g "$1" "$2" "$3" "$4")"
+  SG_T="$SG_T|$(sg_tags "$o")"; SG_D="$SG_D$(sg_dump "$2" "$o")"$'\n'
+}
+sg_run() {  # <bash 실행 파일> <이름> → 첫 줄: 꼬리표 요약, 나머지: 정규화한 덤프
+  local b="$1" R; SG_T=""; SG_D=""; SG_PROF="$WORK/profile-full.env"
+  R="$(new_repo "$2-a")"; hook_p "$R" "$SG_PROF" "로그인 고쳐" >/dev/null                       # T1 · T2
+  sg_step "$b" "$R" "$C_J" false; reg_full "$R" >/dev/null; sg_step "$b" "$R" "$SG_QJ" true
+  hook_p "$R" "$SG_PROF" "다음 일" >/dev/null                                                    # T6 — 새 턴
+  sg_step "$b" "$R" "$SG_DONE" false; reg_full "$R" >/dev/null; sg_step "$b" "$R" "$SG_QJ" true
+  R="$(new_repo "$2-b")"; hook_p "$R" "$SG_PROF" "로그인 고쳐" >/dev/null                       # T3 · T4 · T5
+  sg_step "$b" "$R" "$SG_DONE" false; reg_full "$R" >/dev/null
+  sg_step "$b" "$R" "$SG_QP" true; sg_step "$b" "$R" "$SG_QJ" true; sg_step "$b" "$R" "$SG_ALL" true
+  R="$(new_repo "$2-c")"; hook_p "$R" "$SG_PROF" "로그인 고쳐" >/dev/null; reg_full "$R" >/dev/null   # T9 — 자동 알림 턴
+  sg_step "$b" "$R" "$(printf '%s\n\n%s' "$QUOTE" "끝났습니다.")" false
+  hook_p "$R" "$SG_PROF" $'<machine-event>\n<status>completed</status>\n</machine-event>' >/dev/null
+  sg_step "$b" "$R" "$C_J" false; sg_step "$b" "$R" "$C_J" true
+  R="$(new_repo "$2-d")"; hook_p "$R" "$SG_PROF" "로그인 고쳐" >/dev/null                       # T8 — 턴 표 없음
+  sg_step "$b" "$R" "$SG_DONE" false; reg_full "$R" >/dev/null; rm -f "$R/scv/journal/.help-turn"; sg_step "$b" "$R" "$SG_QJ" true
+  SG_PROF="$WORK/profile-full-off.env"; export SCV_TEST_ATTENDED=0                               # T7 — 사람 없는 실행
+  R="$(new_repo "$2-e")"; hook_p "$R" "$SG_PROF" "로그인 고쳐" >/dev/null
+  sg_step "$b" "$R" "$SG_DONE" false; reg_full "$R" >/dev/null; sg_step "$b" "$R" "$SG_QJ" true
+  unset SCV_TEST_ATTENDED; SG_PROF="$WORK/profile-full.env"
+  printf '%s\n%s' "${SG_T#|}" "$SG_D"
 }
 if [[ -x /bin/bash ]]; then
   SYSB="$WORK/sysbash"; mkdir -p "$SYSB"; ln -sf /bin/bash "$SYSB/bash"; v="$(/bin/bash -c 'echo "$BASH_VERSION"')"
   g1="$(sg_run bash sgb1)"; g2="$(sg_run /bin/bash sgb2)"
-  [[ "$g1" == "$g2" && "$g1" == "block:prompt,choice|pass|block:prompt|block:principle|block:choice|pass|warn=3" ]] \
-    && ok "시스템 bash $v 와 지금 bash — 결과 줄이 같다" || fail "T35.11: [$g1] vs [$g2]"
+  want="block:prompt,choice|pass|block:prompt|block:choice|block:prompt|block:principle|block:choice|pass|pass|block:choice|pass|block:prompt|pass|block:prompt|pass"
+  [[ "$g1" == "$g2" && "$(head -1 <<<"$g1")" == "$want" ]] \
+    && ok "시스템 bash $v 와 지금 bash — 멈춤 15번의 출력 · 전달 기록 · 다음 턴 경고가 바이트로 같다" \
+    || fail "T35.11: [$(head -1 <<<"$g1")] vs [$(head -1 <<<"$g2")] / $(diff <(printf '%s\n' "$g1") <(printf '%s\n' "$g2") | head -4)"
 else
   echo "  (시스템 bash 없음 — T35.11 생략)"
 fi
