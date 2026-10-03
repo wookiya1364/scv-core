@@ -21,6 +21,8 @@ scv/journal/.help-turn-done
 scv/journal/.help-rewrite
 scv/journal/.help-turn-gates
 scv/journal/.help-turn-gates.*
+# v0.65.0+ — 이번 턴 상태를 세션마다 따로 두는 폴더(scv/journal/.help-turns/<세션>/)
+scv/journal/.help-turns/
 
 # SCV 자체 그래프 산출물 — 필요할 때 자동 재생성, 저장소에 담지 않는다
 scv/.graph/
