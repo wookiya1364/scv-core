@@ -27,6 +27,9 @@ SCV_PROMPTING_GUIDES=../../../prompting
 SCV_AUTO_PROMPT_TAGS='machine-event other-event'
 SCV_CHOICE_TOOL=PickTool
 SCV_CHOICE_OFF_WHEN=FIXTURE_ATTENDED=0
+SCV_SESSION_ENV=FIXTURE_SESSION_ID
+SCV_AUTO_PROMPT_PREFIX=Another fixture session sent a message:
+SCV_AUTO_PROMPT_SUFFIX=This came from another fixture session
 EOF
 
 "$ROOT/tools/validate-host-profile.sh" --profile "$PROFILE" >/dev/null
@@ -67,6 +70,24 @@ for bad in 'FIXTURE_ATTENDED' '1BAD=0' 'FIXTURE_ATTENDED=' 'A=0 B=1' 'A=$(x)' 'A
   sed "s|^SCV_CHOICE_OFF_WHEN=.*|SCV_CHOICE_OFF_WHEN=$bad|" "$PROFILE" > "$TMP/bad-off.env"
   if "$ROOT/tools/validate-host-profile.sh" --profile "$TMP/bad-off.env" >/dev/null 2>&1; then
     echo "validator accepted SCV_CHOICE_OFF_WHEN=$bad" >&2
+    exit 1
+  fi
+done
+# 0.65.0: 선택 키 셋 — 세션 id 환경 변수 이름, 자동 입력을 감싸는 머리 · 끝 안내문(평문 한 줄)이 살아남고, 모양이 다르면 거절한다
+grep -qxF 'SCV_SESSION_ENV=FIXTURE_SESSION_ID' "$VENDOR/core/host-profile.env"
+grep -qxF 'SCV_AUTO_PROMPT_PREFIX=Another fixture session sent a message:' "$VENDOR/core/host-profile.env"
+grep -qxF 'SCV_AUTO_PROMPT_SUFFIX=This came from another fixture session' "$VENDOR/core/host-profile.env"
+for bad in '1BAD' 'A B' 'A;rm' '$(x)'; do
+  sed "s|^SCV_SESSION_ENV=.*|SCV_SESSION_ENV=$bad|" "$PROFILE" > "$TMP/bad-senv.env"
+  if "$ROOT/tools/validate-host-profile.sh" --profile "$TMP/bad-senv.env" >/dev/null 2>&1; then
+    echo "validator accepted SCV_SESSION_ENV=$bad" >&2
+    exit 1
+  fi
+done
+for bad in '<teammate-message>' ' leading space' 'trailing space ' "$(printf 'x%.0s' $(seq 1 201))"; do
+  awk -v v="$bad" '/^SCV_AUTO_PROMPT_PREFIX=/ { print "SCV_AUTO_PROMPT_PREFIX=" v; next } { print }' "$PROFILE" > "$TMP/bad-pfx.env"
+  if "$ROOT/tools/validate-host-profile.sh" --profile "$TMP/bad-pfx.env" >/dev/null 2>&1; then
+    echo "validator accepted SCV_AUTO_PROMPT_PREFIX=$bad" >&2
     exit 1
   fi
 done
