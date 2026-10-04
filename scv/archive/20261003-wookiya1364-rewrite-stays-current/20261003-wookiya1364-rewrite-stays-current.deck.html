@@ -465,7 +465,7 @@ title: 다시 쓴 요청이 일 내내 맞게 — 답 뒤 재등록 · 세션별
 slug: 20261003-wookiya1364-rewrite-stays-current
 author: wookiya1364
 created_at: 2026-10-03
-status: planned
+status: testing
 kind: feature
 lang: korean
 tags: [model, prompting, hook, guard, stop-hook, turn-state, session, cost]
@@ -502,6 +502,11 @@ SCV 의 '다시 쓴 요청'은 같은 Claude 가 일 전에 스스로 쓰는 메
   5. **세션별 턴 상태** — 이번 턴 표 · 등록 · 막기 기록 · 경고를 세션마다 따로 둔다. 각 세션은 자기가 받은 사람 메시지와 자기 등록으로만 판정한다.
      사람 메시지를 받지 않은 하위 세션(팀원 · 하위 에이전트)은 등록하지 않아도 막지 않고, 리드의 등록 · 막기 횟수 · 경고에 영향을 주지 않는다.
   6. **종료 검사의 입력 창** — 검사마다 필요한 쪽을 본다. 선택지 검사는 답의 끝, 원칙 검사는 답 전체(바이트 상한 안에서 앞뒤)를 본다. 64KB 를 넘는 답도 판정한다.
+  7. **다른 세션이 보낸 메시지(2026-10-04 선택 창으로 추가)** — 팀원이 리드에게 보내는 메시지는 매 턴 훅을 거치지 않아(확인), 리드가 그때마다
+     다시 쓴 요청 인용을 요구받았다. 그 턴을 연 입력을 종료 훅이 대화 기록에서 판별해, 지난 사람 턴이 끝났으면 자동 턴으로 본다(래퍼 설정에
+     머리 · 끝 안내문 · 태그를 적는다).
+  8. **하위 세션의 답은 저널에 적지 않는다(2026-10-04 선택 창으로 추가)** — 사람 메시지를 받지 않은 세션의 답이 리드의 커밋되는 저널에 섞였다
+     (2026-10-03 공개 전 다섯 건을 손으로 가림).
 - **Non-Goals**
   - 별도 모델로 다시 쓰기(방식 B) — 2026-09-28 결정대로 채택하지 않는다.
   - 다시 쓴 글의 품질 판정 — SCV 는 항목이 채워졌는지와 위 검사만 본다.
@@ -839,6 +844,11 @@ flowchart TB
 - **Setup**: 수십 MB 대화 기록 픽스처(가이드 읽기가 아주 앞쪽에 있거나 없는 경우 포함).
 - **Run**: 매 턴 판정(T3 · T5 · T6 의 판정)을 맥 기본 bash 3.2 와 리눅스에서 잰다.
 - **Expected**: 구현 전에 잰 지금 매 턴 훅 시간 기준 안에 끝난다(기준값은 구현 전 측정으로 정해 이 항목에 적는다).
+  - 구현 전 기준(2026-10-03, 맥 시스템 bash 3.2, 실제 대화 기록 41.6MB · 6.9MB, 세 번 중 가운데 값): 매 턴 훅 0.40초 · 0.41초,
+    쓰기 검사 0.17초 · 0.17초, 종료 훅 0.56초 · 0.49초, help 0.11초 · 0.11초.
+  - 기준: 기록이 커서 더해지는 시간이 세션의 첫 읽기(기록 전체) 3초 이하, 그 뒤 매 턴(새로 붙은 부분만 읽음) 0.5초 이하.
+    CI 기계 차이를 넉넉히 둔 값이다. 구현 뒤 맥 bash 3.2 실측: 첫 읽기 +0.71초, 그 뒤 +0.0초(40MB 생성 기록), 41.6MB 실제 기록에서
+    매 턴 훅 0.49초 · 쓰기 검사 0.22초 · 종료 훅 0.62초 · help 0.13초.
 - **Pass criterion**: 두 환경 모두 기준 안.
 
 ### T8. 세션별 턴 상태 — 두 세션이 서로 끼어들지 않는다
@@ -861,6 +871,16 @@ flowchart TB
 - **Run**: 선택지 검사 · 원칙 검사를 돌린다.
 - **Expected**: 선택지 검사가 끝의 질문을 잡고, 원칙 검사가 뒤쪽 문제 표를 잡는다. 10만 바이트 답의 판정 시간이 지금 수준(맥 bash 3.2 약 1.2초)이다.
 - **Pass criterion**: 두 검사 모두 잡고, 시간 기준 안.
+
+### T9b · T9c · T9d. 추가 항목과 독립 검토 지적 (2026-10-04)
+
+- **Setup**: 선택 창으로 추가된 목표 7 · 8과, 구현 뒤 독립 검토가 찾은 결함(하위 에이전트로 맡긴 편집, 세션 id 환경 변수, 저장 실패,
+  링크된 저널 폴더, 64KB 창이 코드 블록 안에서 시작, 읽음 표시 명령을 글로만 담은 줄, 범위 칸의 예외 · 이어지는 말).
+- **Run**: `core/tests/test-rewrite-stays-current.sh` 의 T9b · T9c · T9d, T5 의 문구 목록.
+- **Expected**: 하위 에이전트의 편집은 등록이 없다는 이유로는 막지 않되 리드의 범위 · 답 뒤 재등록을 따른다. 하위 세션 답은 저널에 없다.
+  다른 세션의 메시지가 연 턴은 지난 사람 턴이 끝났으면 자동 턴, 래퍼 설정이 없으면 지금처럼 사람 턴. 환경 변수의 세션 id 로 자기 자리에
+  등록한다. 저장을 못 하면 "등록됨" 이라 하지 않는다. 링크된 저널 폴더에도 쓴다. 끝 창의 코드 블록 경계 짝을 맞춘다. 글로 담은 명령은 읽음이 아니다.
+- **Pass criterion**: 세 구역과 T5 가 모두 통과(오판 0).
 
 ### T11. 기존 검사 회귀
 
@@ -906,9 +926,9 @@ flowchart TB
 
 ## How to run
 
-&lt;!-- T1~T11 자동 검사. 새 픽스처 검사 파일 이름은 구현 때 정해 아래 줄에 더한다. --&gt;
+&lt;!-- T1~T10 은 test-rewrite-stays-current.sh, T11 은 나머지 여섯(이 계획 전의 검사). --&gt;
 ```bash
-bash core/tests/test-model-prompting.sh &amp;&amp; bash core/tests/test-guard.sh &amp;&amp; bash core/tests/test-choice-questions.sh &amp;&amp; bash core/tests/test-help-load-once.sh &amp;&amp; bash core/tests/test-session-resume.sh &amp;&amp; bash core/tests/test-help-budget.sh
+bash core/tests/test-rewrite-stays-current.sh &amp;&amp; bash core/tests/test-model-prompting.sh &amp;&amp; bash core/tests/test-guard.sh &amp;&amp; bash core/tests/test-choice-questions.sh &amp;&amp; bash core/tests/test-help-load-once.sh &amp;&amp; bash core/tests/test-session-resume.sh &amp;&amp; bash core/tests/test-help-budget.sh
 ```
 
 ## Pass criteria
@@ -931,7 +951,7 @@ title: 다시 쓴 요청이 일 내내 맞게 — 답 뒤 재등록 · 세션별
 slug: 20261003-wookiya1364-rewrite-stays-current
 author: wookiya1364
 created_at: 2026-10-03
-status: planned
+status: testing
 kind: feature
 lang: korean
 tags: [model, prompting, hook, guard, stop-hook, turn-state, session, cost]
@@ -968,6 +988,11 @@ SCV 의 '다시 쓴 요청'은 같은 Claude 가 일 전에 스스로 쓰는 메
   5. **세션별 턴 상태** — 이번 턴 표 · 등록 · 막기 기록 · 경고를 세션마다 따로 둔다. 각 세션은 자기가 받은 사람 메시지와 자기 등록으로만 판정한다.
      사람 메시지를 받지 않은 하위 세션(팀원 · 하위 에이전트)은 등록하지 않아도 막지 않고, 리드의 등록 · 막기 횟수 · 경고에 영향을 주지 않는다.
   6. **종료 검사의 입력 창** — 검사마다 필요한 쪽을 본다. 선택지 검사는 답의 끝, 원칙 검사는 답 전체(바이트 상한 안에서 앞뒤)를 본다. 64KB 를 넘는 답도 판정한다.
+  7. **다른 세션이 보낸 메시지(2026-10-04 선택 창으로 추가)** — 팀원이 리드에게 보내는 메시지는 매 턴 훅을 거치지 않아(확인), 리드가 그때마다
+     다시 쓴 요청 인용을 요구받았다. 그 턴을 연 입력을 종료 훅이 대화 기록에서 판별해, 지난 사람 턴이 끝났으면 자동 턴으로 본다(래퍼 설정에
+     머리 · 끝 안내문 · 태그를 적는다).
+  8. **하위 세션의 답은 저널에 적지 않는다(2026-10-04 선택 창으로 추가)** — 사람 메시지를 받지 않은 세션의 답이 리드의 커밋되는 저널에 섞였다
+     (2026-10-03 공개 전 다섯 건을 손으로 가림).
 - **Non-Goals**
   - 별도 모델로 다시 쓰기(방식 B) — 2026-09-28 결정대로 채택하지 않는다.
   - 다시 쓴 글의 품질 판정 — SCV 는 항목이 채워졌는지와 위 검사만 본다.
@@ -1305,6 +1330,11 @@ flowchart TB
 - **Setup**: 수십 MB 대화 기록 픽스처(가이드 읽기가 아주 앞쪽에 있거나 없는 경우 포함).
 - **Run**: 매 턴 판정(T3 · T5 · T6 의 판정)을 맥 기본 bash 3.2 와 리눅스에서 잰다.
 - **Expected**: 구현 전에 잰 지금 매 턴 훅 시간 기준 안에 끝난다(기준값은 구현 전 측정으로 정해 이 항목에 적는다).
+  - 구현 전 기준(2026-10-03, 맥 시스템 bash 3.2, 실제 대화 기록 41.6MB · 6.9MB, 세 번 중 가운데 값): 매 턴 훅 0.40초 · 0.41초,
+    쓰기 검사 0.17초 · 0.17초, 종료 훅 0.56초 · 0.49초, help 0.11초 · 0.11초.
+  - 기준: 기록이 커서 더해지는 시간이 세션의 첫 읽기(기록 전체) 3초 이하, 그 뒤 매 턴(새로 붙은 부분만 읽음) 0.5초 이하.
+    CI 기계 차이를 넉넉히 둔 값이다. 구현 뒤 맥 bash 3.2 실측: 첫 읽기 +0.71초, 그 뒤 +0.0초(40MB 생성 기록), 41.6MB 실제 기록에서
+    매 턴 훅 0.49초 · 쓰기 검사 0.22초 · 종료 훅 0.62초 · help 0.13초.
 - **Pass criterion**: 두 환경 모두 기준 안.
 
 ### T8. 세션별 턴 상태 — 두 세션이 서로 끼어들지 않는다
@@ -1327,6 +1357,16 @@ flowchart TB
 - **Run**: 선택지 검사 · 원칙 검사를 돌린다.
 - **Expected**: 선택지 검사가 끝의 질문을 잡고, 원칙 검사가 뒤쪽 문제 표를 잡는다. 10만 바이트 답의 판정 시간이 지금 수준(맥 bash 3.2 약 1.2초)이다.
 - **Pass criterion**: 두 검사 모두 잡고, 시간 기준 안.
+
+### T9b · T9c · T9d. 추가 항목과 독립 검토 지적 (2026-10-04)
+
+- **Setup**: 선택 창으로 추가된 목표 7 · 8과, 구현 뒤 독립 검토가 찾은 결함(하위 에이전트로 맡긴 편집, 세션 id 환경 변수, 저장 실패,
+  링크된 저널 폴더, 64KB 창이 코드 블록 안에서 시작, 읽음 표시 명령을 글로만 담은 줄, 범위 칸의 예외 · 이어지는 말).
+- **Run**: `core/tests/test-rewrite-stays-current.sh` 의 T9b · T9c · T9d, T5 의 문구 목록.
+- **Expected**: 하위 에이전트의 편집은 등록이 없다는 이유로는 막지 않되 리드의 범위 · 답 뒤 재등록을 따른다. 하위 세션 답은 저널에 없다.
+  다른 세션의 메시지가 연 턴은 지난 사람 턴이 끝났으면 자동 턴, 래퍼 설정이 없으면 지금처럼 사람 턴. 환경 변수의 세션 id 로 자기 자리에
+  등록한다. 저장을 못 하면 "등록됨" 이라 하지 않는다. 링크된 저널 폴더에도 쓴다. 끝 창의 코드 블록 경계 짝을 맞춘다. 글로 담은 명령은 읽음이 아니다.
+- **Pass criterion**: 세 구역과 T5 가 모두 통과(오판 0).
 
 ### T11. 기존 검사 회귀
 
@@ -1372,9 +1412,9 @@ flowchart TB
 
 ## How to run
 
-&lt;!-- T1~T11 자동 검사. 새 픽스처 검사 파일 이름은 구현 때 정해 아래 줄에 더한다. --&gt;
+&lt;!-- T1~T10 은 test-rewrite-stays-current.sh, T11 은 나머지 여섯(이 계획 전의 검사). --&gt;
 ```bash
-bash core/tests/test-model-prompting.sh &amp;&amp; bash core/tests/test-guard.sh &amp;&amp; bash core/tests/test-choice-questions.sh &amp;&amp; bash core/tests/test-help-load-once.sh &amp;&amp; bash core/tests/test-session-resume.sh &amp;&amp; bash core/tests/test-help-budget.sh
+bash core/tests/test-rewrite-stays-current.sh &amp;&amp; bash core/tests/test-model-prompting.sh &amp;&amp; bash core/tests/test-guard.sh &amp;&amp; bash core/tests/test-choice-questions.sh &amp;&amp; bash core/tests/test-help-load-once.sh &amp;&amp; bash core/tests/test-session-resume.sh &amp;&amp; bash core/tests/test-help-budget.sh
 ```
 
 ## Pass criteria
