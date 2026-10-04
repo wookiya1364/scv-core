@@ -40,6 +40,8 @@ All notable changes to SCV Core are documented here.
   검사 거름은 '|' · '```' 가 든 줄 전체(더 넓게), 이번 턴 표를 대화 기록 읽기보다 먼저 씀, 세션 자리 찾기는 `ls -t` 한 번(폴더 수와 무관).
 - 매 턴 훅 출력 상한 2KB → 4KB — 요구 항목이 많은 래퍼의 등록 블록 뒤 첫 턴 가이드 안내가 잘리지 않게.
 - `/clear` 는 새 세션 id 라 지난 세션에 예약된 다음 턴 경고는 그 세션에 남는다 — 새 컨텍스트에는 첫 턴 가이드 안내가 같은 경로 · 명령을 싣는다.
+- 남는 한계: 쓰기 검사(답 뒤 재등록 · 범위 대조)는 편집 도구의 쓰기만 본다 — 셸 명령으로 고치는 편집 · 커밋은 거치지 않는다(이 기능 전의
+  등록 검사와 같은 범위). 종료 검사의 인용 확인이 그 턴을 다시 잡는다.
 - 검사: 새 `core/tests/test-rewrite-stays-current.sh`(T1~T10 · T9b~T9d + 순수성 · 시스템 bash 비교, 14개). 바뀐 기대값은 이 계획 때문인 것만:
   상태 파일 자리(세션 폴더), 답 픽스처에 맨 위 한 줄, 경고 문구, 두 세션 검사(T35.15 — 이제 각 세션이 자기 사람 턴을 연다).
 - 계약 · 문서: `core/contracts/guard.md` Rule P, `docs/wrapper-integration.md` §6 표와 v0.65.0 절, `core/protocols/help/prompt-refine.md`.
