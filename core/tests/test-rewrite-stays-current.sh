@@ -369,9 +369,13 @@ for sid in sA sB; do (cd "$R" && jq -cn --arg s "$sid" '{prompt:"일",session_id
   && c=$((c + 1)) || echo "      (1) the env session id puts a registration in its own session (not the newest)"
 grep -q -- '--session "sA"' <<<"$(cd "$R" && FIXTURE_SID=sA SCV_HOST_PROFILE="$WORK/profile-env.env" bash "$MP" checklist --model vendor-model-a 2>/dev/null)" \
   && c=$((c + 1)) || echo "      (2) the checklist's register line names the session"
-R="$(new_repo t9d2)"; hook "$R" s1 "x" >/dev/null; chmod a-w "$(tf "$R" "")"
-o="$(reg "$R" s1)"; chmod u+w "$(tf "$R" "")"
-grep -q '^REGISTER: failed' <<<"$o" && c=$((c + 1)) || echo "      (3) an unsaved registration must say so: $o"
+if [[ "$(id -u)" != 0 ]]; then
+  R="$(new_repo t9d2)"; hook "$R" s1 "x" >/dev/null; chmod a-w "$(tf "$R" "")"
+  o="$(reg "$R" s1)"; chmod u+w "$(tf "$R" "")"
+  grep -q '^REGISTER: failed' <<<"$o" && c=$((c + 1)) || echo "      (3) an unsaved registration must say so: $o"
+else
+  c=$((c + 1)); echo "  · (root 로 도는 중 — 읽기 전용이 효과가 없어 (3) 생략)"
+fi
 R="$(new_repo t9d3)"; mv "$R/scv/journal" "$WORK/shared-journal-t9d3"; ln -s "$WORK/shared-journal-t9d3" "$R/scv/journal"
 (cd "$R" && bash "$CORE/scripts/help-state.sh" mark >/dev/null 2>&1)
 [[ -s "$WORK/shared-journal-t9d3/.help-nonce" ]] && c=$((c + 1)) || echo "      (4) a linked journal folder (shared across worktrees) is still written"
