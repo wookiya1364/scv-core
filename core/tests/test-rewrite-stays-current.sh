@@ -80,10 +80,12 @@ gate() {  # <저장소> <세션> <대상(저장소 기준)> [에이전트 id] �
 }
 denied() { grep -q '"permissionDecision":"deny"' <<<"$1"; }
 stop() {  # <저장소> <세션> <답> <계속 중 true|false> → 종료 훅 출력
-  local tr="$WORK/tr-$RANDOM$RANDOM.jsonl"
+  # 답은 파일로 넘긴다 — 인자 하나로 넘기면 리눅스의 인자 길이 한도(128KB)에 걸린다(맥은 한도가 커서 지나간다, CI 실측).
+  local tr="$WORK/tr-$RANDOM$RANDOM.jsonl" af="$WORK/ans-$RANDOM$RANDOM.txt"
+  printf '%s' "$3" > "$af"
   printf '{"type":"user","message":{"content":[{"type":"text","text":"q"}]}}\n' > "$tr"
-  jq -cn --arg t "$3" '{type:"assistant",message:{model:"vendor-model-a",content:[{type:"text",text:$t}]}}' >> "$tr"
-  (cd "$1" && jq -cn --arg p "$tr" --arg a "$3" --arg s "$2" --argjson act "$4" '{session_id:$s,transcript_path:$p,last_assistant_message:$a,stop_hook_active:$act}' \
+  jq -cn --rawfile t "$af" '{type:"assistant",message:{model:"vendor-model-a",content:[{type:"text",text:$t}]}}' >> "$tr"
+  (cd "$1" && jq -cn --arg p "$tr" --rawfile a "$af" --arg s "$2" --argjson act "$4" '{session_id:$s,transcript_path:$p,last_assistant_message:$a,stop_hook_active:$act}' \
      | bash "$STOP_HOOK" 2>/dev/null)
 }
 reason() { jq -r '.reason // empty' <<<"$1" 2>/dev/null; }
