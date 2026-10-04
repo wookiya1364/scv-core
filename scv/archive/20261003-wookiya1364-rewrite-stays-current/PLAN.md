@@ -3,7 +3,7 @@ title: 다시 쓴 요청이 일 내내 맞게 — 답 뒤 재등록 · 세션별
 slug: 20261003-wookiya1364-rewrite-stays-current
 author: wookiya1364
 created_at: 2026-10-03
-status: in_progress
+status: testing
 kind: feature
 lang: korean
 tags: [model, prompting, hook, guard, stop-hook, turn-state, session, cost]

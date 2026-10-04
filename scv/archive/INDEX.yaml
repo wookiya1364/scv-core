@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-10-02T09:12:17Z
+generated_at: 2026-10-04T02:28:32Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -325,5 +325,9 @@ archives:
     status: testing
   - slug: 20261002-wookiya1364-stop-gates-each-once
     title: "검사마다 한 턴에 한 번 — 선택지 검사가 다른 검사에 밀리지 않는다"
+    kind: feature
+    status: testing
+  - slug: 20261003-wookiya1364-rewrite-stays-current
+    title: "다시 쓴 요청이 일 내내 맞게 — 답 뒤 재등록 · 세션별 턴 상태 · 가이드 다시 읽기 줄이기"
     kind: feature
     status: testing
