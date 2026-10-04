@@ -58,6 +58,11 @@
 - **Setup**: 수십 MB 대화 기록 픽스처(가이드 읽기가 아주 앞쪽에 있거나 없는 경우 포함).
 - **Run**: 매 턴 판정(T3 · T5 · T6 의 판정)을 맥 기본 bash 3.2 와 리눅스에서 잰다.
 - **Expected**: 구현 전에 잰 지금 매 턴 훅 시간 기준 안에 끝난다(기준값은 구현 전 측정으로 정해 이 항목에 적는다).
+  - 구현 전 기준(2026-10-03, 맥 시스템 bash 3.2, 실제 대화 기록 41.6MB · 6.9MB, 세 번 중 가운데 값): 매 턴 훅 0.40초 · 0.41초,
+    쓰기 검사 0.17초 · 0.17초, 종료 훅 0.56초 · 0.49초, help 0.11초 · 0.11초.
+  - 기준: 기록이 커서 더해지는 시간이 세션의 첫 읽기(기록 전체) 3초 이하, 그 뒤 매 턴(새로 붙은 부분만 읽음) 0.5초 이하.
+    CI 기계 차이를 넉넉히 둔 값이다. 구현 뒤 맥 bash 3.2 실측: 첫 읽기 +0.71초, 그 뒤 +0.0초(40MB 생성 기록), 41.6MB 실제 기록에서
+    매 턴 훅 0.49초 · 쓰기 검사 0.22초 · 종료 훅 0.62초 · help 0.13초.
 - **Pass criterion**: 두 환경 모두 기준 안.
 
 ### T8. 세션별 턴 상태 — 두 세션이 서로 끼어들지 않는다
@@ -80,6 +85,16 @@
 - **Run**: 선택지 검사 · 원칙 검사를 돌린다.
 - **Expected**: 선택지 검사가 끝의 질문을 잡고, 원칙 검사가 뒤쪽 문제 표를 잡는다. 10만 바이트 답의 판정 시간이 지금 수준(맥 bash 3.2 약 1.2초)이다.
 - **Pass criterion**: 두 검사 모두 잡고, 시간 기준 안.
+
+### T9b · T9c · T9d. 추가 항목과 독립 검토 지적 (2026-10-04)
+
+- **Setup**: 선택 창으로 추가된 목표 7 · 8과, 구현 뒤 독립 검토가 찾은 결함(하위 에이전트로 맡긴 편집, 세션 id 환경 변수, 저장 실패,
+  링크된 저널 폴더, 64KB 창이 코드 블록 안에서 시작, 읽음 표시 명령을 글로만 담은 줄, 범위 칸의 예외 · 이어지는 말).
+- **Run**: `core/tests/test-rewrite-stays-current.sh` 의 T9b · T9c · T9d, T5 의 문구 목록.
+- **Expected**: 하위 에이전트의 편집은 등록이 없다는 이유로는 막지 않되 리드의 범위 · 답 뒤 재등록을 따른다. 하위 세션 답은 저널에 없다.
+  다른 세션의 메시지가 연 턴은 지난 사람 턴이 끝났으면 자동 턴, 래퍼 설정이 없으면 지금처럼 사람 턴. 환경 변수의 세션 id 로 자기 자리에
+  등록한다. 저장을 못 하면 "등록됨" 이라 하지 않는다. 링크된 저널 폴더에도 쓴다. 끝 창의 코드 블록 경계 짝을 맞춘다. 글로 담은 명령은 읽음이 아니다.
+- **Pass criterion**: 세 구역과 T5 가 모두 통과(오판 0).
 
 ### T11. 기존 검사 회귀
 
@@ -125,9 +140,9 @@
 
 ## How to run
 
-<!-- T1~T11 자동 검사. 새 픽스처 검사 파일 이름은 구현 때 정해 아래 줄에 더한다. -->
+<!-- T1~T10 은 test-rewrite-stays-current.sh, T11 은 나머지 여섯(이 계획 전의 검사). -->
 ```bash
-bash core/tests/test-model-prompting.sh && bash core/tests/test-guard.sh && bash core/tests/test-choice-questions.sh && bash core/tests/test-help-load-once.sh && bash core/tests/test-session-resume.sh && bash core/tests/test-help-budget.sh
+bash core/tests/test-rewrite-stays-current.sh && bash core/tests/test-model-prompting.sh && bash core/tests/test-guard.sh && bash core/tests/test-choice-questions.sh && bash core/tests/test-help-load-once.sh && bash core/tests/test-session-resume.sh && bash core/tests/test-help-budget.sh
 ```
 
 ## Pass criteria
