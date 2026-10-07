@@ -18,9 +18,10 @@ status: planned
 %%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
 flowchart LR
   Settings[설정 파일] -->|"SCV_SHOW_REAL 원문"| ReadSwitch[readShowRealSwitch]
-  Profile[호스트 프로필] -->|"선택 창 이름"| PickChannel[pickConfirmChannel]
+  Profile[호스트 프로필] -->|"선택 창 이름 · 사람 없는 실행 조건"| PickChannel[pickConfirmChannel]
+  HookInput[훅 입력] -->|"자동 알림인지"| PickChannel
   ReadSwitch -->|"on · off"| BuildRule[buildShowRealRule]
-  PickChannel -->|"choice · text"| BuildRule
+  PickChannel -->|"choice · text · none"| BuildRule
   BuildRule -->|"계약 경로를 가리킴"| Contract[실체 보여 주기 계약]
   BuildRule -->|"안내 문구 (off 면 빈 값)"| PromptHook[매 턴 훅]
   PromptHook -->|"추가 컨텍스트"| Session[(Claude Code 세션)]
@@ -52,6 +53,7 @@ flowchart TB
   subgraph "core/scripts"
     MP[lib/model-prompting.sh]
     HP[lib/host-profile.sh]
+    CG[choice-gate.sh]
     NF[실체 보여 주기 문구 함수]:::new
     NR[실사용 보고 스크립트]:::new
   end
@@ -71,8 +73,10 @@ flowchart TB
   THB -->|"×13 · decision-log-activation"| TMP
   NF -.->|"안내 문구"| UP
   NF -.->|"SCV_SHOW_REAL"| SET
-  NF -.->|"선택 창 이름"| HP
-  NF -.->|"같은 라이브러리에 둠"| MP
+  NF -.->|"선택 창 판단(tool · unattended)"| CG
+  CG -->|"선택 창 이름 · 사람 없는 실행 조건"| HP
+  NF -.->|"자동 알림 판별(kind)"| MP
+  NR -.->|"자동 입력 판별"| MP
   NC -.->|"매 턴 안내가 가리킴"| UP
   NT -.->|"T1~T8"| NF
   NT -.->|"T11"| NR
@@ -125,16 +129,16 @@ flowchart TB
 {
   "title": "매 턴 안내 조립 (훅)",
   "screenRefs": [
-    { "calls": "1", "name": "매 턴 훅 — 사람 메시지마다", "element": "사람이 보낸 메시지", "when": "자동 알림이 아닌 사람 턴" }
+    { "calls": "1", "name": "매 턴 훅 — 메시지마다", "element": "사람이 보낸 메시지 · 자동 알림", "when": "매 턴 — 자동 알림 턴 · 사람 없는 실행에는 묻지 않는 문구" }
   ],
   "diagram": [
-    { "label": "구성", "code": "flowchart LR\n  S[\"설정 파일\"] --> A[\"① readShowRealSwitch\"]\n  P[\"호스트 프로필\"] --> B[\"② pickConfirmChannel\"]\n  A --> C[\"③ buildShowRealRule\"]\n  B --> C\n  C --> D[\"④ 매 턴 훅 출력\"]" },
-    { "label": "순서", "code": "sequenceDiagram\n  autonumber\n  participant U as 사람 메시지\n  participant H as 매 턴 훅\n  participant L as 순수 함수\n  U->>H: 메시지\n  H->>L: 설정 원문 · 선택 창 이름\n  alt 설정 off\n    L-->>H: 빈 값 (지금 SCV 와 같은 출력)\n  else 켬\n    L-->>H: 안내 문구 (선택 창 보기 2개 이상 또는 글 질문)\n  end\n  H-->>U: 추가 컨텍스트" }
+    { "label": "구성", "code": "flowchart LR\n  S[\"설정 파일\"] --> A[\"① readShowRealSwitch\"]\n  P[\"호스트 프로필 · 훅 입력\"] --> B[\"② pickConfirmChannel\"]\n  A --> C[\"③ buildShowRealRule\"]\n  B --> C\n  C --> D[\"④ 매 턴 훅 출력\"]" },
+    { "label": "순서", "code": "sequenceDiagram\n  autonumber\n  participant U as 사람 메시지\n  participant H as 매 턴 훅\n  participant L as 순수 함수\n  U->>H: 메시지\n  H->>L: 설정 원문 · 선택 창 판단 · 입력 종류\n  alt 설정 off\n    L-->>H: 빈 값 (지금 SCV 와 같은 출력)\n  else 켬\n    L-->>H: 안내 문구 (선택 창 보기 2개 이상 · 글 질문 · 묻지 않음)\n  end\n  H-->>U: 추가 컨텍스트" }
   ],
   "functions": [
     { "marker": "1", "title": "readShowRealSwitch", "step": "readShowRealSwitch", "notes": ["설정 원문 → on · off", "없거나 엉뚱한 값은 on, off(대소문자 무관)만 off"] },
-    { "marker": "2", "title": "pickConfirmChannel", "step": "pickConfirmChannel", "notes": ["선택 창 이름 → choice · text", "빈 값이면 text(글 질문 한 번)"] },
-    { "marker": "3", "title": "buildShowRealRule", "step": "buildShowRealRule", "notes": ["on · off, choice · text → 두세 줄 문구", "off 면 빈 값, 자세한 본문은 계약을 가리킴"] },
+    { "marker": "2", "title": "pickConfirmChannel", "step": "pickConfirmChannel", "notes": ["선택 창 이름 · 사람 없는 실행 · 입력 종류 → choice · text · none", "사람 없는 실행이거나 자동 알림 턴이면 none(묻지 않음)", "이름이 비면 text(글 질문 한 번) — 판단은 고르게 할 때 규칙과 같다"] },
+    { "marker": "3", "title": "buildShowRealRule", "step": "buildShowRealRule", "notes": ["on · off, choice · text · none → 세 줄 문구", "off 면 빈 값, 자세한 본문은 계약을 가리킴"] },
     { "marker": "4", "title": "매 턴 훅 출력", "notes": ["문구를 추가 컨텍스트로 내보냄 — 부수효과(출구)", "종료 훅에는 아무것도 더하지 않음 — 막는 검사 없음"] }
   ],
   "validations": {
@@ -144,6 +148,7 @@ flowchart TB
       ["1", "설정 없음", "on", "기본 켬"],
       ["1", "OFF · off", "off", "지금 SCV 와 같은 출력(바이트 단위)"],
       ["2", "선택 창 이름 없음(코덱스 모양)", "text", "글 질문 한 번"],
+      ["2", "사람 없는 실행 조건 · 자동 알림 턴", "none", "묻지 않고 보고에 남김"],
       ["3", "off", "빈 값", "블록에 아무것도 더하지 않음"]
     ]
   }
@@ -165,7 +170,7 @@ flowchart TB
   "functions": [
     { "marker": "5", "title": "세션 기록 읽기", "notes": ["사용자 자신의 세션 기록만, 기간 안의 것만 — 부수효과(입구)"] },
     { "marker": "6", "title": "splitSessions", "step": "splitSessions", "notes": ["기록 항목 → 사람 턴 단위 묶음"] },
-    { "marker": "7", "title": "classifyTurns", "step": "classifyTurns", "notes": ["턴마다 결과물 변화 · 첫 실제 결과 표시 · 완료 보고 · 이후 수정 요구 · 확인 창 표시"] },
+    { "marker": "7", "title": "classifyTurns", "step": "classifyTurns", "notes": ["턴마다 결과물 변화 · 첫 실제 결과 표시 · 완료 보고 · 이후 수정 요구 · 확인 질문 수", "모델이 아무것도 하지 않은 턴은 세지 않음 · '결과물 변화 없음' 턴은 바뀐 턴이 아님"] },
     { "marker": "8", "title": "countShowReal", "step": "countShowReal", "notes": ["기간별 세 숫자 — (a) 보여 준 비율 (b) 완료 뒤 수정 요구 (c) 확인 창 수"] },
     { "marker": "9", "title": "renderReport", "step": "renderReport", "notes": ["숫자 → 표 한 장(켜기 전 · 켠 뒤)"] },
     { "marker": "10", "title": "보고 출력", "notes": ["표를 출력 — 부수효과(출구)"] }
@@ -174,10 +179,11 @@ flowchart TB
     "title": "보고 표 모양 · 지킬 것",
     "columns": ["번호", "칸", "단위", "비고"],
     "rows": [
-      ["8", "결과물이 바뀐 일 중 처음 돌아가는 결과를 보여 준 비율", "기간마다", "(a)"],
-      ["8", "완료 보고 뒤에 나온 사용자 수정 요구", "세션당", "(b) — 줄어드는지 본다"],
-      ["8", "확인 창 수", "세션당", "(c) — 늘어난 정도를 본다"],
-      ["10", "보고 내용", "—", "다른 프로젝트 내용 · 메일 주소 · 비밀값 없음(공개 저장소)"]
+      ["8", "결과물이 바뀐 턴 중 '편집 → 실행 → 계속 · 고칠 점을 묻는 확인'이 있는 비율", "기간마다", "(a) — 질문 내용까지 봄(사용자 결정)"],
+      ["8", "완료 보고 뒤 처음 답한 사람 메시지의 수정 요구", "세션당", "(b) — 줄어드는지 본다"],
+      ["8", "확인 질문 수(확인 창 + 턴을 끝낸 글 질문)", "세션당", "(c) — 늘어난 정도를 본다"],
+      ["5", "호스트 설정 없음", "—", "멈춤 — 확인 창 · 자동 알림을 못 갈라 틀린 숫자를 내지 않음"],
+      ["10", "보고 내용", "—", "숫자 · 날짜만 — 대화 내용 · 경로 · 메일 주소 · 비밀값 없음(공개 저장소)"]
     ]
   }
 }
