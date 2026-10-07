@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated_at": "2026-10-03T13:22:04Z",
+  "updated_at": "2026-10-06T22:34:16Z",
   "files": {
     "scv/raw/20261001-hook-path-bash32-audit.md": { "size": 3354, "mtime": "2026-10-01T02:15:20Z" },
     "scv/raw/20261001-resume-recap-stale-conversation.md": { "size": 1918, "mtime": "2026-10-01T13:52:26Z" },
@@ -37,7 +37,10 @@
     "scv/raw/stale/20260920-wookiya1364-graft-guidance.md": { "size": 2677, "mtime": "2026-09-20T13:27:47Z" },
     "scv/raw/stale/20260920-wookiya1364-regression-runner-lang-leak.md": { "size": 4012, "mtime": "2026-09-20T13:27:47Z" },
     "scv/raw/stale/20260920-wookiya1364-wrapper-release-after-core.md": { "size": 1556, "mtime": "2026-09-21T00:16:37Z" },
-    "scv/raw/stale/20261002-stop-hook-64kb-window.md": { "size": 1378, "mtime": "2026-10-02T07:19:17Z" }
+    "scv/raw/stale/20261002-stop-hook-64kb-window.md": { "size": 1378, "mtime": "2026-10-02T07:19:17Z" },
+    "scv/raw/stale/20261005-research-elicit-exp.md": { "size": 27723, "mtime": "2026-10-05T22:33:26Z" },
+    "scv/raw/stale/20261006-research-hidden-intent.md": { "size": 15556, "mtime": "2026-10-05T23:59:17Z" },
+    "scv/raw/stale/20261006-research-longbench-result.md": { "size": 10586, "mtime": "2026-10-06T16:58:15Z" }
   },
   "ref_docs": {
     "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "slugs": ["20260812-wookiya1364-ci-provenance-gate", "20260930-wookiya1364-readme-refresh-core-wrappers"], "ref_commit": "e64e0ae", "consumed_at": "2026-09-30T01:42:19Z", "origin": "scv/raw/20260812-wookiya1364-ci-provenance-gate.md" },
@@ -68,6 +71,9 @@
     "scv/raw/stale/20260920-wookiya1364-graft-guidance.md": { "slugs": ["20260920-wookiya1364-graft-guidance", "20260930-wookiya1364-readme-refresh-core-wrappers"], "ref_commit": "e64e0ae", "consumed_at": "2026-09-30T01:42:19Z", "origin": "scv/raw/20260920-wookiya1364-graft-guidance.md" },
     "scv/raw/stale/20260920-wookiya1364-regression-runner-lang-leak.md": { "slugs": ["20260920-wookiya1364-rule-conflicts-followup", "20260930-wookiya1364-readme-refresh-core-wrappers"], "ref_commit": "e64e0ae", "consumed_at": "2026-09-30T01:42:19Z", "origin": "scv/raw/20260920-wookiya1364-regression-runner-lang-leak.md" },
     "scv/raw/stale/20260920-wookiya1364-wrapper-release-after-core.md": { "slugs": ["20260921-wookiya1364-open-items-followup"], "ref_commit": "787812a", "consumed_at": "2026-09-20T22:51:28Z", "origin": "scv/raw/20260920-wookiya1364-wrapper-release-after-core.md" },
-    "scv/raw/stale/20261002-stop-hook-64kb-window.md": { "slugs": ["20261003-wookiya1364-rewrite-stays-current"], "ref_commit": "2352acf", "consumed_at": "2026-10-03T13:22:04Z", "origin": "scv/raw/20261002-stop-hook-64kb-window.md" }
+    "scv/raw/stale/20261002-stop-hook-64kb-window.md": { "slugs": ["20261003-wookiya1364-rewrite-stays-current"], "ref_commit": "2352acf", "consumed_at": "2026-10-03T13:22:04Z", "origin": "scv/raw/20261002-stop-hook-64kb-window.md" },
+    "scv/raw/stale/20261005-research-elicit-exp.md": { "slugs": ["20261005-wookiya1364-verify-by-sample"], "ref_commit": "19f1a4c", "consumed_at": "2026-10-05T13:21:07Z", "origin": "scv/raw/20261005-research-elicit-exp.md" },
+    "scv/raw/stale/20261006-research-hidden-intent.md": { "slugs": ["20261007-wookiya1364-show-real-early"], "ref_commit": "19f1a4c", "consumed_at": "2026-10-06T22:34:16Z", "origin": "scv/raw/20261006-research-hidden-intent.md" },
+    "scv/raw/stale/20261006-research-longbench-result.md": { "slugs": ["20261007-wookiya1364-show-real-early"], "ref_commit": "19f1a4c", "consumed_at": "2026-10-06T22:34:16Z", "origin": "scv/raw/20261006-research-longbench-result.md" }
   }
 }

@@ -22,6 +22,7 @@
     "SCV_MODEL_PROMPTING_MAX_AGE_DAYS": "가이드 원문 사본의 유효 기간(일). 기본 90. 가져온 날짜가 이보다 오래되면 help 가 갱신 명령을 한 줄 알린다(막지 않는다).",
     "SCV_CHOICE_GATE": "고르게 할 때 규칙(core/contracts/choices.md): on(기본) | off. 호스트가 선택지 도구를 줄 때(클로드), 사용자에게 고르게 하는 결정은 그 도구로 묻는다 — 매 턴 안내 한 줄, 글로 묻거나 번호로 고르게 하며 끝나는 답은 종료 훅이 같은 턴에 한 번 막는다. off 면 이 프로젝트에서 안내 · 판정 모두 하지 않는다(이 기능 전과 같다). 선택지 도구가 없는 호스트(코덱스)에는 원래 없다.",
     "SCV_REWRITE_PRINCIPLE": "다시 쓴 요청의 SCV 원칙: on(기본) | off. 등록이 성공하면 다시 쓴 요청 끝에 짧은 표식을 붙이고, 원칙 전문(듣기 좋은 말 대신 사실, 해결책이 문제를 막도록 담은 '단위 | 해결책 | 추천' 단위 표 하나, 한 행이 터미널 한 줄에 드는 표)을 모델에 싣는다. 문구는 core/contracts/rewrite-principle.md 한 곳. 답이 원칙대로인지는 판정하지 않되, 끝 메시지의 문제 표 · '생길 수 있는 문제' 칸은 종료 훅이 막는다. off 면 등록 출력과 종료 훅이 이 기능 전과 같다.",
+    "SCV_SHOW_REAL": "실체 보여 주기 안내(규칙 본문 core/contracts/show-real.md): on(기본) | off. 켜면 매 턴 세 줄을 싣는다 — 결과물이 바뀌는 일이면 실제 결과를 일찍 보여 주고 짧게 묻게 한다(선택 창이 있으면 그 창으로, 없으면 글로). 막는 검사는 없다. off 면 매 턴 출력이 이 기능 전과 같다. 효과 확인: core/scripts/show-real-report.sh.",
     "NOTIFIER_PROVIDER": "팀 보고 채널: slack | discord. 비우면 보고 기능 꺼짐. 토큰·채널 ID 는 비밀 파일에.",
     "NOTIFIER_DRY_RUN": "1 이면 보고를 보내지 않고 내용만 찍음. 기본 0.",
     "NOTIFIER_RETRY_MAX": "보고 전송·첨부 업로드 재시도 횟수. 기본 3.",
@@ -69,6 +70,7 @@
   "SCV_MODEL_PROMPTING": "on",
   "SCV_MODEL_PROMPTING_MAX_AGE_DAYS": "90",
   "SCV_REWRITE_PRINCIPLE": "on",
+  "SCV_SHOW_REAL": "on",
 
   "NOTIFIER_PROVIDER": "",
   "NOTIFIER_DRY_RUN": "0",
