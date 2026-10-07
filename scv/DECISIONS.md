@@ -1522,3 +1522,35 @@ merge_policy: preserve
 - path delta: 제안 경로대로 세션별 상태부터 갔지만 실측으로 네 군데를 바꿨다: 선택 창 답 신호는 래퍼의 사후 도구 훅(실제 클로드로 확인) · 팀원 메시지는 매 턴 훅을 안 거쳐 종료 훅에서 판별 · 모델이 부르는 명령의 세션 찾기에 환경 변수 키(/clear 뒤에도 새 id 로 바뀜 확인) · 큰 대화 기록은 읽은 자리부터(맥 tail 이 40MB 에 1.2초). 독립 검토 15건 중 실제 결함(범위 문구 오판 · 하위 에이전트 위임 · 링크된 저널 · 창 경계 · 저장 실패 · 성능)을 고쳤고, 리눅스 CI 는 검사 도우미의 인자 길이로 한 번 붉어 고쳤다. 노력 단계 heavy 판정 · heavy 사용.
 - refs: scv/archive/20261003-wookiya1364-rewrite-stays-current/PLAN.md
 - conversation: scv/conversations/20261003-155702-other-session-history-access.md
+
+## [2026-10-05 22:18] wookiya1364 — 끝내기 전 결과 견본 확인 — 대충 말해도 원하는 결과로
+
+- verdict: adopted
+- why: 2026-10-05 대화형 실측(숨은 의도를 확인하는 숨은 테스트): 결과물이 바뀌는 일이면 끝내기 전 실제 결과 견본을 한 번 보여 주고 확인받는 방식이 지금 SCV 보다 매번 더 맞혔다(과제 6개 × 3번, 모두 통과 12/18 → 18/18). 매 턴 다시 쓰기 자체는 정확도를 올리지 못했다(끔 8/8 · 켬 6/8). 질문 1.5배 이하는 계획 안의 목표로 둔다(사용자 결정).
+- discarded alternatives: 다시 쓰기 규칙만 바꾸기(빈칸 모두 묻기 · 범위 좁히지 않기) — 질문만 1.8배, 정확도 그대로 / 미리 묻지 않고 견본으로만 맞추기 — 질문 51 → 41 이지만 정확도 18 → 15 / 처음 판 그대로 넣기 — 질문 약 3배, 확인 고리가 길어짐
+- refs: scv/promote/20261005-wookiya1364-verify-by-sample/PLAN.md
+- conversation: scv/conversations/20261003-155702-other-session-history-access.md
+
+## [2026-10-06 07:34] wookiya1364 — 끝내기 전 견본 확인 — 건너뛰면 막는 검사를 계획에 (세 모델 실측)
+
+- verdict: adopted
+- why: 2026-10-05~06 세 모델 실측(같은 장치 · 과제 6개 × 3번 · 사용자 역할 Opus): 지시만 넣은 견본 확인은 모두 통과 Opus 12 → 18 · Sonnet 13 → 15 · Haiku 5 → 8. Sonnet · Haiku 는 결과물이 바뀌는 과제 12번 중 3번 · 8번 견본 확인을 건너뛰었고(Opus 0번), 견본을 보여 준 실행은 Opus 12/12 · Sonnet 9/9 통과 — 건너뛰면 한 번 막는 종료 훅 검사를 Non-Goal 에서 목표로 옮기고 릴리스 전 측정을 세 모델로 늘린다. Opus 가 나빠지거나 검사 때문에 질문이 크게 늘면 릴리스 전에 뺀다.
+- discarded alternatives: 모델별 지시 문구부터 재기 — 같은 장치로 비교할 수 있지만 구현이 그만큼 늦어짐 / 계획대로 지시만 — Sonnet · Haiku 의 이득이 작게 남을 수 있음(Sonnet +2 '이득 없음')
+- refs: scv/promote/20261005-wookiya1364-verify-by-sample/PLAN.md
+- conversation: scv/conversations/20261003-155702-other-session-history-access.md
+
+## [2026-10-07 07:23] wookiya1364 — 처음 돌아가는 순간 실제 결과를 보여 주기 — 끝내기 전 견본 확인을 대체
+
+- verdict: adopted
+- why: 긴 공개 과제 두 실측(6과제 × 3번, 과제 단위 판정)에서 글로 된 견본 확인은 지금 SCV 보다 낮았고(7/18 · 12/18), 처음 돌아가는 순간 실제 결과를 보여 주는 방식은 조금 높았다(12/18 · 10/18) — 둘 다 가르지 못함. 사용자 원칙(실체가 없으면 진짜 요구는 나중에 나온다)과 맞고 해가 보이지 않아, 막는 검사 없이 안내로 넣고 스위치 · 보기 2개 이상 · 며칠 실사용 확인으로 효과를 본다.
+- discarded alternatives: 글로 된 견본 확인 + 건너뛰면 막는 검사(옛 계획) — 실측에서 낮았고 보기 하나짜리 창이 39번 거절됨; 기록만 하고 보류 — 사용자 원칙에 맞는 방향을 실사용으로 확인할 기회를 버림; 과제를 50개 넘게 늘려 더 재기 — 준비에 하루 넘게 걸리고 AI 관리자로는 사람의 반응을 못 잼; 계획대로 구현 — 근거와 반대 방향
+- refs: scv/promote/20261007-wookiya1364-show-real-early/PLAN.md, scv/raw/20261006-research-longbench-result.md
+- conversation: scv/conversations/20261003-155702-other-session-history-access.md
+
+## [2026-10-07 17:01] wookiya1364 — 처음 돌아가는 순간 실제 결과를 보여 주기 — 대충 말해도 원하는 결과로 archived
+
+- verdict: archived
+- why: 결과물이 바뀌는 일이면 처음 돌아가는 순간 실제 결과를 보여 주고 '이대로 계속할까요, 고칠 점이 있나요?'를 묻게 하는 매 턴 안내를 넣었다(막는 검사 없음, SCV_SHOW_REAL=off 면 바이트 동일, 0.66.0). 사람 없는 실행 · 자동 알림 턴에는 묻지 않는 문구가 실려야 무인 실행이 첫 결과에서 멈추지 않는다. 실사용 보고는 호스트 설정이 있어야 숫자가 맞고, (a)는 질문 내용('계속 · 고칠 점')까지 봐야 기준선이 낮다(실제 기록 53% → 7%). bash 3.2 의 긴 한글 글자 단위 치환 · jq 의 줄마다 정규식은 제곱으로 느려진다 — 다시 쓰지 말 것. 남은 확인: T9 · T12(릴리스 뒤), T10(켠 뒤 며칠).
+- path delta: 확인 통로를 둘에서 셋(선택 창 · 글 · 묻지 않음)으로 넓힘 — 계약의 '사람 없는 실행' 예외를 매 턴 안내에도 적용(독립 검토); (a)를 질문 내용까지 보게 좁힘(사용자 결정, 실제 기록을 본 뒤); 보고는 호스트 설정 없으면 멈추고 빈 턴 · '결과물 변화 없음' 턴은 빼고 작업 중 입력은 넣음; 기존 검사 넷의 가정을 새 블록에 맞춤
+- refs: scv/archive/20261007-wookiya1364-show-real-early/PLAN.md
+- conversation: scv/conversations/20261003-155702-other-session-history-access.md

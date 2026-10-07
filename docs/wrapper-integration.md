@@ -36,13 +36,16 @@ every input is then a person turn, exactly as before.
 
 `SCV_CHOICE_TOOL` is optional (v0.64.0+): the name of the host's tool that shows the user selectable options.
 When set, every decision SCV puts to the user goes through it (rule: `core/contracts/choices.md`), the per-turn
-hook says so in one line, and the stop hook blocks a final message that asks in text. Leave it out when the host
+hook says so in one line, and the stop hook blocks a final message that asks in text. The same decision also picks
+how the show-real guidance asks its confirmation (v0.66.0+, `core/contracts/show-real.md`). Leave it out when the host
 has no such tool — decisions are then asked as a numbered table answered by number, exactly as before.
 
 `SCV_CHOICE_OFF_WHEN` is optional (v0.64.0+): one `NAME=VALUE` condition on the hook environment for runs in
 which the host drops the choice tool — a headless run where no person can answer, for example. When the variable
-holds that value, the run behaves as if no tool were named (no per-turn line, no block). Leave it out when the
-tool is always present.
+holds that value, the run behaves as if no tool were named (no per-turn line, no block). Since v0.66.0 the show-real
+guidance also reads such a run as one with no person to answer and does not ask (`core/contracts/show-real.md`); a host
+without a choice tool may set the key for that purpose alone. Leave it out when the tool is always present and the host
+has no unattended runs.
 
 `SCV_SESSION_ENV` is optional (v0.65.0+): the name of the environment variable through which the host gives the
 model's shell commands the current session id (the hook payload's `session_id`). Commands the model runs itself
@@ -256,7 +259,7 @@ Wrapper requirements:
    `on-user-prompt.sh` prints to stdout in hydrated projects, and hosts that
    add this event's stdout to the model context — Claude Code and Codex both
    do — therefore deliver it on **every** turn, commands or not. Register the
-   hook for that reason even where journaling alone did not justify it. Four
+   hook for that reason even where journaling alone did not justify it. These
    blocks ship today, switched from `scv/scv_settings.json`
    (the project `.env` is not read, 0.32.0+):
    - the five-line plain-language *answer shape* reminder, unless
@@ -275,7 +278,15 @@ Wrapper requirements:
      routing directive and before the diagnosis): deep questions go to a
      background investigator agent when the host ships one
      (`agents/scv-investigator.md` in the Claude wrapper), the session's effort
-     dial is never touched, and the full report lands in `scv/raw/`.
+     dial is never touched, and the full report lands in `scv/raw/`;
+   - the show-real guidance (0.66.0+), unless `SCV_SHOW_REAL=off`: three lines
+     printed right after the choice line, pointing the model at
+     `core/contracts/show-real.md` — for work that changes a result, show the
+     real result at its first running moment and ask briefly whether to
+     continue or what to fix (through the choice tool with at least two
+     options when one is in effect, otherwise one text question). Guidance
+     only: no hook blocks on it, and `off` leaves the hook output
+     byte-identical to a hook without it.
    None of these blocks enters the journal, and the non-blocking guarantee is
    unchanged.
 7. **Register the resume recap on context resets only (v0.47.0+).**
