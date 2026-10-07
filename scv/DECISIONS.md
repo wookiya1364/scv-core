@@ -1546,3 +1546,11 @@ merge_policy: preserve
 - discarded alternatives: 글로 된 견본 확인 + 건너뛰면 막는 검사(옛 계획) — 실측에서 낮았고 보기 하나짜리 창이 39번 거절됨; 기록만 하고 보류 — 사용자 원칙에 맞는 방향을 실사용으로 확인할 기회를 버림; 과제를 50개 넘게 늘려 더 재기 — 준비에 하루 넘게 걸리고 AI 관리자로는 사람의 반응을 못 잼; 계획대로 구현 — 근거와 반대 방향
 - refs: scv/promote/20261007-wookiya1364-show-real-early/PLAN.md, scv/raw/20261006-research-longbench-result.md
 - conversation: scv/conversations/20261003-155702-other-session-history-access.md
+
+## [2026-10-07 17:01] wookiya1364 — 처음 돌아가는 순간 실제 결과를 보여 주기 — 대충 말해도 원하는 결과로 archived
+
+- verdict: archived
+- why: 결과물이 바뀌는 일이면 처음 돌아가는 순간 실제 결과를 보여 주고 '이대로 계속할까요, 고칠 점이 있나요?'를 묻게 하는 매 턴 안내를 넣었다(막는 검사 없음, SCV_SHOW_REAL=off 면 바이트 동일, 0.66.0). 사람 없는 실행 · 자동 알림 턴에는 묻지 않는 문구가 실려야 무인 실행이 첫 결과에서 멈추지 않는다. 실사용 보고는 호스트 설정이 있어야 숫자가 맞고, (a)는 질문 내용('계속 · 고칠 점')까지 봐야 기준선이 낮다(실제 기록 53% → 7%). bash 3.2 의 긴 한글 글자 단위 치환 · jq 의 줄마다 정규식은 제곱으로 느려진다 — 다시 쓰지 말 것. 남은 확인: T9 · T12(릴리스 뒤), T10(켠 뒤 며칠).
+- path delta: 확인 통로를 둘에서 셋(선택 창 · 글 · 묻지 않음)으로 넓힘 — 계약의 '사람 없는 실행' 예외를 매 턴 안내에도 적용(독립 검토); (a)를 질문 내용까지 보게 좁힘(사용자 결정, 실제 기록을 본 뒤); 보고는 호스트 설정 없으면 멈추고 빈 턴 · '결과물 변화 없음' 턴은 빼고 작업 중 입력은 넣음; 기존 검사 넷의 가정을 새 블록에 맞춤
+- refs: scv/archive/20261007-wookiya1364-show-real-early/PLAN.md
+- conversation: scv/conversations/20261003-155702-other-session-history-access.md
