@@ -1,7 +1,8 @@
 ---
 slug: github-outreach-email-check
 started_at: 2026-09-30T00:15:46+09:00
-status: active
+status: archived
+archived_at: 2026-10-07T21:47:30+09:00
 promoted_to: null
 ---
 

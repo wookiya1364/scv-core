@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-10-04T02:28:32Z
+generated_at: 2026-10-08T05:31:01Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -329,5 +329,18 @@ archives:
     status: testing
   - slug: 20261003-wookiya1364-rewrite-stays-current
     title: "다시 쓴 요청이 일 내내 맞게 — 답 뒤 재등록 · 세션별 턴 상태 · 가이드 다시 읽기 줄이기"
+    kind: feature
+    status: testing
+  - slug: 20261005-wookiya1364-verify-by-sample
+    title: "끝내기 전 결과 견본 확인 — 대충 말해도 원하는 결과로"
+    kind: feature
+    status: obsolete
+    obsoleted_by: 20261007-wookiya1364-show-real-early
+  - slug: 20261007-wookiya1364-show-real-early
+    title: "처음 돌아가는 순간 실제 결과를 보여 주기 — 대충 말해도 원하는 결과로"
+    kind: feature
+    status: testing
+  - slug: 20261008-wookiya1364-harmful-change-ask-first
+    title: "밀어붙여도 해로운 변경은 먼저 묻기"
     kind: feature
     status: testing

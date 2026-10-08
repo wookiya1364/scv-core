@@ -1,7 +1,8 @@
 ---
 slug: still-running-status-check
 started_at: 2026-09-18T14:27:08+09:00
-status: active
+status: archived
+archived_at: 2026-10-07T21:47:30+09:00
 promoted_to: null
 ---
 
