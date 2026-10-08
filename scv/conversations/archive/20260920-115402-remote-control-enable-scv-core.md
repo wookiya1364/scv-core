@@ -1,7 +1,8 @@
 ---
 slug: remote-control-enable-scv-core
 started_at: 2026-09-20T11:54:02+0900
-status: active
+status: archived
+archived_at: 2026-10-07T21:47:30+09:00
 promoted_to: null
 ---
 
