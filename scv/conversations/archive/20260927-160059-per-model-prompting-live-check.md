@@ -1,7 +1,8 @@
 ---
 slug: per-model-prompting-live-check
 started_at: 2026-09-27T16:00:59+09:00
-status: promoted
+status: archived
+archived_at: 2026-10-07T21:47:30+09:00
 promoted_to: scv/archive/20260927-wookiya1364-prompting-read-verdict
 ---
 
