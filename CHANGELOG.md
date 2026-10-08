@@ -2,7 +2,7 @@
 
 All notable changes to SCV Core are documented here.
 
-## [0.66.0] - 2026-10-07
+## [0.66.0] - 2026-10-08
 
 ### 처음 돌아가는 순간 실제 결과를 보여 주기 — 대충 말해도 원하는 결과로
 
