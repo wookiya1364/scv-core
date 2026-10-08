@@ -37,13 +37,16 @@ every input is then a person turn, exactly as before.
 `SCV_CHOICE_TOOL` is optional (v0.64.0+): the name of the host's tool that shows the user selectable options.
 When set, every decision SCV puts to the user goes through it (rule: `core/contracts/choices.md`), the per-turn
 hook says so in one line, and the stop hook blocks a final message that asks in text. The same decision also picks
-how the show-real guidance asks its confirmation (v0.66.0+, `core/contracts/show-real.md`). Leave it out when the host
+how the show-real guidance asks its confirmation (v0.66.0+, `core/contracts/show-real.md`) and which harmful-change
+line the SCV principle adds at registration (v0.66.0+, `core/contracts/rewrite-principle.md`). Leave it out when the host
 has no such tool — decisions are then asked as a numbered table answered by number, exactly as before.
 
 `SCV_CHOICE_OFF_WHEN` is optional (v0.64.0+): one `NAME=VALUE` condition on the hook environment for runs in
 which the host drops the choice tool — a headless run where no person can answer, for example. When the variable
 holds that value, the run behaves as if no tool were named (no per-turn line, no block). Since v0.66.0 the show-real
-guidance also reads such a run as one with no person to answer and does not ask (`core/contracts/show-real.md`); a host
+guidance also reads such a run as one with no person to answer and does not ask (`core/contracts/show-real.md`), and the
+SCV principle's harmful-change line tells the model to fix the real cause instead of asking (v0.66.0+,
+`core/contracts/rewrite-principle.md`); a host
 without a choice tool may set the key for that purpose alone. Leave it out when the tool is always present and the host
 has no unattended runs.
 
