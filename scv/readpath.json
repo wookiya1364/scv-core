@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated_at": "2026-10-07T22:45:51Z",
+  "updated_at": "2026-10-09T14:40:31Z",
   "files": {
     "scv/raw/20261001-hook-path-bash32-audit.md": { "size": 3354, "mtime": "2026-10-01T02:15:20Z" },
     "scv/raw/20261001-resume-recap-stale-conversation.md": { "size": 1918, "mtime": "2026-10-01T13:52:26Z" },
@@ -41,7 +41,9 @@
     "scv/raw/stale/20261005-research-elicit-exp.md": { "size": 27723, "mtime": "2026-10-05T22:33:26Z" },
     "scv/raw/stale/20261006-research-hidden-intent.md": { "size": 15556, "mtime": "2026-10-05T23:59:17Z" },
     "scv/raw/stale/20261006-research-longbench-result.md": { "size": 10586, "mtime": "2026-10-06T16:58:15Z" },
-    "scv/raw/stale/20261008-research-premise-pressure.md": { "size": 5417, "mtime": "2026-10-07T21:48:39Z" }
+    "scv/raw/stale/20261008-research-premise-pressure.md": { "size": 5417, "mtime": "2026-10-07T21:48:39Z" },
+    "scv/raw/stale/20261008-research-t9-installed-longbench.md": { "size": 3469, "mtime": "2026-10-08T10:01:10Z" },
+    "scv/raw/stale/20261009-research-show-real-why-unused.md": { "size": 3890, "mtime": "2026-10-09T13:01:05Z" }
   },
   "ref_docs": {
     "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "slugs": ["20260812-wookiya1364-ci-provenance-gate", "20260930-wookiya1364-readme-refresh-core-wrappers"], "ref_commit": "e64e0ae", "consumed_at": "2026-09-30T01:42:19Z", "origin": "scv/raw/20260812-wookiya1364-ci-provenance-gate.md" },
@@ -76,6 +78,8 @@
     "scv/raw/stale/20261005-research-elicit-exp.md": { "slugs": ["20261005-wookiya1364-verify-by-sample"], "ref_commit": "19f1a4c", "consumed_at": "2026-10-05T13:21:07Z", "origin": "scv/raw/20261005-research-elicit-exp.md" },
     "scv/raw/stale/20261006-research-hidden-intent.md": { "slugs": ["20261007-wookiya1364-show-real-early"], "ref_commit": "19f1a4c", "consumed_at": "2026-10-06T22:34:16Z", "origin": "scv/raw/20261006-research-hidden-intent.md" },
     "scv/raw/stale/20261006-research-longbench-result.md": { "slugs": ["20261007-wookiya1364-show-real-early"], "ref_commit": "19f1a4c", "consumed_at": "2026-10-06T22:34:16Z", "origin": "scv/raw/20261006-research-longbench-result.md" },
-    "scv/raw/stale/20261008-research-premise-pressure.md": { "slugs": ["20261008-wookiya1364-harmful-change-ask-first"], "ref_commit": "9a3a813", "consumed_at": "2026-10-07T22:45:51Z", "origin": "scv/raw/20261008-research-premise-pressure.md" }
+    "scv/raw/stale/20261008-research-premise-pressure.md": { "slugs": ["20261008-wookiya1364-harmful-change-ask-first"], "ref_commit": "9a3a813", "consumed_at": "2026-10-07T22:45:51Z", "origin": "scv/raw/20261008-research-premise-pressure.md" },
+    "scv/raw/stale/20261008-research-t9-installed-longbench.md": { "slugs": ["20261009-wookiya1364-show-real-at-checkpoint"], "ref_commit": "6a23ca4", "consumed_at": "2026-10-09T14:40:30Z", "origin": "scv/raw/20261008-research-t9-installed-longbench.md" },
+    "scv/raw/stale/20261009-research-show-real-why-unused.md": { "slugs": ["20261009-wookiya1364-show-real-at-checkpoint"], "ref_commit": "6a23ca4", "consumed_at": "2026-10-09T14:40:30Z", "origin": "scv/raw/20261009-research-show-real-why-unused.md" }
   }
 }
