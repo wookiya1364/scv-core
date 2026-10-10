@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-10-08T05:31:01Z
+generated_at: 2026-10-10T15:27:10Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -342,5 +342,9 @@ archives:
     status: testing
   - slug: 20261008-wookiya1364-harmful-change-ask-first
     title: "밀어붙여도 해로운 변경은 먼저 묻기"
+    kind: feature
+    status: testing
+  - slug: 20261009-wookiya1364-show-real-at-checkpoint
+    title: "검토 시점에 실제 결과 보여 주기 — 실체 보여 주기 다시 재기"
     kind: feature
     status: testing
