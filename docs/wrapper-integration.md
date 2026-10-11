@@ -24,6 +24,8 @@ SCV_CHOICE_OFF_WHEN=EXAMPLE_ATTENDED=0
 SCV_SESSION_ENV=EXAMPLE_SESSION_ID
 SCV_AUTO_PROMPT_PREFIX=Another example session sent a message:
 SCV_AUTO_PROMPT_SUFFIX=This came from another example session
+SCV_JUDGE_COMMAND=scripts/show-real-judge.sh
+SCV_CHOICE_REJECTED_PREFIX=<example-rejected>
 ```
 
 `SCV_PROMPTING_GUIDES` is optional (v0.59.0+, §9); leave it out when the wrapper ships no
@@ -60,6 +62,17 @@ automatic input's tagged blocks and the start of the note it appends after them 
 for example. Both are stripped before the `SCV_AUTO_PROMPT_TAGS` rule. Such an input may never reach the per-turn
 hook; the stop hook then classifies the input that opened the turn from the transcript. Leave both out when the host
 wraps nothing.
+
+`SCV_JUDGE_COMMAND` is optional (v0.68.0+): the script the real-use report runs as its judge, relative to the Core
+root or absolute. The report writes one question to its standard input and reads the answer from its standard output
+(non-zero exit = no answer); only turns its rules cannot settle go there, 20 at most per call, as short excerpts. The
+script picks the model and calls it without tools and with SCV off. Leave it out when the host cannot run a model from a
+script — the report then shows those turns as not judged (`core/contracts/host-profile.md`). The script must bound its own
+run time; the report waits for it, and runs it from the cache folder.
+
+`SCV_CHOICE_REJECTED_PREFIX` is optional (v0.68.0+): the start of the tool result the host returns when it rejects a
+choice-tool call before the person sees it. The real-use report then does not count that window as asking; a window the
+person saw and dismissed still counts. Leave it out when the host never rejects such calls silently.
 
 Validate it before vendoring:
 
