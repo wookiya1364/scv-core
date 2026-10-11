@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-10-10T15:27:10Z
+generated_at: 2026-10-11T07:59:43Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -348,3 +348,11 @@ archives:
     title: "검토 시점에 실제 결과 보여 주기 — 실체 보여 주기 다시 재기"
     kind: feature
     status: testing
+  - slug: 20261011-wookiya1364-show-real-classifier-hybrid
+    title: "실사용 보고 판정기 둘 다 — 애매한 턴만 판정자에게, 토큰을 아끼며 늘 켜기"
+    kind: feature
+    status: testing
+  - slug: 20261011-wookiya1364-show-real-classifier-rules
+    title: "실사용 보고 판정기를 구조 규칙으로 — 보이고 물었나를 바르게 세기"
+    kind: feature
+    status: in_progress
