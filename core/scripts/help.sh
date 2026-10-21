@@ -224,6 +224,7 @@ Skills
   action:workspace  Multi-repo setup: join an umbrella / create a root / detach (interactive, no flags)
   action:handoff    Multi-repo: declare another repo needs corresponding dev (→ root scv repo)
   action:routine    Run a named maintenance routine from scv/routines/ (--list to enumerate)
+  action:dreams     Look back over past sessions — requests per archived plan + prompt tips (HTML report)
   action:update     the host agent marketplace update guide
   action:set-models Explain the host agent session-level model selection compatibility
 
