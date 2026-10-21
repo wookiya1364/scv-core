@@ -123,3 +123,7 @@ decision	실사용-보고-판정기를-구조-규칙으로-보이고-물었나�
 decision	실사용-보고-판정기-둘-다-애매한-턴만-판정자에게-토큰을-아끼며-늘-켜기	scv/DECISIONS.md	192349	1691	2026-10-11 11:18	[adopted] 실사용 보고 판정기 둘 다 — 애매한 턴만 판정자에게, 토큰을 아끼며 늘 켜기
 decision	실사용-보고-판정기를-구조-규칙으로-보이고-물었나를-바르게-세기-archived	scv/DECISIONS.md	194040	1447	2026-10-11 17:00	[archived] 실사용 보고 판정기를 구조 규칙으로 — 보이고 물었나를 바르게 세기 archived
 decision	실사용-보고-판정기-둘-다-애매한-턴만-판정자에게-토큰을-아끼며-늘-켜기-archive	scv/DECISIONS.md	195487	1771	2026-10-11 17:00	[archived] 실사용 보고 판정기 둘 다 — 애매한 턴만 판정자에게, 토큰을 아끼며 늘 켜기 archived
+decision	다음-일은-묻지-말고-계속-막힌-것이-없으면-다음-창으로-멈추지-않기	scv/DECISIONS.md	197258	767	2026-10-21 16:31	[adopted] 다음 일은 묻지 말고 계속 — 막힌 것이 없으면 '다음?' 창으로 멈추지 않기
+decision	드림-프롬프트-코치	scv/DECISIONS.md	198025	826	2026-10-21 17:20	[adopted] 드림 — 프롬프트 코치
+decision	다음-일은-묻지-말고-계속-막힌-것이-없으면-다음-창으로-멈추지-않기-archived	scv/DECISIONS.md	198851	1049	2026-10-21 20:56	[archived] 다음 일은 묻지 말고 계속 — 막힌 것이 없으면 '다음?' 창으로 멈추지 않기 archived
+decision	드림-프롬프트-코치-archived	scv/DECISIONS.md	199900	1330	2026-10-21 20:56	[archived] 드림 — 프롬프트 코치 archived
