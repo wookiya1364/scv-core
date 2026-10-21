@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-10-11T07:59:43Z
+generated_at: 2026-10-21T11:56:43Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -356,3 +356,11 @@ archives:
     title: "실사용 보고 판정기를 구조 규칙으로 — 보이고 물었나를 바르게 세기"
     kind: feature
     status: in_progress
+  - slug: 20261021-wookiya1364-no-idle-next-question
+    title: "다음 일은 묻지 말고 계속 — 막힌 것이 없으면 '다음으로 무엇을 할까요?' 창으로 멈추지 않기"
+    kind: feature
+    status: testing
+  - slug: 20261021-wookiya1364-scv-dreams-prompt-coach
+    title: "드림 — 프롬프트 코치 (지난 세션을 돌아보며 질의 ÷ 목표 도달 비율과 더 좋은 프롬프트 쓰는 법을 알려 준다)"
+    kind: feature
+    status: testing
