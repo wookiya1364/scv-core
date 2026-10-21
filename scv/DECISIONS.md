@@ -1625,3 +1625,35 @@ merge_policy: preserve
 - path delta: 개발용 40턴에 '보이고 물음'이 1개뿐이라 모델이 갈리지 않아 측정 표본 77턴을 더했고, '리뷰 부탁'의 정답이 같은 말에도 갈려 '물음'의 정의를 정답 · 판정자 질문에 넣고 다시 매겼으며, 세 모델이 같은 잘못 잡음 1을 낸 원인이 규칙 단계(호스트가 거절한 창)라 규칙을 고쳤다(모두 사용자 결정); 재기 뒤 독립 검토 반영으로 거절된 창은 호스트 설정의 거절 표시로만 가르게 했다(측정값은 바이트로 같음 확인)
 - refs: scv/archive/20261011-wookiya1364-show-real-classifier-hybrid/PLAN.md, scv/archive/20261011-wookiya1364-show-real-classifier-rules/PLAN.md
 - conversation: scv/conversations/20261011-111001-show-real-classifier-hybrid.md
+
+## [2026-10-21 16:31] wookiya1364 — 다음 일은 묻지 말고 계속 — 막힌 것이 없으면 '다음?' 창으로 멈추지 않기
+
+- verdict: adopted
+- why: 실사용 기록: 긴 세션 확인 창 225개 중 배경 작업 알림 뒤 115 · '다음' 제목 54 — 요구가 흐려서가 아니라 단계마다 다음 일을 물음. 선택 창 규약에 '막힌 것 없으면 계속' 예외가 없음.
+- discarded alternatives: 실체 보여 주기 끄기 — 사용자가 켜 둠을 고름(끄면 창 약 15%만 줄고 주원인은 '다음?' 창). 1주 실사용 측정 — 사용자가 긴 과제 측정을 고름.
+- refs: scv/promote/20261021-wookiya1364-no-idle-next-question/PLAN.md
+- conversation: scv/conversations/20261012-154556-boris-advice-check.md
+
+## [2026-10-21 17:20] wookiya1364 — 드림 — 프롬프트 코치
+
+- verdict: adopted
+- why: 사람이 처음부터 더 좋은 프롬프트를 써서 목표(계획 보관)에 빨리 닿게 돕는다. 실제 기록 미리 보기: 계획 하나에 사람 질의 약 7~11번. Dreams 의 원리(입력 안 바꿈 · 결과 따로)를 로컬 세션 기록으로.
+- discarded alternatives: 진짜 Managed Agents Dreams API — 리서치 프리뷰 접근 · API 과금 · 기록 반출이 필요하고 Claude Code 세션 기록을 직접 못 읽음. 자동 발동 때 판정자 하루 한 번 — 사용자가 발동마다를 고름. 터미널만 — 분포를 보기 어려움.
+- refs: scv/promote/20261021-wookiya1364-scv-dreams-prompt-coach/PLAN.md
+- conversation: scv/conversations/20261021-165832-scv-dreams-prompt-coach.md
+
+## [2026-10-21 20:56] wookiya1364 — 다음 일은 묻지 말고 계속 — 막힌 것이 없으면 '다음?' 창으로 멈추지 않기 archived
+
+- verdict: archived
+- why: 선택 규칙 8조: 다음에 할 일은 그 자체로 결정이 아니다 — 막힌 것 없으면 진행, 끝나면 추천 다음 단계를 물음 없이 한 줄로. 진짜 결정(되돌리기 어려움 · 밖에 닿음 · 취향 · 범위 · 입력 없이 못 감)만 묻는다. 긴 과제 A/B 로 해롭지 않음(진짜 결정 창 111→108)은 확인, 줄어듦은 바닥 효과로 못 보임. 실사용 판정 기준(결과 전에 고정, 2026-10-21 선택 창): 릴리스 뒤 1주, 배경 작업 알림 직후 선택 창이 알림 100건당 전(225개 세션의 115개)의 절반 이하면 효과 있음.
+- path delta: 드림과 한 분기 · PR 하나로 묶음(사용자 결정) — 계획은 단독 PR 을 전제했다
+- refs: scv/archive/20261021-wookiya1364-no-idle-next-question/PLAN.md
+- conversation: scv/conversations/20261012-154556-boris-advice-check.md
+
+## [2026-10-21 20:56] wookiya1364 — 드림 — 프롬프트 코치 archived
+
+- verdict: archived
+- why: 로컬 드림: 세션 기록 · 보관 기록을 읽기만 해 기간별 질의 · 보관, 계획당 질의, 근거 붙은 개선점과 판정자 조언 · 예시를 HTML + 한 줄 요약으로. 발동은 직접 명령 · 대화 비움 · 압축 · 날짜 바뀜(모두 배경). 첫 실실행에서 붙여 넣은 이전 답변이 근거로 뽑혀 조언이 엇나가, 붙여 넣은 글 판별을 넣고 근거 고르기에서 뺐다 — 이후 사용자 '이대로 통과'. 실사용 판정 기준(결과 전에 고정, 2026-10-21 선택 창): 릴리스 뒤 2주, 요청에 완료 기준을 직접 말한 비율이 2%에서 10% 이상이면 효과 있음 — 계획당 질의는 보관이 적어 참고 숫자.
+- path delta: 작업자가 계획과 다르게: 질의 없는 자동 드림은 요약을 띄우지 않음, 날짜 표식은 훅이 먼저 씀(실패한 드림이 매 턴 다시 뜨지 않게), 같은 날 보관들은 질의를 나눔, 기간 길이는 기록 양(100턴 이상 열흘), 모델 답 없는 턴은 안 셈; '다음?' 창 계획과 한 PR 로 묶음
+- refs: scv/archive/20261021-wookiya1364-scv-dreams-prompt-coach/PLAN.md
+- conversation: scv/conversations/20261021-165832-scv-dreams-prompt-coach.md
