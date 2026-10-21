@@ -1,8 +1,9 @@
 ---
 slug: show-real-classifier-plan
 started_at: 2026-10-11T09:16:39+09:00
-status: promoted
+status: archived
 promoted_to: scv/promote/20261011-wookiya1364-show-real-classifier-rules/
+archived_at: 2026-10-11T19:12:11+09:00
 ---
 
 ## Turn 1 — 2026-10-11T09:16:39+09:00
