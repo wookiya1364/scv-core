@@ -23,7 +23,7 @@ fail() { echo "  ✖ FAIL: $1"; FAIL=$((FAIL + 1)); }
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/scv-help-guidance.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
-HELP_CMD='(action:|/scv:|\$scv:)help'
+HELP_CMD='[a-z/$]*:help'   # action:help 와, 래퍼가 바꿔 쓴 호스트 명령 모두
 
 # 새 폴더에 설치하고 설정 파일을 주어진 내용으로 둔다(빈 값이면 설정 파일 없음).
 new_proj() {
