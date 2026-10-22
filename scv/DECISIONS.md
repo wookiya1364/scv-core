@@ -1673,3 +1673,19 @@ merge_policy: preserve
 - path delta: 계획대로 + 진단 상태 줄 문구도 선택으로 바꿈, 템플릿 다이제스트 재생성, 확인 턴에서 놓친 이어가기 안내(hydrate.md) 1곳 추가 — 기준을 결과 전에 넣고 검사 1개 추가
 - refs: scv/archive/20261022-wookiya1364-help-guidance-auto-routing/PLAN.md
 - conversation: scv/conversations/20261022-020000-release-0-69-wrappers.md
+
+## [2026-10-22 17:04] wookiya1364 — SCV 업데이트 명령이 모드도 설치 · 업데이트 · 목록 · 삭제
+
+- verdict: adopted
+- why: 모드 설치 · 업데이트가 두 줄 명령 + 비공개 저장소 인증 + 다시 불러오기라 불편. 업데이트는 이미 래퍼 몫 명령(owner adapter)이라 코어 명령 수 그대로, Claude 래퍼에서 Claude Code CLI 로만 처리.
+- discarded alternatives: 코어 17번째 명령 — 두 동기화 봇이 멈추고 Codex 에선 못 씀; Claude 래퍼 전용 새 명령 — 사용자가 기존 업데이트 확장을 고름; scv-mods 저장소 스크립트 — SCV 안의 명령이 아니고 처음 설치 땐 저장소부터 받아야 함
+- refs: scv/promote/20261022-wookiya1364-update-installs-mods/PLAN.md
+- conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
+
+## [2026-10-22 23:39] wookiya1364 — SCV 모드 명령 셋 — 인자 없이 업데이트 · 설치 · 삭제 archived
+
+- verdict: archived
+- why: Claude 래퍼에 모드 전용 명령 셋을 넣었다: mods 는 설치된 모드 전부 업데이트 + 목록, mods-install · mods-remove 는 선택 창에서 고른다. 코어는 세 명령을 래퍼 몫(entrypoint 없음)으로 명령 목록 · 규약에만 싣고, Codex 는 '모드 없음' 한 줄로 답한다. 업데이트 명령은 원래대로 둔다. 실패한 단계를 완료로 보고하지 않고, 다시 불러오기 안내는 모드 목록이 바뀔 때만 낸다 — 이 둘은 깨지면 안 된다.
+- path delta: 계획은 /scv:update mods … 인자 확장이었으나 사용자가 '명령이 길고 인자는 구리다'고 해 인자 없는 명령 3개로 다시 설계 — 엔진 하나(mods.sh)를 세 스킬이 공유
+- refs: scv/archive/20261022-wookiya1364-update-installs-mods/PLAN.md
+- conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
