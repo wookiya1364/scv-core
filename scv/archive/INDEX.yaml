@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-10-21T11:56:43Z
+generated_at: 2026-10-22T05:24:05Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -363,4 +363,8 @@ archives:
   - slug: 20261021-wookiya1364-scv-dreams-prompt-coach
     title: "드림 — 프롬프트 코치 (지난 세션을 돌아보며 질의 ÷ 목표 도달 비율과 더 좋은 프롬프트 쓰는 법을 알려 준다)"
     kind: feature
+    status: testing
+  - slug: 20261022-wookiya1364-help-guidance-auto-routing
+    title: "자동 라우팅에 맞춘 안내 정리"
+    kind: refactor
     status: testing
