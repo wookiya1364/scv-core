@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-10-22T05:24:05Z
+generated_at: 2026-10-22T14:39:49Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -367,4 +367,8 @@ archives:
   - slug: 20261022-wookiya1364-help-guidance-auto-routing
     title: "자동 라우팅에 맞춘 안내 정리"
     kind: refactor
+    status: testing
+  - slug: 20261022-wookiya1364-update-installs-mods
+    title: "SCV 모드 명령 셋 — 인자 없이 업데이트 · 설치 · 삭제"
+    kind: feature
     status: testing
