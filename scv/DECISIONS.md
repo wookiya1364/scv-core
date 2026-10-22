@@ -1657,3 +1657,19 @@ merge_policy: preserve
 - path delta: 작업자가 계획과 다르게: 질의 없는 자동 드림은 요약을 띄우지 않음, 날짜 표식은 훅이 먼저 씀(실패한 드림이 매 턴 다시 뜨지 않게), 같은 날 보관들은 질의를 나눔, 기간 길이는 기록 양(100턴 이상 열흘), 모델 답 없는 턴은 안 셈; '다음?' 창 계획과 한 PR 로 묶음
 - refs: scv/archive/20261021-wookiya1364-scv-dreams-prompt-coach/PLAN.md
 - conversation: scv/conversations/20261021-165832-scv-dreams-prompt-coach.md
+
+## [2026-10-22 10:26] wookiya1364 — 자동 라우팅에 맞춘 안내 정리
+
+- verdict: adopted
+- why: 매 턴 훅이 기본으로 help 라우팅하는데 진단 · 설치 · 문서가 여전히 help "…" 직접 입력과 알림 설정을 첫 할 일로 안내해, 새 설치 세션이 설정 예시 복사 안내에 막혔다(재현). 코어에서 고치고 테스트로 고정.
+- discarded alternatives: ① 만 먼저 고치기 — 낡은 문구가 한동안 남음; 목록만 먼저 보기 — 사용자가 셋 다 고치기를 선택
+- refs: scv/promote/20261022-wookiya1364-help-guidance-auto-routing/PLAN.md
+- conversation: scv/conversations/20261022-020000-release-0-69-wrappers.md
+
+## [2026-10-22 14:24] wookiya1364 — 자동 라우팅에 맞춘 안내 정리 archived
+
+- verdict: archived
+- why: 진단 추천이 알림 미설정에서 '설정 예시 복사'로 멈추지 않고(선택 줄로 내림), 준비됨 · 설치 안내 첫 입구가 '그냥 말하기', 문서 · 메시지 6곳을 자동 라우팅 기준으로. 라우팅 끔(SCV_ALWAYS_ON=off)은 명령 안내 유지. 테스트 17개로 고정, codex 사본 코어 61/61.
+- path delta: 계획대로 + 진단 상태 줄 문구도 선택으로 바꿈, 템플릿 다이제스트 재생성, 확인 턴에서 놓친 이어가기 안내(hydrate.md) 1곳 추가 — 기준을 결과 전에 넣고 검사 1개 추가
+- refs: scv/archive/20261022-wookiya1364-help-guidance-auto-routing/PLAN.md
+- conversation: scv/conversations/20261022-020000-release-0-69-wrappers.md
