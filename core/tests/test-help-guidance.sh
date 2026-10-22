@@ -77,6 +77,7 @@ check_doc "raw 안내" "$(awk '/원자료가 아직 없다면/{f=1} f&&/계획 �
 check_doc "promote 의 다듬을 것 없음 메시지" "$(grep 'Nothing to refine' "$CORE/protocols/promote.md")"
 check_doc "대화 멈춤 안내" "$(grep -i 'pause for now' "$CORE/protocols/help/promote-handoff.md")"
 check_doc "help 규약 Mode B" "$(awk '/^## Mode B —/{f=1;next} f&&/^## /{exit} f' "$CORE/protocols/help/full.md")"
+check_doc "못 끝낸 대화 이어가기 안내" "$(grep 'unfinished conversation(s)' "$CORE/protocols/help/hydrate.md")"
 
 echo ""
 echo "PASS=$PASS FAIL=$FAIL"
