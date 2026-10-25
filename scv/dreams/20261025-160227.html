@@ -1,0 +1,64 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SCV 드림</title><style>:root{--bg:#171922;--panel:#1e1e1e;--line:#3a3d4a;--text:#e7e9f0;--muted:#9096a8;--accent:#7aa2f7;--warn:#e0af68}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 -apple-system,"Segoe UI",sans-serif}
+main{max-width:880px;margin:0 auto;padding:24px 16px}h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px}
+.muted{color:var(--muted)}.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 16px;margin:10px 0}
+table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}td.n{text-align:right}
+svg{width:100%;height:auto;margin:8px 0}svg .v{fill:var(--text);font-size:11px}svg .l{fill:var(--muted);font-size:10px}svg .axis{stroke:var(--line)}
+.ex{border-left:3px solid var(--line);padding-left:10px;margin:6px 0;color:var(--muted)}.adv{border-left:3px solid var(--accent);padding-left:10px;margin:8px 0}
+.none{color:var(--warn)}
+</style></head><body><main>
+<h1>SCV 드림 — 프롬프트 코치</h1><p class="muted">2026-10-25 16:02 · 세션 27개 · 사람 질의 152번 · 등록 111건 · 기간 단위: 열흘</p>
+<div class="card">계획 하나에 사람 질의 <b>6.1번</b>(보관 25개 · 그때까지 질의 152번)</div>
+<h2>기간별 질의 ÷ 보관</h2>
+<table><tr><th>기간</th><th>사람 질의</th><th>보관</th><th>비율</th></tr>
+<tr><td>2026-09-21..2026-09-30</td><td class="n">55</td><td class="n">10</td><td class="n">5.5</td></tr>
+<tr><td>2026-10-01..2026-10-10</td><td class="n">59</td><td class="n">8</td><td class="n">7.4</td></tr>
+<tr><td>2026-10-11..2026-10-20</td><td class="n">9</td><td class="n">3</td><td class="n">3.0</td></tr>
+<tr><td>2026-10-21..2026-10-31</td><td class="n">29</td><td class="n">4</td><td class="n">7.3</td></tr>
+</table>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" role="img" aria-label="기간별 사람 질의"><rect x="30" y="41" width="76" height="139" rx="3" fill="#7aa2f7"><title>09/21: 55</title></rect><text x="68" y="37" text-anchor="middle" class="v">55</text><text x="68" y="198" text-anchor="middle" class="l">09/21</text><rect x="110" y="30" width="76" height="150" rx="3" fill="#7aa2f7"><title>10/01: 59</title></rect><text x="148" y="26" text-anchor="middle" class="v">59</text><text x="148" y="198" text-anchor="middle" class="l">10/01</text><rect x="190" y="158" width="76" height="22" rx="3" fill="#7aa2f7"><title>10/11: 9</title></rect><text x="228" y="154" text-anchor="middle" class="v">9</text><text x="228" y="198" text-anchor="middle" class="l">10/11</text><rect x="270" y="107" width="76" height="73" rx="3" fill="#7aa2f7"><title>10/21: 29</title></rect><text x="308" y="103" text-anchor="middle" class="v">29</text><text x="308" y="198" text-anchor="middle" class="l">10/21</text><line x1="26" y1="180" x2="630" y2="180" class="axis"/></svg>
+<h2>계획마다 보관까지 걸린 질의</h2>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" role="img" aria-label="계획마다 보관까지 질의"><rect x="30" y="152" width="20" height="28" rx="3" fill="#9ece6a"><title>20260920-wookiya1364-rule-conflicts-followup: 3</title></rect><text x="40" y="148" text-anchor="middle" class="v">3</text><rect x="54" y="152" width="20" height="28" rx="3" fill="#9ece6a"><title>20260921-wookiya1364-followup-five: 3</title></rect><text x="64" y="148" text-anchor="middle" class="v">3</text><rect x="78" y="162" width="20" height="18" rx="3" fill="#9ece6a"><title>20260921-wookiya1364-open-items-followup: 2</title></rect><text x="88" y="158" text-anchor="middle" class="v">2</text><rect x="102" y="162" width="20" height="18" rx="3" fill="#9ece6a"><title>20260921-wookiya1364-process-metrics: 2</title></rect><text x="112" y="158" text-anchor="middle" class="v">2</text><rect x="126" y="134" width="20" height="46" rx="3" fill="#9ece6a"><title>20260927-wookiya1364-per-model-prompting: 5</title></rect><text x="136" y="130" text-anchor="middle" class="v">5</text><rect x="150" y="134" width="20" height="46" rx="3" fill="#9ece6a"><title>20260927-wookiya1364-prompting-read-verdict: 5</title></rect><text x="160" y="130" text-anchor="middle" class="v">5</text><rect x="174" y="134" width="20" height="46" rx="3" fill="#9ece6a"><title>20260927-wookiya1364-prompting-warn-delivery: 5</title></rect><text x="184" y="130" text-anchor="middle" class="v">5</text><rect x="198" y="115" width="20" height="65" rx="3" fill="#9ece6a"><title>20260928-wookiya1364-prompting-every-turn-checklist: 7</title></rect><text x="208" y="111" text-anchor="middle" class="v">7</text><rect x="222" y="115" width="20" height="65" rx="3" fill="#9ece6a"><title>20260928-wookiya1364-prompting-first-turn: 7</title></rect><text x="232" y="111" text-anchor="middle" class="v">7</text><rect x="246" y="30" width="20" height="150" rx="3" fill="#9ece6a"><title>20260930-wookiya1364-readme-refresh-core-wrappers: 16</title></rect><text x="256" y="26" text-anchor="middle" class="v">16</text><rect x="270" y="96" width="20" height="84" rx="3" fill="#9ece6a"><title>20260930-wookiya1364-rewrite-direct-feedback-principle: 9</title></rect><text x="280" y="92" text-anchor="middle" class="v">9</text><rect x="294" y="96" width="20" height="84" rx="3" fill="#9ece6a"><title>20261001-wookiya1364-auto-turns-pr-base-fixes: 9</title></rect><text x="304" y="92" text-anchor="middle" class="v">9</text><rect x="318" y="152" width="20" height="28" rx="3" fill="#9ece6a"><title>20261001-wookiya1364-restore-choice-questions: 3</title></rect><text x="328" y="148" text-anchor="middle" class="v">3</text><rect x="342" y="162" width="20" height="18" rx="3" fill="#9ece6a"><title>20261002-wookiya1364-stop-gates-each-once: 2</title></rect><text x="352" y="158" text-anchor="middle" class="v">2</text><rect x="366" y="96" width="20" height="84" rx="3" fill="#9ece6a"><title>20261003-wookiya1364-rewrite-stays-current: 9</title></rect><text x="376" y="92" text-anchor="middle" class="v">9</text><rect x="390" y="77" width="20" height="103" rx="3" fill="#9ece6a"><title>20261005-wookiya1364-verify-by-sample: 11</title></rect><text x="400" y="73" text-anchor="middle" class="v">11</text><rect x="414" y="77" width="20" height="103" rx="3" fill="#9ece6a"><title>20261007-wookiya1364-show-real-early: 11</title></rect><text x="424" y="73" text-anchor="middle" class="v">11</text><rect x="438" y="162" width="20" height="18" rx="3" fill="#9ece6a"><title>20261008-wookiya1364-harmful-change-ask-first: 2</title></rect><text x="448" y="158" text-anchor="middle" class="v">2</text><rect x="462" y="143" width="20" height="37" rx="3" fill="#9ece6a"><title>20261009-wookiya1364-show-real-at-checkpoint: 4</title></rect><text x="472" y="139" text-anchor="middle" class="v">4</text><rect x="486" y="143" width="20" height="37" rx="3" fill="#9ece6a"><title>20261011-wookiya1364-show-real-classifier-hybrid: 4</title></rect><text x="496" y="139" text-anchor="middle" class="v">4</text><rect x="510" y="152" width="20" height="28" rx="3" fill="#9ece6a"><title>20261011-wookiya1364-show-real-classifier-rules: 3</title></rect><text x="520" y="148" text-anchor="middle" class="v">3</text><rect x="534" y="134" width="20" height="46" rx="3" fill="#9ece6a"><title>20261021-wookiya1364-no-idle-next-question: 5</title></rect><text x="544" y="130" text-anchor="middle" class="v">5</text><rect x="558" y="143" width="20" height="37" rx="3" fill="#9ece6a"><title>20261021-wookiya1364-scv-dreams-prompt-coach: 4</title></rect><text x="568" y="139" text-anchor="middle" class="v">4</text><rect x="582" y="152" width="20" height="28" rx="3" fill="#9ece6a"><title>20261022-wookiya1364-help-guidance-auto-routing: 3</title></rect><text x="592" y="148" text-anchor="middle" class="v">3</text><rect x="606" y="152" width="20" height="28" rx="3" fill="#9ece6a"><title>20261022-wookiya1364-update-installs-mods: 3</title></rect><text x="616" y="148" text-anchor="middle" class="v">3</text><line x1="26" y1="180" x2="630" y2="180" class="axis"/></svg>
+<table><tr><th>계획</th><th>질의</th></tr>
+<tr><td>20260920-wookiya1364-rule-conflicts-followup</td><td class="n">3</td></tr>
+<tr><td>20260921-wookiya1364-followup-five</td><td class="n">3</td></tr>
+<tr><td>20260921-wookiya1364-open-items-followup</td><td class="n">2</td></tr>
+<tr><td>20260921-wookiya1364-process-metrics</td><td class="n">2</td></tr>
+<tr><td>20260927-wookiya1364-per-model-prompting</td><td class="n">5</td></tr>
+<tr><td>20260927-wookiya1364-prompting-read-verdict</td><td class="n">5</td></tr>
+<tr><td>20260927-wookiya1364-prompting-warn-delivery</td><td class="n">5</td></tr>
+<tr><td>20260928-wookiya1364-prompting-every-turn-checklist</td><td class="n">7</td></tr>
+<tr><td>20260928-wookiya1364-prompting-first-turn</td><td class="n">7</td></tr>
+<tr><td>20260930-wookiya1364-readme-refresh-core-wrappers</td><td class="n">16</td></tr>
+<tr><td>20260930-wookiya1364-rewrite-direct-feedback-principle</td><td class="n">9</td></tr>
+<tr><td>20261001-wookiya1364-auto-turns-pr-base-fixes</td><td class="n">9</td></tr>
+<tr><td>20261001-wookiya1364-restore-choice-questions</td><td class="n">3</td></tr>
+<tr><td>20261002-wookiya1364-stop-gates-each-once</td><td class="n">2</td></tr>
+<tr><td>20261003-wookiya1364-rewrite-stays-current</td><td class="n">9</td></tr>
+<tr><td>20261005-wookiya1364-verify-by-sample</td><td class="n">11</td></tr>
+<tr><td>20261007-wookiya1364-show-real-early</td><td class="n">11</td></tr>
+<tr><td>20261008-wookiya1364-harmful-change-ask-first</td><td class="n">2</td></tr>
+<tr><td>20261009-wookiya1364-show-real-at-checkpoint</td><td class="n">4</td></tr>
+<tr><td>20261011-wookiya1364-show-real-classifier-hybrid</td><td class="n">4</td></tr>
+<tr><td>20261011-wookiya1364-show-real-classifier-rules</td><td class="n">3</td></tr>
+<tr><td>20261021-wookiya1364-no-idle-next-question</td><td class="n">5</td></tr>
+<tr><td>20261021-wookiya1364-scv-dreams-prompt-coach</td><td class="n">4</td></tr>
+<tr><td>20261022-wookiya1364-help-guidance-auto-routing</td><td class="n">3</td></tr>
+<tr><td>20261022-wookiya1364-update-installs-mods</td><td class="n">3</td></tr>
+</table><p class="muted">마지막 보관 뒤(진행 중) 질의 15번</p>
+<h2>개선점</h2>
+<div class="card"><b>1. 요청에 완료 기준(무엇이 되면 끝인지)을 직접 말한 비율 2/111(2%)</b>
+<div class="ex">근거: scv claude code 깃헙 이슈에 아직 열려있는것 있거든. 그거 무슨 내용이야? 왜 열려있어야해?</div>
+<div class="ex">근거: 우리 작업남은거 뭐있더라 뭐하나 실패한거 넘긴거로 아는데</div>
+<div class="ex">근거: 시작해</div>
+<div class="adv none">조언 없음(판정자 없음)</div></div>
+<div class="card"><b>2. 요청에 깊이(어디까지 할지)를 직접 말한 비율 6/111(5%)</b>
+<div class="ex">근거: scv claude code 깃헙 이슈에 아직 열려있는것 있거든. 그거 무슨 내용이야? 왜 열려있어야해?</div>
+<div class="ex">근거: 우리 작업남은거 뭐있더라 뭐하나 실패한거 넘긴거로 아는데</div>
+<div class="ex">근거: 시작해</div>
+<div class="adv none">조언 없음(판정자 없음)</div></div>
+<div class="card"><b>3. 보관까지 질의가 많았던 계획 20260930-wookiya1364-readme-refresh-core-wrappers — 16번(중앙값 4번)</b>
+<div class="ex">근거: 아냐 이건 둬도 되는데, 리드미가 지금 만들어진것과 차이가 꽤클거같아서, 최신화가 필요해. 코어랑 래퍼두개 모두말이야</div>
+<div class="adv none">조언 없음(판정자 없음)</div></div>
+<p class="muted">드림은 입력(세션 기록 · 보관 기록)을 바꾸지 않는다. 발췌는 경로 · 메일 · 비밀값 · id 를 가린 짧은 글이다. 규칙: protocols/dreams.md</p></main></body></html>
