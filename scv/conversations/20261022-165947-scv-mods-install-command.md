@@ -63,3 +63,154 @@ protocol: 08eca6da
 **User**: 어디까지 했어
 
 **Claude Code**: 구현 · 시험은 끝, 커밋 · 보관 · 릴리스는 아직(확인). 세 저장소 모두 작업 브랜치에 변경만 있고 커밋 0 — 코어 22 · claude 14 · codex 11 파일. 시험: 계획 시험 41/41, codex 사본 코어 61/61, claude 전체 실행 통과, codex 검증 명령 19개, codex 플러그인 시험은 맥 전용 기존 실패 1건만. 다음: 계획 보관 승인(선택 창) → 코어 PR · 0.70.0 → 두 래퍼 손 동기화 → 래퍼 릴리스. 결과물 변화 없음.
+
+## Turn 8 — 2026-10-23T07:35:19+0900
+protocol: aa7bb610
+
+**User**: 궁금한거있어. scv-hello는 모드에 없는거맞지?
+
+**Claude Code**: 아니요, 모드에 있음(확인). scv-mods 마켓 목록에 든 모드는 scv-hello 하나뿐이고, 이 컴퓨터에도 이미 설치돼 있음(scv-hello@scv-mods, 사용자 범위). Claude 래퍼의 모드 엔진 주석도 예로 scv-hello 를 듦. 결과물 변화 없음.
+
+## Turn 9 — 2026-10-23T10:47:35+0900
+protocol: aa7bb610
+
+**User**: (다른 세션 링크) scv-hello 이름이 이상해서 scv-dashboard로 변경하는 중. scv-mods 에 hello 가 있을 것 같은데 확인하고, 변경돼야 하는 게 있으면 그 세션과 맞춰 고쳐 줘
+
+**Claude Code**: 조사(확인): scv-mods 로컬 사본(develop 39136c3)엔 아직 전부 scv-hello — 마켓 목록 · README · RELEASING · 모드 폴더 · 도구 이름 · 슬래시 명령. 코어 쪽은 바꿀 것 없음(CHANGELOG 과거 기록만). claude 래퍼: README 3개 언어 예시, mods.sh 주석, mods 스킬 3개 예시, test-mods 예시 이름. codex: mods 안내문 3개 · 스킬 3개. 모드 엔진은 이름을 박아 두지 않아 동작 영향 없음. 맥프로_scv-mods 세션에 새 이름 · 명령 · 도구 이름 · 기존 설치 이전 방식을 물음 — 답 기다리는 중.
+
+## Turn 10 — 2026-10-23T11:00:03+0900
+protocol: aa7bb610
+
+**User**: (scv-mods 세션 답) 이름 scv-dashboard@scv-mods, 명령 /scv-dashboard, 도구 mcp__scv-dashboard__scv_step, 마켓 목록에서 scv-hello 빼고 renames 남김, 옮기는 법 = 지우고 새로 설치, 모드 버전은 plugin.json(결과가 0.1.0 → 0.2.0 모양), develop 01e8035 미푸시
+
+**Claude Code**: 두 래퍼 예시를 scv-dashboard · 버전 모양으로 바꾸고 README 3개 언어에 옮기는 법 추가. 로컬: claude test-mods 41/0 · skill-descriptions 11/0 · core-contract 통과, codex verify-core · shared-core-adapter 42/0(test-codex-plugin 1건은 develop 그대로도 맥에서 나는 기존 실패). PR claude #365 · codex #299(develop 대상) 열고 CI 대기. 그 세션에 옛 설치본 update 가 renames 로 어떻게 끝나는지 실제 결과를 물음.
+
+## Turn 11 — 2026-10-23T11:04:37+0900
+protocol: aa7bb610
+
+**User**: (scv-mods 세션 실측) 마켓 갱신에 renames 가 켜기 줄을 새 이름으로 바꾸고 옛 설치 기록은 곧 사라짐, 새 이름 설치 0.1.0 성공. 걱정: 다른 컴퓨터에서 옛 이름 update 가 not found 로 실패하면 gh 인증 안내가 나옴. scv-mods 저장소가 공개로 나옴 — 비공개 문구는 결정 전 손대지 말 것. 원격 develop=main=98a09ce, 태그 scv-dashboard--v0.1.0
+
+**Claude Code**: README 3개 언어 옮기는 법을 "새 모드 설치, 남아 있으면 옛 모드 삭제"로. mods.sh: 모드 단계 not found 실패는 이름 바뀜 안내(마켓 단계 · 인증 문구는 그대로 인증 안내). 시험 2건 추가 45/0, 가짜 실행 출력 확인. PR #365 에 6358d6c 추가. 비공개 문구 · 첫 실패에서 멈추는 업데이트 흐름은 그대로. 실제 not-found 문구는 미확인(가정).
+
+## Turn 12 — 2026-10-23T11:10:10+0900
+protocol: aa7bb610
+
+**User**: (scv-mods 세션) 사용자가 scv-mods 를 공개로 두기로 함 — 비공개 문구를 공개로. scv-mods README 고침(develop bd13e1e), 0.1.0 릴리스 페이지 gh 로 만듦, 자동 작업에 workflow_dispatch 추가. not-found 실제 문구는 그쪽도 못 봄
+
+**Claude Code**: claude 래퍼: mods.sh 주석 · mods 스킬의 기본 마켓 설명을 공개로, 인증 안내 문구를 "마켓을 읽지 못했다 — 비공개 마켓이면 …"으로(다른 비공개 마켓용으로 남김). 코어 · codex 의 private 문구는 조건문(비공개 마켓이면)이라 그대로. test-mods 45/0, skill-descriptions 11/0. PR #365 에 커밋 추가.
+
+## Turn 13 — 2026-10-23T11:29:31+0900
+protocol: aa7bb610
+
+**User**: (scv-mods 세션) 다른 컴퓨터(옛 마켓 사본, scv-hello 설치) 실측: mods-install 후보 0, /scv:mods 가 update scv-hello not found 로 멈추며 인증 안내 · 목록 없음, mods-remove 지울 것 없음, 끝 상태 둘 다 미설치. 제안: 설치 보기 전 마켓 갱신, 새로고침은 갱신 뒤 마켓에 없는 모드는 update 대신 renamed/removed 결과 + 목록
+
+**Claude Code**: 가짜 claude 로 재현(7건 실패) 뒤 고침: 설치 보기도 marketplace update 먼저, 새로고침은 갱신 뒤 받아 둔 marketplace.json(plugins · renames, 읽기만)과 비교해 없는 모드는 RESULT renamed <new> | gone + 옮기는 법, 목록까지(종료 0), 못 읽으면 예전처럼. BSD awk -v 줄바꿈 거부도 고침(환경으로). 54/0, 실제 설치본 새로고침 · 설치 보기 무해(up-to-date 0.1.0). PR #365 커밋 572b929, CI 대기. 병합 · 릴리스는 승인 뒤.
+
+## Turn 14 — 2026-10-23T13:21:45+0900
+protocol: 3553b56d
+
+**User**: 어디까지 진행했어?
+
+**다시 쓴 요청**: scv-hello → scv-dashboard 이름 바꿈 맞추기가 어디까지 왔는지 확인된 것과 남은 것을 나눠 짧게 알려 주고, 남은 병합 · 릴리스는 선택 창으로 물어 줘. 파일은 바꾸지 마. [SCV 원칙 적용 — 단위 표]
+
+**Claude Code**: 고침은 다 만들어 두었고 병합 · 릴리스만 남음(확인). claude PR #365(이름 바꿈 맞춤 + 이름 바뀐 직후 모드 흐름 고침, 테스트 54/0, CI 6/6) · codex PR #299(이름만, CI 5/5) 둘 다 열림 · 충돌 없음. scv-mods 쪽은 scv-dashboard 0.1.0 출시 · 설명서 옮기는 법 ad80bf3 올림. 남음: 두 PR 병합 → claude 0.70.1 · codex 래퍼 릴리스(승인 필요). 미확인: 실제 Claude Code 의 not found 문구, 리눅스 · 다른 컴퓨터 실행. 결과물 변화 없음. 병합 · 릴리스를 선택 창으로 물음.
+
+## Turn 15 — 2026-10-23T13:37:45+0900
+protocol: 16129834
+
+**User**: 다했어?
+
+**다시 쓴 요청**: 두 래퍼 릴리스(claude 0.70.1 · codex 0.70.0-codex.2)가 다 나왔는지 promote 실행과 최신 릴리스로 확인해 짧게 알려 줘. 파일은 바꾸지 마. [SCV 원칙 적용 — 단위 표]
+
+**Claude Code**: 아직 아님(확인). 고침 PR #365 · #299, 릴리스 PR #366 · #300 은 병합. 두 promote 는 13:35 시작해 13:37 기준 실행 중, 최신 릴리스는 아직 0.70.0 · 0.70.0-codex.1. 끝나면 알림으로 확인해 보고. 결과물 변화 없음.
+
+## Turn 16 — 2026-10-23T13:45:56+0900
+protocol: 39a196d0
+
+**User**: claude 래퍼 실패한거같다
+
+**다시 쓴 요청**: claude 래퍼 0.70.1 릴리스가 어디서 왜 실패했는지 CI 로그로 확인하고, 다시 돌릴지 · 기준을 고칠지는 선택 창으로 물어 줘. 파일은 아직 바꾸지 마. [SCV 원칙 적용 — 단위 표]
+
+**Claude Code**: 맞음(확인). promote 가 develop→stage 뒤 stage 의 Contract(macos) 실패로 멈춤 — 드림 훅 지연 검사 \"resume: 훅 지연 0.572s (base 0.029s)\", 더한 지연 상한 0.5s 를 0.04s 넘김. 우분투 통과, 나머지 54/0 등 통과. 0.70.0 때와 같은 검사(그때 0.63s, 다시 돌려 통과) — 두 번째. 이번 변경(모드 이름)과 무관. 검사는 코어 테스트(test-dreams.sh 283줄)라 기준을 고치려면 코어 릴리스가 필요. stage→main PR #368 열림. 다시 돌릴지 · 기준 고칠지 선택 창으로 물음.
+
+(Turn 16 이어서 — 선택 창 답: "속도검사 기준이 너무 빡빡하니까, 좀 널널하게 잡아서 되게해라.")
+
+**다시 쓴 요청**: 드림 훅 속도 검사에서 '더한 지연' 상한을 0.5초에서 1.0초로 늘려(전체 1.5초 상한은 그대로) 코어 PR → 코어 0.70.1 릴리스 → claude 래퍼 동기화 뒤 멈춘 0.70.1 릴리스를 다시 내 줘. codex 는 봇 동기화로 따라가게 두고, CI 실패나 예상 밖이면 그 단계에서 멈추고 보고, 안전 검사 우회 금지.
+
+**Claude Code**: 코어 test-dreams.sh 283줄 상한 0.5→1.0s(전체 1.5s 유지), 로컬 맥 99/0. 코어 PR #340([no-plan]) 열고 CI 대기. 보관된 계획 TESTS.md 의 0.5초 기준은 보관본이라 그대로.
+
+(Turn 16 결과 — 자동 알림 턴들) 코어 #340 · #341 병합 → codex 사본 코어 테스트 61/61 → 코어 v0.70.1 릴리스 · release.yml 성공 → claude 동기화 #369 · 노트 #370 병합 → claude promote 성공, v0.70.1 Latest 2026-10-23T05:56:20Z(Core pin 0.70.1). codex v0.70.0-codex.2 Latest. codex 봇이 코어 0.70.1 동기화 실행 중.
+
+## Turn 17 — 2026-10-23T14:57:59+0900
+protocol: 70553dab
+
+**User**: 끝난거같은데 확인해봐.
+
+**다시 쓴 요청**: 코어 · claude · codex 세 저장소의 최신 릴리스, 실행 중인 작업, 열린 PR 을 다시 조회해 정말 다 끝났는지 확인해 줘. 남은 게 있으면 무엇인지 말하고, 더 할 일은 선택 창으로 물어. 파일은 바꾸지 마. [SCV 원칙 적용 — 단위 표]
+
+**Claude Code**: 요청한 일은 끝남(확인): 코어 v0.70.1(05:30Z, release 성공) · claude v0.70.1(05:56Z) · codex v0.70.0-codex.2(04:57Z) 최신. 남은 것: codex 봇이 코어 0.70.1 동기화 PR #303 을 열었고 CI 실행 중(테스트 하나 바뀐 동기화 — codex 사용자 동작 변화 없음). 옛 #292 열림. 오늘 SCV 기록 미커밋. 결과물 변화 없음. #303 처리를 선택 창으로 물음.
+
+## Turn 18 — 2026-10-23T15:02:38+0900
+protocol: d16a54f0
+
+**User**: (다른 세션 링크 · 스크린샷) 왜 안나와??대시보드
+
+**다시 쓴 요청**: 스크린샷의 왼쪽 세션에서 /scv-dashboard 가 'SCV dashboard is open' 이라고 했는데 대시보드 칸이 안 보이는 이유를 설치된 모드 코드와 설명서로 확인해서, 확인 · 추정을 나눠 짧게 알려 주고 내가 할 다음 행동 하나를 말해 줘. 모드는 고치지 마.
+
+**Claude Code**: 확인: 그 문구는 앱이 칸을 놓았다고 답한 경우에만 나옴(register.tsx 288-290, isPlaced=true) — 실패면 \"is not drawn here\". 계획이 없는 폴더여도 안내 글을 그림(517). 칸은 채팅 옆에 붙는 SCV 칸(README 7). 추정: 세 세션을 나란히 놓아 각 칸이 좁아 옆 칸이 접힘/밀림 — 앱 화면 배치 문제. 다음 행동: 왼쪽 세션만 넓게(다른 둘 닫거나 창 최대화) 보고 칸 목록/오른쪽 가장자리 확인. 결과물 변화 없음.
+
+(Turn 17 결과 — 자동 알림 턴) codex #303 병합 → 릴리스 PR #304 CI 통과 · 병합 → promote 성공, v0.70.1-codex.1 Latest 2026-10-23T06:44:19Z. 세 저장소 모두 0.70.1 계열.
+
+## Turn 19 — 2026-10-25T13:27:48+0900
+protocol: d16a54f0
+
+**User**: (/plugin marketplace update scv-claude-code → /reload-plugins → /scv-dashboard "SCV dashboard is open." 뒤) /scv:mods
+
+**다시 쓴 요청**: 설치된 SCV 모드를 최신으로 올리고 결과와 목록을 그대로 알려 줘. 프로젝트 파일과 플러그인 폴더는 손대지 마.
+
+**Claude Code**: scv-dashboard 0.2.0 → 0.2.1 로 올라감(확인 — 도우미 출력: 마켓 갱신 ok, 업데이트 ok). 목록: scv-dashboard 0.2.1 설치됨(다른 모드 없음). 다음: /reload-plugins 또는 새 세션을 열어야 바뀐 모드가 돈다. 결과물 변화 없음(프로젝트 파일).
+
+## Turn 20 — 2026-10-25T14:19:22+0900
+protocol: d16a54f0
+
+**User**: (/scv-dashboard "SCV dashboard is open." 뒤) /scv:mods
+
+**다시 쓴 요청**: 설치된 SCV 모드를 최신으로 올리고 결과와 목록을 그대로 알려 줘. 프로젝트 파일과 플러그인 폴더는 손대지 마.
+
+**Claude Code**: scv-dashboard 0.2.1 → 0.2.2(확인 — 마켓 갱신 · 업데이트 ok). 목록: scv-dashboard 0.2.2 설치됨. 다음: /reload-plugins 또는 새 세션. 결과물 변화 없음.
+
+## Turn 21 — 2026-10-25T14:20:05+0900
+protocol: d16a54f0
+
+**User**: (/reload-plugins 뒤) /scv:mods-install
+
+**다시 쓴 요청**: 설치할 수 있는 SCV 모드를 보여 주고, 내가 고른 것을 설치해 결과를 알려 줘. 프로젝트 파일과 플러그인 폴더는 손대지 마.
+
+**Claude Code**: 새로 설치할 모드 없음(확인 — 마켓 갱신 ok, 후보 줄 없음: 마켓에 있는 모드는 scv-dashboard 하나이고 이미 0.2.2 설치됨). 결과물 변화 없음.
+
+## Turn 22 — 2026-10-25T14:30:45+0900
+protocol: d16a54f0
+
+**User**: (/scv-dashboard → "열림, 다른 기기 앱에서 보려면 그 앱이 직접 연 세션에서 /scv-mirror session_…" → 이 세션에서 /scv-mirror 실행 → "이 세션 자신이라 보낼 곳 없음" 오류 뒤) /scv:mods
+
+**다시 쓴 요청**: 설치된 SCV 모드를 최신으로 올리고 결과와 목록을 그대로 알려 줘. 프로젝트 파일과 플러그인 폴더는 손대지 마.
+
+**Claude Code**: scv-dashboard 0.2.2 → 0.2.3(확인 — 마켓 갱신 · 업데이트 ok). 목록: scv-dashboard 0.2.3. 다음: /reload-plugins 또는 새 세션. 거울 오류는 같은 세션에서 쳐서 난 것(확인 — 오류 문구) — 안내대로 다른 기기 앱이 직접 연 세션에서 쳐야 함. 결과물 변화 없음.
+
+## Turn 23 — 2026-10-25T14:44:39+0900
+protocol: d16a54f0
+
+**User**: (/reload-plugins → /scv-mirror session_01SmSNLxDYMs3PVqdSJhB51T "거울 요청을 보냈습니다" → /scv-mirror stop "거울 끔" 뒤) /scv:mods
+
+**다시 쓴 요청**: 설치된 SCV 모드를 최신으로 올리고 결과와 목록을 그대로 알려 줘. 프로젝트 파일과 플러그인 폴더는 손대지 마.
+
+**Claude Code**: scv-dashboard 0.2.3 → 0.2.4(확인 — 마켓 갱신 · 업데이트 ok). 목록: scv-dashboard 0.2.4. 다음: /reload-plugins 또는 새 세션. 거울: 다른 세션 지정 시 요청 전송 · 끄기 모두 정상 응답(확인 — 명령 출력), 상대 세션 화면에 실제로 떴는지는 미확인. 결과물 변화 없음.
+
+## Turn 24 — 2026-10-25T14:46:27+0900
+protocol: a75768ef
+
+**User**: (/reload-plugins 뒤) 어디까지 진행했어?
+
+**다시 쓴 요청**: 0.70.1 릴리스와 대시보드 모드 작업이 어디까지 됐는지, 끝난 것과 남은 것을 근거와 함께 짧게 알려 줘. 아무것도 고치지 말고, 남은 일은 할지 선택 창으로 물어.
+
+**Claude Code**: 끝(확인): 코어 · claude · codex 0.70.1 계열 릴리스, codex develop · main 모두 코어 0.70.1. 대시보드 모드 0.2.4 설치 · 다시 불러옴, 거울 요청 · 끄기 응답 정상. 남음(확인): 오늘 SCV 기록 미커밋(대화 · 일지 · 드림 보고서), codex 열린 PR 2개 — #306(0.70.1 동기화 봇 PR, #303 병합 11분 뒤 같은 브랜치로 다시 열림 — 이미 들어간 내용, 추정: 중복) · #292(0.69.1, 낡음). 미확인: 리눅스에서 모드 명령, 거울 칸에 상대 세션이 실제로 보였는지. 결과물 변화 없음. 남은 일은 선택 창으로 물음.
