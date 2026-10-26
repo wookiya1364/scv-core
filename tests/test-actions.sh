@@ -14,11 +14,12 @@ expected = {
     "help", "status", "promote", "work", "codegen", "deck", "update",
     "regression", "report", "sync", "install-deps", "workspace", "handoff",
     "set-models", "routine", "dreams", "mods", "mods-install", "mods-remove",
+    "channel",
 }
 assert catalog["core_api"] == 1
-assert len(actions) == 19
+assert len(actions) == 20
 assert {a["id"] for a in actions} == expected
-assert len({a["id"] for a in actions}) == 19
+assert len({a["id"] for a in actions}) == 20
 
 for action in actions:
     protocol = root / "core" / action["protocol"]
@@ -27,7 +28,7 @@ for action in actions:
         assert action["entrypoint"], action
         assert (root / "core" / action["entrypoint"]).is_file(), action
     else:
-        assert action["id"] in {"update", "set-models", "mods", "mods-install", "mods-remove"}, action
+        assert action["id"] in {"update", "set-models", "mods", "mods-install", "mods-remove", "channel"}, action
         assert action["entrypoint"] is None, action
 
 assert not (root / "core/scripts/update.sh").exists()
