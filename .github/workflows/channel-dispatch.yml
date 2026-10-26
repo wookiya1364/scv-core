@@ -1,0 +1,66 @@
+name: Channel dispatch
+
+# 채널(개발 · 스테이징, 0.71.0+): Core 의 develop · stage 가 바뀌면 두 래퍼에 알린다. 래퍼의 채널 동기화가
+# channel/dev · channel/stage 브랜치를 그 Core 커밋으로 다시 만든다(protocols/channel.md). 래퍼의 develop · stage ·
+# main 과 릴리스 체인(scv-core-released)은 건드리지 않는다 — 이 알림이 실패해도 릴리스에는 아무 영향이 없다.
+on:
+  push:
+    branches: [develop, stage]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: channel-dispatch-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SCV_WRAPPER_SYNC_TOKEN: ${{ secrets.SCV_WRAPPER_SYNC_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # release.yml 의 알림 단계와 같은 모양: 래퍼마다 따로 세 번까지 시도하고, 하나라도 못 받으면 이 실행이 빨갛다.
+      - name: Dispatch wrapper channel sync
+        env:
+          GH_TOKEN: ${{ env.SCV_WRAPPER_SYNC_TOKEN }}
+        run: |
+          set -uo pipefail
+          if [ -z "${SCV_WRAPPER_SYNC_TOKEN:-}" ]; then
+            echo "::error::SCV_WRAPPER_SYNC_TOKEN is not configured; neither wrapper was notified."
+            exit 1
+          fi
+          case "$GITHUB_REF_NAME" in
+            develop) channel=dev ;;
+            stage) channel=stage ;;
+            *) echo "::error::not a channel branch: $GITHUB_REF_NAME"; exit 1 ;;
+          esac
+          version=$(tr -d '[:space:]' < VERSION)
+          failed=""
+          for repository in scv-claude-code scv-codex; do
+            sent=""
+            for attempt in 1 2 3; do
+              if gh api --method POST "repos/wookiya1364/${repository}/dispatches" \
+                  -f event_type=scv-core-channel \
+                  -f "client_payload[channel]=$channel" \
+                  -f "client_payload[sha]=$GITHUB_SHA" \
+                  -f "client_payload[version]=$version"; then
+                sent=yes
+                echo "dispatched ${repository} ${channel} ${GITHUB_SHA:0:7} (attempt ${attempt})"
+                break
+              fi
+              [ "$attempt" -lt 3 ] && sleep $((attempt * 5))
+            done
+            if [ -z "$sent" ]; then
+              failed="${failed}${failed:+, }${repository}"
+              echo "::error::Failed to notify ${repository} after 3 attempts."
+            fi
+          done
+          if [ -n "$failed" ]; then
+            echo "Not notified: ${failed}. Re-send with: gh workflow run channel-dispatch.yml --ref ${GITHUB_REF_NAME}" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
