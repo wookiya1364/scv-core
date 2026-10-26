@@ -131,3 +131,5 @@ decision	자동-라우팅에-맞춘-안내-정리	scv/DECISIONS.md	201230	695	20
 decision	자동-라우팅에-맞춘-안내-정리-archived	scv/DECISIONS.md	201925	843	2026-10-22 14:24	[archived] 자동 라우팅에 맞춘 안내 정리 archived
 decision	scv-업데이트-명령이-모드도-설치-업데이트-목록-삭제	scv/DECISIONS.md	202768	854	2026-10-22 17:04	[adopted] SCV 업데이트 명령이 모드도 설치 · 업데이트 · 목록 · 삭제
 decision	scv-모드-명령-셋-인자-없이-업데이트-설치-삭제-archived	scv/DECISIONS.md	203622	1039	2026-10-22 23:39	[archived] SCV 모드 명령 셋 — 인자 없이 업데이트 · 설치 · 삭제 archived
+decision	scv-개발-스테이징-채널-운영-릴리스-없이-바꿔-끼워-받아-확인	scv/DECISIONS.md	204661	779	2026-10-26 09:31	[adopted] SCV 개발 · 스테이징 채널 — 운영 릴리스 없이 바꿔 끼워 받아 확인
+decision	scv-개발-스테이징-채널-운영-릴리스-없이-바꿔-끼워-받아-확인-archived	scv/DECISIONS.md	205440	1012	2026-10-26 11:01	[archived] SCV 개발 · 스테이징 채널 — 운영 릴리스 없이 바꿔 끼워 받아 확인 archived
