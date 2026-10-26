@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-10-22T14:39:49Z
+generated_at: 2026-10-26T02:01:55Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -370,5 +370,9 @@ archives:
     status: testing
   - slug: 20261022-wookiya1364-update-installs-mods
     title: "SCV 모드 명령 셋 — 인자 없이 업데이트 · 설치 · 삭제"
+    kind: feature
+    status: testing
+  - slug: 20261026-wookiya1364-dev-stage-channels
+    title: "SCV 개발 · 스테이징 채널 — 운영 릴리스 없이 바꿔 끼워 받아 확인"
     kind: feature
     status: testing

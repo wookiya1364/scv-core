@@ -227,6 +227,7 @@ Skills
   action:dreams     Look back over past sessions — requests per archived plan + prompt tips (HTML report)
   action:update     the host agent marketplace update guide
   action:mods       Update the installed SCV mods and list them (mods-install / mods-remove pick one)
+  action:channel    Switch the installed SCV between dev / stage / prod (try new work before a release)
   action:set-models Explain the host agent session-level model selection compatibility
 
 EOF
