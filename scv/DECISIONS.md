@@ -1689,3 +1689,19 @@ merge_policy: preserve
 - path delta: 계획은 /scv:update mods … 인자 확장이었으나 사용자가 '명령이 길고 인자는 구리다'고 해 인자 없는 명령 3개로 다시 설계 — 엔진 하나(mods.sh)를 세 스킬이 공유
 - refs: scv/archive/20261022-wookiya1364-update-installs-mods/PLAN.md
 - conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
+
+## [2026-10-26 09:31] wookiya1364 — SCV 개발 · 스테이징 채널 — 운영 릴리스 없이 바꿔 끼워 받아 확인
+
+- verdict: adopted
+- why: 운영 릴리스가 나와야만 확인 가능한 불편을 없앤다. 브랜치를 붙인 마켓 추가가 실제로 됨(확인) — 채널은 하나씩 바꿔 끼우고, 래퍼 develop · stage 가 코어 같은 브랜치를 자동으로 따라간다.
+- discarded alternatives: 채널별 마켓 이름으로 동시 설치 — 브랜치 병합 때마다 이름을 되돌려야 하고 명령이 두 벌이라 혼동; 개발 채널만 — 사용자가 스테이징까지 원함
+- refs: scv/promote/20261026-wookiya1364-dev-stage-channels/PLAN.md
+- conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
+
+## [2026-10-26 11:01] wookiya1364 — SCV 개발 · 스테이징 채널 — 운영 릴리스 없이 바꿔 끼워 받아 확인 archived
+
+- verdict: archived
+- why: channel 액션(어댑터 몫): 지우기 → 브랜치 붙여 다시 넣기 → 설치로 채널을 바꿔 끼우고, 브랜치가 없으면 아무것도 지우지 않으며 실패하면 원래 채널로 되돌린다. 채널 버전(다음 패치 -dev/-stage.<커밋>)이 있어야 같은 버전 캐시를 쓰지 않는다(확인). codex 는 --ref 와 config.toml 의 ref 로 같은 방식.
+- path delta: 채널은 래퍼 develop · stage 가 아니라 channel/dev · channel/stage 브랜치 — 래퍼 develop 에 코어 개발분을 자동으로 넣으면 릴리스 동기화 PR 이 비어 운영 절차가 흔들린다. 명령 실행부는 mods 처럼 래퍼 몫, 코어는 규약과 순수부만.
+- refs: scv/archive/20261026-wookiya1364-dev-stage-channels/PLAN.md
+- conversation: scv/conversations/20261022-165947-scv-mods-install-command.md

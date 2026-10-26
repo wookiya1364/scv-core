@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated_at": "2026-10-22T08:04:16Z",
+  "updated_at": "2026-10-26T00:36:04Z",
   "files": {
     "scv/raw/20261001-hook-path-bash32-audit.md": { "size": 3354, "mtime": "2026-10-01T02:15:20Z" },
     "scv/raw/20261001-resume-recap-stale-conversation.md": { "size": 1918, "mtime": "2026-10-01T13:52:26Z" },
