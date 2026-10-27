@@ -211,7 +211,7 @@ to another computer is in the
 
 ## Enforcement layers
 
-Three checks defend the workflow. They are easy to mistake for one another, so
+Four checks defend the workflow. They are easy to mistake for one another, so
 the difference is stated once here: they run at different times, read different
 evidence, and answer different questions.
 
@@ -220,6 +220,7 @@ evidence, and answer different questions.
 | Workspace guard — `core/template/hooks/guard.sh` | at runtime, on a tool call | the host's tool-call payload | an SCV action ran in this session |
 | Provenance gate — `core/scripts/check-provenance.sh` | at merge time, on a pull request | the resulting diff | this change came from a plan |
 | Vendor gate — `core/scripts/check-vendor-provenance.sh` | at merge time, on a pull request | the resulting diff | who moved the pinned Core |
+| Privacy gate — `core/scripts/check-privacy.sh` | at merge time, on a pull request | commit messages and added lines | no local paths, session ids, or private terms enter a public repository |
 
 The guard is a `PreToolUse` hook. It denies creating a plan file under
 `<scv_root>/promote/` without a receipt, and writing outside the workflow
@@ -260,6 +261,20 @@ belongs to planned work"; only the merge-time gate enforces the second.
 
 Both gates ship in the Core payload and run from each wrapper's own branch-flow
 workflow, against that wrapper's vendored copy.
+
+The privacy gate keeps local paths (home and temporary folders), session ids,
+and session-link trailers out of commit messages and added lines. Words that
+identify a person's private context (an employer's team names, for example) are
+never written into the repository; they reach the gate only through the
+`SCV_PRIVACY_TERMS` Actions secret (one per line) and are masked in its output.
+Author names and email addresses are left alone by default, since a public
+account's identity is often intentional; `SCV_PRIVACY_EMAILS=on` also requires
+noreply authors and refuses personal email addresses. `tools/privacy-audit.sh`
+runs the same rules over every branch and tag of a repository's history. In
+October 2026 this repository's history was rewritten to remove such data; the
+old → new commit ids are listed in [history-rewrite-2026-10.tsv](history-rewrite-2026-10.tsv),
+which is how a wrapper's recorded `source_commit` from before that date maps to
+today's history.
 
 ## Process dashboard
 

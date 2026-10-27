@@ -1721,3 +1721,11 @@ merge_policy: preserve
 - path delta: 새 검사(test-docs-coverage)를 만들지 않고 기존 tools/check-readme.sh 를 키움 — 두 래퍼 CI 가 이미 돌리는 검사라 같은 일을 두 곳에 두지 않으려고. 래퍼 · 모드 README 와 GIF 는 배경 도우미 둘이 병렬로. demo 에 esbuild 빌드 승인(pnpm 11) 추가.
 - refs: scv/archive/20261027-wookiya1364-docs-refresh-diagrams/PLAN.md
 - conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
+
+## [2026-10-27 11:00] wookiya1364 — 공개 저장소 개인정보 정리 — 과거 기록까지 지우고, 다시 쌓이지 않게, SCV 기록은 비공개 저장소로
+
+- verdict: adopted
+- why: 감사에서 네 공개 저장소에 실명 · 개인 메일(커밋 약 1,240) · 세션 id(메시지 약 340) · 코어 · 모드 기록 속 개인 대화 · 경로가 나옴. filter-repo 로 모든 ref 를 다시 쓰고(코어 먼저 → 번호 표로 래퍼 고정 갱신), CI 개인정보 검사로 재발을 막고, 기록은 비공개 scv-records 로.
+- discarded alternatives: 앞으로만 막기 — 사용자가 과거 기록까지 제거를 요구; 열린 PR 을 열어 둔 채 함께 옮기기 — 단계가 늘고 리뷰 기록이 어긋남, 먼저 병합으로 대체; 저장소마다 비공개 기록 저장소 — 관리할 저장소가 늘어남; 저장소를 지우고 새로 만들기 — 스타 · 포크 · 릴리스 · 이슈를 잃음
+- refs: scv/promote/20261027-wookiya1364-privacy-history-purge/PLAN.md
+- conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
