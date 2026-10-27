@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-10-27T01:31:35Z
+generated_at: 2026-10-27T04:01:57Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -379,4 +379,8 @@ archives:
   - slug: 20261027-wookiya1364-docs-refresh-diagrams
     title: "코어 · 래퍼 · 모드 문서 최신화 — 빠진 기능 채우기 + 루프 · 구조 · 미러 그림"
     kind: feature
+    status: done
+  - slug: 20261027-wookiya1364-privacy-history-purge
+    title: "공개 저장소 개인정보 정리 — 과거 기록까지 지우고, 다시 쌓이지 않게, SCV 기록은 비공개 저장소로"
+    kind: refactor
     status: testing

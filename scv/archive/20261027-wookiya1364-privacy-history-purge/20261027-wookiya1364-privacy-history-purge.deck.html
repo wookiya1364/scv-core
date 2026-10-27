@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Architecture — 공개 저장소 개인정보 정리</title>
+<style>
+/* Dark only — the light token set and its toggle were removed:
+   FE 프로젝트의 다크-기본+라이트-오버라이드 관례와 동일한 모양(속성 하나만 바뀌면
+   전체가 재테마된다). head 맨 앞 인라인 스크립트가 pre-paint 로 저장된 선택을 적용해
+   깜빡임(FOUC)이 없다. */
+/* Dark only. Ported from the owner's DesignSystem .dark block (shadcn oklch ->
+   sRGB, every neutral at chroma 0). The blue-cast greys this replaces
+   (#171922 / #1d2029 / #2c3040 / #9096a8) were the single loudest reason the
+   two decks read as different systems.
+
+   Contrast figures are WCAG 2.x, measured against the surface named. */
+:root{
+  /* surfaces */
+  --bg:#0a0a0a;                  /* the one ground */
+  --panel:#171717;               /* cards, aside, code */
+  --surface-2:#121212;           /* zebra rows, quiet fills */
+  --surface-3:#151515;           /* table head, code block */
+
+  /* text */
+  --fg:#fafafa;                  /* 18.97:1 on --bg */
+  --fg-body:#e2e2e2;             /* 15.28:1 on --bg  · body copy */
+  --fg-soft:#d6d6d6;             /* 13.62:1 on --bg  · text inside a tinted card */
+  --muted-foreground:#a1a1a1;    /*  7.66:1 on --bg  · 6.94:1 on --panel */
+
+  /* lines — alpha so ONE value composites correctly over bg and panel alike */
+  --border:rgba(255,255,255,.10);
+  --border-strong:#707070;       /* load-bearing rules. Measured where it actually
+                                    sits, not on --bg: 3.62:1 on --panel (node
+                                    fill), 3.69:1 on --surface-3 (figure ground),
+                                    5.87:1 on --bg. #4d4d4d cleared 3:1 against
+                                    --bg alone and failed at 2.12:1 on a node. */
+  --ring:#737373;                /*  4.18:1 on --bg */
+
+  /* brand — the owner's rose, kept for a public product on their say-so.
+     TWO values, because one cannot do both jobs: oklch(.455 .188 13.697)
+     = #a50036 measures 2.50:1 as text on --bg and is unreadable. The text
+     value is the same hue lifted in lightness only. */
+  --primary:#a50036;             /* fill · white on it 7.58:1 */
+  --primary-text:#fc7184;        /* text · 7.39:1 on --bg · 6.69:1 on --panel */
+  --on-primary:#fafafa;          /* 7.58:1 on the --primary plate */
+
+  /* status */
+  --good:#4bd39a;                /*  9.53:1 on --bg */
+  --warn:#e3b153;                /*  9.18:1 on --bg */
+  --danger:#f4837f;              /*  7.22:1 on --bg */
+  --on-warn:#241a06;             /*  8.72:1 on the --warn plate */
+}
+*{box-sizing:border-box}
+/* One scroll region, and only one. The app shell owns the scrolling; the document
+   behind it must never scroll too. Without this the page picks up a second scrollbar
+   whenever the shell ends up a few pixels taller than the viewport (100svh vs 100%
+   rounding is enough), and the reader gets two bars with no way to tell which one the
+   wheel will move. Print restores normal flow below. */
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+html{scroll-behavior:smooth}
+body{margin:0;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:var(--fg);background:var(--bg)}
+/* Controls do not inherit the document font — a UA default applies unless asked.
+   Six controls below set font-size alone or an invalid `font:` shorthand, and
+   all of them rendered in 13.333px/400/Arial. This one line is what makes the
+   per-control rules that follow actually reach the element. */
+button,input,select,textarea{font:inherit;color:inherit}
+/* 문서 = 스크롤되는 본문(좌) + 상시 원문 마크다운 패널(우, sticky) — 이게 scv:deck 의
+   정체성이다: 렌더링과 원문이 늘 같은 화면에 나란히 있어야 서로 어긋나지 않았다는 게
+   보장된다. 인쇄 시에는 패널을 접고 본문 뒤에 원문을 부록으로 붙인다(.print-source). */
+/* Three rows over the viewport: header, content, footer. The header and the
+   footer are chrome and must not scroll away with the text — before this they
+   lived inside .wrap and pushed 268px of nav in front of the first sentence. */
+.shell{display:grid;grid-template-rows:auto 1fr auto;height:100svh;overflow:hidden}
+.shell-mid{display:flex;min-height:0;overflow:hidden}
+/* A container so a figure can measure the READING area and break out of the
+   840px text column. 100vw would count the source panel too and push the
+   diagram under it. */
+.scroll-main{flex:1;min-width:0;overflow-y:auto;container-type:inline-size}
+.wrap{--doc-pad:clamp(20px,5vw,56px);max-width:840px;margin:0 auto;min-height:100%;padding:0 var(--doc-pad) 96px}
+header.doc{display:flex;align-items:center;gap:16px;min-width:0;background:var(--bg);border-bottom:1px solid var(--border);padding:11px 20px}
+header.doc h1{font-size:15px;font-weight:600;margin:0;flex-shrink:0;max-width:34ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)}
+.header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.panel-toggle{flex-shrink:0;font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer}
+.panel-toggle:hover{background:var(--border);color:var(--fg)}
+.panel-toggle .kbd{opacity:.55;margin-left:4px}
+.source-panel{position:relative;width:min(440px,38vw);flex-shrink:0;border-left:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column}
+.source-panel.closed{display:none}
+.panel-resize-handle{position:absolute;left:0;top:0;bottom:0;width:7px;margin-left:-4px;cursor:col-resize;z-index:6}
+.panel-resize-handle:hover{background:rgba(127,137,160,.25)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-title{font-size:12px;color:var(--muted-foreground);font-weight:700;letter-spacing:.02em}
+.panel-close{border:none;background:none;color:var(--muted-foreground);cursor:pointer;font-size:14px;padding:2px 7px;border-radius:5px;line-height:1.4}
+.panel-close:hover{background:var(--border);color:var(--fg)}
+.panel-tabs{display:flex;gap:2px;padding:9px 12px 0;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.panel-tab{font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);padding:7px 10px;border:none;background:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.panel-tab.active{color:var(--fg);border-bottom-color:var(--primary)}
+.panel-body{flex:1;overflow-y:auto;padding:14px}
+.panel-body .src-doc{display:none;margin:0}
+.panel-body .src-doc.active{display:block}
+.print-source{display:none}
+/* 목차(nav.toc) 는 인쇄본 전용(펼친 전체 문서엔 목차가 자연스럽다). 화면에서는
+   deck-nav(아래) 가 같은 역할을 대신한다 — 페이지 번호 pill + 클릭 이동. */
+@media screen{nav.toc{display:none}}
+nav.toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:26px 0}
+nav.toc h3{margin:0 0 8px;font-size:12px;letter-spacing:.04em;color:var(--muted-foreground);text-transform:uppercase}
+nav.toc ol{margin:0;padding-left:20px;columns:2;gap:24px}
+nav.toc a{color:var(--fg);text-decoration:none}
+nav.toc a:hover{color:var(--primary);text-decoration:underline}
+section{padding:22px 0;border-top:1px solid var(--border)}
+section:first-of-type{border-top:none}
+/* 페이지 넘김(화면 전용) — 한 번에 한 섹션만. 인쇄 시엔 전부 펼쳐서 보여준다. */
+@media screen{.slide-page{display:none}.slide-page.active{display:block}}
+/* One scrolling row, never wrapped. The reference sets flex-wrap AND
+   overflow-x-auto together; flex-wrap wins, and fed 19 labels its own header
+   grows to three rows. nowrap is the one place this deliberately differs. */
+.deck-nav{display:flex;flex-wrap:nowrap;gap:4px;margin:0;flex:1;min-width:0;overflow-x:auto;scrollbar-width:thin}
+.deck-nav::-webkit-scrollbar{height:6px}
+.deck-nav::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.deck-nav-item{font-weight:400;font-size:12px;line-height:16px;color:var(--muted-foreground);background:none;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;white-space:nowrap}
+.deck-nav-item:hover{color:var(--fg)}
+.deck-nav-item.active{background:var(--primary-text);color:var(--bg);font-weight:500}
+.deck-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0;padding:11px 20px;border-top:1px solid var(--border);background:var(--bg)}
+.deck-arrow{font-weight:600;font-size:13px;line-height:1;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;cursor:pointer}
+.deck-arrow:disabled{opacity:.35;cursor:default}
+.deck-arrow:not(:disabled):hover{background:var(--panel)}
+.deck-dots{display:flex;align-items:center;gap:6px}
+.deck-dot{width:8px;height:8px;border-radius:999px;background:var(--border);border:none;cursor:pointer;padding:0}
+.deck-dot.active{background:var(--primary);width:20px;border-radius:5px}
+.deck-counter{font-size:12px;color:var(--muted-foreground);min-width:52px;text-align:center}
+mark.src-hl{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--fg);border-left:2px solid var(--warn);border-radius:0;padding:0 2px}
+h2{font-size:32px;line-height:1.15;letter-spacing:-.02em;margin:.1em 0 .5em;font-weight:700;color:var(--fg)}
+h4{margin:1.1em 0 .35em;font-size:17px;font-weight:600;color:var(--fg)}
+.subhead{font-size:20px;font-weight:600;margin:1.4em 0 .4em;color:var(--fg)}
+.kicker{font-size:14px;font-weight:600;letter-spacing:.02em;color:var(--primary-text);margin-bottom:6px}
+.sub{font-size:18px;line-height:1.55;color:var(--muted-foreground);margin:-.1em 0 1.3em;max-width:62ch}
+p{margin:.65em 0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul{margin:.6em 0;padding-left:0;list-style:none}
+ol{margin:.6em 0;padding-left:22px}
+li{margin:0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul>li{position:relative;padding-left:18px;margin:8px 0}
+ul>li::before{content:"";position:absolute;left:0;top:.62em;width:6px;height:6px;border-radius:50%;background:color-mix(in srgb,var(--primary-text) 70%,transparent)}
+ol>li{margin:8px 0}
+.tw{overflow-x:auto;margin:.8em 0}
+table{border-collapse:collapse;width:100%;font-size:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+th,td{border:none;border-bottom:1px solid var(--border);padding:10px 14px;text-align:left;vertical-align:top;color:var(--fg-body)}
+tbody tr:last-child td{border-bottom:none}
+thead th{background:var(--surface-3);font-weight:600;font-size:12px;letter-spacing:.02em;color:var(--muted-foreground)}
+table.kv th{background:none;width:30%;white-space:nowrap;font-weight:500;color:var(--muted-foreground)}
+.kpi{display:flex;flex-wrap:wrap;gap:12px;margin:.8em 0}
+.kpi-card{flex:1 1 160px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--panel)}
+.kpi-label{font-size:13px;color:var(--muted-foreground);margin-bottom:6px}
+.kpi-nums{display:flex;align-items:center;gap:8px;font-weight:700}
+.kpi-nums .base{color:var(--muted-foreground)}
+.kpi-nums .arrow{color:var(--primary)}
+.kpi-nums .target{color:var(--good)}
+.goals{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:.8em 0}
+.goal-col{border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+.goal-col.g{border-left:4px solid var(--good)}
+.goal-col.ng{border-left:4px solid var(--danger)}
+pre.code{background:var(--surface-3);color:var(--fg-body);border-radius:10px;padding:14px 16px;overflow-x:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;margin:.8em 0}
+/* mermaid 는 항상 라이트 카드에 그린다(테마 무관, pre.code 가 항상 다크인 것과 대칭) —
+   mermaid 렌더 테마를 다크로 다시 그리려면 이미 SVG 로 처리된 노드를 되돌려야 해서
+   토글마다 재처리가 필요해진다. 대신 다이어그램 카드 자체를 고정 라이트로 둬서
+   토글과 무관하게 항상 선명하게 읽힌다. */
+/* A figure, not a paragraph. The SVG now carries its natural width, so the
+   frame scrolls instead of shrinking it — a 1437px graph squeezed into an
+   840px column rendered its 16px labels at 7.7px, which was the single worst
+   readability defect in the deck. */
+/* Full bleed: the figure uses the whole reading area, not the 840px measure the
+   prose wants. A 1388px graph inside an 840px column left ~215px of dead gutter
+   on each side AND a scrollbar — the worst of both. */
+pre.mermaid{background:var(--surface-3);border:1px solid var(--border-strong);border-radius:10px;padding:14px;margin:1.1em 0;overflow-x:auto;text-align:left}
+@supports (width:100cqw){
+  pre.mermaid{
+    /* A 16px gutter, not the prose gutter. Text wants a comfortable measure; a
+       figure wants the glass. With the source panel open — which is the deck's
+       whole point and stays open — every pixel of the reading area counts. */
+    --bleed:calc(100cqw - 32px);
+    width:var(--bleed);
+    max-width:var(--bleed);
+    margin-inline:calc((100% - var(--bleed)) / 2);
+  }
+}
+/* Fit the frame when there is room; below 900px stop shrinking and scroll
+   instead. Scaling all the way down is what made 16px labels render at 7.7px,
+   and a scrollbar is better than text nobody can read. */
+pre.mermaid svg{max-width:100%;min-width:900px;height:auto}
+/* The diagram lives in a <pre>, whose UA default is white-space:pre, and that
+   inherits into every label. Mermaid sizes an edge label's box for TWO wrapped
+   lines (200x48.75) and the text then refused to wrap, so anything past 200px
+   was clipped mid-word — "BASE_REF, HEAD_REF, PR_TITLE" measured 230px of text
+   in a 200px box. Labels are prose, not preformatted text. */
+pre.mermaid foreignObject,pre.mermaid foreignObject *{white-space:normal}
+/* On a narrow window there is nothing to floor — let it fit rather than force
+   a scrollbar the reader cannot escape. */
+@media (max-width:900px){pre.mermaid svg{min-width:0}}
+pre.mermaid.mermaid-fallback{text-align:left;white-space:pre;overflow-x:auto;background:#0f1320;color:#e6e9f0;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:30px 16px 14px;position:relative}
+pre.mermaid.mermaid-fallback::before{content:"\29c9 \b2e4\c774\c5b4\adf8\b7a8 \c6d0\bcf8 (\c624\d504\b77c\c778 \b610\b294 CDN \bbf8\b85c\b4dc)";position:absolute;top:8px;left:16px;font:600 11px/1 -apple-system,sans-serif;color:var(--muted-foreground)}
+/* A tinted card, not a left rule — the reference's Callout. color-mix keeps one
+   hue per tone instead of a second hand-picked hex for the fill. */
+.callout{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:1em 0;background:var(--panel)}
+.callout-title{font-weight:600;font-size:16px;margin-bottom:4px;color:var(--fg)}
+.callout p,.callout li{font-size:14px;color:var(--fg-soft)}
+.callout.info{border-color:color-mix(in srgb,var(--primary-text) 30%,transparent);background:color-mix(in srgb,var(--primary-text) 10%,var(--bg))}
+.callout.good{border-color:color-mix(in srgb,var(--good) 30%,transparent);background:color-mix(in srgb,var(--good) 10%,var(--bg))}
+.callout.warn{border-color:color-mix(in srgb,var(--warn) 30%,transparent);background:color-mix(in srgb,var(--warn) 10%,var(--bg))}
+.callout.danger{border-color:color-mix(in srgb,var(--danger) 30%,transparent);background:color-mix(in srgb,var(--danger) 10%,var(--bg))}
+.callout.next{border-style:dashed;border-color:var(--border-strong);background:var(--surface-2)}
+.lint h2{color:var(--warn)}
+.lint-count{display:inline-block;background:var(--warn);color:var(--on-warn);border-radius:999px;font-size:12px;padding:1px 9px;vertical-align:middle}
+/* 화면목업(와이어프레임) 킷 — scv 자체 기본 스킨(2순위 폴백): DesignSystem 의 실제
+   다크 팔레트를 distill(무채색 표면 + 단일 로즈 악센트 + border-only depth + pill
+   배지, 글라스 없음 — DesignSystem 본체엔 글라스가 없다). 문서 자체의 라이트/다크
+   토글과는 독립적으로 항상 이 다크 스킨을 쓴다(--wf-* 로 스코프해 문서 테마 변수와
+   충돌하지 않음) — mermaid 카드를 항상 라이트로 고정하는 것과 같은 이유(재처리 없이
+   항상 또렷하게). 프로젝트 실제 토큰(1순위) 자동감지는 아직 없음 — 후속 작업.
+   버튼은 항상 disabled(정적 예시 그림이라 실제 인터랙션 없음). */
+.wf-screen{
+  margin:1em 0;
+  --wf-bg:#0a0a0b; --wf-fg:#fafafa; --wf-card:#1c1c1e; --wf-border:rgba(255,255,255,.1);
+  --wf-muted:#232326; --wf-muted-fg:#9a9a9f;
+  --wf-primary:#a53257; --wf-primary-fg:#fdf1f3;
+  --wf-success:#34d399; --wf-success-bg:rgba(16,185,129,.15); --wf-success-border:rgba(16,185,129,.4);
+  --wf-danger:#ef6b6b; --wf-danger-bg:rgba(239,107,107,.14);
+  --wf-info:#60a5fa; --wf-info-bg:rgba(96,165,250,.15);
+  --wf-warn:#e0ab48; --wf-warn-bg:rgba(224,171,72,.15);
+  --wf-radius:10px; --wf-radius-pill:999px;
+}
+/* 번호식 화면설계서 — the picture keeps the stage, the prose stands beside it.
+   Sidebar sits right of the picture on a wide screen and DROPS BELOW under 900px,
+   because squeezing the drawing to fit a column is exactly the regression that made
+   an earlier deck's diagram render at 0.483 scale (16px type → 7.7px). */
+.wf-speclayout{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,360px);gap:16px;align-items:start;margin:1em 0}
+.wf-speclayout > .wf-screen{margin:0;min-width:0}
+/* A spec sheet is a FIGURE, not prose: the 840px reading measure that suits paragraphs
+   starves the drawing and crams the detail list against it. Take the full glass, same
+   as a standalone diagram does — the picture gets the room, the detail panel sits at
+   the right edge. */
+@supports (width:100cqw){
+  .wf-speclayout{
+    --bleed:calc(100cqw - 32px);
+    width:var(--bleed);
+    max-width:var(--bleed);
+    margin-inline:calc((100% - var(--bleed)) / 2);
+  }
+}
+/* A diagram needs more room than a wireframe; with the bleed a full-size flowchart
+   fits beside the panel on a wide screen. Below that it stacks rather than shrink —
+   squeezing an 800px flowchart into a narrow column renders 16px labels at ~8px, the
+   regression that made an earlier deck unreadable. */
+@media (max-width:1200px){
+  .wf-speclayout-diagram{grid-template-columns:minmax(0,1fr)}
+  .wf-speclayout-diagram > .wf-spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:start}
+}
+/* Undo the full-bleed above: that rule widens a STANDALONE diagram to the reading
+   glass, which inside a spec frame just bursts the frame (the picture then gets
+   cropped by wf-frame's overflow:hidden). In here the frame is the glass. */
+/* Keep the diagram card's own surface. Making it transparent put mermaid's
+   light-assuming palette (#eaeaea fills, #666 text) straight onto the dark frame, and a
+   sequence diagram's message text became unreadable — the deck draws diagrams on their
+   own card for exactly this reason (see the note above pre.mermaid). */
+.wf-screen pre.mermaid{margin:0;margin-inline:0;width:auto;max-width:100%;padding:10px;overflow-x:auto}
+.wf-screen pre.mermaid svg{min-width:0;max-width:100%;height:auto}
+@media (max-width:900px){.wf-speclayout,.wf-speclayout-diagram{grid-template-columns:minmax(0,1fr)}}
+@media print{.wf-speclayout,.wf-speclayout-diagram{grid-template-columns:minmax(0,1fr);break-inside:avoid}}
+/* Grid, not flex-wrap: in a narrow column the name TRUNCATES instead of shoving
+   PAGE CODE onto its own half-empty row (the identity strip must read as one line). */
+.wf-pagebar{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:stretch;margin-bottom:8px;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;font-size:12.5px}
+.wf-pagebar-key{padding:6px 10px;background:var(--surface-3);color:var(--muted-foreground);font-weight:700;font-size:11px;letter-spacing:.04em;white-space:nowrap;display:flex;align-items:center}
+.wf-pagebar-name{min-width:0;padding:6px 10px;background:var(--surface-2);color:var(--foreground);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center}
+.wf-pagebar-code{padding:6px 10px;background:var(--surface-2);color:var(--foreground);font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;display:flex;align-items:center}
+.wf-marked{display:flex;align-items:flex-start;gap:8px}
+.wf-marked + .wf-marked{margin-top:2px}
+.wf-marked-body{flex:1;min-width:0}
+.wf-marker{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;margin-top:3px;padding:0 5px;border-radius:999px;font:700 11.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.wf-marker-fn{background:var(--wf-primary,#a53257);color:var(--wf-primary-fg,#fdf1f3)}
+.wf-marker-action{background:var(--wf-info,#60a5fa);color:#0a0a0b}
+.wf-spec{display:flex;flex-direction:column;gap:12px;min-width:0}
+.wf-spec-group{border:1px solid var(--border-strong);border-radius:10px;background:var(--surface-2);overflow:hidden}
+.wf-spec-title{padding:7px 12px;background:var(--surface-3);border-bottom:1px solid var(--border-strong);font-weight:700;font-size:12.5px;letter-spacing:.02em}
+.wf-spec-item{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;border-top:1px solid var(--border)}
+.wf-spec-item:first-of-type{border-top:0}
+.wf-spec-badge{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);font:700 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.wf-spec-item-act .wf-spec-badge{background:var(--wf-info,#60a5fa);color:#0a0a0b;border-color:transparent}
+.wf-spec-body{flex:1;min-width:0;font-size:12.5px;line-height:1.6}
+.wf-spec-name{font-weight:600;margin-bottom:2px}
+.wf-spec-notes{margin:0;padding-left:1.1em;color:var(--muted-foreground)}
+.wf-spec-notes li{margin:1px 0}
+.wf-spec-state{margin-left:4px;padding:1px 6px;border-radius:999px;border:1px solid var(--border-strong);font:700 10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+.wf-spec-state-added{background:#FFE082;border-color:#F57C00;color:#000}
+.wf-spec-state-changed{background:#90CAF9;border-color:#1565C0;color:#000}
+.wf-spec-state-removed{background:transparent;border-color:#EF9A9A;color:#EF9A9A;border-style:dashed}
+.wf-spec-state-reused{background:var(--surface-3);border-color:var(--border-strong);color:var(--muted-foreground)}
+.wf-spec-step{margin-left:6px;padding:1px 6px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);color:var(--muted-foreground);font:600 10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+.wf-sub-title{margin:12px 0 6px;font-weight:700;font-size:12.5px;letter-spacing:.02em}
+/* "Called from" sits ABOVE the picture, so the first thing a backend reader learns is
+   which screen and which element reaches this endpoint. */
+.wf-screen > .wf-validations:first-of-type{margin-bottom:2px}
+.wf-diagram-label{margin:8px 0 2px;font-size:11.5px;color:var(--muted-foreground)}
+.wf-diagram-label:first-child{margin-top:0}
+/* Validation table — one row per rule, the numbers it touches in the first column so a
+   rule shared by several markers is traceable instead of scattered through prose. */
+.wf-validations{margin-top:2px}
+.wf-vtable{width:100%;border-collapse:collapse;font-size:12px;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;table-layout:auto}
+.wf-vtable th{padding:6px 9px;background:var(--surface-3);border-bottom:1px solid var(--border-strong);text-align:left;font-weight:700;white-space:nowrap}
+.wf-vtable td{padding:6px 9px;border-top:1px solid var(--border);vertical-align:top;line-height:1.55}
+.wf-vt-marker{width:1%;white-space:nowrap;font:700 11px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted-foreground)}
+/* State variants — a strip under the frame, never a third column: a third column would
+   squeeze the picture, which is the one thing this format exists to protect. */
+.wf-states-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.wf-state{min-width:0}
+.wf-state-label{display:flex;align-items:center;gap:5px;margin-bottom:4px;font-size:11.5px;color:var(--muted-foreground)}
+.wf-state-marker{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);font:700 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--foreground)}
+.wf-state-frame{border:1px solid var(--wf-border,var(--border-strong));border-radius:8px;background:var(--wf-bg,var(--surface-2));padding:9px 10px}
+.wf-chrome{display:flex;align-items:center;gap:7px;padding:9px 12px;border-bottom:1px solid var(--wf-border);background:var(--wf-card)}
+.wf-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;opacity:.7}
+.wf-dot-r{background:#fb2c36}.wf-dot-y{background:#fe9a00}.wf-dot-g{background:#00bc7d}
+.wf-url{margin-left:6px;padding:2px 8px;border-radius:5px;background:var(--wf-muted);color:var(--wf-muted-fg,var(--muted-foreground));font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wf-frame{border:1px solid var(--wf-border);border-radius:calc(var(--wf-radius) + 4px);background:var(--wf-bg);color:var(--wf-fg);overflow:hidden}
+.wf-nav{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--wf-border);background:var(--wf-bg);flex-wrap:wrap}
+.wf-nav-item{font-size:13px;color:var(--wf-muted-fg);padding:12px 11px;border-bottom:2px solid transparent}
+.wf-nav-item.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-primary)}
+.wf-body{padding:20px}
+.wf-header{margin-bottom:0}
+.wf-header-title{font-size:16px;font-weight:600;color:var(--wf-fg)}
+.wf-header-sub{font-size:12.5px;color:var(--wf-muted-fg);margin-top:3px}
+.wf-toolbar{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+.wf-tabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid var(--wf-border)}
+.wf-tab{font-size:12.5px;color:var(--wf-muted-fg);padding:7px 11px;border-bottom:2px solid transparent}
+.wf-tab.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-muted-fg)}
+.wf-btn{font-weight:500;font-size:12.5px;line-height:1;padding:8px 13px;border-radius:8px;border:1px solid transparent;background:var(--wf-muted);color:var(--wf-fg);cursor:default}
+.wf-btn-primary{background:var(--wf-primary);color:var(--wf-primary-fg)}
+.wf-btn-danger{background:var(--wf-danger-bg);color:var(--wf-danger)}
+.wf-input{display:inline-flex;align-items:center;font-size:12.5px;color:var(--wf-muted-fg);padding:8px 12px;border:1px solid var(--wf-border);border-radius:8px;background:var(--wf-card);min-width:120px}
+.wf-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.wf-table th,.wf-table td{border-bottom:1px solid var(--wf-border);padding:9px 10px;text-align:left}
+.wf-table th{color:var(--wf-muted-fg);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.02em}
+.wf-badge{display:inline-flex;align-items:center;height:20px;border-radius:var(--wf-radius-pill);padding:0 9px;font-size:10.5px;font-weight:500;border:1px solid transparent}
+.wf-badge-muted{background:var(--wf-muted);color:var(--wf-muted-fg);border-color:var(--wf-border)}
+.wf-badge-info{background:var(--wf-info-bg);color:var(--wf-info);border-color:rgba(96,165,250,.35)}
+.wf-badge-good{background:var(--wf-success-bg);color:var(--wf-success);border-color:var(--wf-success-border)}
+.wf-badge-warn{background:var(--wf-warn-bg);color:var(--wf-warn);border-color:rgba(224,171,72,.35)}
+.wf-badge-danger{background:var(--wf-danger-bg);color:var(--wf-danger);border-color:rgba(239,107,107,.35)}
+.wf-card{border-radius:var(--wf-radius);border:1px solid var(--wf-border);padding:14px 16px;margin-bottom:10px;background:var(--wf-card)}
+.wf-card-title{font-size:13px;font-weight:600;color:var(--wf-fg);margin-bottom:8px}
+.wf-list{list-style:none;margin:0;padding:0}
+.wf-list li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--wf-border);font-size:12.5px;color:var(--wf-fg)}
+.wf-list li:last-child{border-bottom:none}
+.wf-form{display:flex;flex-direction:column;gap:8px}
+.wf-field{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--wf-muted-fg)}
+.wf-text{font-size:12.5px;color:var(--wf-fg);margin:.3em 0}
+@media (max-width:900px){.source-panel{width:min(360px,44vw)}}
+@media (max-width:640px){.goals{grid-template-columns:1fr}nav.toc ol{columns:1}.shell{flex-direction:column;height:auto;overflow:visible}.scroll-main{overflow:visible}.source-panel{width:100%;height:60vh}}
+/* Paper is the one place the light values live. This is not a second theme the
+   reader can choose — @media print is unreachable on screen, persists nothing,
+   and shows no control. The screen deck stays dark only.
+   It has to redeclare the TOKENS, not just body: the old block set
+   background:#fff on body while every surface below it kept painting from
+   --bg, so the PDF was 20 pages of dark slabs on a white sheet. */
+@media print{
+  /* The single-scroll-region clamp is a SCREEN concern — on paper the document must
+     flow normally, or everything past the first page is clipped away. */
+  html,body{height:auto;overflow:visible}
+  :root{
+    --bg:#ffffff; --panel:#f6f7f8; --surface-2:#fafafa; --surface-3:#f4f4f5;
+    --fg:#111418;                /* 17.74:1 on white */
+    --fg-body:#1c1f24;           /* 15.42:1 */
+    --fg-soft:#33373d;           /* 10.87:1 */
+    --muted-foreground:#565d6b;  /*  6.45:1 */
+    --border:rgba(0,0,0,.14); --border-strong:#8a8f98; --ring:#8a8f98;
+    --primary:#a50036;           /* the brand fill survives; white on it 7.58:1 */
+    --primary-text:#8f0030;      /*  8.75:1 on white — the light form of the rose */
+    --on-primary:#ffffff;
+    --good:#0f7a4d;              /*  5.24:1 */
+    --warn:#8a6100;              /*  5.40:1 */
+    --danger:#b32d1f;            /*  6.18:1 */
+    --on-warn:#fdf6e6;
+    --wf-bg:#ffffff; --wf-fg:#111418; --wf-card:#f6f6f7;
+    --wf-border:rgba(0,0,0,.16); --wf-muted:#f0f0f1; --wf-muted-fg:#565d6b;
+  }
+  @page{size:A4;margin:14mm 12mm}
+  body{background:#fff;display:block;height:auto}
+  .shell{display:block;height:auto;overflow:visible}
+  .shell-mid{display:block;overflow:visible}
+  .scroll-main{overflow:visible;height:auto}
+  .wrap{box-shadow:none;max-width:none;padding:0}
+  header.doc{position:static;border-bottom:1px solid var(--border);padding:0 0 8px}
+  .panel-toggle,.source-panel,.deck-nav,.deck-footer{display:none}
+  nav.toc{display:block;break-inside:avoid}
+  /* break-inside:avoid on a 3000px section dumps most of a page. Keep headings
+     with what follows and protect only the things that must not split. */
+  h2,h3,h4,.subhead{break-after:avoid}
+  figure,table,pre.code,.callout,.wf-screen{break-inside:avoid}
+  /* Paper cannot scroll, so a wide graph gets its own landscape sheet. */
+  @page dg{size:A4 landscape;margin:12mm}
+  pre.mermaid{page:dg;overflow:visible;break-inside:avoid;max-height:180mm}
+  pre.mermaid svg{max-width:100%;height:auto}
+  .print-source{display:block;break-before:page}
+  .print-source h3{margin-top:1.6em;font-size:14px}
+}
+</style>
+<style id="scv-mermaid-contrast">
+/* Diagram palette. static-mermaid.mjs strips the id-scoped rules, the
+   !important flags and the inline colour attributes first, so plain specificity
+   is enough here — before that, an author rule at (1,3,1) with !important still
+   lost to style="fill:#FFE082 !important" on a classDef node. */
+pre.mermaid .flowchart-link,pre.mermaid .edgePath .path,pre.mermaid path.flowchart-link{stroke:var(--fg-body);stroke-width:1.6px;fill:none}
+pre.mermaid .marker,pre.mermaid marker path,pre.mermaid .arrowMarkerPath{fill:var(--fg-body);stroke:var(--fg-body)}
+pre.mermaid .node rect,pre.mermaid .node circle,pre.mermaid .node polygon,pre.mermaid .node path{fill:var(--panel);stroke:var(--border-strong);stroke-width:1.2px}
+pre.mermaid .nodeLabel,pre.mermaid .nodeLabel p,pre.mermaid .label,pre.mermaid text{fill:var(--fg);color:var(--fg)}
+pre.mermaid .edgeLabel,pre.mermaid .edgeLabel p{background-color:var(--surface-3);color:var(--fg-body)}
+pre.mermaid .edgeLabel rect,pre.mermaid .labelBkg{fill:var(--surface-3);opacity:1}
+pre.mermaid .cluster rect{fill:var(--surface-2);stroke:var(--border-strong)}
+pre.mermaid .cluster text,pre.mermaid .cluster .nodeLabel{fill:var(--muted-foreground);color:var(--muted-foreground)}
+/* The two semantic highlights the protocol sanctions. Any other per-node colour
+   is stripped, so these are the only ones that survive — deck.md says so. */
+pre.mermaid .node.new rect,pre.mermaid g.new rect{fill:#5a4415;stroke:var(--warn);stroke-width:1.8px}
+pre.mermaid .node.new .nodeLabel,pre.mermaid g.new .nodeLabel{fill:#f6e8c8;color:#f6e8c8}
+pre.mermaid .node.changed rect,pre.mermaid g.changed rect{fill:#16324f;stroke:#6fb4f2;stroke-width:1.8px}
+pre.mermaid .node.changed .nodeLabel,pre.mermaid g.changed .nodeLabel{fill:#d9ecff;color:#d9ecff}
+/* SEQUENCE diagrams — a backend spec draws the ORDER of a request, and mermaid's own
+   palette for this type assumes a light page (#eaeaea boxes, #333 text). Normalization
+   demotes mermaid's id-scoped rules to .scv-mmd (0,2,0), so these "pre.mermaid svg .x"
+   selectors (0,2,2) win without !important. Without them the message text renders dark
+   grey on the dark card and the whole diagram is unreadable — the same contrast failure
+   the deck redesign fixed for flowcharts, one diagram type later. */
+pre.mermaid svg .actor,pre.mermaid svg rect.actor{fill:var(--panel);stroke:var(--border-strong);stroke-width:1.2px}
+pre.mermaid svg text.actor,pre.mermaid svg text.actor tspan,pre.mermaid svg .actor > tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .actor-line{stroke:var(--border-strong);stroke-width:1px}
+pre.mermaid svg .messageText,pre.mermaid svg text.messageText{fill:var(--fg);stroke:none}
+pre.mermaid svg .messageLine0,pre.mermaid svg .messageLine1{stroke:var(--fg-body);stroke-width:1.5px}
+pre.mermaid svg .labelBox{fill:var(--surface-2);stroke:var(--border-strong)}
+/* sectionTitle is the else-branch label of an alt block — miss it and half the
+   branches in a failure flow stay unreadable while the other half look fine. */
+pre.mermaid svg .labelText,pre.mermaid svg .labelText tspan,pre.mermaid svg .loopText,pre.mermaid svg .loopText tspan,pre.mermaid svg .sectionTitle,pre.mermaid svg .sectionTitle tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .loopLine{stroke:var(--border-strong)}
+pre.mermaid svg .note{fill:var(--surface-2);stroke:var(--border-strong)}
+pre.mermaid svg .noteText,pre.mermaid svg .noteText tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .sequenceNumber{fill:var(--bg)}
+pre.mermaid svg .activation0,pre.mermaid svg .activation1,pre.mermaid svg .activation2{fill:var(--surface-3);stroke:var(--border-strong)}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="doc"><h1>Architecture — 공개 저장소 개인정보 정리</h1><nav class="deck-nav"><button class="deck-nav-item active" data-idx="0" onclick="scvGoto(0)">1. Architecture — 공개 </button><button class="deck-nav-item" data-idx="1" onclick="scvGoto(1)">2. 1. Component data </button><button class="deck-nav-item" data-idx="2" onclick="scvGoto(2)">3. 2. Position in who</button><button class="deck-nav-item" data-idx="3" onclick="scvGoto(3)">4. 변경 지도</button><button class="deck-nav-item" data-idx="4" onclick="scvGoto(4)">5. 품질 리포트</button></nav><div class="header-actions"><button class="panel-toggle" onclick="scvTogglePanel()" title="원문 패널 토글 (S)">기획서 원문 <span class="kbd">S</span></button></div></header>
+<div class="shell-mid">
+<div class="scroll-main">
+<div class="wrap">
+<nav class="toc"><h3>목차</h3><ol><li><a href="#s-0-architecture--공개-저장소-개인정보-정리">Architecture — 공개 저장소 개인정보 정리</a></li><li><a href="#s-1-1-component-data-flow">1. Component data flow</a></li><li><a href="#s-2-2-position-in-whole-architecture">2. Position in whole architecture</a></li><li><a href="#s-3-변경-지도">변경 지도</a></li></ol></nav>
+<section id="s-0-architecture--공개-저장소-개인정보-정리" class="slide-page active" data-idx="0"><h2>Architecture — 공개 저장소 개인정보 정리</h2><div class="callout info"><div class="callout-title">참고</div><div>이 작업을 두 장의 그림으로 본다. /scv:work 전에 검토하고 고쳐라 — 그림은 모델이 그렸으므로 틀린 곳이 있을 수 있다.</div></div></section>
+<section id="s-1-1-component-data-flow" class="slide-page" data-idx="1"><div class="kicker">Architecture — 공개 저장소 개인정보 정리</div><h2>1. Component data flow</h2><p>원격은 ⑦ 전까지 그대로다. ①~⑥은 이 컴퓨터의 백업 · 작업 사본에서만 일어난다.</p>
+<pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="3358.171875" height="381.0290832519531" class="scv-mmd" id="scv-mmd-4478c774e0" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0.000003814697265625 3358.171875 381.0290832519531" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}.scv-mmd .key&gt;*{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .key span{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .key tspan{fill:rgb(0, 0, 0);}</style><g><marker id="scv-mmd-4478c774e0_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-4478c774e0_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-4478c774e0_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-4478c774e0_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-4478c774e0_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-4478c774e0_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-4478c774e0_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-4478c774e0_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-4478c774e0_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-4478c774e0_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-4478c774e0_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-4478c774e0_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M198.5,289.729L212.478,281.409C226.456,273.089,254.411,256.449,281.701,248.129C308.99,239.81,335.612,239.81,348.923,239.81L362.234,239.81" id="scv-mmd-4478c774e0-L_Remote_S1_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Remote_S1_0" data-points="W3sieCI6MTk4LjUsInkiOjI4OS43Mjg4NDQ1OTk1MzQ5N30seyJ4IjoyODIuMzY3MTg3NSwieSI6MjM5LjgwOTUwNTQ2MjY0NjQ4fSx7IngiOjM2Ni4yMzQzNzUsInkiOjIzOS44MDk1MDU0NjI2NDY0OH1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M509.971,200.435L536.651,176.414C563.332,152.394,616.693,104.354,672.15,80.334C727.607,56.314,785.159,56.314,813.935,56.314L842.711,56.314" id="scv-mmd-4478c774e0-L_S1_Records_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S1_Records_0" data-points="W3sieCI6NTA5Ljk3MDc2ODM3MzIzNTE2LCJ5IjoyMDAuNDM0NTA1NDYyNjQ2NDh9LHsieCI6NjcwLjA1NDY4NzUsInkiOjU2LjMxNDE1NTU3ODYxMzI4fSx7IngiOjg0Ni43MTA5Mzc1LCJ5Ijo1Ni4zMTQxNTU1Nzg2MTMyOH1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M523.133,113.714L547.62,119.319C572.107,124.925,621.081,136.135,666.526,150.336C711.971,164.536,753.887,181.727,774.845,190.322L795.803,198.917" id="scv-mmd-4478c774e0-L_Terms_S2_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Terms_S2_0" data-points="W3sieCI6NTIzLjEzMjgxMjUsInkiOjExMy43MTM5MzYwNDMxNTg1fSx7IngiOjY3MC4wNTQ2ODc1LCJ5IjoxNDcuMzQ2MjMzMzY3OTE5OTJ9LHsieCI6Nzk5LjUwNDI2NTk3MTIyMDgsInkiOjIwMC40MzQ1MDU0NjI2NDY0OH1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M566.234,262.701L583.538,266.662C600.841,270.623,635.448,278.545,669.402,279.06C703.356,279.575,736.657,272.684,753.307,269.238L769.958,265.793" id="scv-mmd-4478c774e0-L_S1_S2_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S1_S2_0" data-points="W3sieCI6NTY2LjIzNDM3NSwieSI6MjYyLjcwMDc4NTE0NzY5MDk3fSx7IngiOjY3MC4wNTQ2ODc1LCJ5IjoyODYuNDY2NTgzMjUxOTUzMX0seyJ4Ijo3NzMuODc1LCJ5IjoyNjQuOTgxOTE5NjU1MDgyMjd9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1017.156,239.81L1024.9,239.81C1032.643,239.81,1048.13,239.81,1062.951,239.81C1077.771,239.81,1091.924,239.81,1099.001,239.81L1106.078,239.81" id="scv-mmd-4478c774e0-L_S2_S3_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S2_S3_0" data-points="W3sieCI6MTAxNy4xNTYyNSwieSI6MjM5LjgwOTUwNTQ2MjY0NjQ4fSx7IngiOjEwNjMuNjE3MTg3NSwieSI6MjM5LjgwOTUwNTQ2MjY0NjQ4fSx7IngiOjExMTAuMDc4MTI1LCJ5IjoyMzkuODA5NTA1NDYyNjQ2NDh9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1268.563,209.857L1281.852,204.834C1295.141,199.811,1321.719,189.765,1347.63,184.742C1373.542,179.719,1398.786,179.719,1411.409,179.719L1424.031,179.719" id="scv-mmd-4478c774e0-L_S3_Core_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S3_Core_0" data-points="W3sieCI6MTI2OC41NjI1LCJ5IjoyMDkuODU3MjI2Mzg2NTI3ODh9LHsieCI6MTM0OC4yOTY4NzUsInkiOjE3OS43MTg5MDgzMDk5MzY1Mn0seyJ4IjoxNDI4LjAzMTI1LCJ5IjoxNzkuNzE4OTA4MzA5OTM2NTJ9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1573.859,197.379L1594.306,202.331C1614.753,207.283,1655.646,217.187,1695.872,222.139C1736.099,227.092,1775.659,227.092,1795.439,227.092L1815.219,227.092" id="scv-mmd-4478c774e0-L_Core_S4_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Core_S4_0" data-points="W3sieCI6MTU3My44NTkzNzUsInkiOjE5Ny4zNzg2NDUyOTgwMjczMn0seyJ4IjoxNjk2LjUzOTA2MjUsInkiOjIyNy4wOTE1ODMyNTE5NTMxMn0seyJ4IjoxODE5LjIxODc1LCJ5IjoyMjcuMDkxNTgzMjUxOTUzMTJ9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1992.938,227.092L2006.587,227.092C2020.237,227.092,2047.536,227.092,2074.184,229.871C2100.832,232.651,2126.827,238.211,2139.825,240.99L2152.823,243.77" id="scv-mmd-4478c774e0-L_S4_Wr_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S4_Wr_0" data-points="W3sieCI6MTk5Mi45Mzc1LCJ5IjoyMjcuMDkxNTgzMjUxOTUzMTJ9LHsieCI6MjA3NC44MzU5Mzc1LCJ5IjoyMjcuMDkxNTgzMjUxOTUzMTJ9LHsieCI6MjE1Ni43MzQzNzUsInkiOjI0NC42MDY4MTcyMjMyODc5OH1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1268.563,270.543L1281.852,275.697C1295.141,280.851,1321.719,291.159,1360.449,296.313C1399.18,301.467,1450.063,301.467,1508.103,301.467C1566.143,301.467,1631.341,301.467,1698.863,301.467C1766.385,301.467,1836.232,301.467,1899.281,301.467C1962.331,301.467,2018.583,301.467,2059.707,298.687C2100.832,295.907,2126.827,290.347,2139.825,287.568L2152.823,284.788" id="scv-mmd-4478c774e0-L_S3_Wr_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S3_Wr_0" data-points="W3sieCI6MTI2OC41NjI1LCJ5IjoyNzAuNTQyNTk5OTY0NDM3MX0seyJ4IjoxMzQ4LjI5Njg3NSwieSI6MzAxLjQ2NjU4MzI1MTk1MzF9LHsieCI6MTUwMC45NDUzMTI1LCJ5IjozMDEuNDY2NTgzMjUxOTUzMX0seyJ4IjoxNjk2LjUzOTA2MjUsInkiOjMwMS40NjY1ODMyNTE5NTMxfSx7IngiOjE5MDYuMDc4MTI1LCJ5IjozMDEuNDY2NTgzMjUxOTUzMX0seyJ4IjoyMDc0LjgzNTkzNzUsInkiOjMwMS40NjY1ODMyNTE5NTMxfSx7IngiOjIxNTYuNzM0Mzc1LCJ5IjoyODMuOTUxMzQ5MjgwNjE4M31d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1573.859,165.856L1594.306,161.969C1614.753,158.081,1655.646,150.306,1711.016,146.419C1766.385,142.531,1836.232,142.531,1899.281,142.531C1962.331,142.531,2018.583,142.531,2075.69,142.531C2132.797,142.531,2190.758,142.531,2241.398,142.531C2292.039,142.531,2335.359,142.531,2368.792,151.77C2402.224,161.009,2425.769,179.487,2437.542,188.726L2449.314,197.965" id="scv-mmd-4478c774e0-L_Core_S5_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Core_S5_0" data-points="W3sieCI6MTU3My44NTkzNzUsInkiOjE2NS44NTYwMzMzNDk4Nzl9LHsieCI6MTY5Ni41MzkwNjI1LCJ5IjoxNDIuNTMxNDA4MzA5OTM2NTJ9LHsieCI6MTkwNi4wNzgxMjUsInkiOjE0Mi41MzE0MDgzMDk5MzY1Mn0seyJ4IjoyMDc0LjgzNTkzNzUsInkiOjE0Mi41MzE0MDgzMDk5MzY1Mn0seyJ4IjoyMjQ4LjcxODc1LCJ5IjoxNDIuNTMxNDA4MzA5OTM2NTJ9LHsieCI6MjM3OC42Nzk2ODc1LCJ5IjoxNDIuNTMxNDA4MzA5OTM2NTJ9LHsieCI6MjQ1Mi40NjA2MzE1MDgyODksInkiOjIwMC40MzQ1MDU0NjI2NDY0OH1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M2340.703,264.279L2347.033,264.279C2353.362,264.279,2366.021,264.279,2378.026,263.159C2390.03,262.038,2401.381,259.798,2407.057,258.677L2412.732,257.557" id="scv-mmd-4478c774e0-L_Wr_S5_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Wr_S5_0" data-points="W3sieCI6MjM0MC43MDMxMjUsInkiOjI2NC4yNzkwODMyNTE5NTMxfSx7IngiOjIzNzguNjc5Njg3NSwieSI6MjY0LjI3OTA4MzI1MTk1MzF9LHsieCI6MjQxNi42NTYyNSwieSI6MjU2Ljc4MjEzMjY4ODg3MzZ9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M2588.609,239.81L2594.626,239.81C2600.643,239.81,2612.677,239.81,2624.044,239.81C2635.411,239.81,2646.112,239.81,2651.462,239.81L2656.813,239.81" id="scv-mmd-4478c774e0-L_S5_S6_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S5_S6_0" data-points="W3sieCI6MjU4OC42MDkzNzUsInkiOjIzOS44MDk1MDU0NjI2NDY0OH0seyJ4IjoyNjI0LjcxMDkzNzUsInkiOjIzOS44MDk1MDU0NjI2NDY0OH0seyJ4IjoyNjYwLjgxMjUsInkiOjIzOS44MDk1MDU0NjI2NDY0OH1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M2902,239.81L2917.681,239.81C2933.362,239.81,2964.724,239.81,2995.453,244.804C3026.182,249.799,3056.279,259.788,3071.327,264.782L3086.376,269.777" id="scv-mmd-4478c774e0-L_S6_S7_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S6_S7_0" data-points="W3sieCI6MjkwMiwieSI6MjM5LjgwOTUwNTQ2MjY0NjQ4fSx7IngiOjI5OTYuMDg1OTM3NSwieSI6MjM5LjgwOTUwNTQ2MjY0NjQ4fSx7IngiOjMwOTAuMTcxODc1LCJ5IjoyNzEuMDM2OTk2NDg1MjAzNH1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M3090.172,341.252L3074.491,344.517C3058.81,347.782,3027.448,354.312,2975.987,357.577C2924.526,360.842,2852.966,360.842,2791.07,360.842C2729.174,360.842,2676.943,360.842,2630.48,360.842C2584.018,360.842,2543.326,360.842,2502.32,360.842C2461.315,360.842,2419.997,360.842,2377.678,360.842C2335.359,360.842,2292.039,360.842,2241.398,360.842C2190.758,360.842,2132.797,360.842,2075.69,360.842C2018.583,360.842,1962.331,360.842,1899.281,360.842C1836.232,360.842,1766.385,360.842,1698.863,360.842C1631.341,360.842,1566.143,360.842,1508.103,360.842C1450.063,360.842,1399.18,360.842,1347.242,360.842C1295.305,360.842,1242.313,360.842,1194.866,360.842C1147.419,360.842,1105.518,360.842,1056.551,360.842C1007.583,360.842,951.549,360.842,885.956,360.842C820.362,360.842,745.208,360.842,673.661,360.842C602.115,360.842,534.174,360.842,469.56,360.842C404.945,360.842,343.656,360.842,299.679,357.369C255.702,353.896,229.036,346.95,215.704,343.477L202.371,340.004" id="scv-mmd-4478c774e0-L_S7_Remote_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S7_Remote_0" data-points="W3sieCI6MzA5MC4xNzE4NzUsInkiOjM0MS4yNTE4ODk0MzI3MzU1fSx7IngiOjI5OTYuMDg1OTM3NSwieSI6MzYwLjg0MTU4MzI1MTk1MzF9LHsieCI6Mjc4MS40MDYyNSwieSI6MzYwLjg0MTU4MzI1MTk1MzF9LHsieCI6MjYyNC43MTA5Mzc1LCJ5IjozNjAuODQxNTgzMjUxOTUzMX0seyJ4IjoyNTAyLjYzMjgxMjUsInkiOjM2MC44NDE1ODMyNTE5NTMxfSx7IngiOjIzNzguNjc5Njg3NSwieSI6MzYwLjg0MTU4MzI1MTk1MzF9LHsieCI6MjI0OC43MTg3NSwieSI6MzYwLjg0MTU4MzI1MTk1MzF9LHsieCI6MjA3NC44MzU5Mzc1LCJ5IjozNjAuODQxNTgzMjUxOTUzMX0seyJ4IjoxOTA2LjA3ODEyNSwieSI6MzYwLjg0MTU4MzI1MTk1MzF9LHsieCI6MTY5Ni41MzkwNjI1LCJ5IjozNjAuODQxNTgzMjUxOTUzMX0seyJ4IjoxNTAwLjk0NTMxMjUsInkiOjM2MC44NDE1ODMyNTE5NTMxfSx7IngiOjEzNDguMjk2ODc1LCJ5IjozNjAuODQxNTgzMjUxOTUzMX0seyJ4IjoxMTg5LjMyMDMxMjUsInkiOjM2MC44NDE1ODMyNTE5NTMxfSx7IngiOjEwNjMuNjE3MTg3NSwieSI6MzYwLjg0MTU4MzI1MTk1MzF9LHsieCI6ODk1LjUxNTYyNSwieSI6MzYwLjg0MTU4MzI1MTk1MzF9LHsieCI6NjcwLjA1NDY4NzUsInkiOjM2MC44NDE1ODMyNTE5NTMxfSx7IngiOjQ2Ni4yMzQzNzUsInkiOjM2MC44NDE1ODMyNTE5NTMxfSx7IngiOjI4Mi4zNjcxODc1LCJ5IjozNjAuODQxNTgzMjUxOTUzMX0seyJ4IjoxOTguNSwieSI6MzM4Ljk5NTU2MTk2NDAzMDN9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(282.3671875, 239.80950546264648)"><g class="label" data-id="L_Remote_S1_0" transform="translate(-58.8671875, -12.1875)"><foreignObject width="117.734375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>git clone --mirror</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(670.0546875, 56.31415557861328)"><g class="label" data-id="L_S1_Records_0" transform="translate(-78.8203125, -12.1875)"><foreignObject width="157.640625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>코어 · 모드 SCV 기록 복사</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(664.78622, 146.14021)"><g class="label" data-id="L_Terms_S2_0" transform="translate(-40.5234375, -12.1875)"><foreignObject width="81.046875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>실명 · 팀 이름</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(669.81796, 286.41239)"><g class="label" data-id="L_S1_S2_0" transform="translate(-21.4609375, -12.1875)"><foreignObject width="42.921875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>전 목록</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1063.6171875, 239.80950546264648)"><g class="label" data-id="L_S2_S3_0" transform="translate(-21.4609375, -12.1875)"><foreignObject width="42.921875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>규칙 표</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1348.296875, 179.71890830993652)"><g class="label" data-id="L_S3_Core_0" transform="translate(-54.734375, -12.1875)"><foreignObject width="109.46875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>filter-repo (코어)</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1696.5390625, 227.09158325195312)"><g class="label" data-id="L_Core_S4_0" transform="translate(-43.71875, -12.1875)"><foreignObject width="87.4375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>commit-map</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(2074.8359375, 227.09158325195312)"><g class="label" data-id="L_S4_Wr_0" transform="translate(-56.8984375, -12.1875)"><foreignObject width="113.796875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>--replace-text 줄</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1696.5390625, 301.4665832519531)"><g class="label" data-id="L_S3_Wr_0" transform="translate(-73.8046875, -12.1875)"><foreignObject width="147.609375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>filter-repo (래퍼 · 모드)</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(2074.8359375, 142.53140830993652)"><g class="label" data-id="L_Core_S5_0" transform="translate(-12.9765625, -12.1875)"><foreignObject width="25.953125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>사본</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(2378.6796875, 264.2790832519531)"><g class="label" data-id="L_Wr_S5_0" transform="translate(-12.9765625, -12.1875)"><foreignObject width="25.953125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>사본</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(2624.7109375, 239.80950546264648)"><g class="label" data-id="L_S5_S6_0" transform="translate(-11.1015625, -12.1875)"><foreignObject width="22.203125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>0건</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(2996.0859375, 239.80950546264648)"><g class="label" data-id="L_S6_S7_0" transform="translate(-69.0859375, -12.1875)"><foreignObject width="138.171875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>어긋남 0 + 사용자 확인</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1696.5390625, 360.8415832519531)"><g class="label" data-id="L_S7_Remote_0" transform="translate(-97.6796875, -12.1875)"><foreignObject width="195.359375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>git push --force heads · tags</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-4478c774e0-flowchart-Remote-0" data-look="classic" transform="translate(103.25, 314.1845054626465)"><path d="M0,15.095087163232963 a95.25,15.095087163232963 0,0,0 190.5,0 a95.25,15.095087163232963 0,0,0 -190.5,0 l0,78.84508716323296 a95.25,15.095087163232963 0,0,0 190.5,0 l0,-78.84508716323296" class="basic label-container outer-path"  transform="translate(-95.25, -54.51763074484944)"></path><g class="label"  transform="translate(-87.75, -14.375)"><rect></rect><foreignObject width="175.5" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>GitHub 공개 저장소 넷<br>코어 · claude · codex · 모드</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-4478c774e0-flowchart-Records-1" data-look="classic" transform="translate(895.515625, 56.31415557861328)"><path d="M0,10.961956903207692 a48.8046875,10.961956903207692 0,0,0 97.609375,0 a48.8046875,10.961956903207692 0,0,0 -97.609375,0 l0,74.71195690320769 a48.8046875,10.961956903207692 0,0,0 97.609375,0 l0,-74.71195690320769" class="basic label-container outer-path"  transform="translate(-48.8046875, -48.31793535481154)"></path><g class="label"  transform="translate(-41.3046875, -14.375)"><rect></rect><foreignObject width="82.609375" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>scv-records<br>비공개</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-4478c774e0-flowchart-Terms-2" data-look="classic" transform="translate(466.234375, 100.68915557861328)"><path d="M0,11.913564090819866 a56.8984375,11.913564090819866 0,0,0 113.796875,0 a56.8984375,11.913564090819866 0,0,0 -113.796875,0 l0,75.66356409081986 a56.8984375,11.913564090819866 0,0,0 113.796875,0 l0,-75.66356409081986" class="basic label-container outer-path"  transform="translate(-56.8984375, -49.7453461362298)"></path><g class="label"  transform="translate(-49.3984375, -14.375)"><rect></rect><foreignObject width="98.796875" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>비공개 목록 파일<br>저장소 밖</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-4478c774e0-flowchart-S1-3" data-look="classic" transform="translate(466.234375, 239.80950546264648)"><rect class="basic label-container"  x="-100" y="-39.375" width="200" height="78.75"></rect><g class="label"  transform="translate(-70, -24.375)"><rect></rect><foreignObject width="140" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>① snapshotRepos<br>--mirror 백업 · 전 목록</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-4478c774e0-flowchart-S2-4" data-look="classic" transform="translate(895.515625, 239.80950546264648)"><rect class="basic label-container"  x="-121.640625" y="-39.375" width="243.28125" height="78.75"></rect><g class="label"  transform="translate(-91.640625, -24.375)"><rect></rect><foreignObject width="183.28125" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>② buildRules<br>작성자 · 글자 · 경로 · 메시지 줄</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-4478c774e0-flowchart-S3-5" data-look="classic" transform="translate(1189.3203125, 239.80950546264648)"><rect class="basic label-container"  x="-79.2421875" y="-39.375" width="158.484375" height="78.75"></rect><g class="label"  transform="translate(-49.2421875, -24.375)"><rect></rect><foreignObject width="98.484375" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>③ planRewrite<br>filter-repo 인자</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-4478c774e0-flowchart-Core-6" data-look="classic" transform="translate(1500.9453125, 179.71890830993652)"><rect class="basic label-container"  x="-72.9140625" y="-27.1875" width="145.828125" height="54.375"></rect><g class="label"  transform="translate(-42.9140625, -12.1875)"><rect></rect><foreignObject width="85.828125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>코어 다시 쓰기</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-4478c774e0-flowchart-S4-7" data-look="classic" transform="translate(1906.078125, 227.09158325195312)"><rect class="basic label-container"  x="-86.859375" y="-39.375" width="173.71875" height="78.75"></rect><g class="label"  transform="translate(-56.859375, -24.375)"><rect></rect><foreignObject width="113.71875" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>④ mapCoreShas<br>옛→새 번호 표</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-4478c774e0-flowchart-Wr-8" data-look="classic" transform="translate(2248.71875, 264.2790832519531)"><rect class="basic label-container"  x="-91.984375" y="-27.1875" width="183.96875" height="54.375"></rect><g class="label"  transform="translate(-61.984375, -12.1875)"><rect></rect><foreignObject width="123.96875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>래퍼 · 모드 다시 쓰기</p></span></div></foreignObject></g></g><g class="node default key" id="scv-mmd-4478c774e0-flowchart-S5-9" data-look="classic" transform="translate(2502.6328125, 239.80950546264648)"><rect class="basic label-container" style="stroke-width:2px" x="-85.9765625" y="-39.375" width="171.953125" height="78.75"></rect><g class="label"  transform="translate(-55.9765625, -24.375)"><rect></rect><foreignObject width="111.953125" height="48.75"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>⑤ scanForLeaks<br>남은 개인정보</p></span></div></foreignObject></g></g><g class="node default key" id="scv-mmd-4478c774e0-flowchart-S6-10" data-look="classic" transform="translate(2781.40625, 239.80950546264648)"><rect class="basic label-container" style="stroke-width:2px" x="-120.59375" y="-39.375" width="241.1875" height="78.75"></rect><g class="label"  transform="translate(-90.59375, -24.375)"><rect></rect><foreignObject width="181.1875" height="48.75"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>⑥ compareInvariants<br>payload · 브랜치 · 태그 · 고정</p></span></div></foreignObject></g></g><g class="node default key" id="scv-mmd-4478c774e0-flowchart-S7-11" data-look="classic" transform="translate(3220.171875, 314.1845054626465)"><rect class="basic label-container" style="stroke-width:2px" x="-130" y="-51.5625" width="260" height="103.125"></rect><g class="label"  transform="translate(-100, -36.5625)"><rect></rect><foreignObject width="200" height="73.125"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>⑦ pushRewrite<br>규칙 끄기 → 덮어쓰기 → 되돌리기</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-4478c774e0-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-4478c774e0-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-4478c774e0-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre></section>
+<section id="s-2-2-position-in-whole-architecture" class="slide-page" data-idx="2"><div class="kicker">Architecture — 공개 저장소 개인정보 정리</div><h2>2. Position in whole architecture</h2><p>이 작업이 닿는 곳. 새로 생기는 것은 노란색, 새 연결은 점선.</p>
+<div class="callout info"><div class="callout-title">참고</div><div>Source: scv graph (built 2026-10-27)</div></div>
+<pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="1582.63671875" height="476.94134521484375" class="scv-mmd" id="scv-mmd-1520626e40" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 1582.63671875 476.94134521484375" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}.scv-mmd .new&gt;*{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .new span{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .new tspan{fill:rgb(0, 0, 0);}</style><g><marker id="scv-mmd-1520626e40_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1520626e40_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1520626e40_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1520626e40_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-1520626e40_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-1520626e40_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-1520626e40_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-1520626e40_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-1520626e40_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1520626e40_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-1520626e40_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-1520626e40_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"><g class="cluster" id="scv-mmd-1520626e40-subGraph4" data-look="classic"><rect  x="8" y="161.75" width="276.84375" height="128.75"></rect><g class="cluster-label" transform="translate(32.609375, 161.75)"><foreignObject width="227.625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>../scv-claude-code · ../scv-codex</p></span></div></foreignObject></g></g><g class="cluster" id="scv-mmd-1520626e40-scv" data-look="classic"><rect  x="1290.69921875" y="8" width="283.9375" height="282.5"></rect><g class="cluster-label" transform="translate(1420.83203125, 8)"><foreignObject width="23.671875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>scv</p></span></div></foreignObject></g></g><g class="cluster" id="scv-mmd-1520626e40-tools" data-look="classic"><rect  x="304.84375" y="8" width="346.0234375" height="282.5"></rect><g class="cluster-label" transform="translate(461.08203125, 8)"><foreignObject width="33.546875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>tools</p></span></div></foreignObject></g></g><g class="cluster" id="scv-mmd-1520626e40-core/scripts" data-look="classic"><rect  x="670.8671875" y="161.75" width="255.34375" height="307.1913528442383"></rect><g class="cluster-label" transform="translate(758.0078125, 161.75)"><foreignObject width="81.0625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>core/scripts</p></span></div></foreignObject></g></g><g class="cluster" id="scv-mmd-1520626e40-.github/workflows" data-look="classic"><rect  x="946.2109375" y="8" width="324.48828125" height="282.5"></rect><g class="cluster-label" transform="translate(1047.994140625, 8)"><foreignObject width="120.921875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>.github/workflows</p></span></div></foreignObject></g></g></g><g class="edgePaths"><path d="M1104.26,87.375L1108.85,93.573C1113.44,99.771,1122.62,112.167,1127.211,124.563C1131.801,136.958,1131.801,149.354,1131.801,161.083C1131.801,172.813,1131.801,183.875,1131.801,189.406L1131.801,194.938" id="scv-mmd-1520626e40-L_BF_Prov_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_BF_Prov_0" data-points="W3sieCI6MTEwNC4yNTk5MTczMjQwMjkyLCJ5Ijo4Ny4zNzV9LHsieCI6MTEzMS44MDA3ODEyNSwieSI6MTI0LjU2MjV9LHsieCI6MTEzMS44MDA3ODEyNSwieSI6MTYxLjc1fSx7IngiOjExMzEuODAwNzgxMjUsInkiOjE5OC45Mzc1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1063.99,87.375L1059.4,93.573C1054.81,99.771,1045.63,112.167,1041.039,124.563C1036.449,136.958,1036.449,149.354,1012.129,162.133C987.808,174.912,939.167,188.073,914.846,194.654L890.525,201.235" id="scv-mmd-1520626e40-L_BF_Privacy_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_BF_Privacy_0" data-points="W3sieCI6MTA2My45OTAwODI2NzU5NzA4LCJ5Ijo4Ny4zNzV9LHsieCI6MTAzNi40NDkyMTg3NSwieSI6MTI0LjU2MjV9LHsieCI6MTAzNi40NDkyMTg3NSwieSI6MTYxLjc1fSx7IngiOjg4Ni42NjQwNjI1LCJ5IjoyMDIuMjc5NjY3MTA0NTA3fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M798.539,253.313L798.539,259.51C798.539,265.708,798.539,278.104,798.539,290.5C798.539,302.896,798.539,315.292,798.539,327.047C798.539,338.803,798.539,349.918,798.539,355.476L798.539,361.033" id="scv-mmd-1520626e40-L_Privacy_Journal_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Privacy_Journal_0" data-points="W3sieCI6Nzk4LjUzOTA2MjUsInkiOjI1My4zMTI1fSx7IngiOjc5OC41MzkwNjI1LCJ5IjoyOTAuNX0seyJ4Ijo3OTguNTM5MDYyNSwieSI6MzI3LjY4NzV9LHsieCI6Nzk4LjUzOTA2MjUsInkiOjM2NS4wMzMxNzY0MjIxMTkxNH1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M494.389,87.375L500.787,93.573C507.185,99.771,519.981,112.167,526.379,124.563C532.777,136.958,532.777,149.354,532.777,159.052C532.777,168.75,532.777,175.75,532.777,179.25L532.777,182.75" id="scv-mmd-1520626e40-L_Audit_Export_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Audit_Export_0" data-points="W3sieCI6NDk0LjM4OTM3MzQ4MzAwOTcsInkiOjg3LjM3NX0seyJ4Ijo1MzIuNzc3MzQzNzUsInkiOjEyNC41NjI1fSx7IngiOjUzMi43NzczNDM3NSwieSI6MTYxLjc1fSx7IngiOjUzMi43NzczNDM3NSwieSI6MTg2Ljc1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1432.668,265.5L1432.668,269.667C1432.668,273.833,1432.668,282.167,1432.668,292.531C1432.668,302.896,1432.668,315.292,1432.668,327.021C1432.668,338.75,1432.668,349.813,1432.668,355.344L1432.668,360.875" id="scv-mmd-1520626e40-L_Rec_RecRepo_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Rec_RecRepo_0" data-points="W3sieCI6MTQzMi42Njc5Njg3NSwieSI6MjY1LjV9LHsieCI6MTQzMi42Njc5Njg3NSwieSI6MjkwLjV9LHsieCI6MTQzMi42Njc5Njg3NSwieSI6MzI3LjY4NzV9LHsieCI6MTQzMi42Njc5Njg3NSwieSI6MzY0Ljg3NX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M438.259,87.375L431.861,93.573C425.463,99.771,412.667,112.167,406.269,124.563C399.871,136.958,399.871,149.354,375.513,161.739C351.154,174.124,302.437,186.498,278.079,192.685L253.721,198.872" id="scv-mmd-1520626e40-L_Audit_Lock_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Audit_Lock_0" data-points="W3sieCI6NDM4LjI1OTA2NDAxNjk5MDMsInkiOjg3LjM3NX0seyJ4IjozOTkuODcxMDkzNzUsInkiOjEyNC41NjI1fSx7IngiOjM5OS44NzEwOTM3NSwieSI6MTYxLjc1fSx7IngiOjI0OS44NDM3NSwieSI6MTk5Ljg1NjI5MzI1MDkyODZ9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1432.668,87.375L1432.668,93.573C1432.668,99.771,1432.668,112.167,1432.668,124.563C1432.668,136.958,1432.668,149.354,1432.668,159.052C1432.668,168.75,1432.668,175.75,1432.668,179.25L1432.668,182.75" id="scv-mmd-1520626e40-L_Arch_Rec_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Arch_Rec_0" data-points="W3sieCI6MTQzMi42Njc5Njg3NSwieSI6ODcuMzc1fSx7IngiOjE0MzIuNjY3OTY4NzUsInkiOjEyNC41NjI1fSx7IngiOjE0MzIuNjY3OTY4NzUsInkiOjE2MS43NX0seyJ4IjoxNDMyLjY2Nzk2ODc1LCJ5IjoxODYuNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(1131.80078125, 124.5625)"><g class="label" data-id="L_BF_Prov_0" transform="translate(-34.4296875, -12.1875)"><foreignObject width="68.859375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>출처 게이트</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1036.44921875, 124.5625)"><g class="label" data-id="L_BF_Privacy_0" transform="translate(-40.921875, -12.1875)"><foreignObject width="81.84375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>개인정보 검사</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(798.5390625, 327.6875)"><g class="label" data-id="L_Privacy_Journal_0" transform="translate(-34.4296875, -12.1875)"><foreignObject width="68.859375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>패턴 출발점</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(532.77734375, 124.5625)"><g class="label" data-id="L_Audit_Export_0" transform="translate(-63.3203125, -12.1875)"><foreignObject width="126.640625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>태그별 payload 해시</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1432.66796875, 327.6875)"><g class="label" data-id="L_Rec_RecRepo_0" transform="translate(-32.046875, -12.1875)"><foreignObject width="64.09375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>옮김 · 무시</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(399.87109375, 124.5625)"><g class="label" data-id="L_Audit_Lock_0" transform="translate(-49.5859375, -12.1875)"><foreignObject width="99.171875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>옛→새 코어 번호</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1432.66796875, 124.5625)"><g class="label" data-id="L_Arch_Rec_0" transform="translate(-57.8671875, -12.1875)"><foreignObject width="115.734375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>raw_sources 경로</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-1520626e40-flowchart-BF-0" data-look="classic" transform="translate(1084.125, 60.1875)"><rect class="basic label-container"  x="-84.5546875" y="-27.1875" width="169.109375" height="54.375"></rect><g class="label"  transform="translate(-54.5546875, -12.1875)"><rect></rect><foreignObject width="109.109375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>branch-flow.yml</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-1520626e40-flowchart-Prov-1" data-look="classic" transform="translate(1131.80078125, 226.125)"><rect class="basic label-container"  x="-103.8984375" y="-27.1875" width="207.796875" height="54.375"></rect><g class="label"  transform="translate(-73.8984375, -12.1875)"><rect></rect><foreignObject width="147.796875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>check-provenance.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-1520626e40-flowchart-Journal-2" data-look="classic" transform="translate(798.5390625, 404.40817642211914)"><rect class="basic label-container"  x="-92.671875" y="-39.375" width="185.34375" height="78.75"></rect><g class="label"  transform="translate(-62.671875, -24.375)"><rect></rect><foreignObject width="125.34375" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>journal-append.sh<br>가린 규칙</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-1520626e40-flowchart-Privacy-3" data-look="classic" transform="translate(798.5390625, 226.125)"><rect class="basic label-container" style="stroke-width:2px" x="-88.125" y="-27.1875" width="176.25" height="54.375"></rect><g class="label"  transform="translate(-58.125, -12.1875)"><rect></rect><foreignObject width="116.25" height="24.375"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>check-privacy.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-1520626e40-flowchart-Export-4" data-look="classic" transform="translate(532.77734375, 226.125)"><rect class="basic label-container"  x="-80.7109375" y="-39.375" width="161.421875" height="78.75"></rect><g class="label"  transform="translate(-50.7109375, -24.375)"><rect></rect><foreignObject width="101.421875" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>export-core.sh<br>payload</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-1520626e40-flowchart-Audit-5" data-look="classic" transform="translate(466.32421875, 60.1875)"><rect class="basic label-container" style="stroke-width:2px" x="-85.46875" y="-27.1875" width="170.9375" height="54.375"></rect><g class="label"  transform="translate(-55.46875, -12.1875)"><rect></rect><foreignObject width="110.9375" height="24.375"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>privacy-audit.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-1520626e40-flowchart-Rec-6" data-look="classic" transform="translate(1432.66796875, 226.125)"><rect class="basic label-container"  x="-106.96875" y="-39.375" width="213.9375" height="78.75"></rect><g class="label"  transform="translate(-76.96875, -24.375)"><rect></rect><foreignObject width="153.9375" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>journal · conversations<br>dreams · raw</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-1520626e40-flowchart-Arch-7" data-look="classic" transform="translate(1432.66796875, 60.1875)"><rect class="basic label-container"  x="-99.984375" y="-27.1875" width="199.96875" height="54.375"></rect><g class="label"  transform="translate(-69.984375, -12.1875)"><rect></rect><foreignObject width="139.96875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>archive · DECISIONS</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-1520626e40-flowchart-Lock-8" data-look="classic" transform="translate(146.421875, 226.125)"><rect class="basic label-container"  x="-103.421875" y="-39.375" width="206.84375" height="78.75"></rect><g class="label"  transform="translate(-73.421875, -24.375)"><rect></rect><foreignObject width="146.84375" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>vendor core.lock.json<br>source_commit</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-1520626e40-flowchart-RecRepo-9" data-look="classic" transform="translate(1432.66796875, 404.40817642211914)"><path d="M0,13.230447831460012 a70.2578125,13.230447831460012 0,0,0 140.515625,0 a70.2578125,13.230447831460012 0,0,0 -140.515625,0 l0,52.60544783146001 a70.2578125,13.230447831460012 0,0,0 140.515625,0 l0,-52.60544783146001" class="basic label-container outer-path" style="stroke-width:2px" transform="translate(-70.2578125, -39.53317174719002)"></path><g class="label"  transform="translate(-62.7578125, -2.1875)"><rect></rect><foreignObject width="125.515625" height="24.375"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>scv-records 비공개</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-1520626e40-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-1520626e40-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-1520626e40-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre></section>
+<section id="s-3-변경-지도" class="slide-page" data-idx="3"><div class="kicker">Architecture — 공개 저장소 개인정보 정리</div><h2>변경 지도</h2><pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="1544.75" height="94.75" class="scv-mmd" id="scv-mmd-2167c7ae12" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 1544.75 94.75" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}.scv-mmd .added&gt;*{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .added span{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .added tspan{fill:rgb(0, 0, 0);}.scv-mmd .changed&gt;*{fill:rgb(144, 202, 249);stroke:rgb(21, 101, 192);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .changed span{fill:rgb(144, 202, 249);stroke:rgb(21, 101, 192);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .changed tspan{fill:rgb(0, 0, 0);}.scv-mmd .removed&gt;*{fill:rgb(45, 45, 45);stroke:rgb(239, 154, 154);stroke-width:2px;stroke-dasharray:4,3;color:rgb(239, 154, 154);}.scv-mmd .removed span{fill:rgb(45, 45, 45);stroke:rgb(239, 154, 154);stroke-width:2px;stroke-dasharray:4,3;color:rgb(239, 154, 154);}.scv-mmd .removed tspan{fill:rgb(239, 154, 154);}</style><g><marker id="scv-mmd-2167c7ae12_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-2167c7ae12_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-2167c7ae12_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-2167c7ae12_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-2167c7ae12_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-2167c7ae12_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-2167c7ae12_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-2167c7ae12_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-2167c7ae12_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-2167c7ae12_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-2167c7ae12_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-2167c7ae12_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M197.672,47.375L201.839,47.375C206.005,47.375,214.339,47.375,222.005,47.375C229.672,47.375,236.672,47.375,240.172,47.375L243.672,47.375" id="scv-mmd-2167c7ae12-L_S1_S2_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S1_S2_0" data-points="W3sieCI6MTk3LjY3MTg3NSwieSI6NDcuMzc1fSx7IngiOjIyMi42NzE4NzUsInkiOjQ3LjM3NX0seyJ4IjoyNDcuNjcxODc1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M430.188,47.375L434.354,47.375C438.521,47.375,446.854,47.375,454.521,47.375C462.188,47.375,469.188,47.375,472.688,47.375L476.188,47.375" id="scv-mmd-2167c7ae12-L_S2_S3_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S2_S3_0" data-points="W3sieCI6NDMwLjE4NzUsInkiOjQ3LjM3NX0seyJ4Ijo0NTUuMTg3NSwieSI6NDcuMzc1fSx7IngiOjQ4MC4xODc1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M648.922,47.375L653.089,47.375C657.255,47.375,665.589,47.375,673.255,47.375C680.922,47.375,687.922,47.375,691.422,47.375L694.922,47.375" id="scv-mmd-2167c7ae12-L_S3_S4_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S3_S4_0" data-points="W3sieCI6NjQ4LjkyMTg3NSwieSI6NDcuMzc1fSx7IngiOjY3My45MjE4NzUsInkiOjQ3LjM3NX0seyJ4Ijo2OTguOTIxODc1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M871.109,47.375L875.276,47.375C879.443,47.375,887.776,47.375,895.443,47.375C903.109,47.375,910.109,47.375,913.609,47.375L917.109,47.375" id="scv-mmd-2167c7ae12-L_S4_S5_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S4_S5_0" data-points="W3sieCI6ODcxLjEwOTM3NSwieSI6NDcuMzc1fSx7IngiOjg5Ni4xMDkzNzUsInkiOjQ3LjM3NX0seyJ4Ijo5MjEuMTA5Mzc1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1092.813,47.375L1096.979,47.375C1101.146,47.375,1109.479,47.375,1117.146,47.375C1124.813,47.375,1131.813,47.375,1135.313,47.375L1138.813,47.375" id="scv-mmd-2167c7ae12-L_S5_S6_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S5_S6_0" data-points="W3sieCI6MTA5Mi44MTI1LCJ5Ijo0Ny4zNzV9LHsieCI6MTExNy44MTI1LCJ5Ijo0Ny4zNzV9LHsieCI6MTE0Mi44MTI1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1328.828,47.375L1332.995,47.375C1337.161,47.375,1345.495,47.375,1353.161,47.375C1360.828,47.375,1367.828,47.375,1371.328,47.375L1374.828,47.375" id="scv-mmd-2167c7ae12-L_S6_S7_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S6_S7_0" data-points="W3sieCI6MTMyOC44MjgxMjUsInkiOjQ3LjM3NX0seyJ4IjoxMzUzLjgyODEyNSwieSI6NDcuMzc1fSx7IngiOjEzNzguODI4MTI1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_S1_S2_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S2_S3_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S3_S4_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S4_S5_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S5_S6_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S6_S7_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-2167c7ae12-flowchart-S1-0" data-look="classic" transform="translate(102.8359375, 47.375)"><rect class="basic label-container"  x="-94.8359375" y="-39.375" width="189.671875" height="78.75"></rect><g class="label"  transform="translate(-64.8359375, -24.375)"><rect></rect><foreignObject width="129.671875" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>snapshotRepos<br><small>저장소 목록 → 경로 · 목록</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-2167c7ae12-flowchart-S2-1" data-look="classic" transform="translate(338.9296875, 47.375)"><rect class="basic label-container"  x="-91.2578125" y="-39.375" width="182.515625" height="78.75"></rect><g class="label"  transform="translate(-61.2578125, -24.375)"><rect></rect><foreignObject width="122.515625" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>buildRules<br><small>개인정보 목록 → 규칙 표</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-2167c7ae12-flowchart-S3-2" data-look="classic" transform="translate(564.5546875, 47.375)"><rect class="basic label-container"  x="-84.3671875" y="-39.375" width="168.734375" height="78.75"></rect><g class="label"  transform="translate(-54.3671875, -24.375)"><rect></rect><foreignObject width="108.734375" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>planRewrite<br><small>규칙 + 저장소 → 인자</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-2167c7ae12-flowchart-S4-3" data-look="classic" transform="translate(785.015625, 47.375)"><rect class="basic label-container"  x="-86.09375" y="-39.375" width="172.1875" height="78.75"></rect><g class="label"  transform="translate(-56.09375, -24.375)"><rect></rect><foreignObject width="112.1875" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>mapCoreShas<br><small>옛→새 표 → 바꾸기 줄</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-2167c7ae12-flowchart-S5-4" data-look="classic" transform="translate(1006.9609375, 47.375)"><rect class="basic label-container"  x="-85.8515625" y="-39.375" width="171.703125" height="78.75"></rect><g class="label"  transform="translate(-55.8515625, -24.375)"><rect></rect><foreignObject width="111.703125" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>scanForLeaks<br><small>사본 내용 → 남은 목록</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-2167c7ae12-flowchart-S6-5" data-look="classic" transform="translate(1235.8203125, 47.375)"><rect class="basic label-container"  x="-93.0078125" y="-39.375" width="186.015625" height="78.75"></rect><g class="label"  transform="translate(-63.0078125, -24.375)"><rect></rect><foreignObject width="126.015625" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>compareInvariants<br><small>전 · 후 목록 → 어긋남</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-2167c7ae12-flowchart-S7-6" data-look="classic" transform="translate(1457.7890625, 47.375)"><rect class="basic label-container"  x="-78.9609375" y="-39.375" width="157.921875" height="78.75"></rect><g class="label"  transform="translate(-48.9609375, -24.375)"><rect></rect><foreignObject width="97.921875" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>pushRewrite<br><small>사본 + 확인 → 원격</small></p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-2167c7ae12-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-2167c7ae12-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-2167c7ae12-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre>
+<div class="tw"><table><thead><tr><th>상태</th><th>단계</th><th>받는 값 → 돌려주는 값</th><th>코드 대조</th><th>화면</th></tr></thead><tbody><tr><td>미지정</td><td>snapshotRepos</td><td>저장소 목록 → 경로 · 목록</td><td>근거없음</td><td>—</td></tr><tr><td>미지정</td><td>buildRules</td><td>개인정보 목록 → 규칙 표</td><td>근거없음</td><td>—</td></tr><tr><td>미지정</td><td>planRewrite</td><td>규칙 + 저장소 → 인자</td><td>근거없음</td><td>—</td></tr><tr><td>미지정</td><td>mapCoreShas</td><td>옛→새 표 → 바꾸기 줄</td><td>근거없음</td><td>—</td></tr><tr><td>미지정</td><td>scanForLeaks</td><td>사본 내용 → 남은 목록</td><td>근거없음</td><td>—</td></tr><tr><td>미지정</td><td>compareInvariants</td><td>전 · 후 목록 → 어긋남</td><td>근거없음</td><td>—</td></tr><tr><td>미지정</td><td>pushRewrite</td><td>사본 + 확인 → 원격</td><td>근거없음</td><td>—</td></tr></tbody></table></div></section>
+<section id="__lint" class="lint slide-page" data-idx="4"><h2>품질 리포트 <span class="lint-count">2</span></h2>
+     <p class="sub">원문에 없는 내용은 채우지 않음 — 전문 기획서가 보통 갖추는데 이 문서엔 빠진 항목입니다.</p>
+     <div class="callout warn"><div>성공지표(Metrics) 섹션이 없습니다 — baseline→target 지표를 권장합니다.</div></div><div class="callout warn"><div>예외처리(Edge cases) 섹션이 없습니다.</div></div></section>
+<section class="print-source"><h2>기획서 원문</h2><h3>PLAN.md</h3><pre class="code"><code>---
+title: 공개 저장소 개인정보 정리 — 과거 기록까지 지우고, 다시 쌓이지 않게, SCV 기록은 비공개 저장소로
+slug: 20261027-wookiya1364-privacy-history-purge
+author: wookiya1364
+created_at: 2026-10-27
+status: done
+kind: refactor
+lang: korean
+tags: [privacy, git-history, security, records]
+raw_sources:
+  - scv/conversations/20261022-165947-scv-mods-install-command.md
+refs: []
+invariants:
+  - "코어 릴리스 payload(배포 묶음)는 바이트 그대로 — 릴리스 자산 · SHA-256 · 래퍼의 payload 해시가 바뀌지 않는다"
+  - "브랜치 · 태그 · 릴리스 이름과 수가 그대로다"
+  - "되돌릴 수 없는 단계(강제 덮어쓰기 · 규칙 끄기 · 저장소 만들기)는 실행 직전에 사용자 확인을 받는다"
+  - "모드 저장소의 다른 세션 작업 중 파일은 건드리지 않는다"
+---
+
+# 공개 저장소 개인정보 정리 — 과거 기록까지 지우고, 다시 쌓이지 않게, SCV 기록은 비공개 저장소로
+
+## Summary
+
+네 공개 저장소(코어 · claude 래퍼 · codex 래퍼 · 모드)의 지금 파일과 git 과거 기록에서 개인정보를 모두 지운다.
+대상은 주제와 상관없는 개인 대화, 회사 팀 이름, 내 컴퓨터 경로, 세션 id다(실명 · 개인 메일은 사용자 결정으로 남긴다). 앞으로 커밋할 때 다시
+쌓이지 않게 CI 검사를 건다. SCV 기록(일지 · 대화 · 드림 · 자료)은 공개 저장소에서 빼고, 새 비공개 저장소
+`scv-records` 로 옮긴다. 계획의 근거로 쓰던 대화도 거기서 같은 경로로 찾는다.
+
+사용자 요청(대화 Turn 70~71): "찾은 것 위험도 낮음~높음 모두 과거기록까지 제거 · 앞으로 쌓이지 않도록 · 열린 PR 도
+깨지지 않도록 · 철저히 계획". 선택 창 답: 범위는 모드까지 네 저장소, 열린 PR 은 먼저 병합한 뒤 다시 쓴다, 세션 링크
+줄은 과거에서 지우고 앞으로 안 붙인다, 비공개 저장소 이름은 scv-records.
+
+### 조사로 확인한 사실 (2026-10-27)
+
+| 항목 | 코어 | claude | codex | 모드 |
+|---|---|---|---|---|
+| 공개 여부 | 공개 | 공개 | 공개 | 공개 |
+| 커밋 작성자 실명 · 개인 메일 | 484 | 413 | 279 | 59 |
+| 커밋 메시지의 세션 id(Claude-Session 줄 등) | 172 | 76 | 57 | 39 |
+| 파일 속 개인 메일 | 0 (일지 속 남의 메일 1) | 플러그인 설명 2 | 플러그인 설명 1 | 0 |
+| SCV 기록 공개(일지 · 대화 · 드림 · 자료) | 있음 — 경로 · 세션 id · 개인 대화 · 회사 팀 이름 | 없음 | 없음 | 있음 — 대화 · 드림, 보관 계획에 세션 id |
+| 브랜치 / 태그 | 4 / 82 | 10 / 90 | 8 / 70 | 3 / 14 |
+| 포크 | 0 | **1** | 0 | 0 |
+| 영구 브랜치 규칙(강제 덮어쓰기 금지, 우회자 없음) | 있음 | 있음 | 있음 | 없음 |
+| 코어 커밋 번호를 고정한 곳 | — | `vendor/scv-core/core.lock.json` 의 `source_commit` | 같음 | — |
+
+- 코어 릴리스 payload 는 `core/` · `tools/` · 루트 문서만 담고 `scv/` 기록은 담지 않는다(`tools/export-core.sh`). 기록을 지워도 payload 와 그 해시는 그대로다(확인).
+- 기록 밖(계획 · 결정 · 코드)에는 개인정보가 없다(확인). 모드만 보관 계획 하나에 세션 id 가 예시로 들어 있다.
+- `git filter-repo` 가 설치돼 있지 않다(확인).
+- GitHub 은 병합된 PR 의 옛 커밋(`refs/pull/*`)과 화면 캐시를 따로 보관하고, 포크에는 옛 기록이 그대로 남는다. 이 둘은 강제 덮어쓰기로 지워지지 않는다. GitHub 지원 요청이 필요하다(GitHub 공식 안내 "Removing sensitive data from a repository").
+
+## Goals / Non-Goals
+
+- **Goals**
+  - 네 저장소의 모든 브랜치 · 태그의 파일과 커밋 메시지 · 작성자 정보에서 개인정보를 0건으로 만든다.
+  - (바뀜, 2026-10-27 사용자 결정) 실명 · 개인 메일은 공개 GitHub 계정의 정체성이라 그대로 둔다 — 작성자 정보와 플러그인 설명 파일의 메일은 바꾸지 않는다.
+  - SCV 기록을 비공개 `scv-records` 로 옮기고, 이 컴퓨터의 SCV 가 앞으로도 그쪽에 기록하게 한다.
+  - 다시 쌓이지 않게 막는다: 커밋 작성자 설정, 네 저장소 CI 의 개인정보 검사, 세션 링크 줄 안 붙이기.
+  - 릴리스 · 코어 고정 · 채널이 다시 쓴 뒤에도 그대로 동작한다.
+  - GitHub 에 남는 옛 사본(PR ref · 캐시 · 포크)을 지우는 지원 요청 문안을 준비한다.
+- **Non-Goals**
+  - 커밋 작성자 이름 · 메일과 플러그인 설명 파일 메일 바꾸기(사용자 결정: 계정에서 빠지면 안 됨).
+  - SCV 제품의 기본값("기록은 커밋") 바꾸기 — 다른 사용자 프로젝트의 동작은 그대로다. 이 저장소들만 비공개로 옮긴다.
+  - 기능 변경.
+  - 포크 주인의 사본을 지우는 일(우리 권한 밖). 요청만 한다.
+
+## Approach Overview
+
+1. **멈추고 백업한다.** 문서 PR 네 개를 먼저 병합한다. 그 뒤 네 저장소의 자동 작업(동기화 · 채널 · 릴리스)을 잠시 끈다. 각 저장소를 통째로(`--mirror`) 이 컴퓨터에 백업한다. 백업은 되돌리기용이며 어디에도 올리지 않는다.
+2. **기록을 먼저 옮긴다.** 비공개 `scv-records` 를 만든다. 코어 · 모드의 지금 SCV 기록(커밋 안 된 것 포함)을 저장소별 폴더에 그대로 복사해 올린다.
+3. **규칙을 만든다(순수).** 작성자 바꾸기 표, 글자 바꾸기 표(메일 · 경로 · 세션 id), 지울 경로(SCV 기록 폴더), 메시지에서 지울 줄(Claude-Session · 세션 링크)을 정한다. 실명 · 회사 팀 이름처럼 공개 코드에 적으면 안 되는 말은 이 컴퓨터의 비공개 파일에만 둔다.
+4. **다시 쓴다.** 백업에서 만든 작업 사본에 `git filter-repo` 를 돌린다. 순서는 코어가 먼저다 — 코어의 옛 → 새 커밋 번호 표를 얻어, 래퍼의 `core.lock.json` · 변경 기록 속 코어 커밋 번호를 그 표로 바꾼다. 그다음 래퍼 둘, 마지막이 모드다.
+5. **올리기 전에 검증한다.** 다시 쓴 사본 전체(모든 ref)를 훑어 개인정보 0건을 확인한다. 코어 태그의 payload 해시가 릴리스 자산과 같은지, 래퍼의 코어 고정이 새 코어 커밋을 가리키는지, 브랜치 · 태그 수가 같은지, 테스트가 통과하는지 확인한다.
+6. **실행 직전 확인 → 올린다.** 사용자 확인 뒤 영구 브랜치 규칙을 잠시 끄고 브랜치 · 태그를 강제로 덮어쓴다. 규칙은 원래대로 되돌린다. 릴리스는 태그 이름에 붙어 있어 그대로 남는다.
+7. **뒤처리.** 자동 작업을 다시 켜고, 채널 브랜치를 다시 만들고, CI 를 돌린다. 옛 설치본에서 플러그인 업데이트가 되는지 임시 설정으로 확인한다. 이 컴퓨터의 클론 · 워크트리 · 마켓 사본을 새 기록에 맞춘다. GitHub 지원 요청 문안을 사용자에게 건넨다.
+8. **다시 쌓이지 않게.** 네 저장소에 작성자 noreply 설정을 하고, 코어에 개인정보 검사(`core/scripts/check-privacy.sh`)를 넣어 네 저장소 CI 에서 돌린다. 공개 저장소에서는 SCV 기록 폴더를 무시한다. 이 컴퓨터에서는 그 폴더가 `scv-records` 작업 사본을 가리키게 한다. 세션 링크 줄은 더 붙이지 않는다.
+
+## 순수함수 · 파이프라인 (Pure functions &amp; pipeline)
+
+```
+flow(
+  snapshotRepos,     // 저장소 목록 → 백업 · 작업 사본 경로, 브랜치 · 태그 · 해시 목록 (입구)
+  buildRules,        // 개인정보 목록 + 저장소 → 작성자 표 · 글자 바꾸기 표 · 지울 경로 · 지울 메시지 줄
+  planRewrite,       // 규칙 + 저장소 → filter-repo 인자
+  mapCoreShas,       // 코어 옛→새 커밋 표 → 래퍼용 글자 바꾸기 줄 (40자 · 7자)
+  scanForLeaks,      // 다시 쓴 사본의 파일 · 메시지 · 작성자 → 남은 개인정보 목록
+  compareInvariants, // 전 · 후 목록 → 어긋난 것 (payload 해시 · 브랜치 · 태그 · 고정)
+  pushRewrite,       // 검증 통과 사본 + 사용자 확인 → 원격 덮어쓰기 (출구)
+)
+```
+
+| # | 단계 | 하는 일 | 받는 값 → 돌려주는 값 | 순수/부수효과 |
+|---|---|---|---|---|
+| 1 | `snapshotRepos` | 네 저장소를 통째로 백업하고 작업 사본과 전(前) 목록을 만든다 | 저장소 목록 → 경로 · 목록 | 부수효과 (입구) |
+| 2 | `buildRules` | 무엇을 무엇으로 바꾸고 무엇을 지울지 표로 만든다 | 개인정보 목록 → 규칙 표 | 순수 |
+| 3 | `planRewrite` | 규칙을 저장소별 다시 쓰기 명령 인자로 바꾼다 | 규칙 + 저장소 → 인자 | 순수 |
+| 4 | `mapCoreShas` | 코어 커밋 번호가 바뀐 대로 래퍼 속 번호를 바꿀 줄을 만든다 | 옛→새 표 → 바꾸기 줄 | 순수 |
+| 5 | `scanForLeaks` | 다시 쓴 사본에 개인정보가 남았는지 찾는다 | 사본 내용 → 남은 목록 | 순수 |
+| 6 | `compareInvariants` | 바뀌면 안 되는 것이 그대로인지 전 · 후를 맞춘다 | 전 · 후 목록 → 어긋남 | 순수 |
+| 7 | `pushRewrite` | 확인받은 사본으로 원격을 덮어쓴다 | 사본 + 확인 → 원격 | 부수효과 (출구) |
+
+- 부수효과 위치: `snapshotRepos`(클론 · 파일 읽기)와 `pushRewrite`(원격 덮어쓰기)만. 다시 쓰기 실행(filter-repo)은 작업 사본 안에서만 일어나고, 원격은 7단계 전까지 그대로다.
+- 재사용: 코어의 `journal-append.sh --redact-only` 가린 규칙(비밀값 패턴)을 `scanForLeaks` 패턴의 출발점으로 쓴다. 코어 `tools/export-core.sh` 로 태그별 payload 해시를 다시 만든다. 개인정보 검사는 기존 출처 게이트(`check-provenance.sh`)와 같은 모양으로 branch-flow 에서 돈다.
+
+## Guardrails
+
+- 원격을 바꾸는 단계(규칙 끄기 · 강제 덮어쓰기 · 비공개 저장소 만들기 · 자동 작업 끄기)는 실행 직전에 사용자 확인을 받는다. 계획 승인만으로 하지 않는다.
+- 덮어쓰기 전에 네 저장소의 `--mirror` 백업이 있고, 백업에서 다시 올리는 길(되돌리기)을 미리 시험해 둔다.
+- 실명 · 회사 팀 이름 · 개인 메일 같은 개인 값은 공개 저장소의 코드 · 테스트 · 문서 · 계획에 적지 않는다. 이 컴퓨터의 비공개 파일과 GitHub 비밀값(Actions secret)에만 둔다. 이 계획서도 그 값을 적지 않는다.
+- 영구 브랜치 규칙은 덮어쓰기 동안만 끄고, 끝나면 같은 설정으로 되돌린다(전 · 후 설정 JSON 비교).
+- 모드 저장소의 다른 세션 작업 중 파일은 건드리지 않는다. 모드는 그 세션이 커밋하거나 정리한 뒤에 다시 쓴다.
+- 코어 payload 는 바이트 그대로다. 바뀌면 멈춘다.
+- 다시 쓰기 중에는 새 커밋 · PR 을 만들지 않는다. 자동 작업도 꺼 둔다.
+- 맥 + 리눅스, bash 3.2 에서 개인정보 검사가 똑같이 돈다.
+
+## Exit criteria
+
+- TESTS.md 의 모든 시나리오가 통과한다.
+- 네 저장소를 새로 클론해 모든 브랜치 · 태그를 훑으면 개인정보 0건이다(작성자 · 메시지 · 파일).
+- 릴리스 · 코어 고정 · 채널 · CI 가 다시 쓴 뒤에도 그대로 동작한다.
+- 이 컴퓨터의 SCV 가 기록을 `scv-records` 에 남기고, 공개 저장소의 작업 트리는 기록 때문에 더러워지지 않는다.
+- 개인정보가 든 커밋은 네 저장소 CI 에서 막힌다.
+- GitHub 지원 요청 문안이 사용자에게 전달되었다(보내는 것은 사용자 몫).
+
+## Suggested path
+
+1. `git filter-repo` 를 설치하고, 문서 PR 넷을 병합하고, 모드의 다른 세션 작업이 정리되었는지 확인한다 — 다시 쓰기 전 준비
+2. 네 저장소를 백업하고 전 목록(브랜치 · 태그 · 태그별 payload 해시 · 규칙 설정)을 만든다 — `snapshotRepos`
+3. 비공개 `scv-records` 를 만들고(확인 후) 코어 · 모드 기록을 옮긴다 — 기록을 비공개 저장소로 옮긴다
+4. 규칙 표와 저장소별 인자를 만들고, 개인 값은 비공개 파일에 둔다 — `buildRules`, `planRewrite`
+5. 코어를 작업 사본에서 다시 쓰고 커밋 번호 표를 얻는다 — `planRewrite`, `mapCoreShas`
+6. 래퍼 둘 · 모드를 다시 쓴다(코어 번호 표 적용) — `planRewrite`
+7. 남은 개인정보를 찾고 바뀌면 안 되는 것을 맞춘다. 테스트도 돌린다 — `scanForLeaks`, `compareInvariants`
+8. 백업에서 되돌리는 길을 시험한다(dry-run) — 되돌리기 준비를 확인한다
+9. 사용자 확인 뒤 규칙을 끄고 덮어쓰고 규칙을 되돌린다 — `pushRewrite`
+10. 자동 작업을 켜고 채널을 다시 만들고 CI · 플러그인 업데이트 · 로컬 사본을 확인한다 — 다시 쓴 뒤 뒤처리
+11. 개인정보 검사 · 작성자 설정 · 기록 폴더 연결 · 세션 줄 중단을 넣는다 — 다시 쌓이지 않게 막는다
+12. GitHub 지원 요청 문안(PR ref · 캐시 · 포크)을 만들어 건넨다 — 남은 옛 사본 정리를 요청한다
+
+## Related Documents
+
+- GitHub 안내: Removing sensitive data from a repository (filter-repo · PR ref · 지원 요청)
+- `tools/export-core.sh` — payload 범위
+- `.github/workflows/*` (네 저장소) — 끌 자동 작업, 개인정보 검사를 넣을 branch-flow
+
+## Risks / Open Questions
+
+- **GitHub 의 옛 사본.** 병합된 PR 의 옛 커밋 · 화면 캐시 · claude 래퍼의 포크 1개에는 덮어쓴 뒤에도 옛 기록이 남는다. 지원 요청으로 PR ref 와 캐시는 지울 수 있다. 포크는 주인에게 부탁할 수밖에 없다. 그 전까지는 "완전 삭제"가 아니다.
+- **설치된 플러그인 업데이트.** 사용자들의 마켓 사본(claude · codex)은 옛 기록을 갖고 있다. 강제 덮어쓰기 뒤 업데이트가 실패할 수 있다(미확인). 임시 설정에서 옛 설치 → 덮어쓰기 → 업데이트 순서로 확인하고, 실패하면 마켓을 지웠다 다시 넣는 안내를 릴리스 노트에 싣는다.
+- **커밋 번호에 기대는 것들.** 래퍼 고정(`source_commit`), 채널 버전(`-dev.&lt;commit&gt;`), 변경 기록 · 릴리스 노트 속 번호, 다른 저장소의 PR 본문 링크가 바뀐다. 고정과 문서 속 번호는 번호 표로 바꾼다. GitHub PR 본문 · 댓글 속 옛 번호는 git 밖이라 바뀌지 않는다(링크만 깨짐).
+- **PR 본문 · 댓글 · 릴리스 본문.** git 기록이 아니므로 다시 쓰기로 지워지지 않는다. 그 안의 개인정보(경로 · 세션 id)를 따로 훑어 API 로 고친다(범위에 넣음, TESTS T12).
+- **이 컴퓨터의 다른 사본.** 형제 저장소 클론, 스크래치 클론, 워크트리, `~/.claude/plugins` 마켓 사본이 옛 기록을 갖고 있다. 다시 클론하거나 맞춘다. `~/.claude/plugins` 는 손으로 고치지 않고 마켓 업데이트 · 다시 넣기로만 맞춘다.
+- **filter-repo 의 7자 번호 바꾸기.** 짧은 번호는 우연히 다른 글자와 겹칠 수 있다. 번호 표의 7자 줄은 저장소 안에서 유일한 것만 쓰고, 바꾼 줄 수를 세어 확인한다.
+- **SCV 기록 폴더 연결 방식.** 공개 저장소에서 무시하는 기록 폴더가 비공개 작업 사본을 가리킬 때, SCV 스크립트(기록 쓰기 · pr-helper 의 기록 커밋)가 그대로 동작하는지 미확인이다. 실제로 돌려 확인한다(T8).
+
+## Links
+
+- Raw originals: (listed in frontmatter)
+- Related PRs: 문서 최신화 PR(core #361 · claude #389 · codex #325 · mods #1) — 먼저 병합</code></pre><h3>FEATURE_ARCHITECTURE.md</h3><pre class="code"><code>---
+title: 공개 저장소 개인정보 정리 — 과거 기록까지 지우고, 다시 쌓이지 않게, SCV 기록은 비공개 저장소로
+slug: 20261027-wookiya1364-privacy-history-purge
+created_at: 2026-10-27
+status: planned
+---
+
+# Architecture — 공개 저장소 개인정보 정리
+
+&gt; 이 작업을 두 장의 그림으로 본다. **`/scv:work` 전에 검토하고 고쳐라** — 그림은 모델이 그렸으므로 틀린 곳이 있을 수 있다.
+
+## 1. Component data flow
+
+원격은 ⑦ 전까지 그대로다. ①~⑥은 이 컴퓨터의 백업 · 작업 사본에서만 일어난다.
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  Remote[(GitHub 공개 저장소 넷&lt;br&gt;코어 · claude · codex · 모드)]
+  Records[(scv-records&lt;br&gt;비공개)]
+  Terms[(비공개 목록 파일&lt;br&gt;저장소 밖)]
+  S1["① snapshotRepos&lt;br&gt;--mirror 백업 · 전 목록"]
+  S2["② buildRules&lt;br&gt;작성자 · 글자 · 경로 · 메시지 줄"]
+  S3["③ planRewrite&lt;br&gt;filter-repo 인자"]
+  Core["코어 다시 쓰기"]
+  S4["④ mapCoreShas&lt;br&gt;옛→새 번호 표"]
+  Wr["래퍼 · 모드 다시 쓰기"]
+  S5["⑤ scanForLeaks&lt;br&gt;남은 개인정보"]
+  S6["⑥ compareInvariants&lt;br&gt;payload · 브랜치 · 태그 · 고정"]
+  S7["⑦ pushRewrite&lt;br&gt;규칙 끄기 → 덮어쓰기 → 되돌리기"]
+
+  Remote --&gt;|"git clone --mirror"| S1
+  S1 --&gt;|"코어 · 모드 SCV 기록 복사"| Records
+  Terms --&gt;|"실명 · 팀 이름"| S2
+  S1 --&gt;|"전 목록"| S2
+  S2 --&gt;|"규칙 표"| S3
+  S3 --&gt;|"filter-repo (코어)"| Core
+  Core --&gt;|"commit-map"| S4
+  S4 --&gt;|"--replace-text 줄"| Wr
+  S3 --&gt;|"filter-repo (래퍼 · 모드)"| Wr
+  Core --&gt;|"사본"| S5
+  Wr --&gt;|"사본"| S5
+  S5 --&gt;|"0건"| S6
+  S6 --&gt;|"어긋남 0 + 사용자 확인"| S7
+  S7 --&gt;|"git push --force heads · tags"| Remote
+
+  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+  class S5,S6,S7 key
+```
+
+## 2. Position in whole architecture
+
+이 작업이 닿는 곳. 새로 생기는 것은 노란색, 새 연결은 점선.
+
+&gt; Source: scv graph (built 2026-10-27)
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart TB
+  subgraph ".github/workflows"
+    BF[branch-flow.yml]
+    Prov[check-provenance.sh]
+  end
+  subgraph "core/scripts"
+    Journal[journal-append.sh&lt;br&gt;가린 규칙]
+    Privacy[check-privacy.sh]:::new
+  end
+  subgraph "tools"
+    Export[export-core.sh&lt;br&gt;payload]
+    Audit[privacy-audit.sh]:::new
+  end
+  subgraph "scv"
+    Rec[journal · conversations&lt;br&gt;dreams · raw]
+    Arch[archive · DECISIONS]
+  end
+  subgraph "../scv-claude-code · ../scv-codex"
+    Lock[vendor core.lock.json&lt;br&gt;source_commit]
+  end
+  RecRepo[(scv-records 비공개)]:::new
+
+  BF --&gt;|"출처 게이트"| Prov
+  BF -.-&gt;|"개인정보 검사"| Privacy
+  Privacy -.-&gt;|"패턴 출발점"| Journal
+  Audit -.-&gt;|"태그별 payload 해시"| Export
+  Rec -.-&gt;|"옮김 · 무시"| RecRepo
+  Audit -.-&gt;|"옛→새 코어 번호"| Lock
+  Arch --&gt;|"raw_sources 경로"| Rec
+
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```</code></pre><h3>TESTS.md</h3><pre class="code"><code># Test Plan — 공개 저장소 개인정보 정리 — 과거 기록까지 지우고, 다시 쌓이지 않게, SCV 기록은 비공개 저장소로
+
+## Overview
+
+사용자가 요구한 것은 세 가지다. 첫째, 감사에서 찾은 개인정보(실명 · 개인 메일 · 주제 밖 개인 대화 · 회사 팀 이름 · 내
+컴퓨터 경로 · 세션 id)를 네 공개 저장소의 과거 기록까지 모두 지운다. 둘째, 앞으로 커밋할 때 다시 쌓이지 않게 막는다.
+셋째, SCV 기록은 비공개 저장소로 옮긴다. 이와 함께 열린 PR · 릴리스 · 코어 고정 · 채널이 깨지지 않아야 한다. 아래
+시나리오는 이것들을 하나씩 확인한다. 개인 값(실명 · 회사 팀 이름 · 개인 메일)은 이 문서에 적지 않는다. 검사는 이
+컴퓨터의 비공개 목록 파일(`~/.config/scv/privacy-terms`, 권한 600 — 저장소 밖)과 GitHub 비밀값에서 읽는다.
+
+## Test scenarios
+
+### T1. 새 클론의 모든 ref 에 개인정보가 없다
+
+- **Setup**: 덮어쓴 뒤, 네 저장소를 새로 `--mirror` 클론한다.
+- **Run**: 모든 브랜치 · 태그의 파일 내용 · 커밋 메시지 · 작성자 · 커미터를 비공개 목록 + 공통 패턴(개인 메일, `/Users/&lt;이름&gt;/`, `/private/tmp/claude-&lt;숫자&gt;`, `session_01…`, `Claude-Session:`)으로 훑는다.
+- **Expected**: 맞는 곳 0건.
+- **Pass criterion**: 네 저장소 모두 0건. 검사 스크립트 종료 코드 0.
+
+### T2. 작성자 정보는 그대로다 (사용자 결정, 2026-10-27)
+
+- **Run**: 다시 쓰기 전 · 후 네 저장소의 작성자 · 커미터 이름 · 메일 목록을 비교한다.
+- **Expected**: 같다 — 실명 · 개인 메일은 공개 계정의 정체성이라 남긴다.
+- **Pass criterion**: 목록 차이 0.
+
+### T3. SCV 기록이 공개 저장소에서 사라졌다
+
+- **Run**: 코어 · 모드의 모든 ref 에서 `scv/journal/`, `scv/conversations/`, `scv/dreams/`, `scv/raw/` 경로가 있었던 커밋을 찾는다.
+- **Expected**: 0건. 계획 보관(`scv/archive/`) · 결정 기록은 남아 있다.
+- **Pass criterion**: 기록 경로 0건, 보관 계획 수는 전과 같다.
+
+### T4. 비공개 scv-records 에 기록이 모두 있다
+
+- **Setup**: `scv-records`(비공개)를 클론한다.
+- **Run**: 저장소별 폴더(core · mods)의 파일 수와 내용 해시를 옮기기 전 목록과 맞춘다. 보관 계획 하나를 골라 그 `raw_sources` 대화 경로가 `scv-records/&lt;저장소&gt;/` 아래에 있는지 본다.
+- **Expected**: 파일 수 · 해시가 같고, 근거 대화를 찾을 수 있다. 저장소가 비공개다(`gh api … .private == true`).
+- **Pass criterion**: 차이 0, 비공개 확인.
+
+### T5. 코어 payload 가 바이트 그대로다
+
+- **Run**: 다시 쓴 코어의 최근 태그 다섯 개 이상(마지막 릴리스 포함)에서 `tools/export-core.sh` 로 payload 를 만들어 해시를 낸다. 같은 태그의 GitHub 릴리스 자산 SHA-256 과 래퍼 `core.lock.json` 의 payload 해시와 맞춘다.
+- **Expected**: 모두 같다.
+- **Pass criterion**: 어긋남 0.
+
+### T6. 래퍼의 코어 고정이 새 코어 커밋을 가리킨다
+
+- **Run**: 두 래퍼의 모든 브랜치 끝에서 `vendor/scv-core/core.lock.json`(codex 는 `plugins/scv/vendor/…`)의 `source_commit` 을 읽어, 다시 쓴 코어에 그 커밋이 있는지와 그 커밋의 payload 해시가 lock 과 같은지 본다. 래퍼 기록 전체에서 옛 코어 번호(번호 표의 왼쪽)를 찾는다.
+- **Expected**: 모두 있음 · 같음, 옛 번호 0건.
+- **Pass criterion**: 래퍼 검증 스크립트(`tools/verify-core.sh` · `scripts/verify-core.sh`) 통과, 옛 번호 0건.
+
+### T7. 브랜치 · 태그 · 릴리스가 그대로다
+
+- **Run**: 전 · 후 목록을 비교한다 — 브랜치 이름 · 수, 태그 이름 · 수, 릴리스 이름 · 자산 · 최신 표시.
+- **Expected**: 같다(가리키는 커밋 번호만 바뀜).
+- **Pass criterion**: 이름 · 수 · 자산 차이 0.
+
+### T8. 이 컴퓨터의 SCV 가 기록을 비공개 저장소에 남긴다
+
+- **Setup**: 기록 폴더 연결을 마친 코어 작업 사본.
+- **Run**: SCV 대화 한 턴을 기록하고(`journal-append.sh`), `pr-helper` 의 기록 커밋 단계를 dry-run 으로 돌린다.
+- **Expected**: 새 기록이 `scv-records` 작업 사본에 생긴다. 공개 저장소의 `git status` 에는 기록 파일이 나오지 않는다. pr-helper 가 실패하지 않는다.
+- **Pass criterion**: 세 조건 모두 참.
+
+### T9. 다시 쌓이지 않게 — 개인정보 검사가 막는다
+
+- **Setup**: 코어의 `core/scripts/check-privacy.sh` 와 네 저장소 branch-flow 연결.
+- **Run**: 임시 브랜치(또는 같은 입력의 로컬 실행)로 다섯 경우를 넣는다 — (a) 개인 메일 작성자(기본은 허용, `SCV_PRIVACY_EMAILS=on` 일 때만 막음), (b) 추가 줄에 `/Users/&lt;이름&gt;/` 경로, (c) 커밋 메시지에 `Claude-Session:` 줄, (d) 비밀 목록의 낱말(실명 · 팀 이름) 하나, (e) 깨끗한 커밋.
+- **Expected**: (a)는 기본에서 통과하고 켰을 때 실패한다. (b)~(d)는 실패하고 무엇이 걸렸는지 말한다(개인 값 자체는 출력에서 가린다). (e)는 통과한다.
+- **Pass criterion**: 다섯 경우 모두 기대대로. 맥 · 리눅스 결과 같음.
+
+### T10. 작성자 설정과 세션 줄 중단
+
+- **Run**: 이 세션이 이후 만드는 커밋 · PR 본문에 세션 링크 줄이 없는지 확인한다. (작성자 이름 · 메일은 사용자 결정으로 그대로 — T2.)
+- **Expected**: 세션 줄이 없다.
+- **Pass criterion**: 모두 참.
+
+### T11. 영구 브랜치 규칙이 원래대로다
+
+- **Run**: 덮어쓰기 전 · 후 ruleset JSON(규칙 종류 · 대상 · 우회자 · 시행 상태)을 비교한다.
+- **Expected**: 같다(`enforcement: active`).
+- **Pass criterion**: 차이 0.
+
+### T12. PR · 릴리스 본문의 개인정보도 정리되었다
+
+- **Run**: 네 저장소의 PR 본문 · 댓글 · 릴리스 본문을 API 로 훑는다(T1 과 같은 패턴).
+- **Expected**: 맞는 곳을 고쳐 0건. 고칠 수 없는 것(남의 댓글 등)은 목록으로 보고.
+- **Pass criterion**: 고칠 수 있는 것 0건, 나머지는 목록.
+
+### T13. 덮어쓴 뒤 CI · 채널 · 플러그인 업데이트
+
+- **Run**: 네 저장소 develop · stage · main CI 를 다시 돌린다. 채널 동기화로 `channel/dev` · `channel/stage` 를 다시 만든다. 덮어쓰기 전에 임시 설정 폴더에 옛 기록으로 설치해 둔 claude · codex 플러그인을 업데이트한다.
+- **Expected**: CI 통과. 채널 브랜치가 새 코어 커밋으로 다시 만들어진다. 업데이트가 되거나, 안 되면 마켓을 지웠다 다시 넣는 안내대로 하면 된다(그 안내가 릴리스 노트에 실린다).
+- **Pass criterion**: CI · 채널 통과, 업데이트 결과와 대처가 확인됨.
+
+### T14. 되돌리는 길이 있다
+
+- **Run**: 덮어쓰기 전에, 백업 미러로 다시 올리는 명령을 `--dry-run` 으로 돌려 본다. 덮어쓴 뒤에도 백업이 남아 있는지 확인한다.
+- **Expected**: dry-run 이 ref 목록을 정확히 내놓는다. 백업이 남아 있다(공개된 곳에 올리지 않음).
+- **Pass criterion**: 둘 다 참.
+
+### T15. 열린 PR 이 깨지지 않았다
+
+- **Run**: 덮어쓰기 직전과 직후 네 저장소의 열린 PR 목록을 본다.
+- **Expected**: 직전에 열린 PR 이 0개다(문서 PR 넷은 먼저 병합). 직후에도 깨진 PR 이 없다.
+- **Pass criterion**: 열린 PR 0, 또는 열린 PR 마다 diff 가 덮어쓰기 전과 같다.
+
+### T16. GitHub 지원 요청 문안
+
+- **Run**: 저장소별 PR 번호 범위와 옛 커밋 목록(백업에서)을 담은 지원 요청 문안을 만든다. 포크 주인에게 보낼 짧은 부탁 문안도 만든다.
+- **Expected**: 사용자가 그대로 보낼 수 있는 문안 두 개.
+- **Pass criterion**: 사용자에게 전달됨.
+
+## How to run
+
+```bash
+bash core/tests/test-check-privacy.sh &amp;&amp; bash tools/privacy-audit.sh --repos ../scv-core ../scv-claude-code ../scv-codex ../scv-mods --terms "${SCV_PRIVACY_TERMS_FILE:-$HOME/.config/scv/privacy-terms}"
+```
+
+## Pass criteria
+
+- T1 – T16 모두 통과.
+- 네 저장소 새 클론에서 개인정보 0건, 릴리스 · 고정 · 채널 · CI 정상, 기록은 비공개 저장소에.
+- 남은 GitHub 쪽 옛 사본(PR ref · 캐시 · 포크)은 지원 요청 문안이 사용자에게 전달된 상태.
+
+## Related Documents
+
+- `PLAN.md` — 범위 · 지킬 것 · 위험</code></pre></section>
+</div>
+</div>
+<aside class="source-panel" id="scvSourcePanel">
+      <div class="panel-resize-handle" id="scvResizeHandle" title="드래그해서 크기 조절"></div>
+      <div class="panel-head"><span class="panel-title">기획서 원문</span><button class="panel-close" onclick="scvTogglePanel()" title="숨기기 (S)">✕</button></div>
+      <div class="panel-tabs"><button class="panel-tab" data-idx="0" onclick="scvSelectSource(0)">PLAN.md</button><button class="panel-tab active" data-idx="1" onclick="scvSelectSource(1)">FEATURE_ARCHITECTURE.md</button><button class="panel-tab" data-idx="2" onclick="scvSelectSource(2)">TESTS.md</button></div>
+      <div class="panel-body"><pre class="code src-doc" data-idx="0"><code>---
+title: 공개 저장소 개인정보 정리 — 과거 기록까지 지우고, 다시 쌓이지 않게, SCV 기록은 비공개 저장소로
+slug: 20261027-wookiya1364-privacy-history-purge
+author: wookiya1364
+created_at: 2026-10-27
+status: done
+kind: refactor
+lang: korean
+tags: [privacy, git-history, security, records]
+raw_sources:
+  - scv/conversations/20261022-165947-scv-mods-install-command.md
+refs: []
+invariants:
+  - "코어 릴리스 payload(배포 묶음)는 바이트 그대로 — 릴리스 자산 · SHA-256 · 래퍼의 payload 해시가 바뀌지 않는다"
+  - "브랜치 · 태그 · 릴리스 이름과 수가 그대로다"
+  - "되돌릴 수 없는 단계(강제 덮어쓰기 · 규칙 끄기 · 저장소 만들기)는 실행 직전에 사용자 확인을 받는다"
+  - "모드 저장소의 다른 세션 작업 중 파일은 건드리지 않는다"
+---
+
+# 공개 저장소 개인정보 정리 — 과거 기록까지 지우고, 다시 쌓이지 않게, SCV 기록은 비공개 저장소로
+
+## Summary
+
+네 공개 저장소(코어 · claude 래퍼 · codex 래퍼 · 모드)의 지금 파일과 git 과거 기록에서 개인정보를 모두 지운다.
+대상은 주제와 상관없는 개인 대화, 회사 팀 이름, 내 컴퓨터 경로, 세션 id다(실명 · 개인 메일은 사용자 결정으로 남긴다). 앞으로 커밋할 때 다시
+쌓이지 않게 CI 검사를 건다. SCV 기록(일지 · 대화 · 드림 · 자료)은 공개 저장소에서 빼고, 새 비공개 저장소
+`scv-records` 로 옮긴다. 계획의 근거로 쓰던 대화도 거기서 같은 경로로 찾는다.
+
+사용자 요청(대화 Turn 70~71): "찾은 것 위험도 낮음~높음 모두 과거기록까지 제거 · 앞으로 쌓이지 않도록 · 열린 PR 도
+깨지지 않도록 · 철저히 계획". 선택 창 답: 범위는 모드까지 네 저장소, 열린 PR 은 먼저 병합한 뒤 다시 쓴다, 세션 링크
+줄은 과거에서 지우고 앞으로 안 붙인다, 비공개 저장소 이름은 scv-records.
+
+### 조사로 확인한 사실 (2026-10-27)
+
+| 항목 | 코어 | claude | codex | 모드 |
+|---|---|---|---|---|
+| 공개 여부 | 공개 | 공개 | 공개 | 공개 |
+| 커밋 작성자 실명 · 개인 메일 | 484 | 413 | 279 | 59 |
+| 커밋 메시지의 세션 id(Claude-Session 줄 등) | 172 | 76 | 57 | 39 |
+| 파일 속 개인 메일 | 0 (일지 속 남의 메일 1) | 플러그인 설명 2 | 플러그인 설명 1 | 0 |
+| SCV 기록 공개(일지 · 대화 · 드림 · 자료) | 있음 — 경로 · 세션 id · 개인 대화 · 회사 팀 이름 | 없음 | 없음 | 있음 — 대화 · 드림, 보관 계획에 세션 id |
+| 브랜치 / 태그 | 4 / 82 | 10 / 90 | 8 / 70 | 3 / 14 |
+| 포크 | 0 | **1** | 0 | 0 |
+| 영구 브랜치 규칙(강제 덮어쓰기 금지, 우회자 없음) | 있음 | 있음 | 있음 | 없음 |
+| 코어 커밋 번호를 고정한 곳 | — | `vendor/scv-core/core.lock.json` 의 `source_commit` | 같음 | — |
+
+- 코어 릴리스 payload 는 `core/` · `tools/` · 루트 문서만 담고 `scv/` 기록은 담지 않는다(`tools/export-core.sh`). 기록을 지워도 payload 와 그 해시는 그대로다(확인).
+- 기록 밖(계획 · 결정 · 코드)에는 개인정보가 없다(확인). 모드만 보관 계획 하나에 세션 id 가 예시로 들어 있다.
+- `git filter-repo` 가 설치돼 있지 않다(확인).
+- GitHub 은 병합된 PR 의 옛 커밋(`refs/pull/*`)과 화면 캐시를 따로 보관하고, 포크에는 옛 기록이 그대로 남는다. 이 둘은 강제 덮어쓰기로 지워지지 않는다. GitHub 지원 요청이 필요하다(GitHub 공식 안내 "Removing sensitive data from a repository").
+
+## Goals / Non-Goals
+
+- **Goals**
+  - 네 저장소의 모든 브랜치 · 태그의 파일과 커밋 메시지 · 작성자 정보에서 개인정보를 0건으로 만든다.
+  - (바뀜, 2026-10-27 사용자 결정) 실명 · 개인 메일은 공개 GitHub 계정의 정체성이라 그대로 둔다 — 작성자 정보와 플러그인 설명 파일의 메일은 바꾸지 않는다.
+  - SCV 기록을 비공개 `scv-records` 로 옮기고, 이 컴퓨터의 SCV 가 앞으로도 그쪽에 기록하게 한다.
+  - 다시 쌓이지 않게 막는다: 커밋 작성자 설정, 네 저장소 CI 의 개인정보 검사, 세션 링크 줄 안 붙이기.
+  - 릴리스 · 코어 고정 · 채널이 다시 쓴 뒤에도 그대로 동작한다.
+  - GitHub 에 남는 옛 사본(PR ref · 캐시 · 포크)을 지우는 지원 요청 문안을 준비한다.
+- **Non-Goals**
+  - 커밋 작성자 이름 · 메일과 플러그인 설명 파일 메일 바꾸기(사용자 결정: 계정에서 빠지면 안 됨).
+  - SCV 제품의 기본값("기록은 커밋") 바꾸기 — 다른 사용자 프로젝트의 동작은 그대로다. 이 저장소들만 비공개로 옮긴다.
+  - 기능 변경.
+  - 포크 주인의 사본을 지우는 일(우리 권한 밖). 요청만 한다.
+
+## Approach Overview
+
+1. **멈추고 백업한다.** 문서 PR 네 개를 먼저 병합한다. 그 뒤 네 저장소의 자동 작업(동기화 · 채널 · 릴리스)을 잠시 끈다. 각 저장소를 통째로(`--mirror`) 이 컴퓨터에 백업한다. 백업은 되돌리기용이며 어디에도 올리지 않는다.
+2. **기록을 먼저 옮긴다.** 비공개 `scv-records` 를 만든다. 코어 · 모드의 지금 SCV 기록(커밋 안 된 것 포함)을 저장소별 폴더에 그대로 복사해 올린다.
+3. **규칙을 만든다(순수).** 작성자 바꾸기 표, 글자 바꾸기 표(메일 · 경로 · 세션 id), 지울 경로(SCV 기록 폴더), 메시지에서 지울 줄(Claude-Session · 세션 링크)을 정한다. 실명 · 회사 팀 이름처럼 공개 코드에 적으면 안 되는 말은 이 컴퓨터의 비공개 파일에만 둔다.
+4. **다시 쓴다.** 백업에서 만든 작업 사본에 `git filter-repo` 를 돌린다. 순서는 코어가 먼저다 — 코어의 옛 → 새 커밋 번호 표를 얻어, 래퍼의 `core.lock.json` · 변경 기록 속 코어 커밋 번호를 그 표로 바꾼다. 그다음 래퍼 둘, 마지막이 모드다.
+5. **올리기 전에 검증한다.** 다시 쓴 사본 전체(모든 ref)를 훑어 개인정보 0건을 확인한다. 코어 태그의 payload 해시가 릴리스 자산과 같은지, 래퍼의 코어 고정이 새 코어 커밋을 가리키는지, 브랜치 · 태그 수가 같은지, 테스트가 통과하는지 확인한다.
+6. **실행 직전 확인 → 올린다.** 사용자 확인 뒤 영구 브랜치 규칙을 잠시 끄고 브랜치 · 태그를 강제로 덮어쓴다. 규칙은 원래대로 되돌린다. 릴리스는 태그 이름에 붙어 있어 그대로 남는다.
+7. **뒤처리.** 자동 작업을 다시 켜고, 채널 브랜치를 다시 만들고, CI 를 돌린다. 옛 설치본에서 플러그인 업데이트가 되는지 임시 설정으로 확인한다. 이 컴퓨터의 클론 · 워크트리 · 마켓 사본을 새 기록에 맞춘다. GitHub 지원 요청 문안을 사용자에게 건넨다.
+8. **다시 쌓이지 않게.** 네 저장소에 작성자 noreply 설정을 하고, 코어에 개인정보 검사(`core/scripts/check-privacy.sh`)를 넣어 네 저장소 CI 에서 돌린다. 공개 저장소에서는 SCV 기록 폴더를 무시한다. 이 컴퓨터에서는 그 폴더가 `scv-records` 작업 사본을 가리키게 한다. 세션 링크 줄은 더 붙이지 않는다.
+
+## 순수함수 · 파이프라인 (Pure functions &amp; pipeline)
+
+```
+flow(
+  snapshotRepos,     // 저장소 목록 → 백업 · 작업 사본 경로, 브랜치 · 태그 · 해시 목록 (입구)
+  buildRules,        // 개인정보 목록 + 저장소 → 작성자 표 · 글자 바꾸기 표 · 지울 경로 · 지울 메시지 줄
+  planRewrite,       // 규칙 + 저장소 → filter-repo 인자
+  mapCoreShas,       // 코어 옛→새 커밋 표 → 래퍼용 글자 바꾸기 줄 (40자 · 7자)
+  scanForLeaks,      // 다시 쓴 사본의 파일 · 메시지 · 작성자 → 남은 개인정보 목록
+  compareInvariants, // 전 · 후 목록 → 어긋난 것 (payload 해시 · 브랜치 · 태그 · 고정)
+  pushRewrite,       // 검증 통과 사본 + 사용자 확인 → 원격 덮어쓰기 (출구)
+)
+```
+
+| # | 단계 | 하는 일 | 받는 값 → 돌려주는 값 | 순수/부수효과 |
+|---|---|---|---|---|
+| 1 | `snapshotRepos` | 네 저장소를 통째로 백업하고 작업 사본과 전(前) 목록을 만든다 | 저장소 목록 → 경로 · 목록 | 부수효과 (입구) |
+| 2 | `buildRules` | 무엇을 무엇으로 바꾸고 무엇을 지울지 표로 만든다 | 개인정보 목록 → 규칙 표 | 순수 |
+| 3 | `planRewrite` | 규칙을 저장소별 다시 쓰기 명령 인자로 바꾼다 | 규칙 + 저장소 → 인자 | 순수 |
+| 4 | `mapCoreShas` | 코어 커밋 번호가 바뀐 대로 래퍼 속 번호를 바꿀 줄을 만든다 | 옛→새 표 → 바꾸기 줄 | 순수 |
+| 5 | `scanForLeaks` | 다시 쓴 사본에 개인정보가 남았는지 찾는다 | 사본 내용 → 남은 목록 | 순수 |
+| 6 | `compareInvariants` | 바뀌면 안 되는 것이 그대로인지 전 · 후를 맞춘다 | 전 · 후 목록 → 어긋남 | 순수 |
+| 7 | `pushRewrite` | 확인받은 사본으로 원격을 덮어쓴다 | 사본 + 확인 → 원격 | 부수효과 (출구) |
+
+- 부수효과 위치: `snapshotRepos`(클론 · 파일 읽기)와 `pushRewrite`(원격 덮어쓰기)만. 다시 쓰기 실행(filter-repo)은 작업 사본 안에서만 일어나고, 원격은 7단계 전까지 그대로다.
+- 재사용: 코어의 `journal-append.sh --redact-only` 가린 규칙(비밀값 패턴)을 `scanForLeaks` 패턴의 출발점으로 쓴다. 코어 `tools/export-core.sh` 로 태그별 payload 해시를 다시 만든다. 개인정보 검사는 기존 출처 게이트(`check-provenance.sh`)와 같은 모양으로 branch-flow 에서 돈다.
+
+## Guardrails
+
+- 원격을 바꾸는 단계(규칙 끄기 · 강제 덮어쓰기 · 비공개 저장소 만들기 · 자동 작업 끄기)는 실행 직전에 사용자 확인을 받는다. 계획 승인만으로 하지 않는다.
+- 덮어쓰기 전에 네 저장소의 `--mirror` 백업이 있고, 백업에서 다시 올리는 길(되돌리기)을 미리 시험해 둔다.
+- 실명 · 회사 팀 이름 · 개인 메일 같은 개인 값은 공개 저장소의 코드 · 테스트 · 문서 · 계획에 적지 않는다. 이 컴퓨터의 비공개 파일과 GitHub 비밀값(Actions secret)에만 둔다. 이 계획서도 그 값을 적지 않는다.
+- 영구 브랜치 규칙은 덮어쓰기 동안만 끄고, 끝나면 같은 설정으로 되돌린다(전 · 후 설정 JSON 비교).
+- 모드 저장소의 다른 세션 작업 중 파일은 건드리지 않는다. 모드는 그 세션이 커밋하거나 정리한 뒤에 다시 쓴다.
+- 코어 payload 는 바이트 그대로다. 바뀌면 멈춘다.
+- 다시 쓰기 중에는 새 커밋 · PR 을 만들지 않는다. 자동 작업도 꺼 둔다.
+- 맥 + 리눅스, bash 3.2 에서 개인정보 검사가 똑같이 돈다.
+
+## Exit criteria
+
+- TESTS.md 의 모든 시나리오가 통과한다.
+- 네 저장소를 새로 클론해 모든 브랜치 · 태그를 훑으면 개인정보 0건이다(작성자 · 메시지 · 파일).
+- 릴리스 · 코어 고정 · 채널 · CI 가 다시 쓴 뒤에도 그대로 동작한다.
+- 이 컴퓨터의 SCV 가 기록을 `scv-records` 에 남기고, 공개 저장소의 작업 트리는 기록 때문에 더러워지지 않는다.
+- 개인정보가 든 커밋은 네 저장소 CI 에서 막힌다.
+- GitHub 지원 요청 문안이 사용자에게 전달되었다(보내는 것은 사용자 몫).
+
+## Suggested path
+
+1. `git filter-repo` 를 설치하고, 문서 PR 넷을 병합하고, 모드의 다른 세션 작업이 정리되었는지 확인한다 — 다시 쓰기 전 준비
+2. 네 저장소를 백업하고 전 목록(브랜치 · 태그 · 태그별 payload 해시 · 규칙 설정)을 만든다 — `snapshotRepos`
+3. 비공개 `scv-records` 를 만들고(확인 후) 코어 · 모드 기록을 옮긴다 — 기록을 비공개 저장소로 옮긴다
+4. 규칙 표와 저장소별 인자를 만들고, 개인 값은 비공개 파일에 둔다 — `buildRules`, `planRewrite`
+5. 코어를 작업 사본에서 다시 쓰고 커밋 번호 표를 얻는다 — `planRewrite`, `mapCoreShas`
+6. 래퍼 둘 · 모드를 다시 쓴다(코어 번호 표 적용) — `planRewrite`
+7. 남은 개인정보를 찾고 바뀌면 안 되는 것을 맞춘다. 테스트도 돌린다 — `scanForLeaks`, `compareInvariants`
+8. 백업에서 되돌리는 길을 시험한다(dry-run) — 되돌리기 준비를 확인한다
+9. 사용자 확인 뒤 규칙을 끄고 덮어쓰고 규칙을 되돌린다 — `pushRewrite`
+10. 자동 작업을 켜고 채널을 다시 만들고 CI · 플러그인 업데이트 · 로컬 사본을 확인한다 — 다시 쓴 뒤 뒤처리
+11. 개인정보 검사 · 작성자 설정 · 기록 폴더 연결 · 세션 줄 중단을 넣는다 — 다시 쌓이지 않게 막는다
+12. GitHub 지원 요청 문안(PR ref · 캐시 · 포크)을 만들어 건넨다 — 남은 옛 사본 정리를 요청한다
+
+## Related Documents
+
+- GitHub 안내: Removing sensitive data from a repository (filter-repo · PR ref · 지원 요청)
+- `tools/export-core.sh` — payload 범위
+- `.github/workflows/*` (네 저장소) — 끌 자동 작업, 개인정보 검사를 넣을 branch-flow
+
+## Risks / Open Questions
+
+- **GitHub 의 옛 사본.** 병합된 PR 의 옛 커밋 · 화면 캐시 · claude 래퍼의 포크 1개에는 덮어쓴 뒤에도 옛 기록이 남는다. 지원 요청으로 PR ref 와 캐시는 지울 수 있다. 포크는 주인에게 부탁할 수밖에 없다. 그 전까지는 "완전 삭제"가 아니다.
+- **설치된 플러그인 업데이트.** 사용자들의 마켓 사본(claude · codex)은 옛 기록을 갖고 있다. 강제 덮어쓰기 뒤 업데이트가 실패할 수 있다(미확인). 임시 설정에서 옛 설치 → 덮어쓰기 → 업데이트 순서로 확인하고, 실패하면 마켓을 지웠다 다시 넣는 안내를 릴리스 노트에 싣는다.
+- **커밋 번호에 기대는 것들.** 래퍼 고정(`source_commit`), 채널 버전(`-dev.&lt;commit&gt;`), 변경 기록 · 릴리스 노트 속 번호, 다른 저장소의 PR 본문 링크가 바뀐다. 고정과 문서 속 번호는 번호 표로 바꾼다. GitHub PR 본문 · 댓글 속 옛 번호는 git 밖이라 바뀌지 않는다(링크만 깨짐).
+- **PR 본문 · 댓글 · 릴리스 본문.** git 기록이 아니므로 다시 쓰기로 지워지지 않는다. 그 안의 개인정보(경로 · 세션 id)를 따로 훑어 API 로 고친다(범위에 넣음, TESTS T12).
+- **이 컴퓨터의 다른 사본.** 형제 저장소 클론, 스크래치 클론, 워크트리, `~/.claude/plugins` 마켓 사본이 옛 기록을 갖고 있다. 다시 클론하거나 맞춘다. `~/.claude/plugins` 는 손으로 고치지 않고 마켓 업데이트 · 다시 넣기로만 맞춘다.
+- **filter-repo 의 7자 번호 바꾸기.** 짧은 번호는 우연히 다른 글자와 겹칠 수 있다. 번호 표의 7자 줄은 저장소 안에서 유일한 것만 쓰고, 바꾼 줄 수를 세어 확인한다.
+- **SCV 기록 폴더 연결 방식.** 공개 저장소에서 무시하는 기록 폴더가 비공개 작업 사본을 가리킬 때, SCV 스크립트(기록 쓰기 · pr-helper 의 기록 커밋)가 그대로 동작하는지 미확인이다. 실제로 돌려 확인한다(T8).
+
+## Links
+
+- Raw originals: (listed in frontmatter)
+- Related PRs: 문서 최신화 PR(core #361 · claude #389 · codex #325 · mods #1) — 먼저 병합</code></pre><pre class="code src-doc active" data-idx="1"><code>---
+title: 공개 저장소 개인정보 정리 — 과거 기록까지 지우고, 다시 쌓이지 않게, SCV 기록은 비공개 저장소로
+slug: 20261027-wookiya1364-privacy-history-purge
+created_at: 2026-10-27
+status: planned
+---
+
+<mark class="src-hl"># Architecture — 공개 저장소 개인정보 정리
+
+&gt; 이 작업을 두 장의 그림으로 본다. **`/scv:work` 전에 검토하고 고쳐라** — 그림은 모델이 그렸으므로 틀린 곳이 있을 수 있다.
+</mark>
+## 1. Component data flow
+
+원격은 ⑦ 전까지 그대로다. ①~⑥은 이 컴퓨터의 백업 · 작업 사본에서만 일어난다.
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  Remote[(GitHub 공개 저장소 넷&lt;br&gt;코어 · claude · codex · 모드)]
+  Records[(scv-records&lt;br&gt;비공개)]
+  Terms[(비공개 목록 파일&lt;br&gt;저장소 밖)]
+  S1["① snapshotRepos&lt;br&gt;--mirror 백업 · 전 목록"]
+  S2["② buildRules&lt;br&gt;작성자 · 글자 · 경로 · 메시지 줄"]
+  S3["③ planRewrite&lt;br&gt;filter-repo 인자"]
+  Core["코어 다시 쓰기"]
+  S4["④ mapCoreShas&lt;br&gt;옛→새 번호 표"]
+  Wr["래퍼 · 모드 다시 쓰기"]
+  S5["⑤ scanForLeaks&lt;br&gt;남은 개인정보"]
+  S6["⑥ compareInvariants&lt;br&gt;payload · 브랜치 · 태그 · 고정"]
+  S7["⑦ pushRewrite&lt;br&gt;규칙 끄기 → 덮어쓰기 → 되돌리기"]
+
+  Remote --&gt;|"git clone --mirror"| S1
+  S1 --&gt;|"코어 · 모드 SCV 기록 복사"| Records
+  Terms --&gt;|"실명 · 팀 이름"| S2
+  S1 --&gt;|"전 목록"| S2
+  S2 --&gt;|"규칙 표"| S3
+  S3 --&gt;|"filter-repo (코어)"| Core
+  Core --&gt;|"commit-map"| S4
+  S4 --&gt;|"--replace-text 줄"| Wr
+  S3 --&gt;|"filter-repo (래퍼 · 모드)"| Wr
+  Core --&gt;|"사본"| S5
+  Wr --&gt;|"사본"| S5
+  S5 --&gt;|"0건"| S6
+  S6 --&gt;|"어긋남 0 + 사용자 확인"| S7
+  S7 --&gt;|"git push --force heads · tags"| Remote
+
+  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+  class S5,S6,S7 key
+```
+
+## 2. Position in whole architecture
+
+이 작업이 닿는 곳. 새로 생기는 것은 노란색, 새 연결은 점선.
+
+&gt; Source: scv graph (built 2026-10-27)
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart TB
+  subgraph ".github/workflows"
+    BF[branch-flow.yml]
+    Prov[check-provenance.sh]
+  end
+  subgraph "core/scripts"
+    Journal[journal-append.sh&lt;br&gt;가린 규칙]
+    Privacy[check-privacy.sh]:::new
+  end
+  subgraph "tools"
+    Export[export-core.sh&lt;br&gt;payload]
+    Audit[privacy-audit.sh]:::new
+  end
+  subgraph "scv"
+    Rec[journal · conversations&lt;br&gt;dreams · raw]
+    Arch[archive · DECISIONS]
+  end
+  subgraph "../scv-claude-code · ../scv-codex"
+    Lock[vendor core.lock.json&lt;br&gt;source_commit]
+  end
+  RecRepo[(scv-records 비공개)]:::new
+
+  BF --&gt;|"출처 게이트"| Prov
+  BF -.-&gt;|"개인정보 검사"| Privacy
+  Privacy -.-&gt;|"패턴 출발점"| Journal
+  Audit -.-&gt;|"태그별 payload 해시"| Export
+  Rec -.-&gt;|"옮김 · 무시"| RecRepo
+  Audit -.-&gt;|"옛→새 코어 번호"| Lock
+  Arch --&gt;|"raw_sources 경로"| Rec
+
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```</code></pre><pre class="code src-doc" data-idx="2"><code># Test Plan — 공개 저장소 개인정보 정리 — 과거 기록까지 지우고, 다시 쌓이지 않게, SCV 기록은 비공개 저장소로
+
+## Overview
+
+사용자가 요구한 것은 세 가지다. 첫째, 감사에서 찾은 개인정보(실명 · 개인 메일 · 주제 밖 개인 대화 · 회사 팀 이름 · 내
+컴퓨터 경로 · 세션 id)를 네 공개 저장소의 과거 기록까지 모두 지운다. 둘째, 앞으로 커밋할 때 다시 쌓이지 않게 막는다.
+셋째, SCV 기록은 비공개 저장소로 옮긴다. 이와 함께 열린 PR · 릴리스 · 코어 고정 · 채널이 깨지지 않아야 한다. 아래
+시나리오는 이것들을 하나씩 확인한다. 개인 값(실명 · 회사 팀 이름 · 개인 메일)은 이 문서에 적지 않는다. 검사는 이
+컴퓨터의 비공개 목록 파일(`~/.config/scv/privacy-terms`, 권한 600 — 저장소 밖)과 GitHub 비밀값에서 읽는다.
+
+## Test scenarios
+
+### T1. 새 클론의 모든 ref 에 개인정보가 없다
+
+- **Setup**: 덮어쓴 뒤, 네 저장소를 새로 `--mirror` 클론한다.
+- **Run**: 모든 브랜치 · 태그의 파일 내용 · 커밋 메시지 · 작성자 · 커미터를 비공개 목록 + 공통 패턴(개인 메일, `/Users/&lt;이름&gt;/`, `/private/tmp/claude-&lt;숫자&gt;`, `session_01…`, `Claude-Session:`)으로 훑는다.
+- **Expected**: 맞는 곳 0건.
+- **Pass criterion**: 네 저장소 모두 0건. 검사 스크립트 종료 코드 0.
+
+### T2. 작성자 정보는 그대로다 (사용자 결정, 2026-10-27)
+
+- **Run**: 다시 쓰기 전 · 후 네 저장소의 작성자 · 커미터 이름 · 메일 목록을 비교한다.
+- **Expected**: 같다 — 실명 · 개인 메일은 공개 계정의 정체성이라 남긴다.
+- **Pass criterion**: 목록 차이 0.
+
+### T3. SCV 기록이 공개 저장소에서 사라졌다
+
+- **Run**: 코어 · 모드의 모든 ref 에서 `scv/journal/`, `scv/conversations/`, `scv/dreams/`, `scv/raw/` 경로가 있었던 커밋을 찾는다.
+- **Expected**: 0건. 계획 보관(`scv/archive/`) · 결정 기록은 남아 있다.
+- **Pass criterion**: 기록 경로 0건, 보관 계획 수는 전과 같다.
+
+### T4. 비공개 scv-records 에 기록이 모두 있다
+
+- **Setup**: `scv-records`(비공개)를 클론한다.
+- **Run**: 저장소별 폴더(core · mods)의 파일 수와 내용 해시를 옮기기 전 목록과 맞춘다. 보관 계획 하나를 골라 그 `raw_sources` 대화 경로가 `scv-records/&lt;저장소&gt;/` 아래에 있는지 본다.
+- **Expected**: 파일 수 · 해시가 같고, 근거 대화를 찾을 수 있다. 저장소가 비공개다(`gh api … .private == true`).
+- **Pass criterion**: 차이 0, 비공개 확인.
+
+### T5. 코어 payload 가 바이트 그대로다
+
+- **Run**: 다시 쓴 코어의 최근 태그 다섯 개 이상(마지막 릴리스 포함)에서 `tools/export-core.sh` 로 payload 를 만들어 해시를 낸다. 같은 태그의 GitHub 릴리스 자산 SHA-256 과 래퍼 `core.lock.json` 의 payload 해시와 맞춘다.
+- **Expected**: 모두 같다.
+- **Pass criterion**: 어긋남 0.
+
+### T6. 래퍼의 코어 고정이 새 코어 커밋을 가리킨다
+
+- **Run**: 두 래퍼의 모든 브랜치 끝에서 `vendor/scv-core/core.lock.json`(codex 는 `plugins/scv/vendor/…`)의 `source_commit` 을 읽어, 다시 쓴 코어에 그 커밋이 있는지와 그 커밋의 payload 해시가 lock 과 같은지 본다. 래퍼 기록 전체에서 옛 코어 번호(번호 표의 왼쪽)를 찾는다.
+- **Expected**: 모두 있음 · 같음, 옛 번호 0건.
+- **Pass criterion**: 래퍼 검증 스크립트(`tools/verify-core.sh` · `scripts/verify-core.sh`) 통과, 옛 번호 0건.
+
+### T7. 브랜치 · 태그 · 릴리스가 그대로다
+
+- **Run**: 전 · 후 목록을 비교한다 — 브랜치 이름 · 수, 태그 이름 · 수, 릴리스 이름 · 자산 · 최신 표시.
+- **Expected**: 같다(가리키는 커밋 번호만 바뀜).
+- **Pass criterion**: 이름 · 수 · 자산 차이 0.
+
+### T8. 이 컴퓨터의 SCV 가 기록을 비공개 저장소에 남긴다
+
+- **Setup**: 기록 폴더 연결을 마친 코어 작업 사본.
+- **Run**: SCV 대화 한 턴을 기록하고(`journal-append.sh`), `pr-helper` 의 기록 커밋 단계를 dry-run 으로 돌린다.
+- **Expected**: 새 기록이 `scv-records` 작업 사본에 생긴다. 공개 저장소의 `git status` 에는 기록 파일이 나오지 않는다. pr-helper 가 실패하지 않는다.
+- **Pass criterion**: 세 조건 모두 참.
+
+### T9. 다시 쌓이지 않게 — 개인정보 검사가 막는다
+
+- **Setup**: 코어의 `core/scripts/check-privacy.sh` 와 네 저장소 branch-flow 연결.
+- **Run**: 임시 브랜치(또는 같은 입력의 로컬 실행)로 다섯 경우를 넣는다 — (a) 개인 메일 작성자(기본은 허용, `SCV_PRIVACY_EMAILS=on` 일 때만 막음), (b) 추가 줄에 `/Users/&lt;이름&gt;/` 경로, (c) 커밋 메시지에 `Claude-Session:` 줄, (d) 비밀 목록의 낱말(실명 · 팀 이름) 하나, (e) 깨끗한 커밋.
+- **Expected**: (a)는 기본에서 통과하고 켰을 때 실패한다. (b)~(d)는 실패하고 무엇이 걸렸는지 말한다(개인 값 자체는 출력에서 가린다). (e)는 통과한다.
+- **Pass criterion**: 다섯 경우 모두 기대대로. 맥 · 리눅스 결과 같음.
+
+### T10. 작성자 설정과 세션 줄 중단
+
+- **Run**: 이 세션이 이후 만드는 커밋 · PR 본문에 세션 링크 줄이 없는지 확인한다. (작성자 이름 · 메일은 사용자 결정으로 그대로 — T2.)
+- **Expected**: 세션 줄이 없다.
+- **Pass criterion**: 모두 참.
+
+### T11. 영구 브랜치 규칙이 원래대로다
+
+- **Run**: 덮어쓰기 전 · 후 ruleset JSON(규칙 종류 · 대상 · 우회자 · 시행 상태)을 비교한다.
+- **Expected**: 같다(`enforcement: active`).
+- **Pass criterion**: 차이 0.
+
+### T12. PR · 릴리스 본문의 개인정보도 정리되었다
+
+- **Run**: 네 저장소의 PR 본문 · 댓글 · 릴리스 본문을 API 로 훑는다(T1 과 같은 패턴).
+- **Expected**: 맞는 곳을 고쳐 0건. 고칠 수 없는 것(남의 댓글 등)은 목록으로 보고.
+- **Pass criterion**: 고칠 수 있는 것 0건, 나머지는 목록.
+
+### T13. 덮어쓴 뒤 CI · 채널 · 플러그인 업데이트
+
+- **Run**: 네 저장소 develop · stage · main CI 를 다시 돌린다. 채널 동기화로 `channel/dev` · `channel/stage` 를 다시 만든다. 덮어쓰기 전에 임시 설정 폴더에 옛 기록으로 설치해 둔 claude · codex 플러그인을 업데이트한다.
+- **Expected**: CI 통과. 채널 브랜치가 새 코어 커밋으로 다시 만들어진다. 업데이트가 되거나, 안 되면 마켓을 지웠다 다시 넣는 안내대로 하면 된다(그 안내가 릴리스 노트에 실린다).
+- **Pass criterion**: CI · 채널 통과, 업데이트 결과와 대처가 확인됨.
+
+### T14. 되돌리는 길이 있다
+
+- **Run**: 덮어쓰기 전에, 백업 미러로 다시 올리는 명령을 `--dry-run` 으로 돌려 본다. 덮어쓴 뒤에도 백업이 남아 있는지 확인한다.
+- **Expected**: dry-run 이 ref 목록을 정확히 내놓는다. 백업이 남아 있다(공개된 곳에 올리지 않음).
+- **Pass criterion**: 둘 다 참.
+
+### T15. 열린 PR 이 깨지지 않았다
+
+- **Run**: 덮어쓰기 직전과 직후 네 저장소의 열린 PR 목록을 본다.
+- **Expected**: 직전에 열린 PR 이 0개다(문서 PR 넷은 먼저 병합). 직후에도 깨진 PR 이 없다.
+- **Pass criterion**: 열린 PR 0, 또는 열린 PR 마다 diff 가 덮어쓰기 전과 같다.
+
+### T16. GitHub 지원 요청 문안
+
+- **Run**: 저장소별 PR 번호 범위와 옛 커밋 목록(백업에서)을 담은 지원 요청 문안을 만든다. 포크 주인에게 보낼 짧은 부탁 문안도 만든다.
+- **Expected**: 사용자가 그대로 보낼 수 있는 문안 두 개.
+- **Pass criterion**: 사용자에게 전달됨.
+
+## How to run
+
+```bash
+bash core/tests/test-check-privacy.sh &amp;&amp; bash tools/privacy-audit.sh --repos ../scv-core ../scv-claude-code ../scv-codex ../scv-mods --terms "${SCV_PRIVACY_TERMS_FILE:-$HOME/.config/scv/privacy-terms}"
+```
+
+## Pass criteria
+
+- T1 – T16 모두 통과.
+- 네 저장소 새 클론에서 개인정보 0건, 릴리스 · 고정 · 채널 · CI 정상, 기록은 비공개 저장소에.
+- 남은 GitHub 쪽 옛 사본(PR ref · 캐시 · 포크)은 지원 요청 문안이 사용자에게 전달된 상태.
+
+## Related Documents
+
+- `PLAN.md` — 범위 · 지킬 것 · 위험</code></pre></div>
+    </aside>
+</div>
+<div class="deck-footer">
+      <button class="deck-arrow" id="scvPrev" disabled="" onclick="scvGoto(scvIdx()-1)">‹ 이전</button>
+      <div class="deck-dots"><button class="deck-dot active" data-idx="0" onclick="scvGoto(0)" aria-label="1"></button><button class="deck-dot" data-idx="1" onclick="scvGoto(1)" aria-label="2"></button><button class="deck-dot" data-idx="2" onclick="scvGoto(2)" aria-label="3"></button><button class="deck-dot" data-idx="3" onclick="scvGoto(3)" aria-label="4"></button><button class="deck-dot" data-idx="4" onclick="scvGoto(4)" aria-label="5"></button></div>
+      <span class="deck-counter" id="scvCounter">1 / 5</span>
+      <button class="deck-arrow" id="scvNext" onclick="scvGoto(scvIdx()+1)">다음 ›</button>
+    </div>
+</div>
+
+<script>
+  var SCV_ANCHORS = ["Architecture — 공개 저장소 개인정보 정리","1. Component data flow","2. Position in whole architecture","변경 지도",null];
+  var scvPageIdx = 0;
+  function scvIdx(){ return scvPageIdx; }
+  function scvEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function scvHighlight(anchor){
+    var docs = document.querySelectorAll('.src-doc');
+    docs.forEach(function(el){
+      var code = el.querySelector('code');
+      if(code) code.innerHTML = scvEsc(code.textContent);
+    });
+    if(!anchor) return;
+    for (var i=0;i<docs.length;i++){
+      var code = docs[i].querySelector('code');
+      if(!code) continue;
+      var raw = code.textContent;
+      var lines = raw.split('\n');
+      var start=-1, end=lines.length;
+      for (var j=0;j<lines.length;j++){
+        var m = lines[j].match(/^#{1,6}\s+(.*)$/);
+        if (m && m[1].trim() === String(anchor).trim()) { start = j; break; }
+      }
+      if (start < 0) continue;
+      for (var k=start+1;k<lines.length;k++){ if (/^#{1,6}\s+/.test(lines[k])) { end = k; break; } }
+      var before = lines.slice(0,start).join('\n'), hl = lines.slice(start,end).join('\n'), after = lines.slice(end).join('\n');
+      code.innerHTML = scvEsc(before) + (before ? '\n' : '') + '<mark class="src-hl">' + scvEsc(hl) + '</mark>' + (after ? '\n' + scvEsc(after) : '');
+      if (typeof scvSelectSource === 'function') scvSelectSource(i);
+      var markEl = docs[i].querySelector('mark.src-hl');
+      if (markEl && markEl.scrollIntoView) markEl.scrollIntoView({ block: 'center' });
+      return;
+    }
+  }
+  function scvGoto(n){
+    var total = 5;
+    n = Math.max(0, Math.min(total - 1, n));
+    scvPageIdx = n;
+    document.querySelectorAll('.slide-page').forEach(function(p){ p.classList.toggle('active', p.dataset.idx === String(n)); });
+    document.querySelectorAll('.deck-nav-item').forEach(function(el){
+      var on = el.dataset.idx === String(n);
+      el.classList.toggle('active', on);
+      // The nav is one scrolling row now, so the active pill can sit past the
+      // right edge. Scroll the STRIP, not the page — scrollIntoView on the
+      // element would also scroll .scroll-main and lose the reader's place.
+      if (on && el.parentElement) {
+        var strip = el.parentElement;
+        var left = el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2;
+        strip.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+      }
+    });
+    document.querySelectorAll('.deck-dot').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
+    if (typeof window.scvRunMermaid === 'function') { try { window.scvRunMermaid(); } catch (e) {} }
+    var prevBtn = document.getElementById('scvPrev'), nextBtn = document.getElementById('scvNext'), counter = document.getElementById('scvCounter');
+    if (prevBtn) prevBtn.disabled = (n === 0);
+    if (nextBtn) nextBtn.disabled = (n === total - 1);
+    if (counter) counter.textContent = (n + 1) + ' / ' + total;
+    scvHighlight(SCV_ANCHORS[n]);
+    var main = document.querySelector('.scroll-main');
+    if (main) main.scrollTop = 0;
+  }
+  function scvTogglePanel(){ var p=document.getElementById('scvSourcePanel'); if(p) p.classList.toggle('closed'); }
+  function scvSelectSource(i){
+    document.querySelectorAll('.panel-tab').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+    document.querySelectorAll('.src-doc').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+  }
+  (function(){
+    // 패널 좌측 경계 드래그 리사이즈 — 원본 SourcePanel 과 같은 산식(최소 320px,
+    // 본문에 최소 420px 남김).
+    var handle = document.getElementById('scvResizeHandle');
+    var panel = document.getElementById('scvSourcePanel');
+    if (!handle || !panel) return;
+    var MOBILE_BP = 640;
+    handle.addEventListener('mousedown', function(e){
+      e.preventDefault();
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+      function onMove(ev){
+        // 버튼을 놓친 채(창 밖 등) mouseup 을 못 받은 경우 — 버튼이 눌려있지 않으면 즉시 정리.
+        if (ev.buttons === 0) { onUp(); return; }
+        var raw = window.innerWidth - ev.clientX;
+        var max = Math.max(320, window.innerWidth - 420);
+        panel.style.width = Math.min(max, Math.max(320, raw)) + 'px';
+      }
+      function onUp(){
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        window.removeEventListener('blur', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('blur', onUp);
+    });
+    // 인라인 width 는 스타일시트의 반응형 브레이크포인트(640px 모바일 전체폭·900px 좁은폭)
+    // 보다 항상 우선한다 — 창 크기가 바뀔 때마다 다시 맞춰줘야 브레이크포인트가 살아난다.
+    window.addEventListener('resize', function(){
+      if (!panel.style.width) return;
+      if (window.innerWidth <= MOBILE_BP) { panel.style.width = ''; return; }
+      var max = Math.max(320, window.innerWidth - 420);
+      if (parseFloat(panel.style.width) > max) panel.style.width = max + 'px';
+    });
+  })();
+  document.addEventListener('keydown', function(e){
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') scvGoto(scvIdx() + 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') scvGoto(scvIdx() - 1);
+    else if (e.key === 'Home') scvGoto(0);
+    else if (e.key === 'End') scvGoto(5 - 1);
+    else if (e.key === 's' || e.key === 'S') scvTogglePanel();
+  });
+  scvGoto(0);
+</script>
+
+
+
+<div class="mermaidTooltip" style="opacity: 0; position: absolute; text-align: center; max-width: 200px; padding: 2px; font-size: 12px; background: rgb(255, 255, 222); border: 1px solid rgb(51, 51, 51); border-radius: 2px; pointer-events: none; z-index: 100;"></div></body></html>
