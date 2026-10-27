@@ -429,3 +429,138 @@ protocol: d6961975
 **User**: (자동 알림 — 코어 전체 시험 끝. 사람 메시지 없음)
 
 **Claude Code**: 코어 시험 실패 2 → 원인 확인: (1) 규칙 중복 래칫 — channel.md 가 mods.md 와 같은 요구(플러그인 명령으로만 바꾸기)를 다시 적음 → mods.md 규칙을 가리키고 채널만의 규칙만 남김, 14/14 통과. (2) 스킬 설명 검사 — 옆 체크아웃 claude 래퍼에 아직 channel 스킬이 없어서(코어 CI 에선 SKIP, 래퍼 초안 스킬로는 통과). run-dry 통과. 계획서 시험 22/22. PR 여부를 선택 창으로 물음.
+
+## Turn 50 — 2026-10-26T11:05:27+0900
+protocol: d6961975
+
+**User**: (선택 창) 세 저장소 PR 올리기 · 보관 후 PR
+
+**Claude Code**: 계획서 보관(archive) · 결정 기록 · 덱 갱신. PR: 코어 #357(develop), claude 래퍼 #384 · codex 래퍼 #320(초안 — 코어 PR 브랜치 273d6ac 를 미리 넣어 CI 가 새 코어로 돎, 릴리스 때 정식 동기화로 바꿈). 병합 · 릴리스는 묻지 않음. 세 PR CI 기다리는 중.
+
+## Turn 51 — 2026-10-26T11:09:04+0900
+protocol: d6961975
+
+**User**: /scv:mods
+
+**Claude Code**: scv-dashboard 0.2.6 → 0.2.8 (확인 — 그 사이 scv-mods 쪽에서 0.2.7 · 0.2.8 이 나옴). /reload-plugins 필요. 결과물 변화 없음.
+
+## Turn 52 — 2026-10-26T11:19:04+0900
+protocol: d6961975
+
+**User**: /reload-plugins 뒤 /scv:mods
+
+**Claude Code**: 모드 명령 결과를 그대로 보고(아래 출력). 결과물 변화 없음.
+
+## Turn 53 — 2026-10-26T11:23:50+0900
+protocol: d6961975
+
+**User**: 어디까지진행했어
+
+**Claude Code**: 코어 PR #357 CI 5/5 통과(CLEAN). 래퍼 PR 실패 원인 셋 확인 · 고침: (1) 출처 검사 — 래퍼 PR 에 보관 계획이 없음 → 제목에 [no-plan: 계획은 코어 archive …] + 닫고 다시 열기, (2) claude 모델 정책 수 haiku 10 → 11, (3) 새 채널 동기화 워크플로 시간 10분 → 6분 제한. codex 시험 잡은 이미 통과. 다시 돈 CI 기다리는 중. 병합 · 릴리스는 묻고 함.
+
+## Turn 54 — 2026-10-26T11:24:55+0900
+protocol: d6961975
+
+**User**: /scv:mods
+
+**Claude Code**: scv-dashboard 0.2.10 이미 최신(확인 — 그 사이 0.2.10 이 깔려 있었음). 결과물 변화 없음.
+
+## Turn 55 — 2026-10-26T11:27:28+0900
+protocol: d6961975
+
+**User**: (자동 알림 — 예전 대기 끝. 사람 메시지 없음)
+
+**Claude Code**: 래퍼 PR 두 개: 출처 검사는 통과, 이번엔 코어 손 복사 검사(vendor gate)가 막음 — 봇이 아닌 브랜치가 코어를 바꿈. 릴리스 전 미리 넣은 것이라 제목에 [manual-vendor: …] 표시를 붙이고 닫고 다시 열어 재검사. 기다리는 중.
+
+## Turn 56 — 2026-10-26T11:39:39+0900
+protocol: d6961975
+
+**User**: (자동 알림 — 이전 대기 끝. 사람 메시지 없음)
+
+**Claude Code**: 이전 대기 작업 종료(제목 바꾸기 전 실행분). 최신 재검사 대기는 따로 도는 중. 결과물 변화 없음.
+
+## Turn 57 — 2026-10-26T11:43:17+0900
+protocol: d6961975
+
+**User**: (자동 알림 — 재검사 끝. 사람 메시지 없음)
+
+**Claude Code**: 세 PR 모두 통과 · 병합 가능(확인 — 코어 #357 5/5, claude #384 6/6(취소된 맥 검사 다시 돌려 통과), codex #320 5/5). 알게 된 것: 래퍼의 알림(repository_dispatch) 워크플로는 기본 브랜치(main)에 있어야 돈다 — 래퍼 릴리스 전에는 코어 알림으로 channel/dev 가 안 만들어지고, 래퍼 develop 병합(push) 때 만들어진다. 병합 · 릴리스 순서를 선택 창으로 물음.
+
+## Turn 58 — 2026-10-26T13:30:07+0900
+protocol: d6961975
+
+**User**: (선택 창) 병합 후 개발 채널 실제 확인 (추천)
+
+**Claude Code**: 세 PR 병합(코어 #357, claude #384, codex #320 — 초안을 준비 완료로 바꾼 뒤). 래퍼 develop 병합 push 로 채널 동기화가 돌기를 기다리는 중 — channel/dev 가 생기면 임시 설정 폴더에서 운영 → 개발 → 운영 실제 바꿔 끼우기.
+
+## Turn 59 — 2026-10-26T13:32:20+0900
+protocol: d6961975
+
+**User**: (자동 알림 — 채널 동기화 끝. 사람 메시지 없음)
+
+**Claude Code**: 두 래퍼 channel/dev 생성(확인 — develop + scv-core e095c22, 0.70.5-dev.e095c22). 임시 설정 폴더에서 실제 바꿔 끼우기: claude · codex 모두 운영 0.70.4 → 개발 0.70.5-dev.e095c22 → 운영으로 성공, 버전 폴더가 따로 생김. 0.71.0 릴리스를 선택 창으로 물음.
+
+## Turn 60 — 2026-10-26T13:34:01+0900
+protocol: d6961975
+
+**User**: (선택 창) 릴리스 (추천)
+
+**Claude Code**: 0.71.0 릴리스 체인 시작(배경): 코어 버전 PR → codex 사본 코어 시험 → 병합 → promote · release → 동기화 PR 병합 → 래퍼 릴리스 PR → promote. 단계 실패 시 STOP 으로 멈춤.
+
+## Turn 61 — 2026-10-26T14:53:11+0900
+protocol: fd496895
+
+**User**: 어디까지했어
+
+**Claude Code**: 0.71.0 릴리스 마지막 단계(확인). 코어 v0.71.0 나옴(04:57Z). 두 래퍼: 동기화 PR claude #385 · codex #321, 릴리스 PR claude #386 · codex #322 모두 CI 통과 · 병합. 남은 것: 두 래퍼 운영 릴리스 작업(promote)이 지금 도는 중 — 최신 릴리스는 아직 0.70.4. 끝나면 알림 받아 결과 보고. 결과물 변화 없음.
+
+## Turn 62 — 2026-10-26T15:10:55+0900
+protocol: fd496895
+
+**User**: (자동 알림 — 0.71.0 릴리스 체인 완료. 사람 메시지 없음)
+
+**Claude Code**: 0.71.0 릴리스 완료(확인 — Latest: 코어 v0.71.0 04:57Z, claude v0.71.0 05:58Z, codex v0.71.0-codex.1 06:10Z). 운영(main)은 릴리스 그대로, 채널 브랜치(channel/dev)는 따로 있음(확인). 코어 channel-dispatch develop · stage 실행 성공(확인). 써 보기: 마켓 업데이트 → 다시 불러오기 → /scv:channel. 남은 일: 기록 PR. 결과물 변화 없음.
+
+## Turn 63 — 2026-10-26T15:21:35+0900
+protocol: fd496895
+
+**User**: /scv:mods
+
+**Claude Code**: 모드 업데이트: scv-dashboard 이미 최신 0.2.12(확인 — 마켓 업데이트 ok, 업데이트 ok). 목록: scv-dashboard 설치됨 0.2.12. 바뀐 것 없어 다시 불러오기 불필요. 결과물 변화 없음.
+
+## Turn 64 — 2026-10-27T09:50:19+0900
+protocol: 60a07bd8
+
+**User**: 지금까지 구현한 기능들 모두 문서에 포함되어있어? 내생각엔 문서가 최신화가 안되어있는 것 같은데. 문서최신화의 범위기준은 core와 래퍼 모두 포함이야. 특히 미러같은 경우에는 어떻게 사용하는지 그림으로 나타내거나 해야돼. 과거에는 아키텍처나 사용방법등을 react로 애니메이션 만들어서 보여주거나, 머메이드로 보여줬었는데 지금은 그런게 다 빠진거같아서 좀 아쉽네.
+
+**Claude Code**: 조사만(변경 없음). 확인: 명령 20개는 두 래퍼 README 표에 다 있음. 빠진 것 — 코어 구조 문서(docs/architecture.md)는 9-21 이후 손 안 댐(드림 · 모드 · 채널 · 실체 보여 주기 · 등록 · 판정자 없음); 실체 보여 주기 · Graft 는 네 저장소 README 어디에도 없음; codex README 에 채널 1줄뿐 · 재개 요약 없음; 미러는 모드 README 한 문단, 그림 없음. 그림: claude README 의 Remotion GIF 3개(데모 · 루프 · 구조) 중 루프 · 구조 GIF 와 머메이드 2개가 8-25 README 재작성(d3a6148)에서 빠짐 — GIF 파일 · demo/ Remotion 원본은 아직 저장소에 있음; 코어 · codex · 모드 README 에는 그림 없음. 결정은 선택 창으로.
+
+(선택 창 답: 계획서로 만들기 · 그림은 머메이드 + Remotion GIF 둘 다 · 완료 기준 = 기능마다 문서 한 곳 + 루프 · 구조 · 미러 그림 3개) → promote 로 넘김.
+
+## Turn 65 — 2026-10-27T10:00:03+0900
+protocol: 60a07bd8
+
+**User**: (promote 선택 창 답: 하나로 · docs-refresh-diagrams · 기능 동작은 그대로 · 바로 쓰기 · 그림 넣기)
+
+**Claude Code**: 계획서 scv/promote/20261027-wookiya1364-docs-refresh-diagrams/ 생성 — PLAN(빈 곳 표, 문서 검사 파이프라인 7단계, 지킬 것: 동작 그대로 · 세 언어 같음 · vendor 손대지 않음), TESTS(T1–T10: 명령 20개 · 늘 켜진 기능 · 구조 문서 · 검사가 실제로 잡는지 · 머메이드 · Remotion GIF 3개 · 미러 4단계 + 주의 2개 · 세 언어 · 동작 그대로 · 맥/리눅스), FEATURE_ARCHITECTURE(검사 흐름 · 네 저장소 위치 · 미러 순서도), 덱 생성(lint 경고 2: 성공지표 · 예외처리 절 없음 — 권장). 결정 기록 adopted. raw 소비 없음(대화만) → 기준선 갱신.
+
+## Turn 66 — 2026-10-27T10:05:40+0900
+protocol: 60a07bd8
+
+**User**: (선택 창: 구현 시작) → /scv:work 20261027-wookiya1364-docs-refresh-diagrams
+
+**Claude Code**: 새 검사를 따로 만들지 않고 기존 README 검사(tools/check-readme.sh — 두 래퍼 CI 가 이미 돌림)를 키움(경로 변경): 명령 목록 전부 · 필수 그림(머메이드 수 · 순서도 · GIF) · 세 언어 그림 수 같음 · 구조 문서 주제와 그림 · mods 프로필 추가 · SCV_SHOW_REAL 필수 주제. 첫 실행 결과(실제): 코어 — README 에 명령 20개 0개 · 머메이드 0 · 실체 보여 주기 없음, 구조 문서 주제 8개 없음 · 그림 0; claude — 머메이드 1/2 · 루프 · 구조 GIF 빠짐 · 실체 보여 주기 없음; codex — 머메이드 0 · 실체 보여 주기 · 재개 요약 없음; 모드 — 미러 순서도 · GIF · 머메이드 없음. 검사 자체 시험에 붉은 경우 2개 추가(명령 빠짐 · 한 언어 그림 빠짐). 계속할지 선택 창.
+
+## Turn 67 — 2026-10-27T10:16:05+0900
+protocol: 60a07bd8
+
+**User**: (선택 창: 이대로 계속)
+
+**Claude Code**: 코어 채움 — README 3개 언어: 액션 한눈에 표(20개 · 소유) · 구조 머메이드(코어 → 두 래퍼, 채널 dev/stage/prod, 모드) · 루프 머메이드 · 실체 보여 주기 항목 · 소유 문장 13/15 → 14/20 고침; 구조 문서: 구조 머메이드, 매 턴 절(훅 다섯 개 순서도 + 라우팅 · 등록 · 실체 보여 주기 · 판정자 · 드림 · 재개 요약), 채널 절, 모드 절. 검사: core OK(4파일 · 그림 검사 4), 검사 자체 시험 8개 붉은 경우 통과, 머메이드 8개 headless Chrome 파싱 모두 ok. 배경 둘 진행 중: Remotion GIF(루프 · 구조 · 미러), 래퍼 · 모드 README.
+
+## Turn 68 — 2026-10-27T10:20:08+0900
+protocol: 60a07bd8
+
+**User**: (자동 알림 — 도우미 둘 완료. 사람 메시지 없음)
+
+**Claude Code**: 네 프로필 README 검사 모두 OK(확인 — core · claude · codex · mods). 로컬 커밋만(푸시 · PR 없음): claude docs/readme-diagrams 2970f27(README 세 언어 — 실체 보여 주기 · 루프 GIF · 구조 머메이드 + 구조 GIF) · 4ec4096(demo/ TheLoop · Architecture 갱신, Mirror 새 컴포지션, GIF 둘); codex docs/readme-diagrams c92db10(실체 보여 주기 · 재개 요약은 Codex 에 세션 시작 훅이 없어 동작 안 함 · 머메이드 둘); 모드 워크트리 docs/mirror-diagram 3b99128(미러 쓰는 법 절: 4단계 · 순서도 · 함정 3) · 58e6edc(mirror.gif 0.73MB). GIF: 루프 2.48MB · 구조 2.48MB · 미러 0.73MB, 스틸 확인. 남은 문제: pnpm 11 의 esbuild 빌드 승인 때문에 pnpm run render-* 가 바로 실패(npx remotion 으로는 렌더됨) — 승인 설정 넣을지 미정. GIF 3개 사용자에게 보냄, 계속할지 선택 창.
