@@ -1729,3 +1729,11 @@ merge_policy: preserve
 - discarded alternatives: 앞으로만 막기 — 사용자가 과거 기록까지 제거를 요구; 열린 PR 을 열어 둔 채 함께 옮기기 — 단계가 늘고 리뷰 기록이 어긋남, 먼저 병합으로 대체; 저장소마다 비공개 기록 저장소 — 관리할 저장소가 늘어남; 저장소를 지우고 새로 만들기 — 스타 · 포크 · 릴리스 · 이슈를 잃음
 - refs: scv/promote/20261027-wookiya1364-privacy-history-purge/PLAN.md
 - conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
+
+## [2026-10-27 13:01] wookiya1364 — 공개 저장소 개인정보 정리 — 과거 기록까지 지우고, 다시 쌓이지 않게, SCV 기록은 비공개 저장소로 archived
+
+- verdict: archived
+- why: 네 공개 저장소의 모든 브랜치 · 태그에서 SCV 기록(개인 대화 · 팀 이름) · 내 컴퓨터 경로 · 세션 id · 세션 링크 줄을 지우고 덮어씀. 실명 · 메일은 사용자 결정으로 남김. 기록은 비공개 scv-records(로컬은 연결), 옛 기록 전체는 비공개 scv-history-backup. 재발 방지: check-privacy(병합 검사) · privacy-audit(전체 기록 검사), 비밀 목록은 Actions secret. 남은 것: GitHub PR ref · 수정 이력은 지원 요청, 래퍼 · 모드 CI 연결은 다음 코어 릴리스 뒤.
+- path delta: 래퍼 속 코어 커밋 번호는 바꾸지 않음(해시 사슬 · 릴리스 tarball 에 묶여 있어 바꾸면 검증이 깨짐) → 옛→새 번호 표 문서로; 작성자 · 메일 바꾸기는 사용자 결정으로 뺌; 백업은 이 컴퓨터가 아닌 비공개 GitHub 저장소로; 덮어쓰기 중 채널 동기화가 래퍼 ref 를 바꿔 lease 가 멈춤 → 다시 백업 · 다시 쓰기; 세션 줄 규칙은 호스트 이름 없이 일반형([A-Z]…-Session:)으로; .gitignore 는 연결도 잡게 끝의 / 제거
+- refs: scv/archive/20261027-wookiya1364-privacy-history-purge/PLAN.md
+- conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
