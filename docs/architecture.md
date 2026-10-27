@@ -2,29 +2,36 @@
 
 SCV is split into one behavioral source of truth and thin host adapters.
 
-```text
-                         ┌──────────────────────┐
-                         │       scv-core       │
-                         │ protocols + scripts  │
-                         │ template + DeckUI    │
-                         │ contracts + tests    │
-                         └──────────┬───────────┘
-                                    │ pinned by tag
-                                    │ checksummed tar.gz + SHA-256
-                   ┌────────────────┴────────────────┐
-                   │                                 │
-        ┌──────────▼──────────┐           ┌──────────▼──────────┐
-        │ scv-claude-code     │           │ scv-codex           │
-        │ Claude adapter      │           │ Codex adapter       │
-        │ pinned Core payload │           │ pinned Core payload │
-        └─────────────────────┘           └─────────────────────┘
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart TB
+  Core["scv-core<br>protocols + scripts · template + DeckUI<br>contracts + tests · actions list"]
+  CC["scv-claude-code<br>Claude adapter · pinned Core payload"]
+  CX["scv-codex<br>Codex adapter · pinned Core payload"]
+  Dev["channel/dev<br>wrapper develop + Core develop"]
+  Stage["channel/stage<br>wrapper stage + Core stage"]
+  Mods["scv-mods marketplace<br>scv-dashboard"]
+  Core -->|"pinned by tag<br>checksummed tar.gz + SHA-256"| CC
+  Core -->|"pinned by tag<br>checksummed tar.gz + SHA-256"| CX
+  Core -.->|"scv-core-channel event<br>(push to develop / stage)"| Dev
+  Core -.->|"scv-core-channel event"| Stage
+  Dev -.->|"action:channel dev"| CC
+  Stage -.->|"action:channel stage"| CC
+  Mods -->|"action:mods · mods-install · mods-remove"| CC
+  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+  class Core key
 ```
+
+Released wrappers carry one pinned Core. The `channel/*` branches are separate
+builds for trying unreleased work (below); they never touch `develop`, `stage`,
+`main`, or the release chain.
 
 ## Ownership boundary
 
 Core owns behavior that must remain identical across hosts:
 
-- the 15-action catalog and the 13 core-owned implementations;
+- the 20-action catalog (`core/actions.json`) and the 14 core-owned
+  implementations;
 - planning, work, reporting, regression, workspace, handoff, and Deck behavior;
 - the hydrated `scv/` project layout and `SCV.md` state schema;
 - shared migration and conflict-detection semantics;
@@ -35,7 +42,8 @@ Adapters own behavior that cannot be host-neutral:
 - plugin manifests and marketplace metadata;
 - action discovery files and invocation syntax;
 - translating host arguments into the Core entrypoint contract;
-- installation/update mechanics;
+- installation/update mechanics, including mods (`action:mods`,
+  `mods-install`, `mods-remove`) and channel swaps (`action:channel`);
 - host model policy and model metadata;
 - optional host state-pointer files and their explicit migration UX.
 
@@ -120,6 +128,86 @@ mid-operation, Core fails closed and does not follow the replacement.
 Help never triggers sync or migration. Dry-run sync reports the pending
 migration without modifying the working tree. Both wrappers delegate this
 entire contract to `core/scripts/state-index.sh`.
+
+## Every turn
+
+Five host hooks carry SCV into ordinary conversation. Core ships them as
+templates under `core/template/hooks/`; the wrapper registers them. Codex has no
+session-start hook, so the resume recap does not run there.
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+sequenceDiagram
+  autonumber
+  participant U as User
+  participant H as Host hooks
+  participant M as Model
+  Note over H: session start · after compaction or /clear<br>on-session-start.sh — resume recap (SCV_RESUME_RECAP)
+  U->>H: message
+  H->>M: on-user-prompt.sh — route to help (SCV_ALWAYS_ON)<br>diagnosis · plain language · choices · show the real thing<br>model checklist (SCV_MODEL_PROMPTING) · dreams line
+  M->>H: register the turn against the model checklist
+  M->>H: tool call
+  H-->>M: guard.sh — refuse writes before registration<br>or outside the workflow without an SCV action
+  M->>H: final answer
+  H-->>M: on-stop.sh — registration · principle · choice gates<br>(each blocks at most once per turn)
+  U->>H: picks an option in the choice tool
+  H->>M: on-choice-answer.sh — register again before the next edit
+```
+
+- **Routing and diagnosis** — free conversation goes to the help action, with a
+  short project diagnosis so the model starts from the real state
+  (`SCV_ALWAYS_ON`).
+- **Per-model prompting** — the request is compared item by item with the
+  model's requirement checklist (quoted verbatim from its official guide) and
+  registered; the answer opens with one "understood as" line and quotes the
+  rewritten request (`SCV_MODEL_PROMPTING`).
+- **Show the real thing** — when a turn changes the deliverable, the first time
+  it runs the model runs the smallest real thing, shows the actual output, and
+  asks continue or fix; a turn that changes nothing says so
+  (`SCV_SHOW_REAL`, [contract](../core/contracts/show-real.md)). The real-use
+  report `core/scripts/show-real-report.sh` measures it over past sessions: its
+  rules settle most turns, and the turns they cannot settle go to the host's
+  judge command (`SCV_JUDGE_COMMAND`, host profile).
+- **Dreams** — after compaction or `/clear` and on the first human message of a
+  new day, a background run looks back over past session records and the
+  archive, and writes an HTML report under `scv/dreams/`: human queries per plan
+  and how to write better requests; the next turn carries one summary line
+  (`SCV_DREAMS`, `SCV_DREAMS_JUDGE`, `action:dreams`). It never changes its
+  inputs.
+- **Resume recap** — after compaction, `/clear`, or a resume, the session-start
+  hook re-injects active plans, recent decisions, open items, and the active
+  conversation (`SCV_RESUME_RECAP`).
+
+## Release channels
+
+`action:channel` swaps the installed SCV between three channels, so unreleased
+work can be tried without a production release
+([protocol](../core/protocols/channel.md)):
+
+| Channel | Wrapper branch | Holds |
+|---|---|---|
+| dev | `channel/dev` | the wrapper's develop + Core's develop |
+| stage | `channel/stage` | the wrapper's stage + Core's stage |
+| prod | none (default branch) | the latest release |
+
+A push to Core's `develop` or `stage` sends a `scv-core-channel` event; each
+wrapper's channel sync vendors that Core commit onto its own branch, stamps a
+channel version (the next patch plus `-dev.<commit>` or `-stage.<commit>`, so a
+swap always installs a fresh copy), validates, and force-pushes `channel/*`.
+The swap itself is wrapper-owned: check the branch exists, remove the
+marketplace, add it again at the channel's branch, install, and put the old
+channel back if a step after the removal fails. The pure part — branch for a
+channel, swap steps, channel version — is `core/scripts/lib/channel.sh`.
+
+## Mods
+
+Mods are plugins from a separate marketplace (`wookiya1364/scv-mods`) that sit
+beside SCV, such as scv-dashboard, an SCV pane in the desktop app.
+`action:mods` updates every installed mod and lists them; `mods-install` and
+`mods-remove` pick one. All three are wrapper-owned because plugin commands are
+host commands ([protocol](../core/protocols/mods.md)). How to mirror the pane
+to another computer is in the
+[scv-mods README](https://github.com/wookiya1364/scv-mods#readme).
 
 ## Enforcement layers
 
