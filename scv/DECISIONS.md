@@ -1705,3 +1705,19 @@ merge_policy: preserve
 - path delta: 채널은 래퍼 develop · stage 가 아니라 channel/dev · channel/stage 브랜치 — 래퍼 develop 에 코어 개발분을 자동으로 넣으면 릴리스 동기화 PR 이 비어 운영 절차가 흔들린다. 명령 실행부는 mods 처럼 래퍼 몫, 코어는 규약과 순수부만.
 - refs: scv/archive/20261026-wookiya1364-dev-stage-channels/PLAN.md
 - conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
+
+## [2026-10-27 09:56] wookiya1364 — 코어 · 래퍼 · 모드 문서 최신화 — 빠진 기능 채우기 + 루프 · 구조 · 미러 그림
+
+- verdict: adopted
+- why: 조사로 빈 곳 확인(구조 문서 9-21 이후 멈춤, 실체 보여 주기 · Graft 미기재, 미러 그림 없음, 루프 · 구조 GIF 가 8-25 재작성 때 빠짐). 기능 목록 한 곳 + 문서 검사로 다시 빠지지 않게 하고, 그림은 머메이드 + Remotion GIF 둘 다.
+- discarded alternatives: 계획서 없이 바로 고치기 — 무엇을 고쳤는지 보고에만 남아 다시 빠져도 못 잡음; README 만 맞추기 — 구조 문서가 낡은 채 남음; 그림 한 방식만 — 머메이드는 순서가 안 보이고 GIF 만은 고치기 어려움; 계획 둘로 나누기 — 같은 README 를 두 번 고침
+- refs: scv/promote/20261027-wookiya1364-docs-refresh-diagrams/PLAN.md
+- conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
+
+## [2026-10-27 10:31] wookiya1364 — 코어 · 래퍼 · 모드 문서 최신화 — 빠진 기능 채우기 + 루프 · 구조 · 미러 그림 archived
+
+- verdict: archived
+- why: 기능 목록(actions.json 20개 + 늘 켜진 기능 설정 키)을 README 검사가 직접 대조하게 해, 명령이나 그림이 빠지면 CI 가 잡는다(래퍼 CI 는 다음 코어 동기화부터 새 검사를 씀). 그림은 머메이드(글과 함께 고치기)와 Remotion GIF(순서를 움직임으로) 둘 다 — 미러 GIF 는 모드 저장소에. Codex 는 세션 시작 훅이 없어 재개 요약이 없다고 README 에 명시.
+- path delta: 새 검사(test-docs-coverage)를 만들지 않고 기존 tools/check-readme.sh 를 키움 — 두 래퍼 CI 가 이미 돌리는 검사라 같은 일을 두 곳에 두지 않으려고. 래퍼 · 모드 README 와 GIF 는 배경 도우미 둘이 병렬로. demo 에 esbuild 빌드 승인(pnpm 11) 추가.
+- refs: scv/archive/20261027-wookiya1364-docs-refresh-diagrams/PLAN.md
+- conversation: scv/conversations/20261022-165947-scv-mods-install-command.md

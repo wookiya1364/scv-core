@@ -133,3 +133,5 @@ decision	scv-업데이트-명령이-모드도-설치-업데이트-목록-삭제	
 decision	scv-모드-명령-셋-인자-없이-업데이트-설치-삭제-archived	scv/DECISIONS.md	203622	1039	2026-10-22 23:39	[archived] SCV 모드 명령 셋 — 인자 없이 업데이트 · 설치 · 삭제 archived
 decision	scv-개발-스테이징-채널-운영-릴리스-없이-바꿔-끼워-받아-확인	scv/DECISIONS.md	204661	779	2026-10-26 09:31	[adopted] SCV 개발 · 스테이징 채널 — 운영 릴리스 없이 바꿔 끼워 받아 확인
 decision	scv-개발-스테이징-채널-운영-릴리스-없이-바꿔-끼워-받아-확인-archived	scv/DECISIONS.md	205440	1012	2026-10-26 11:01	[archived] SCV 개발 · 스테이징 채널 — 운영 릴리스 없이 바꿔 끼워 받아 확인 archived
+decision	코어-래퍼-모드-문서-최신화-빠진-기능-채우기-루프-구조-미러-그림	scv/DECISIONS.md	206452	973	2026-10-27 09:56	[adopted] 코어 · 래퍼 · 모드 문서 최신화 — 빠진 기능 채우기 + 루프 · 구조 · 미러 그림
+decision	코어-래퍼-모드-문서-최신화-빠진-기능-채우기-루프-구조-미러-그림-archived	scv/DECISIONS.md	207425	1099	2026-10-27 10:31	[archived] 코어 · 래퍼 · 모드 문서 최신화 — 빠진 기능 채우기 + 루프 · 구조 · 미러 그림 archived
