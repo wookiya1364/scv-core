@@ -34,7 +34,7 @@ scv/.graph/
 /.ignore
 
 # SCV 기록(일지 · 대화 · 드림 · 자료)은 비공개 저장소 scv-records 에 둔다 — 공개 저장소에 올리지 않는다.
-scv/journal/
-scv/conversations/
-scv/dreams/
-scv/raw/
+scv/journal
+scv/conversations
+scv/dreams
+scv/raw
