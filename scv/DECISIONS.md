@@ -1705,3 +1705,35 @@ merge_policy: preserve
 - path delta: 채널은 래퍼 develop · stage 가 아니라 channel/dev · channel/stage 브랜치 — 래퍼 develop 에 코어 개발분을 자동으로 넣으면 릴리스 동기화 PR 이 비어 운영 절차가 흔들린다. 명령 실행부는 mods 처럼 래퍼 몫, 코어는 규약과 순수부만.
 - refs: scv/archive/20261026-wookiya1364-dev-stage-channels/PLAN.md
 - conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
+
+## [2026-10-27 09:56] wookiya1364 — 코어 · 래퍼 · 모드 문서 최신화 — 빠진 기능 채우기 + 루프 · 구조 · 미러 그림
+
+- verdict: adopted
+- why: 조사로 빈 곳 확인(구조 문서 9-21 이후 멈춤, 실체 보여 주기 · Graft 미기재, 미러 그림 없음, 루프 · 구조 GIF 가 8-25 재작성 때 빠짐). 기능 목록 한 곳 + 문서 검사로 다시 빠지지 않게 하고, 그림은 머메이드 + Remotion GIF 둘 다.
+- discarded alternatives: 계획서 없이 바로 고치기 — 무엇을 고쳤는지 보고에만 남아 다시 빠져도 못 잡음; README 만 맞추기 — 구조 문서가 낡은 채 남음; 그림 한 방식만 — 머메이드는 순서가 안 보이고 GIF 만은 고치기 어려움; 계획 둘로 나누기 — 같은 README 를 두 번 고침
+- refs: scv/promote/20261027-wookiya1364-docs-refresh-diagrams/PLAN.md
+- conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
+
+## [2026-10-27 10:31] wookiya1364 — 코어 · 래퍼 · 모드 문서 최신화 — 빠진 기능 채우기 + 루프 · 구조 · 미러 그림 archived
+
+- verdict: archived
+- why: 기능 목록(actions.json 20개 + 늘 켜진 기능 설정 키)을 README 검사가 직접 대조하게 해, 명령이나 그림이 빠지면 CI 가 잡는다(래퍼 CI 는 다음 코어 동기화부터 새 검사를 씀). 그림은 머메이드(글과 함께 고치기)와 Remotion GIF(순서를 움직임으로) 둘 다 — 미러 GIF 는 모드 저장소에. Codex 는 세션 시작 훅이 없어 재개 요약이 없다고 README 에 명시.
+- path delta: 새 검사(test-docs-coverage)를 만들지 않고 기존 tools/check-readme.sh 를 키움 — 두 래퍼 CI 가 이미 돌리는 검사라 같은 일을 두 곳에 두지 않으려고. 래퍼 · 모드 README 와 GIF 는 배경 도우미 둘이 병렬로. demo 에 esbuild 빌드 승인(pnpm 11) 추가.
+- refs: scv/archive/20261027-wookiya1364-docs-refresh-diagrams/PLAN.md
+- conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
+
+## [2026-10-27 11:00] wookiya1364 — 공개 저장소 개인정보 정리 — 과거 기록까지 지우고, 다시 쌓이지 않게, SCV 기록은 비공개 저장소로
+
+- verdict: adopted
+- why: 감사에서 네 공개 저장소에 실명 · 개인 메일(커밋 약 1,240) · 세션 id(메시지 약 340) · 코어 · 모드 기록 속 개인 대화 · 경로가 나옴. filter-repo 로 모든 ref 를 다시 쓰고(코어 먼저 → 번호 표로 래퍼 고정 갱신), CI 개인정보 검사로 재발을 막고, 기록은 비공개 scv-records 로.
+- discarded alternatives: 앞으로만 막기 — 사용자가 과거 기록까지 제거를 요구; 열린 PR 을 열어 둔 채 함께 옮기기 — 단계가 늘고 리뷰 기록이 어긋남, 먼저 병합으로 대체; 저장소마다 비공개 기록 저장소 — 관리할 저장소가 늘어남; 저장소를 지우고 새로 만들기 — 스타 · 포크 · 릴리스 · 이슈를 잃음
+- refs: scv/promote/20261027-wookiya1364-privacy-history-purge/PLAN.md
+- conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
+
+## [2026-10-27 13:01] wookiya1364 — 공개 저장소 개인정보 정리 — 과거 기록까지 지우고, 다시 쌓이지 않게, SCV 기록은 비공개 저장소로 archived
+
+- verdict: archived
+- why: 네 공개 저장소의 모든 브랜치 · 태그에서 SCV 기록(개인 대화 · 팀 이름) · 내 컴퓨터 경로 · 세션 id · 세션 링크 줄을 지우고 덮어씀. 실명 · 메일은 사용자 결정으로 남김. 기록은 비공개 scv-records(로컬은 연결), 옛 기록 전체는 비공개 scv-history-backup. 재발 방지: check-privacy(병합 검사) · privacy-audit(전체 기록 검사), 비밀 목록은 Actions secret. 남은 것: GitHub PR ref · 수정 이력은 지원 요청, 래퍼 · 모드 CI 연결은 다음 코어 릴리스 뒤.
+- path delta: 래퍼 속 코어 커밋 번호는 바꾸지 않음(해시 사슬 · 릴리스 tarball 에 묶여 있어 바꾸면 검증이 깨짐) → 옛→새 번호 표 문서로; 작성자 · 메일 바꾸기는 사용자 결정으로 뺌; 백업은 이 컴퓨터가 아닌 비공개 GitHub 저장소로; 덮어쓰기 중 채널 동기화가 래퍼 ref 를 바꿔 lease 가 멈춤 → 다시 백업 · 다시 쓰기; 세션 줄 규칙은 호스트 이름 없이 일반형([A-Z]…-Session:)으로; .gitignore 는 연결도 잡게 끝의 / 제거
+- refs: scv/archive/20261027-wookiya1364-privacy-history-purge/PLAN.md
+- conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
