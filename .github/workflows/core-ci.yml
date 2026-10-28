@@ -56,6 +56,9 @@ jobs:
   # by core/tests/timings.tsv, and each shard runs its part one test at a time — which
   # also keeps the wall-clock checks inside some tests steady.
   #
+  # macOS shards stop at five: the account runs at most five macOS jobs at once — nine
+  # shards measured 400 s because four of them queued behind the first five.
+  #
   # The branch ruleset requires "Contracts (ubuntu-latest)" and "Contracts (macos-latest)".
   # Those two names now belong to small result jobs that wait for their shards and
   # report one verdict, so the ruleset does not change.
@@ -65,6 +68,7 @@ jobs:
     timeout-minutes: 6
     outputs:
       full: ${{ steps.lane.outputs.full }}
+      macos: ${{ steps.lane.outputs.macos }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -75,15 +79,17 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          docs_only=no
+          docs_only=no; macos=yes
           if [[ "$SCV_CI_FULL" == "true" && -n "$BASE_SHA" ]]; then
-            docs_only="$(bash tools/ci-plan.sh "$BASE_SHA" "$HEAD_SHA" | sed -n 's/^docs_only=//p')"
+            lane="$(bash tools/ci-plan.sh "$BASE_SHA" "$HEAD_SHA")"
+            docs_only="$(printf '%s\n' "$lane" | sed -n 's/^docs_only=//p')"
+            macos="$(printf '%s\n' "$lane" | sed -n 's/^macos=//p')"
           fi
           full=false
           [[ "$SCV_CI_FULL" == "true" && "$docs_only" != "yes" ]] && full=true
-          echo "lane: SCV_CI_FULL=$SCV_CI_FULL docs_only=$docs_only → full=$full"
-          echo "full=$full" >> "$GITHUB_OUTPUT"
-          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+          [[ "$full" == "true" ]] || macos=no
+          echo "lane: SCV_CI_FULL=$SCV_CI_FULL docs_only=$docs_only → full=$full macos=$macos"
+          { echo "full=$full"; echo "docs_only=$docs_only"; echo "macos=$macos"; } >> "$GITHUB_OUTPUT"
       # A docs- or version-only PR skips the heavy shards, but the checks that read
       # those documents still run here.
       - name: Documents a docs-only change can break
@@ -114,15 +120,17 @@ jobs:
         run: bash core/tests/run-focused.sh --dir tests --dir core/tests --also core/tests/run-dry.sh --shard ${{ matrix.shard }}/6
 
   shards-macos:
-    name: Shard (macos ${{ matrix.shard }}/9)
+    name: Shard (macos ${{ matrix.shard }}/5)
     needs: plan
-    if: needs.plan.outputs.full == 'true'
+    # Only a PR that changes code needs macOS: the BSD/GNU and bash 3.2 differences live
+    # in code, so a Markdown- or VERSION-only change runs on ubuntu alone (tools/ci-plan.sh).
+    if: needs.plan.outputs.full == 'true' && needs.plan.outputs.macos == 'yes'
     runs-on: macos-latest
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        shard: [1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@v5
       - name: Install modern Bash on macOS
@@ -137,7 +145,7 @@ jobs:
           find core/scripts core/tests tests tools -type f -name '*.sh' -exec bash -n {} +
           bash core/scripts/check-frontmatter.sh --project-dir .
       - name: Contracts, shared regression and focused suites (this shard)
-        run: bash core/tests/run-focused.sh --dir tests --dir core/tests --also core/tests/run-dry.sh --shard ${{ matrix.shard }}/9 --timings core/tests/timings-macos.tsv
+        run: bash core/tests/run-focused.sh --dir tests --dir core/tests --also core/tests/run-dry.sh --shard ${{ matrix.shard }}/5 --timings core/tests/timings-macos.tsv
 
   contracts-ubuntu:
     name: Contracts (ubuntu-latest)
@@ -167,11 +175,12 @@ jobs:
         env:
           PLAN_RESULT: ${{ needs.plan.result }}
           FULL: ${{ needs.plan.outputs.full }}
+          MACOS: ${{ needs.plan.outputs.macos }}
           SHARDS: ${{ needs.shards-macos.result }}
         run: |
-          echo "plan=$PLAN_RESULT full=$FULL shards=$SHARDS"
+          echo "plan=$PLAN_RESULT full=$FULL macos=$MACOS shards=$SHARDS"
           [[ "$PLAN_RESULT" == "success" ]] || exit 1
-          if [[ "$FULL" == "true" ]]; then [[ "$SHARDS" == "success" ]]; else [[ "$SHARDS" == "skipped" ]]; fi
+          if [[ "$FULL" == "true" && "$MACOS" == "yes" ]]; then [[ "$SHARDS" == "success" ]]; else [[ "$SHARDS" == "skipped" ]]; fi
 
   deckui:
     name: DeckUI

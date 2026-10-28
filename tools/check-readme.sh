@@ -178,13 +178,22 @@ if [[ -n "$af" ]]; then
   ACTION_IDS="$(jq -r '.actions[].id' "$ROOT/$af")"
 fi
 err() { echo "✖ $*"; fail=1; }
+SEEN_IN_CODE=$'\n'; SEEN_NOT_IN_CODE=$'\n'
 exists_in_code() {  # <token> → 코드 폴더 어딘가에 있으면 0 (코드 폴더가 없는 프로필은 늘 0)
+  # 같은 설정 이름이 언어판마다 되풀이된다 — 한 번 찾은 답은 기억한다(트리 전체 grep 이 이 검사의
+  # 거의 모든 시간이었다: 맥 CI 에서 시험 하나 62초, 우분투 6초).
   local d
+  [[ "$SEEN_IN_CODE" == *$'\n'"$1"$'\n'* ]] && return 0
+  [[ "$SEEN_NOT_IN_CODE" == *$'\n'"$1"$'\n'* ]] && return 1
   [[ -z "$(code_roots "$PROFILE")" ]] && return 0
   for d in $(code_roots "$PROFILE"); do
     [[ -d "$ROOT/$d" ]] || continue
-    grep -rqF --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.cache -- "$1" "$ROOT/$d" 2>/dev/null && return 0
+    if grep -rqF --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.cache -- "$1" "$ROOT/$d" 2>/dev/null; then
+      SEEN_IN_CODE="$SEEN_IN_CODE$1"$'\n'
+      return 0
+    fi
   done
+  SEEN_NOT_IN_CODE="$SEEN_NOT_IN_CODE$1"$'\n'
   return 1
 }
 
