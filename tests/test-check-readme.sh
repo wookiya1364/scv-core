@@ -59,5 +59,11 @@ expect_red "required topic removed" "$d" "required topic marker missing: SCV_MOD
 d="$(fresh_copy)"; append_line "$d/README.md" 'Current release: 0.99.1.'
 expect_red "version number written" "$d" "version numbers present"
 
+d="$(fresh_copy)"; sed 's/action:channel//g' "$d/README.md" > "$d/x" && mv "$d/x" "$d/README.md"
+expect_red "command dropped from the README" "$d" "command missing from the README: action:channel"
+
+d="$(fresh_copy)"; awk '/^```mermaid/{n++} n==1&&!done{if(/^```$/){done=1}; next} {print}' "$d/README.ko.md" > "$d/x" && mv "$d/x" "$d/README.ko.md"
+expect_red "language edition lost a diagram" "$d" "diagrams"
+
 (( fail )) && exit 1
-echo "check-readme: baseline green, 6 broken copies red"
+echo "check-readme: baseline green, 8 broken copies red"
