@@ -252,8 +252,10 @@ run_t7() {  # <대화 기록> → "처음 다음" (매 턴 훅 + help 두 번)
 read -r s_first s_next <<<"$(run_t7 "$SMALL")"; read -r b_first b_next <<<"$(run_t7 "$BIG")"
 d_first="$(python3 -c "print(max(0.0, round($b_first - $s_first, 2)))" 2>/dev/null || echo 0)"; d_next="$(python3 -c "print(max(0.0, round($b_next - $s_next, 2)))" 2>/dev/null || echo 0)"
 echo "  · ${MB}MB 기록: 처음 +${d_first}s · 다음 턴 +${d_next}s (작은 기록 대비, 매 턴 훅 + help)"
-python3 -c "import sys; sys.exit(0 if ($d_first <= 3.0 and $d_next <= 0.5) else 1)" 2>/dev/null \
-  && ok "OK [T7] ${MB}MB: first +${d_first}s ≤ 3s, next turns +${d_next}s ≤ 0.5s" || fail "[T7] ${MB}MB: first +${d_first}s, next +${d_next}s"
+# 다음 턴 상한 1.0초(2026-10-28, 0.5 → 1.0): 맥 CI 러너는 이 시험을 혼자 돌려도 +0.64초를 냈다(#364 · #365,
+# 코드 변경과 무관). 상한은 큰 기록을 매 턴 처음부터 다시 읽는 병적인 느려짐(수 초)을 잡는 자리다.
+python3 -c "import sys; sys.exit(0 if ($d_first <= 3.0 and $d_next <= 1.0) else 1)" 2>/dev/null \
+  && ok "OK [T7] ${MB}MB: first +${d_first}s ≤ 3s, next turns +${d_next}s ≤ 1.0s" || fail "[T7] ${MB}MB: first +${d_first}s, next +${d_next}s"
 rm -f "$BIG" "$blk"
 
 echo

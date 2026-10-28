@@ -114,7 +114,7 @@ jobs:
         run: bash core/tests/run-focused.sh --dir tests --dir core/tests --also core/tests/run-dry.sh --shard ${{ matrix.shard }}/6
 
   shards-macos:
-    name: Shard (macos ${{ matrix.shard }}/5)
+    name: Shard (macos ${{ matrix.shard }}/9)
     needs: plan
     if: needs.plan.outputs.full == 'true'
     runs-on: macos-latest
@@ -122,7 +122,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9]
     steps:
       - uses: actions/checkout@v5
       - name: Install modern Bash on macOS
@@ -137,7 +137,7 @@ jobs:
           find core/scripts core/tests tests tools -type f -name '*.sh' -exec bash -n {} +
           bash core/scripts/check-frontmatter.sh --project-dir .
       - name: Contracts, shared regression and focused suites (this shard)
-        run: bash core/tests/run-focused.sh --dir tests --dir core/tests --also core/tests/run-dry.sh --shard ${{ matrix.shard }}/5
+        run: bash core/tests/run-focused.sh --dir tests --dir core/tests --also core/tests/run-dry.sh --shard ${{ matrix.shard }}/9 --timings core/tests/timings-macos.tsv
 
   contracts-ubuntu:
     name: Contracts (ubuntu-latest)
