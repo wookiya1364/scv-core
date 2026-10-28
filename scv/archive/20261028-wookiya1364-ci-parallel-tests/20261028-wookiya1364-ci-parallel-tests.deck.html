@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Architecture — CI 단축 — 코어 시험을 한 작업 안에서 동시에, 속도 검사는 끝에 혼자</title>
+<style>
+/* Dark only — the light token set and its toggle were removed:
+   FE 프로젝트의 다크-기본+라이트-오버라이드 관례와 동일한 모양(속성 하나만 바뀌면
+   전체가 재테마된다). head 맨 앞 인라인 스크립트가 pre-paint 로 저장된 선택을 적용해
+   깜빡임(FOUC)이 없다. */
+/* Dark only. Ported from the owner's DesignSystem .dark block (shadcn oklch ->
+   sRGB, every neutral at chroma 0). The blue-cast greys this replaces
+   (#171922 / #1d2029 / #2c3040 / #9096a8) were the single loudest reason the
+   two decks read as different systems.
+
+   Contrast figures are WCAG 2.x, measured against the surface named. */
+:root{
+  /* surfaces */
+  --bg:#0a0a0a;                  /* the one ground */
+  --panel:#171717;               /* cards, aside, code */
+  --surface-2:#121212;           /* zebra rows, quiet fills */
+  --surface-3:#151515;           /* table head, code block */
+
+  /* text */
+  --fg:#fafafa;                  /* 18.97:1 on --bg */
+  --fg-body:#e2e2e2;             /* 15.28:1 on --bg  · body copy */
+  --fg-soft:#d6d6d6;             /* 13.62:1 on --bg  · text inside a tinted card */
+  --muted-foreground:#a1a1a1;    /*  7.66:1 on --bg  · 6.94:1 on --panel */
+
+  /* lines — alpha so ONE value composites correctly over bg and panel alike */
+  --border:rgba(255,255,255,.10);
+  --border-strong:#707070;       /* load-bearing rules. Measured where it actually
+                                    sits, not on --bg: 3.62:1 on --panel (node
+                                    fill), 3.69:1 on --surface-3 (figure ground),
+                                    5.87:1 on --bg. #4d4d4d cleared 3:1 against
+                                    --bg alone and failed at 2.12:1 on a node. */
+  --ring:#737373;                /*  4.18:1 on --bg */
+
+  /* brand — the owner's rose, kept for a public product on their say-so.
+     TWO values, because one cannot do both jobs: oklch(.455 .188 13.697)
+     = #a50036 measures 2.50:1 as text on --bg and is unreadable. The text
+     value is the same hue lifted in lightness only. */
+  --primary:#a50036;             /* fill · white on it 7.58:1 */
+  --primary-text:#fc7184;        /* text · 7.39:1 on --bg · 6.69:1 on --panel */
+  --on-primary:#fafafa;          /* 7.58:1 on the --primary plate */
+
+  /* status */
+  --good:#4bd39a;                /*  9.53:1 on --bg */
+  --warn:#e3b153;                /*  9.18:1 on --bg */
+  --danger:#f4837f;              /*  7.22:1 on --bg */
+  --on-warn:#241a06;             /*  8.72:1 on the --warn plate */
+}
+*{box-sizing:border-box}
+/* One scroll region, and only one. The app shell owns the scrolling; the document
+   behind it must never scroll too. Without this the page picks up a second scrollbar
+   whenever the shell ends up a few pixels taller than the viewport (100svh vs 100%
+   rounding is enough), and the reader gets two bars with no way to tell which one the
+   wheel will move. Print restores normal flow below. */
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+html{scroll-behavior:smooth}
+body{margin:0;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:var(--fg);background:var(--bg)}
+/* Controls do not inherit the document font — a UA default applies unless asked.
+   Six controls below set font-size alone or an invalid `font:` shorthand, and
+   all of them rendered in 13.333px/400/Arial. This one line is what makes the
+   per-control rules that follow actually reach the element. */
+button,input,select,textarea{font:inherit;color:inherit}
+/* 문서 = 스크롤되는 본문(좌) + 상시 원문 마크다운 패널(우, sticky) — 이게 scv:deck 의
+   정체성이다: 렌더링과 원문이 늘 같은 화면에 나란히 있어야 서로 어긋나지 않았다는 게
+   보장된다. 인쇄 시에는 패널을 접고 본문 뒤에 원문을 부록으로 붙인다(.print-source). */
+/* Three rows over the viewport: header, content, footer. The header and the
+   footer are chrome and must not scroll away with the text — before this they
+   lived inside .wrap and pushed 268px of nav in front of the first sentence. */
+.shell{display:grid;grid-template-rows:auto 1fr auto;height:100svh;overflow:hidden}
+.shell-mid{display:flex;min-height:0;overflow:hidden}
+/* A container so a figure can measure the READING area and break out of the
+   840px text column. 100vw would count the source panel too and push the
+   diagram under it. */
+.scroll-main{flex:1;min-width:0;overflow-y:auto;container-type:inline-size}
+.wrap{--doc-pad:clamp(20px,5vw,56px);max-width:840px;margin:0 auto;min-height:100%;padding:0 var(--doc-pad) 96px}
+header.doc{display:flex;align-items:center;gap:16px;min-width:0;background:var(--bg);border-bottom:1px solid var(--border);padding:11px 20px}
+header.doc h1{font-size:15px;font-weight:600;margin:0;flex-shrink:0;max-width:34ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)}
+.header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.panel-toggle{flex-shrink:0;font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer}
+.panel-toggle:hover{background:var(--border);color:var(--fg)}
+.panel-toggle .kbd{opacity:.55;margin-left:4px}
+.source-panel{position:relative;width:min(440px,38vw);flex-shrink:0;border-left:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column}
+.source-panel.closed{display:none}
+.panel-resize-handle{position:absolute;left:0;top:0;bottom:0;width:7px;margin-left:-4px;cursor:col-resize;z-index:6}
+.panel-resize-handle:hover{background:rgba(127,137,160,.25)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-title{font-size:12px;color:var(--muted-foreground);font-weight:700;letter-spacing:.02em}
+.panel-close{border:none;background:none;color:var(--muted-foreground);cursor:pointer;font-size:14px;padding:2px 7px;border-radius:5px;line-height:1.4}
+.panel-close:hover{background:var(--border);color:var(--fg)}
+.panel-tabs{display:flex;gap:2px;padding:9px 12px 0;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.panel-tab{font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);padding:7px 10px;border:none;background:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.panel-tab.active{color:var(--fg);border-bottom-color:var(--primary)}
+.panel-body{flex:1;overflow-y:auto;padding:14px}
+.panel-body .src-doc{display:none;margin:0}
+.panel-body .src-doc.active{display:block}
+.print-source{display:none}
+/* 목차(nav.toc) 는 인쇄본 전용(펼친 전체 문서엔 목차가 자연스럽다). 화면에서는
+   deck-nav(아래) 가 같은 역할을 대신한다 — 페이지 번호 pill + 클릭 이동. */
+@media screen{nav.toc{display:none}}
+nav.toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:26px 0}
+nav.toc h3{margin:0 0 8px;font-size:12px;letter-spacing:.04em;color:var(--muted-foreground);text-transform:uppercase}
+nav.toc ol{margin:0;padding-left:20px;columns:2;gap:24px}
+nav.toc a{color:var(--fg);text-decoration:none}
+nav.toc a:hover{color:var(--primary);text-decoration:underline}
+section{padding:22px 0;border-top:1px solid var(--border)}
+section:first-of-type{border-top:none}
+/* 페이지 넘김(화면 전용) — 한 번에 한 섹션만. 인쇄 시엔 전부 펼쳐서 보여준다. */
+@media screen{.slide-page{display:none}.slide-page.active{display:block}}
+/* One scrolling row, never wrapped. The reference sets flex-wrap AND
+   overflow-x-auto together; flex-wrap wins, and fed 19 labels its own header
+   grows to three rows. nowrap is the one place this deliberately differs. */
+.deck-nav{display:flex;flex-wrap:nowrap;gap:4px;margin:0;flex:1;min-width:0;overflow-x:auto;scrollbar-width:thin}
+.deck-nav::-webkit-scrollbar{height:6px}
+.deck-nav::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.deck-nav-item{font-weight:400;font-size:12px;line-height:16px;color:var(--muted-foreground);background:none;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;white-space:nowrap}
+.deck-nav-item:hover{color:var(--fg)}
+.deck-nav-item.active{background:var(--primary-text);color:var(--bg);font-weight:500}
+.deck-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0;padding:11px 20px;border-top:1px solid var(--border);background:var(--bg)}
+.deck-arrow{font-weight:600;font-size:13px;line-height:1;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;cursor:pointer}
+.deck-arrow:disabled{opacity:.35;cursor:default}
+.deck-arrow:not(:disabled):hover{background:var(--panel)}
+.deck-dots{display:flex;align-items:center;gap:6px}
+.deck-dot{width:8px;height:8px;border-radius:999px;background:var(--border);border:none;cursor:pointer;padding:0}
+.deck-dot.active{background:var(--primary);width:20px;border-radius:5px}
+.deck-counter{font-size:12px;color:var(--muted-foreground);min-width:52px;text-align:center}
+mark.src-hl{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--fg);border-left:2px solid var(--warn);border-radius:0;padding:0 2px}
+h2{font-size:32px;line-height:1.15;letter-spacing:-.02em;margin:.1em 0 .5em;font-weight:700;color:var(--fg)}
+h4{margin:1.1em 0 .35em;font-size:17px;font-weight:600;color:var(--fg)}
+.subhead{font-size:20px;font-weight:600;margin:1.4em 0 .4em;color:var(--fg)}
+.kicker{font-size:14px;font-weight:600;letter-spacing:.02em;color:var(--primary-text);margin-bottom:6px}
+.sub{font-size:18px;line-height:1.55;color:var(--muted-foreground);margin:-.1em 0 1.3em;max-width:62ch}
+p{margin:.65em 0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul{margin:.6em 0;padding-left:0;list-style:none}
+ol{margin:.6em 0;padding-left:22px}
+li{margin:0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul>li{position:relative;padding-left:18px;margin:8px 0}
+ul>li::before{content:"";position:absolute;left:0;top:.62em;width:6px;height:6px;border-radius:50%;background:color-mix(in srgb,var(--primary-text) 70%,transparent)}
+ol>li{margin:8px 0}
+.tw{overflow-x:auto;margin:.8em 0}
+table{border-collapse:collapse;width:100%;font-size:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+th,td{border:none;border-bottom:1px solid var(--border);padding:10px 14px;text-align:left;vertical-align:top;color:var(--fg-body)}
+tbody tr:last-child td{border-bottom:none}
+thead th{background:var(--surface-3);font-weight:600;font-size:12px;letter-spacing:.02em;color:var(--muted-foreground)}
+table.kv th{background:none;width:30%;white-space:nowrap;font-weight:500;color:var(--muted-foreground)}
+.kpi{display:flex;flex-wrap:wrap;gap:12px;margin:.8em 0}
+.kpi-card{flex:1 1 160px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--panel)}
+.kpi-label{font-size:13px;color:var(--muted-foreground);margin-bottom:6px}
+.kpi-nums{display:flex;align-items:center;gap:8px;font-weight:700}
+.kpi-nums .base{color:var(--muted-foreground)}
+.kpi-nums .arrow{color:var(--primary)}
+.kpi-nums .target{color:var(--good)}
+.goals{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:.8em 0}
+.goal-col{border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+.goal-col.g{border-left:4px solid var(--good)}
+.goal-col.ng{border-left:4px solid var(--danger)}
+pre.code{background:var(--surface-3);color:var(--fg-body);border-radius:10px;padding:14px 16px;overflow-x:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;margin:.8em 0}
+/* mermaid 는 항상 라이트 카드에 그린다(테마 무관, pre.code 가 항상 다크인 것과 대칭) —
+   mermaid 렌더 테마를 다크로 다시 그리려면 이미 SVG 로 처리된 노드를 되돌려야 해서
+   토글마다 재처리가 필요해진다. 대신 다이어그램 카드 자체를 고정 라이트로 둬서
+   토글과 무관하게 항상 선명하게 읽힌다. */
+/* A figure, not a paragraph. The SVG now carries its natural width, so the
+   frame scrolls instead of shrinking it — a 1437px graph squeezed into an
+   840px column rendered its 16px labels at 7.7px, which was the single worst
+   readability defect in the deck. */
+/* Full bleed: the figure uses the whole reading area, not the 840px measure the
+   prose wants. A 1388px graph inside an 840px column left ~215px of dead gutter
+   on each side AND a scrollbar — the worst of both. */
+pre.mermaid{background:var(--surface-3);border:1px solid var(--border-strong);border-radius:10px;padding:14px;margin:1.1em 0;overflow-x:auto;text-align:left}
+@supports (width:100cqw){
+  pre.mermaid{
+    /* A 16px gutter, not the prose gutter. Text wants a comfortable measure; a
+       figure wants the glass. With the source panel open — which is the deck's
+       whole point and stays open — every pixel of the reading area counts. */
+    --bleed:calc(100cqw - 32px);
+    width:var(--bleed);
+    max-width:var(--bleed);
+    margin-inline:calc((100% - var(--bleed)) / 2);
+  }
+}
+/* Fit the frame when there is room; below 900px stop shrinking and scroll
+   instead. Scaling all the way down is what made 16px labels render at 7.7px,
+   and a scrollbar is better than text nobody can read. */
+pre.mermaid svg{max-width:100%;min-width:900px;height:auto}
+/* The diagram lives in a <pre>, whose UA default is white-space:pre, and that
+   inherits into every label. Mermaid sizes an edge label's box for TWO wrapped
+   lines (200x48.75) and the text then refused to wrap, so anything past 200px
+   was clipped mid-word — "BASE_REF, HEAD_REF, PR_TITLE" measured 230px of text
+   in a 200px box. Labels are prose, not preformatted text. */
+pre.mermaid foreignObject,pre.mermaid foreignObject *{white-space:normal}
+/* On a narrow window there is nothing to floor — let it fit rather than force
+   a scrollbar the reader cannot escape. */
+@media (max-width:900px){pre.mermaid svg{min-width:0}}
+pre.mermaid.mermaid-fallback{text-align:left;white-space:pre;overflow-x:auto;background:#0f1320;color:#e6e9f0;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:30px 16px 14px;position:relative}
+pre.mermaid.mermaid-fallback::before{content:"\29c9 \b2e4\c774\c5b4\adf8\b7a8 \c6d0\bcf8 (\c624\d504\b77c\c778 \b610\b294 CDN \bbf8\b85c\b4dc)";position:absolute;top:8px;left:16px;font:600 11px/1 -apple-system,sans-serif;color:var(--muted-foreground)}
+/* A tinted card, not a left rule — the reference's Callout. color-mix keeps one
+   hue per tone instead of a second hand-picked hex for the fill. */
+.callout{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:1em 0;background:var(--panel)}
+.callout-title{font-weight:600;font-size:16px;margin-bottom:4px;color:var(--fg)}
+.callout p,.callout li{font-size:14px;color:var(--fg-soft)}
+.callout.info{border-color:color-mix(in srgb,var(--primary-text) 30%,transparent);background:color-mix(in srgb,var(--primary-text) 10%,var(--bg))}
+.callout.good{border-color:color-mix(in srgb,var(--good) 30%,transparent);background:color-mix(in srgb,var(--good) 10%,var(--bg))}
+.callout.warn{border-color:color-mix(in srgb,var(--warn) 30%,transparent);background:color-mix(in srgb,var(--warn) 10%,var(--bg))}
+.callout.danger{border-color:color-mix(in srgb,var(--danger) 30%,transparent);background:color-mix(in srgb,var(--danger) 10%,var(--bg))}
+.callout.next{border-style:dashed;border-color:var(--border-strong);background:var(--surface-2)}
+.lint h2{color:var(--warn)}
+.lint-count{display:inline-block;background:var(--warn);color:var(--on-warn);border-radius:999px;font-size:12px;padding:1px 9px;vertical-align:middle}
+/* 화면목업(와이어프레임) 킷 — scv 자체 기본 스킨(2순위 폴백): DesignSystem 의 실제
+   다크 팔레트를 distill(무채색 표면 + 단일 로즈 악센트 + border-only depth + pill
+   배지, 글라스 없음 — DesignSystem 본체엔 글라스가 없다). 문서 자체의 라이트/다크
+   토글과는 독립적으로 항상 이 다크 스킨을 쓴다(--wf-* 로 스코프해 문서 테마 변수와
+   충돌하지 않음) — mermaid 카드를 항상 라이트로 고정하는 것과 같은 이유(재처리 없이
+   항상 또렷하게). 프로젝트 실제 토큰(1순위) 자동감지는 아직 없음 — 후속 작업.
+   버튼은 항상 disabled(정적 예시 그림이라 실제 인터랙션 없음). */
+.wf-screen{
+  margin:1em 0;
+  --wf-bg:#0a0a0b; --wf-fg:#fafafa; --wf-card:#1c1c1e; --wf-border:rgba(255,255,255,.1);
+  --wf-muted:#232326; --wf-muted-fg:#9a9a9f;
+  --wf-primary:#a53257; --wf-primary-fg:#fdf1f3;
+  --wf-success:#34d399; --wf-success-bg:rgba(16,185,129,.15); --wf-success-border:rgba(16,185,129,.4);
+  --wf-danger:#ef6b6b; --wf-danger-bg:rgba(239,107,107,.14);
+  --wf-info:#60a5fa; --wf-info-bg:rgba(96,165,250,.15);
+  --wf-warn:#e0ab48; --wf-warn-bg:rgba(224,171,72,.15);
+  --wf-radius:10px; --wf-radius-pill:999px;
+}
+/* 번호식 화면설계서 — the picture keeps the stage, the prose stands beside it.
+   Sidebar sits right of the picture on a wide screen and DROPS BELOW under 900px,
+   because squeezing the drawing to fit a column is exactly the regression that made
+   an earlier deck's diagram render at 0.483 scale (16px type → 7.7px). */
+.wf-speclayout{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,360px);gap:16px;align-items:start;margin:1em 0}
+.wf-speclayout > .wf-screen{margin:0;min-width:0}
+/* A spec sheet is a FIGURE, not prose: the 840px reading measure that suits paragraphs
+   starves the drawing and crams the detail list against it. Take the full glass, same
+   as a standalone diagram does — the picture gets the room, the detail panel sits at
+   the right edge. */
+@supports (width:100cqw){
+  .wf-speclayout{
+    --bleed:calc(100cqw - 32px);
+    width:var(--bleed);
+    max-width:var(--bleed);
+    margin-inline:calc((100% - var(--bleed)) / 2);
+  }
+}
+/* A diagram needs more room than a wireframe; with the bleed a full-size flowchart
+   fits beside the panel on a wide screen. Below that it stacks rather than shrink —
+   squeezing an 800px flowchart into a narrow column renders 16px labels at ~8px, the
+   regression that made an earlier deck unreadable. */
+@media (max-width:1200px){
+  .wf-speclayout-diagram{grid-template-columns:minmax(0,1fr)}
+  .wf-speclayout-diagram > .wf-spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:start}
+}
+/* Undo the full-bleed above: that rule widens a STANDALONE diagram to the reading
+   glass, which inside a spec frame just bursts the frame (the picture then gets
+   cropped by wf-frame's overflow:hidden). In here the frame is the glass. */
+/* Keep the diagram card's own surface. Making it transparent put mermaid's
+   light-assuming palette (#eaeaea fills, #666 text) straight onto the dark frame, and a
+   sequence diagram's message text became unreadable — the deck draws diagrams on their
+   own card for exactly this reason (see the note above pre.mermaid). */
+.wf-screen pre.mermaid{margin:0;margin-inline:0;width:auto;max-width:100%;padding:10px;overflow-x:auto}
+.wf-screen pre.mermaid svg{min-width:0;max-width:100%;height:auto}
+@media (max-width:900px){.wf-speclayout,.wf-speclayout-diagram{grid-template-columns:minmax(0,1fr)}}
+@media print{.wf-speclayout,.wf-speclayout-diagram{grid-template-columns:minmax(0,1fr);break-inside:avoid}}
+/* Grid, not flex-wrap: in a narrow column the name TRUNCATES instead of shoving
+   PAGE CODE onto its own half-empty row (the identity strip must read as one line). */
+.wf-pagebar{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:stretch;margin-bottom:8px;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;font-size:12.5px}
+.wf-pagebar-key{padding:6px 10px;background:var(--surface-3);color:var(--muted-foreground);font-weight:700;font-size:11px;letter-spacing:.04em;white-space:nowrap;display:flex;align-items:center}
+.wf-pagebar-name{min-width:0;padding:6px 10px;background:var(--surface-2);color:var(--foreground);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center}
+.wf-pagebar-code{padding:6px 10px;background:var(--surface-2);color:var(--foreground);font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;display:flex;align-items:center}
+.wf-marked{display:flex;align-items:flex-start;gap:8px}
+.wf-marked + .wf-marked{margin-top:2px}
+.wf-marked-body{flex:1;min-width:0}
+.wf-marker{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;margin-top:3px;padding:0 5px;border-radius:999px;font:700 11.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.wf-marker-fn{background:var(--wf-primary,#a53257);color:var(--wf-primary-fg,#fdf1f3)}
+.wf-marker-action{background:var(--wf-info,#60a5fa);color:#0a0a0b}
+.wf-spec{display:flex;flex-direction:column;gap:12px;min-width:0}
+.wf-spec-group{border:1px solid var(--border-strong);border-radius:10px;background:var(--surface-2);overflow:hidden}
+.wf-spec-title{padding:7px 12px;background:var(--surface-3);border-bottom:1px solid var(--border-strong);font-weight:700;font-size:12.5px;letter-spacing:.02em}
+.wf-spec-item{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;border-top:1px solid var(--border)}
+.wf-spec-item:first-of-type{border-top:0}
+.wf-spec-badge{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);font:700 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.wf-spec-item-act .wf-spec-badge{background:var(--wf-info,#60a5fa);color:#0a0a0b;border-color:transparent}
+.wf-spec-body{flex:1;min-width:0;font-size:12.5px;line-height:1.6}
+.wf-spec-name{font-weight:600;margin-bottom:2px}
+.wf-spec-notes{margin:0;padding-left:1.1em;color:var(--muted-foreground)}
+.wf-spec-notes li{margin:1px 0}
+.wf-spec-state{margin-left:4px;padding:1px 6px;border-radius:999px;border:1px solid var(--border-strong);font:700 10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+.wf-spec-state-added{background:#FFE082;border-color:#F57C00;color:#000}
+.wf-spec-state-changed{background:#90CAF9;border-color:#1565C0;color:#000}
+.wf-spec-state-removed{background:transparent;border-color:#EF9A9A;color:#EF9A9A;border-style:dashed}
+.wf-spec-state-reused{background:var(--surface-3);border-color:var(--border-strong);color:var(--muted-foreground)}
+.wf-spec-step{margin-left:6px;padding:1px 6px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);color:var(--muted-foreground);font:600 10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+.wf-sub-title{margin:12px 0 6px;font-weight:700;font-size:12.5px;letter-spacing:.02em}
+/* "Called from" sits ABOVE the picture, so the first thing a backend reader learns is
+   which screen and which element reaches this endpoint. */
+.wf-screen > .wf-validations:first-of-type{margin-bottom:2px}
+.wf-diagram-label{margin:8px 0 2px;font-size:11.5px;color:var(--muted-foreground)}
+.wf-diagram-label:first-child{margin-top:0}
+/* Validation table — one row per rule, the numbers it touches in the first column so a
+   rule shared by several markers is traceable instead of scattered through prose. */
+.wf-validations{margin-top:2px}
+.wf-vtable{width:100%;border-collapse:collapse;font-size:12px;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;table-layout:auto}
+.wf-vtable th{padding:6px 9px;background:var(--surface-3);border-bottom:1px solid var(--border-strong);text-align:left;font-weight:700;white-space:nowrap}
+.wf-vtable td{padding:6px 9px;border-top:1px solid var(--border);vertical-align:top;line-height:1.55}
+.wf-vt-marker{width:1%;white-space:nowrap;font:700 11px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted-foreground)}
+/* State variants — a strip under the frame, never a third column: a third column would
+   squeeze the picture, which is the one thing this format exists to protect. */
+.wf-states-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.wf-state{min-width:0}
+.wf-state-label{display:flex;align-items:center;gap:5px;margin-bottom:4px;font-size:11.5px;color:var(--muted-foreground)}
+.wf-state-marker{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);font:700 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--foreground)}
+.wf-state-frame{border:1px solid var(--wf-border,var(--border-strong));border-radius:8px;background:var(--wf-bg,var(--surface-2));padding:9px 10px}
+.wf-chrome{display:flex;align-items:center;gap:7px;padding:9px 12px;border-bottom:1px solid var(--wf-border);background:var(--wf-card)}
+.wf-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;opacity:.7}
+.wf-dot-r{background:#fb2c36}.wf-dot-y{background:#fe9a00}.wf-dot-g{background:#00bc7d}
+.wf-url{margin-left:6px;padding:2px 8px;border-radius:5px;background:var(--wf-muted);color:var(--wf-muted-fg,var(--muted-foreground));font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wf-frame{border:1px solid var(--wf-border);border-radius:calc(var(--wf-radius) + 4px);background:var(--wf-bg);color:var(--wf-fg);overflow:hidden}
+.wf-nav{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--wf-border);background:var(--wf-bg);flex-wrap:wrap}
+.wf-nav-item{font-size:13px;color:var(--wf-muted-fg);padding:12px 11px;border-bottom:2px solid transparent}
+.wf-nav-item.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-primary)}
+.wf-body{padding:20px}
+.wf-header{margin-bottom:0}
+.wf-header-title{font-size:16px;font-weight:600;color:var(--wf-fg)}
+.wf-header-sub{font-size:12.5px;color:var(--wf-muted-fg);margin-top:3px}
+.wf-toolbar{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+.wf-tabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid var(--wf-border)}
+.wf-tab{font-size:12.5px;color:var(--wf-muted-fg);padding:7px 11px;border-bottom:2px solid transparent}
+.wf-tab.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-muted-fg)}
+.wf-btn{font-weight:500;font-size:12.5px;line-height:1;padding:8px 13px;border-radius:8px;border:1px solid transparent;background:var(--wf-muted);color:var(--wf-fg);cursor:default}
+.wf-btn-primary{background:var(--wf-primary);color:var(--wf-primary-fg)}
+.wf-btn-danger{background:var(--wf-danger-bg);color:var(--wf-danger)}
+.wf-input{display:inline-flex;align-items:center;font-size:12.5px;color:var(--wf-muted-fg);padding:8px 12px;border:1px solid var(--wf-border);border-radius:8px;background:var(--wf-card);min-width:120px}
+.wf-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.wf-table th,.wf-table td{border-bottom:1px solid var(--wf-border);padding:9px 10px;text-align:left}
+.wf-table th{color:var(--wf-muted-fg);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.02em}
+.wf-badge{display:inline-flex;align-items:center;height:20px;border-radius:var(--wf-radius-pill);padding:0 9px;font-size:10.5px;font-weight:500;border:1px solid transparent}
+.wf-badge-muted{background:var(--wf-muted);color:var(--wf-muted-fg);border-color:var(--wf-border)}
+.wf-badge-info{background:var(--wf-info-bg);color:var(--wf-info);border-color:rgba(96,165,250,.35)}
+.wf-badge-good{background:var(--wf-success-bg);color:var(--wf-success);border-color:var(--wf-success-border)}
+.wf-badge-warn{background:var(--wf-warn-bg);color:var(--wf-warn);border-color:rgba(224,171,72,.35)}
+.wf-badge-danger{background:var(--wf-danger-bg);color:var(--wf-danger);border-color:rgba(239,107,107,.35)}
+.wf-card{border-radius:var(--wf-radius);border:1px solid var(--wf-border);padding:14px 16px;margin-bottom:10px;background:var(--wf-card)}
+.wf-card-title{font-size:13px;font-weight:600;color:var(--wf-fg);margin-bottom:8px}
+.wf-list{list-style:none;margin:0;padding:0}
+.wf-list li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--wf-border);font-size:12.5px;color:var(--wf-fg)}
+.wf-list li:last-child{border-bottom:none}
+.wf-form{display:flex;flex-direction:column;gap:8px}
+.wf-field{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--wf-muted-fg)}
+.wf-text{font-size:12.5px;color:var(--wf-fg);margin:.3em 0}
+@media (max-width:900px){.source-panel{width:min(360px,44vw)}}
+@media (max-width:640px){.goals{grid-template-columns:1fr}nav.toc ol{columns:1}.shell{flex-direction:column;height:auto;overflow:visible}.scroll-main{overflow:visible}.source-panel{width:100%;height:60vh}}
+/* Paper is the one place the light values live. This is not a second theme the
+   reader can choose — @media print is unreachable on screen, persists nothing,
+   and shows no control. The screen deck stays dark only.
+   It has to redeclare the TOKENS, not just body: the old block set
+   background:#fff on body while every surface below it kept painting from
+   --bg, so the PDF was 20 pages of dark slabs on a white sheet. */
+@media print{
+  /* The single-scroll-region clamp is a SCREEN concern — on paper the document must
+     flow normally, or everything past the first page is clipped away. */
+  html,body{height:auto;overflow:visible}
+  :root{
+    --bg:#ffffff; --panel:#f6f7f8; --surface-2:#fafafa; --surface-3:#f4f4f5;
+    --fg:#111418;                /* 17.74:1 on white */
+    --fg-body:#1c1f24;           /* 15.42:1 */
+    --fg-soft:#33373d;           /* 10.87:1 */
+    --muted-foreground:#565d6b;  /*  6.45:1 */
+    --border:rgba(0,0,0,.14); --border-strong:#8a8f98; --ring:#8a8f98;
+    --primary:#a50036;           /* the brand fill survives; white on it 7.58:1 */
+    --primary-text:#8f0030;      /*  8.75:1 on white — the light form of the rose */
+    --on-primary:#ffffff;
+    --good:#0f7a4d;              /*  5.24:1 */
+    --warn:#8a6100;              /*  5.40:1 */
+    --danger:#b32d1f;            /*  6.18:1 */
+    --on-warn:#fdf6e6;
+    --wf-bg:#ffffff; --wf-fg:#111418; --wf-card:#f6f6f7;
+    --wf-border:rgba(0,0,0,.16); --wf-muted:#f0f0f1; --wf-muted-fg:#565d6b;
+  }
+  @page{size:A4;margin:14mm 12mm}
+  body{background:#fff;display:block;height:auto}
+  .shell{display:block;height:auto;overflow:visible}
+  .shell-mid{display:block;overflow:visible}
+  .scroll-main{overflow:visible;height:auto}
+  .wrap{box-shadow:none;max-width:none;padding:0}
+  header.doc{position:static;border-bottom:1px solid var(--border);padding:0 0 8px}
+  .panel-toggle,.source-panel,.deck-nav,.deck-footer{display:none}
+  nav.toc{display:block;break-inside:avoid}
+  /* break-inside:avoid on a 3000px section dumps most of a page. Keep headings
+     with what follows and protect only the things that must not split. */
+  h2,h3,h4,.subhead{break-after:avoid}
+  figure,table,pre.code,.callout,.wf-screen{break-inside:avoid}
+  /* Paper cannot scroll, so a wide graph gets its own landscape sheet. */
+  @page dg{size:A4 landscape;margin:12mm}
+  pre.mermaid{page:dg;overflow:visible;break-inside:avoid;max-height:180mm}
+  pre.mermaid svg{max-width:100%;height:auto}
+  .print-source{display:block;break-before:page}
+  .print-source h3{margin-top:1.6em;font-size:14px}
+}
+</style>
+<style id="scv-mermaid-contrast">
+/* Diagram palette. static-mermaid.mjs strips the id-scoped rules, the
+   !important flags and the inline colour attributes first, so plain specificity
+   is enough here — before that, an author rule at (1,3,1) with !important still
+   lost to style="fill:#FFE082 !important" on a classDef node. */
+pre.mermaid .flowchart-link,pre.mermaid .edgePath .path,pre.mermaid path.flowchart-link{stroke:var(--fg-body);stroke-width:1.6px;fill:none}
+pre.mermaid .marker,pre.mermaid marker path,pre.mermaid .arrowMarkerPath{fill:var(--fg-body);stroke:var(--fg-body)}
+pre.mermaid .node rect,pre.mermaid .node circle,pre.mermaid .node polygon,pre.mermaid .node path{fill:var(--panel);stroke:var(--border-strong);stroke-width:1.2px}
+pre.mermaid .nodeLabel,pre.mermaid .nodeLabel p,pre.mermaid .label,pre.mermaid text{fill:var(--fg);color:var(--fg)}
+pre.mermaid .edgeLabel,pre.mermaid .edgeLabel p{background-color:var(--surface-3);color:var(--fg-body)}
+pre.mermaid .edgeLabel rect,pre.mermaid .labelBkg{fill:var(--surface-3);opacity:1}
+pre.mermaid .cluster rect{fill:var(--surface-2);stroke:var(--border-strong)}
+pre.mermaid .cluster text,pre.mermaid .cluster .nodeLabel{fill:var(--muted-foreground);color:var(--muted-foreground)}
+/* The two semantic highlights the protocol sanctions. Any other per-node colour
+   is stripped, so these are the only ones that survive — deck.md says so. */
+pre.mermaid .node.new rect,pre.mermaid g.new rect{fill:#5a4415;stroke:var(--warn);stroke-width:1.8px}
+pre.mermaid .node.new .nodeLabel,pre.mermaid g.new .nodeLabel{fill:#f6e8c8;color:#f6e8c8}
+pre.mermaid .node.changed rect,pre.mermaid g.changed rect{fill:#16324f;stroke:#6fb4f2;stroke-width:1.8px}
+pre.mermaid .node.changed .nodeLabel,pre.mermaid g.changed .nodeLabel{fill:#d9ecff;color:#d9ecff}
+/* SEQUENCE diagrams — a backend spec draws the ORDER of a request, and mermaid's own
+   palette for this type assumes a light page (#eaeaea boxes, #333 text). Normalization
+   demotes mermaid's id-scoped rules to .scv-mmd (0,2,0), so these "pre.mermaid svg .x"
+   selectors (0,2,2) win without !important. Without them the message text renders dark
+   grey on the dark card and the whole diagram is unreadable — the same contrast failure
+   the deck redesign fixed for flowcharts, one diagram type later. */
+pre.mermaid svg .actor,pre.mermaid svg rect.actor{fill:var(--panel);stroke:var(--border-strong);stroke-width:1.2px}
+pre.mermaid svg text.actor,pre.mermaid svg text.actor tspan,pre.mermaid svg .actor > tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .actor-line{stroke:var(--border-strong);stroke-width:1px}
+pre.mermaid svg .messageText,pre.mermaid svg text.messageText{fill:var(--fg);stroke:none}
+pre.mermaid svg .messageLine0,pre.mermaid svg .messageLine1{stroke:var(--fg-body);stroke-width:1.5px}
+pre.mermaid svg .labelBox{fill:var(--surface-2);stroke:var(--border-strong)}
+/* sectionTitle is the else-branch label of an alt block — miss it and half the
+   branches in a failure flow stay unreadable while the other half look fine. */
+pre.mermaid svg .labelText,pre.mermaid svg .labelText tspan,pre.mermaid svg .loopText,pre.mermaid svg .loopText tspan,pre.mermaid svg .sectionTitle,pre.mermaid svg .sectionTitle tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .loopLine{stroke:var(--border-strong)}
+pre.mermaid svg .note{fill:var(--surface-2);stroke:var(--border-strong)}
+pre.mermaid svg .noteText,pre.mermaid svg .noteText tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .sequenceNumber{fill:var(--bg)}
+pre.mermaid svg .activation0,pre.mermaid svg .activation1,pre.mermaid svg .activation2{fill:var(--surface-3);stroke:var(--border-strong)}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="doc"><h1>Architecture — CI 단축 — 코어 시험을 한 작업 안에서 동시에, 속도 검사는 끝에 혼자</h1><nav class="deck-nav"><button class="deck-nav-item active" data-idx="0" onclick="scvGoto(0)">1. Architecture — CI </button><button class="deck-nav-item" data-idx="1" onclick="scvGoto(1)">2. 1. Component data </button><button class="deck-nav-item" data-idx="2" onclick="scvGoto(2)">3. 2. Position in who</button><button class="deck-nav-item" data-idx="3" onclick="scvGoto(3)">4. 변경 지도</button><button class="deck-nav-item" data-idx="4" onclick="scvGoto(4)">5. 품질 리포트</button></nav><div class="header-actions"><button class="panel-toggle" onclick="scvTogglePanel()" title="원문 패널 토글 (S)">기획서 원문 <span class="kbd">S</span></button></div></header>
+<div class="shell-mid">
+<div class="scroll-main">
+<div class="wrap">
+<nav class="toc"><h3>목차</h3><ol><li><a href="#s-0-architecture--ci-단축--코어-시험을-한-작업-안에서-동시에">Architecture — CI 단축 — 코어 시험을 한 작업 안에서 동시에, 속도 검사는 끝에 혼자</a></li><li><a href="#s-1-1-component-data-flow">1. Component data flow</a></li><li><a href="#s-2-2-position-in-whole-architecture">2. Position in whole architecture</a></li><li><a href="#s-3-변경-지도">변경 지도</a></li></ol></nav>
+<section id="s-0-architecture--ci-단축--코어-시험을-한-작업-안에서-동시에" class="slide-page active" data-idx="0"><h2>Architecture — CI 단축 — 코어 시험을 한 작업 안에서 동시에, 속도 검사는 끝에 혼자</h2><div class="callout info"><div class="callout-title">참고</div><div>Two-diagram view of this feature. Review and edit before /scv:work —
+diagrams are LLM-generated and may have inaccuracies.</div></div></section>
+<section id="s-1-1-component-data-flow" class="slide-page" data-idx="1"><div class="kicker">Architecture — CI 단축 — 코어 시험을 한 작업 안에서 동시에, 속도 검사는 끝에 혼자</div><h2>1. Component data flow</h2><p>시험 실행 도구 안에서 시험 목록이 결과 표가 되기까지.</p>
+<pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="1817.53125" height="346.6070556640625" class="scv-mmd" id="scv-mmd-cc8546b210" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 1817.53125 346.6070556640625" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}.scv-mmd .key&gt;*{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .key span{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .key tspan{fill:rgb(0, 0, 0);}</style><g><marker id="scv-mmd-cc8546b210_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-cc8546b210_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-cc8546b210_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-cc8546b210_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-cc8546b210_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-cc8546b210_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-cc8546b210_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-cc8546b210_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-cc8546b210_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-cc8546b210_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-cc8546b210_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-cc8546b210_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M209.773,168.862L231.897,165.868C254.021,162.874,298.268,156.886,340.568,150.519C382.867,144.152,423.219,137.406,443.395,134.033L463.57,130.66" id="scv-mmd-cc8546b210-L_CoreCI_ListTests_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_CoreCI_ListTests_0" data-points="W3sieCI6MjA5Ljc3MzQzNzUsInkiOjE2OC44NjE4NjgxNzYzNDQ2N30seyJ4IjozNDIuNTE1NjI1LCJ5IjoxNTAuODk3NTA2NzEzODY3Mn0seyJ4Ijo0NjcuNTE1NjI1LCJ5IjoxMzAuMDAwMjkxNjA5MDY2MDd9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M217.516,70.429L238.349,70.429C259.182,70.429,300.849,70.429,341.871,75.788C382.894,81.148,423.272,91.867,443.461,97.226L463.65,102.586" id="scv-mmd-cc8546b210-L_CodexCI_ListTests_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_CodexCI_ListTests_0" data-points="W3sieCI6MjE3LjUxNTYyNSwieSI6NzAuNDI4NzU2NzEzODY3MTl9LHsieCI6MzQyLjUxNTYyNSwieSI6NzAuNDI4NzU2NzEzODY3MTl9LHsieCI6NDY3LjUxNTYyNSwieSI6MTAzLjYxMjI3NDE2NjcxNzE5fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M184.391,298.893L210.745,298.893C237.099,298.893,289.807,298.893,341.974,274.038C394.141,249.184,445.766,199.475,471.578,174.62L497.391,149.766" id="scv-mmd-cc8546b210-L_Dir_ListTests_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Dir_ListTests_0" data-points="W3sieCI6MTg0LjM5MDYyNSwieSI6Mjk4Ljg5MjkwNjE4ODk2NDg0fSx7IngiOjM0Mi41MTU2MjUsInkiOjI5OC44OTI5MDYxODg5NjQ4NH0seyJ4Ijo1MDAuMjcyMzYzMjE0MTE1ODQsInkiOjE0Ni45OTEyNTY3MTM4NjcyfV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M589.5,119.804L598.324,119.804C607.148,119.804,624.797,119.804,641.779,119.804C658.76,119.804,675.076,119.804,683.233,119.804L691.391,119.804" id="scv-mmd-cc8546b210-L_ListTests_Classify_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_ListTests_Classify_0" data-points="W3sieCI6NTg5LjUsInkiOjExOS44MDM3NTY3MTM4NjcxOX0seyJ4Ijo2NDIuNDQ1MzEyNSwieSI6MTE5LjgwMzc1NjcxMzg2NzE5fSx7IngiOjY5NS4zOTA2MjUsInkiOjExOS44MDM3NTY3MTM4NjcxOX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M806.828,119.804L822.406,119.804C837.984,119.804,869.141,119.804,899.63,119.804C930.12,119.804,959.943,119.804,974.854,119.804L989.766,119.804" id="scv-mmd-cc8546b210-L_Classify_RunBatch_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Classify_RunBatch_0" data-points="W3sieCI6ODA2LjgyODEyNSwieSI6MTE5LjgwMzc1NjcxMzg2NzE5fSx7IngiOjkwMC4yOTY4NzUsInkiOjExOS44MDM3NTY3MTM4NjcxOX0seyJ4Ijo5OTMuNzY1NjI1LCJ5IjoxMTkuODAzNzU2NzEzODY3MTl9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1123.688,93.452L1144.521,85C1165.354,76.549,1207.021,59.647,1252.26,51.195C1297.5,42.744,1346.313,42.744,1370.719,42.744L1395.125,42.744" id="scv-mmd-cc8546b210-L_RunBatch_Logs_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_RunBatch_Logs_0" data-points="W3sieCI6MTEyMy42ODc1LCJ5Ijo5My40NTE2OTE5NzkxMjQ0OX0seyJ4IjoxMjQ4LjY4NzUsInkiOjQyLjc0NDE3MTE0MjU3ODEyNX0seyJ4IjoxMzk5LjEyNSwieSI6NDIuNzQ0MTcxMTQyNTc4MTI1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1123.688,134.289L1144.521,138.934C1165.354,143.579,1207.021,152.87,1248.021,157.515C1289.021,162.161,1329.354,162.161,1349.521,162.161L1369.688,162.161" id="scv-mmd-cc8546b210-L_RunBatch_Summarize_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_RunBatch_Summarize_0" data-points="W3sieCI6MTEyMy42ODc1LCJ5IjoxMzQuMjg4NjA0NjAzNzU4OTZ9LHsieCI6MTI0OC42ODc1LCJ5IjoxNjIuMTYwODMxNDUxNDE2MDJ9LHsieCI6MTM3My42ODc1LCJ5IjoxNjIuMTYwODMxNDUxNDE2MDJ9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1508.422,162.161L1525.016,162.161C1541.609,162.161,1574.797,162.161,1607.32,160.969C1639.842,159.777,1671.7,157.394,1687.629,156.202L1703.558,155.011" id="scv-mmd-cc8546b210-L_Summarize_Report_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Summarize_Report_0" data-points="W3sieCI6MTUwOC40MjE4NzUsInkiOjE2Mi4xNjA4MzE0NTE0MTYwMn0seyJ4IjoxNjA3Ljk4NDM3NSwieSI6MTYyLjE2MDgzMTQ1MTQxNjAyfSx7IngiOjE3MDcuNTQ2ODc1LCJ5IjoxNTQuNzEyMzQzNTQ0NDQwNjR9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1482.984,42.744L1503.818,42.744C1524.651,42.744,1566.318,42.744,1605.394,55.85C1644.471,68.955,1680.958,95.166,1699.201,108.271L1717.444,121.376" id="scv-mmd-cc8546b210-L_Logs_Report_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Logs_Report_0" data-points="W3sieCI6MTQ4Mi45ODQzNzUsInkiOjQyLjc0NDE3MTE0MjU3ODEyNX0seyJ4IjoxNjA3Ljk4NDM3NSwieSI6NDIuNzQ0MTcxMTQyNTc4MTI1fSx7IngiOjE3MjAuNjkyNzQ0MTcwNzAzMiwieSI6MTIzLjcxMDAwNjcxMzg2NzE5fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1707.547,175.775L1690.953,183.871C1674.359,191.966,1641.172,208.157,1596.757,216.253C1552.341,224.348,1496.698,224.348,1436.815,224.348C1376.932,224.348,1312.81,224.348,1249.089,224.348C1185.367,224.348,1122.047,224.348,1063.982,224.348C1005.917,224.348,953.107,224.348,901.837,224.348C850.568,224.348,800.839,224.348,757.863,224.348C714.888,224.348,678.667,224.348,641.566,224.348C604.466,224.348,566.487,224.348,516.499,224.348C466.51,224.348,404.513,224.348,352.046,220.391C299.579,216.433,256.643,208.517,235.175,204.56L213.707,200.602" id="scv-mmd-cc8546b210-L_Report_CoreCI_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Report_CoreCI_0" data-points="W3sieCI6MTcwNy41NDY4NzUsInkiOjE3NS43NzQ5NjY3ODY2MTgwMn0seyJ4IjoxNjA3Ljk4NDM3NSwieSI6MjI0LjM0ODMzMTQ1MTQxNjAyfSx7IngiOjE0NDEuMDU0Njg3NSwieSI6MjI0LjM0ODMzMTQ1MTQxNjAyfSx7IngiOjEyNDguNjg3NSwieSI6MjI0LjM0ODMzMTQ1MTQxNjAyfSx7IngiOjEwNTguNzI2NTYyNSwieSI6MjI0LjM0ODMzMTQ1MTQxNjAyfSx7IngiOjkwMC4yOTY4NzUsInkiOjIyNC4zNDgzMzE0NTE0MTYwMn0seyJ4Ijo3NTEuMTA5Mzc1LCJ5IjoyMjQuMzQ4MzMxNDUxNDE2MDJ9LHsieCI6NjQyLjQ0NTMxMjUsInkiOjIyNC4zNDgzMzE0NTE0MTYwMn0seyJ4Ijo1MjguNTA3ODEyNSwieSI6MjI0LjM0ODMzMTQ1MTQxNjAyfSx7IngiOjM0Mi41MTU2MjUsInkiOjIyNC4zNDgzMzE0NTE0MTYwMn0seyJ4IjoyMDkuNzczNDM3NSwieSI6MTk5Ljg3NjYwMzE3NTUyNDU2fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(342.515625, 150.8975067138672)"><g class="label" data-id="L_CoreCI_ListTests_0" transform="translate(-100, -24.375)"><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>bash core/tests/run-focused.sh</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(342.515625, 70.42875671386719)"><g class="label" data-id="L_CodexCI_ListTests_0" transform="translate(-95.2109375, -12.1875)"><foreignObject width="190.421875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>격리 사본에서 run-focused.sh</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(342.515625, 298.89290618896484)"><g class="label" data-id="L_Dir_ListTests_0" transform="translate(-50.4375, -12.1875)"><foreignObject width="100.875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>test-*.sh 이름순</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(642.4453125, 119.80375671386719)"><g class="label" data-id="L_ListTests_Classify_0" transform="translate(-27.9453125, -12.1875)"><foreignObject width="55.890625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>파일 목록</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(900.296875, 119.80375671386719)"><g class="label" data-id="L_Classify_RunBatch_0" transform="translate(-68.46875, -12.1875)"><foreignObject width="136.9375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>동시에 목록 · 혼자 목록</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1248.6875, 42.744171142578125)"><g class="label" data-id="L_RunBatch_Logs_0" transform="translate(-100, -24.375)"><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>동시 수만큼 겹쳐 실행, 혼자는 끝에</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1248.6875, 162.16083145141602)"><g class="label" data-id="L_RunBatch_Summarize_0" transform="translate(-59.59375, -12.1875)"><foreignObject width="119.1875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>이름 · 종료 코드 · 초</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1607.984375, 162.16083145141602)"><g class="label" data-id="L_Summarize_Report_0" transform="translate(-74.5625, -12.1875)"><foreignObject width="149.125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>표 · 실패 목록 · 종료 코드</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1607.984375, 42.744171142578125)"><g class="label" data-id="L_Logs_Report_0" transform="translate(-70.8515625, -12.1875)"><foreignObject width="141.703125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>실패한 시험의 로그 전문</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(900.296875, 224.34833145141602)"><g class="label" data-id="L_Report_CoreCI_0" transform="translate(-28.296875, -12.1875)"><foreignObject width="56.59375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>exit 0 / 1</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-cc8546b210-flowchart-CoreCI-0" data-look="classic" transform="translate(112.7578125, 181.9912567138672)"><rect class="basic label-container"  x="-97.015625" y="-27.1875" width="194.03125" height="54.375"></rect><g class="label"  transform="translate(-67.015625, -12.1875)"><rect></rect><foreignObject width="134.03125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>코어 CI 집중 시험 단계</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-cc8546b210-flowchart-ListTests-1" data-look="classic" transform="translate(528.5078125, 119.80375671386719)"><rect class="basic label-container"  x="-60.9921875" y="-27.1875" width="121.984375" height="54.375"></rect><g class="label"  transform="translate(-30.9921875, -12.1875)"><rect></rect><foreignObject width="61.984375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>list_tests</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-cc8546b210-flowchart-CodexCI-2" data-look="classic" transform="translate(112.7578125, 70.42875671386719)"><rect class="basic label-container"  x="-104.7578125" y="-27.1875" width="209.515625" height="54.375"></rect><g class="label"  transform="translate(-74.7578125, -12.1875)"><rect></rect><foreignObject width="149.515625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>codex 래퍼 CI 코어 시험</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-cc8546b210-flowchart-Dir-4" data-look="classic" transform="translate(112.7578125, 298.89290618896484)"><path d="M0,13.351097909022075 a71.6328125,13.351097909022075 0,0,0 143.265625,0 a71.6328125,13.351097909022075 0,0,0 -143.265625,0 l0,52.72609790902207 a71.6328125,13.351097909022075 0,0,0 143.265625,0 l0,-52.72609790902207" class="basic label-container outer-path"  transform="translate(-71.6328125, -39.71414686353311)"></path><g class="label"  transform="translate(-64.1328125, -2.1875)"><rect></rect><foreignObject width="128.265625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>시험 폴더 core/tests</p></span></div></foreignObject></g></g><g class="node default key" id="scv-mmd-cc8546b210-flowchart-Classify-7" data-look="classic" transform="translate(751.109375, 119.80375671386719)"><rect class="basic label-container" style="stroke-width:2px" x="-55.71875" y="-27.1875" width="111.4375" height="54.375"></rect><g class="label"  transform="translate(-25.71875, -12.1875)"><rect></rect><foreignObject width="51.4375" height="24.375"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>classify</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-cc8546b210-flowchart-RunBatch-9" data-look="classic" transform="translate(1058.7265625, 119.80375671386719)"><rect class="basic label-container"  x="-64.9609375" y="-27.1875" width="129.921875" height="54.375"></rect><g class="label"  transform="translate(-34.9609375, -12.1875)"><rect></rect><foreignObject width="69.921875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>run_batch</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-cc8546b210-flowchart-Logs-11" data-look="classic" transform="translate(1441.0546875, 42.744171142578125)"><path d="M0,10.037779606493602 a41.9296875,10.037779606493602 0,0,0 83.859375,0 a41.9296875,10.037779606493602 0,0,0 -83.859375,0 l0,49.4127796064936 a41.9296875,10.037779606493602 0,0,0 83.859375,0 l0,-49.4127796064936" class="basic label-container outer-path"  transform="translate(-41.9296875, -34.7441694097404)"></path><g class="label"  transform="translate(-34.4296875, -2.1875)"><rect></rect><foreignObject width="68.859375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>시험별 로그</p></span></div></foreignObject></g></g><g class="node default key" id="scv-mmd-cc8546b210-flowchart-Summarize-13" data-look="classic" transform="translate(1441.0546875, 162.16083145141602)"><rect class="basic label-container" style="stroke-width:2px" x="-67.3671875" y="-27.1875" width="134.734375" height="54.375"></rect><g class="label"  transform="translate(-37.3671875, -12.1875)"><rect></rect><foreignObject width="74.734375" height="24.375"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>summarize</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-cc8546b210-flowchart-Report-15" data-look="classic" transform="translate(1758.5390625, 150.8975067138672)"><rect class="basic label-container"  x="-50.9921875" y="-27.1875" width="101.984375" height="54.375"></rect><g class="label"  transform="translate(-20.9921875, -12.1875)"><rect></rect><foreignObject width="41.984375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>report</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-cc8546b210-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-cc8546b210-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-cc8546b210-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre></section>
+<section id="s-2-2-position-in-whole-architecture" class="slide-page" data-idx="2"><div class="kicker">Architecture — CI 단축 — 코어 시험을 한 작업 안에서 동시에, 속도 검사는 끝에 혼자</div><h2>2. Position in whole architecture</h2><p>Where this feature sits in the system. New components highlighted in yellow.</p>
+<div class="callout info"><div class="callout-title">참고</div><div>Source: scv graph (built 2026-10-28)</div></div>
+<pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="1485.74609375" height="402.875" class="scv-mmd" id="scv-mmd-320fc3c38f" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 1485.74609375 402.875" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}.scv-mmd .new&gt;*{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .new span{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .new tspan{fill:rgb(0, 0, 0);}</style><g><marker id="scv-mmd-320fc3c38f_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-320fc3c38f_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-320fc3c38f_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-320fc3c38f_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-320fc3c38f_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-320fc3c38f_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-320fc3c38f_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-320fc3c38f_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-320fc3c38f_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-320fc3c38f_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-320fc3c38f_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-320fc3c38f_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"><g class="cluster" id="scv-mmd-320fc3c38f-subGraph2" data-look="classic"><rect  x="324.078125" y="8" width="326.578125" height="104.375"></rect><g class="cluster-label" transform="translate(451.6796875, 8)"><foreignObject width="71.375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>codex 래퍼</p></span></div></foreignObject></g></g><g class="cluster" id="scv-mmd-320fc3c38f-.github/workflows" data-look="classic"><rect  x="8" y="8" width="296.078125" height="104.375"></rect><g class="cluster-label" transform="translate(95.578125, 8)"><foreignObject width="120.921875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>.github/workflows</p></span></div></foreignObject></g></g><g class="cluster" id="scv-mmd-320fc3c38f-core/tests" data-look="classic"><rect  x="670.65625" y="8" width="807.08984375" height="386.875"></rect><g class="cluster-label" transform="translate(1040.005859375, 8)"><foreignObject width="68.390625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>core/tests</p></span></div></foreignObject></g></g></g><g class="edgePaths"><path d="M127.897,87.375L123.584,91.542C119.271,95.708,110.645,104.042,217.867,114.406C325.089,124.771,548.158,137.167,659.692,148.896C771.227,160.625,771.227,171.688,771.227,177.219L771.227,182.75" id="scv-mmd-320fc3c38f-L_CoreCI_RunDry_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_CoreCI_RunDry_0" data-points="W3sieCI6MTI3Ljg5NzE1MTAxMDQ3OTA0LCJ5Ijo4Ny4zNzV9LHsieCI6MTAyLjAxOTUzMTI1LCJ5IjoxMTIuMzc1fSx7IngiOjc3MS4yMjY1NjI1LCJ5IjoxNDkuNTYyNX0seyJ4Ijo3NzEuMjI2NTYyNSwieSI6MTg2Ljc1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M189.391,87.375L194.502,91.542C199.613,95.708,209.836,104.042,320.262,114.406C430.689,124.771,641.319,137.167,769.933,150.003C898.547,162.839,945.145,176.116,968.444,182.755L991.743,189.393" id="scv-mmd-320fc3c38f-L_CoreCI_RunFocused_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_CoreCI_RunFocused_0" data-points="W3sieCI6MTg5LjM5MDU1NDgyNzg0NDMsInkiOjg3LjM3NX0seyJ4IjoyMjAuMDU4NTkzNzUsInkiOjExMi4zNzV9LHsieCI6ODUxLjk0OTIxODc1LCJ5IjoxNDkuNTYyNX0seyJ4Ijo5OTUuNTg5ODQzNzUsInkiOjE5MC40ODkxNTExMDY1MDA2OX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M487.367,87.375L487.367,91.542C487.367,95.708,487.367,104.042,589.032,114.406C690.697,124.771,894.026,137.167,994.009,148.924C1093.993,160.682,1090.63,171.802,1088.948,177.361L1087.267,182.921" id="scv-mmd-320fc3c38f-L_PluginCI_RunFocused_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_PluginCI_RunFocused_0" data-points="W3sieCI6NDg3LjM2NzE4NzUsInkiOjg3LjM3NX0seyJ4Ijo0ODcuMzY3MTg3NSwieSI6MTEyLjM3NX0seyJ4IjoxMDk3LjM1NTQ2ODc1LCJ5IjoxNDkuNTYyNX0seyJ4IjoxMDg2LjEwODk1NzgyNzY2OTksInkiOjE4Ni43NX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M995.59,232.559L961.889,240.185C928.188,247.81,860.785,263.061,827.084,276.218C793.383,289.375,793.383,300.438,793.383,305.969L793.383,311.5" id="scv-mmd-320fc3c38f-L_RunFocused_Autosync_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_RunFocused_Autosync_0" data-points="W3sieCI6OTk1LjU4OTg0Mzc1LCJ5IjoyMzIuNTU4OTAxMDEzMjc2OTR9LHsieCI6NzkzLjM4MjgxMjUsInkiOjI3OC4zMTI1fSx7IngiOjc5My4zODI4MTI1LCJ5IjozMTUuNX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1077.887,241.125L1077.887,247.323C1077.887,253.521,1077.887,265.917,1077.887,277.646C1077.887,289.375,1077.887,300.438,1077.887,305.969L1077.887,311.5" id="scv-mmd-320fc3c38f-L_RunFocused_Prompting_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_RunFocused_Prompting_0" data-points="W3sieCI6MTA3Ny44ODY3MTg3NSwieSI6MjQxLjEyNX0seyJ4IjoxMDc3Ljg4NjcxODc1LCJ5IjoyNzguMzEyNX0seyJ4IjoxMDc3Ljg4NjcxODc1LCJ5IjozMTUuNX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1160.184,233.878L1190.747,241.284C1221.311,248.69,1282.439,263.501,1313.003,276.438C1343.566,289.375,1343.566,300.438,1343.566,305.969L1343.566,311.5" id="scv-mmd-320fc3c38f-L_RunFocused_Budget_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_RunFocused_Budget_0" data-points="W3sieCI6MTE2MC4xODM1OTM3NSwieSI6MjMzLjg3ODI4NDI1MDMwMTQyfSx7IngiOjEzNDMuNTY2NDA2MjUsInkiOjI3OC4zMTI1fSx7IngiOjEzNDMuNTY2NDA2MjUsInkiOjMxNS41fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1344.074,87.375L1344.074,91.542C1344.074,95.708,1344.074,104.042,1344.074,114.406C1344.074,124.771,1344.074,137.167,1314.074,150.62C1284.073,164.073,1224.072,178.584,1194.072,185.839L1164.072,193.094" id="scv-mmd-320fc3c38f-L_TestRunFocused_RunFocused_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_TestRunFocused_RunFocused_0" data-points="W3sieCI6MTM0NC4wNzQyMTg3NSwieSI6ODcuMzc1fSx7IngiOjEzNDQuMDc0MjE4NzUsInkiOjExMi4zNzV9LHsieCI6MTM0NC4wNzQyMTg3NSwieSI6MTQ5LjU2MjV9LHsieCI6MTE2MC4xODM1OTM3NSwieSI6MTk0LjAzNDc1NzI3ODcwMzkyfV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(771.2265625, 149.5625)"><g class="label" data-id="L_CoreCI_RunDry_0" transform="translate(-27.9453125, -12.1875)"><foreignObject width="55.890625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>공유 회귀</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(851.94921875, 149.5625)"><g class="label" data-id="L_CoreCI_RunFocused_0" transform="translate(-27.9453125, -12.1875)"><foreignObject width="55.890625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>집중 시험</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(799.27396, 131.39017)"><g class="label" data-id="L_PluginCI_RunFocused_0" transform="translate(-64.3671875, -12.1875)"><foreignObject width="128.734375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>격리 사본의 집중 시험</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(793.3828125, 278.3125)"><g class="label" data-id="L_RunFocused_Autosync_0" transform="translate(-19.46875, -12.1875)"><foreignObject width="38.9375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>동시에</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1077.88671875, 278.3125)"><g class="label" data-id="L_RunFocused_Prompting_0" transform="translate(-19.46875, -12.1875)"><foreignObject width="38.9375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>동시에</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1343.56640625, 278.3125)"><g class="label" data-id="L_RunFocused_Budget_0" transform="translate(-19.46875, -12.1875)"><foreignObject width="38.9375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>동시에</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1344.07421875, 149.5625)"><g class="label" data-id="L_TestRunFocused_RunFocused_0" transform="translate(-64.3671875, -12.1875)"><foreignObject width="128.734375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>가짜 시험 폴더로 검사</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-320fc3c38f-flowchart-RunDry-0" data-look="classic" transform="translate(771.2265625, 213.9375)"><rect class="basic label-container"  x="-65.5703125" y="-27.1875" width="131.140625" height="54.375"></rect><g class="label"  transform="translate(-35.5703125, -12.1875)"><rect></rect><foreignObject width="71.140625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>run-dry.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-320fc3c38f-flowchart-Autosync-1" data-look="classic" transform="translate(793.3828125, 342.6875)"><rect class="basic label-container"  x="-87.7265625" y="-27.1875" width="175.453125" height="54.375"></rect><g class="label"  transform="translate(-57.7265625, -12.1875)"><rect></rect><foreignObject width="115.453125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>test-autosync.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-320fc3c38f-flowchart-Prompting-2" data-look="classic" transform="translate(1077.88671875, 342.6875)"><rect class="basic label-container"  x="-116.5" y="-27.1875" width="233" height="54.375"></rect><g class="label"  transform="translate(-86.5, -12.1875)"><rect></rect><foreignObject width="173" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>test-model-prompting.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-320fc3c38f-flowchart-Budget-3" data-look="classic" transform="translate(1343.56640625, 342.6875)"><rect class="basic label-container"  x="-99.1796875" y="-27.1875" width="198.359375" height="54.375"></rect><g class="label"  transform="translate(-69.1796875, -12.1875)"><rect></rect><foreignObject width="138.359375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>test-help-budget.sh</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-320fc3c38f-flowchart-RunFocused-4" data-look="classic" transform="translate(1077.88671875, 213.9375)"><rect class="basic label-container" style="stroke-width:2px" x="-82.296875" y="-27.1875" width="164.59375" height="54.375"></rect><g class="label"  transform="translate(-52.296875, -12.1875)"><rect></rect><foreignObject width="104.59375" height="24.375"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>run-focused.sh</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-320fc3c38f-flowchart-TestRunFocused-5" data-look="classic" transform="translate(1344.07421875, 60.1875)"><rect class="basic label-container" style="stroke-width:2px" x="-98.671875" y="-27.1875" width="197.34375" height="54.375"></rect><g class="label"  transform="translate(-68.671875, -12.1875)"><rect></rect><foreignObject width="137.34375" height="24.375"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>test-run-focused.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-320fc3c38f-flowchart-CoreCI-6" data-look="classic" transform="translate(156.0390625, 60.1875)"><rect class="basic label-container"  x="-113.0390625" y="-27.1875" width="226.078125" height="54.375"></rect><g class="label"  transform="translate(-83.0390625, -12.1875)"><rect></rect><foreignObject width="166.078125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>core-ci.yml 집중 시험 단계</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-320fc3c38f-flowchart-PluginCI-7" data-look="classic" transform="translate(487.3671875, 60.1875)"><rect class="basic label-container"  x="-128.2890625" y="-27.1875" width="256.578125" height="54.375"></rect><g class="label"  transform="translate(-98.2890625, -12.1875)"><rect></rect><foreignObject width="196.578125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>plugin-ci.yml · core-sync.yml</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-320fc3c38f-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-320fc3c38f-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-320fc3c38f-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre></section>
+<section id="s-3-변경-지도" class="slide-page" data-idx="3"><div class="kicker">Architecture — CI 단축 — 코어 시험을 한 작업 안에서 동시에, 속도 검사는 끝에 혼자</div><h2>변경 지도</h2><pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="1967.40625" height="94.75" class="scv-mmd" id="scv-mmd-a5c25a6235" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 1967.40625 94.75" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}.scv-mmd .added&gt;*{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .added span{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .added tspan{fill:rgb(0, 0, 0);}.scv-mmd .changed&gt;*{fill:rgb(144, 202, 249);stroke:rgb(21, 101, 192);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .changed span{fill:rgb(144, 202, 249);stroke:rgb(21, 101, 192);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .changed tspan{fill:rgb(0, 0, 0);}.scv-mmd .removed&gt;*{fill:rgb(45, 45, 45);stroke:rgb(239, 154, 154);stroke-width:2px;stroke-dasharray:4,3;color:rgb(239, 154, 154);}.scv-mmd .removed span{fill:rgb(45, 45, 45);stroke:rgb(239, 154, 154);stroke-width:2px;stroke-dasharray:4,3;color:rgb(239, 154, 154);}.scv-mmd .removed tspan{fill:rgb(239, 154, 154);}</style><g><marker id="scv-mmd-a5c25a6235_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-a5c25a6235_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-a5c25a6235_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-a5c25a6235_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-a5c25a6235_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-a5c25a6235_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-a5c25a6235_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-a5c25a6235_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-a5c25a6235_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-a5c25a6235_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-a5c25a6235_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-a5c25a6235_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M220.484,47.375L224.651,47.375C228.818,47.375,237.151,47.375,244.818,47.375C252.484,47.375,259.484,47.375,262.984,47.375L266.484,47.375" id="scv-mmd-a5c25a6235-L_S1_S2_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S1_S2_0" data-points="W3sieCI6MjIwLjQ4NDM3NSwieSI6NDcuMzc1fSx7IngiOjI0NS40ODQzNzUsInkiOjQ3LjM3NX0seyJ4IjoyNzAuNDg0Mzc1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M515.266,47.375L519.432,47.375C523.599,47.375,531.932,47.375,539.599,47.375C547.266,47.375,554.266,47.375,557.766,47.375L561.266,47.375" id="scv-mmd-a5c25a6235-L_S2_S3_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S2_S3_0" data-points="W3sieCI6NTE1LjI2NTYyNSwieSI6NDcuMzc1fSx7IngiOjU0MC4yNjU2MjUsInkiOjQ3LjM3NX0seyJ4Ijo1NjUuMjY1NjI1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M768.781,47.375L772.948,47.375C777.115,47.375,785.448,47.375,793.115,47.375C800.781,47.375,807.781,47.375,811.281,47.375L814.781,47.375" id="scv-mmd-a5c25a6235-L_S3_S4_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S3_S4_0" data-points="W3sieCI6NzY4Ljc4MTI1LCJ5Ijo0Ny4zNzV9LHsieCI6NzkzLjc4MTI1LCJ5Ijo0Ny4zNzV9LHsieCI6ODE4Ljc4MTI1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1016.094,47.375L1020.26,47.375C1024.427,47.375,1032.76,47.375,1040.427,47.375C1048.094,47.375,1055.094,47.375,1058.594,47.375L1062.094,47.375" id="scv-mmd-a5c25a6235-L_S4_S5_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S4_S5_0" data-points="W3sieCI6MTAxNi4wOTM3NSwieSI6NDcuMzc1fSx7IngiOjEwNDEuMDkzNzUsInkiOjQ3LjM3NX0seyJ4IjoxMDY2LjA5Mzc1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1291.5,47.375L1295.667,47.375C1299.833,47.375,1308.167,47.375,1315.833,47.375C1323.5,47.375,1330.5,47.375,1334,47.375L1337.5,47.375" id="scv-mmd-a5c25a6235-L_S5_S6_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S5_S6_0" data-points="W3sieCI6MTI5MS41LCJ5Ijo0Ny4zNzV9LHsieCI6MTMxNi41LCJ5Ijo0Ny4zNzV9LHsieCI6MTM0MS41LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1520.359,47.375L1524.526,47.375C1528.693,47.375,1537.026,47.375,1544.693,47.375C1552.359,47.375,1559.359,47.375,1562.859,47.375L1566.359,47.375" id="scv-mmd-a5c25a6235-L_S6_S7_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S6_S7_0" data-points="W3sieCI6MTUyMC4zNTkzNzUsInkiOjQ3LjM3NX0seyJ4IjoxNTQ1LjM1OTM3NSwieSI6NDcuMzc1fSx7IngiOjE1NzAuMzU5Mzc1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1733.828,47.375L1737.995,47.375C1742.161,47.375,1750.495,47.375,1758.161,47.375C1765.828,47.375,1772.828,47.375,1776.328,47.375L1779.828,47.375" id="scv-mmd-a5c25a6235-L_S7_S8_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S7_S8_0" data-points="W3sieCI6MTczMy44MjgxMjUsInkiOjQ3LjM3NX0seyJ4IjoxNzU4LjgyODEyNSwieSI6NDcuMzc1fSx7IngiOjE3ODMuODI4MTI1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_S1_S2_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S2_S3_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S3_S4_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S4_S5_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S5_S6_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S6_S7_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S7_S8_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-a5c25a6235-flowchart-S1-0" data-look="classic" transform="translate(114.2421875, 47.375)"><rect class="basic label-container"  x="-106.2421875" y="-39.375" width="212.484375" height="78.75"></rect><g class="label"  transform="translate(-76.2421875, -24.375)"><rect></rect><foreignObject width="152.484375" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>list_tests<br><small>폴더들 · 파일 → 'path표시' 줄</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-a5c25a6235-flowchart-S2-1" data-look="classic" transform="translate(392.875, 47.375)"><rect class="basic label-container"  x="-122.390625" y="-39.375" width="244.78125" height="78.75"></rect><g class="label"  transform="translate(-92.390625, -24.375)"><rect></rect><foreignObject width="184.78125" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>classify<br><small>'path표시' → 'parallel/serialpath'</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-a5c25a6235-flowchart-S3-2" data-look="classic" transform="translate(667.0234375, 47.375)"><rect class="basic label-container"  x="-101.7578125" y="-39.375" width="203.515625" height="78.75"></rect><g class="label"  transform="translate(-71.7578125, -24.375)"><rect></rect><foreignObject width="143.515625" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>partition<br><small>목록 + 'key초' + i/n → 목록</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-a5c25a6235-flowchart-S4-3" data-look="classic" transform="translate(917.4375, 47.375)"><rect class="basic label-container"  x="-98.65625" y="-39.375" width="197.3125" height="78.75"></rect><g class="label"  transform="translate(-68.65625, -24.375)"><rect></rect><foreignObject width="137.3125" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>run_batch<br><small>목록 + 동시 수 → 결과 줄들</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-a5c25a6235-flowchart-S5-4" data-look="classic" transform="translate(1178.796875, 47.375)"><rect class="basic label-container"  x="-112.703125" y="-39.375" width="225.40625" height="78.75"></rect><g class="label"  transform="translate(-82.703125, -24.375)"><rect></rect><foreignObject width="165.40625" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>summarize<br><small>결과 줄들 → 표 · 실패 목록 · 합계</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-a5c25a6235-flowchart-S6-5" data-look="classic" transform="translate(1430.9296875, 47.375)"><rect class="basic label-container"  x="-89.4296875" y="-39.375" width="178.859375" height="78.75"></rect><g class="label"  transform="translate(-59.4296875, -24.375)"><rect></rect><foreignObject width="118.859375" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>report<br><small>요약 → 화면 · 종료 코드</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-a5c25a6235-flowchart-S7-6" data-look="classic" transform="translate(1652.09375, 47.375)"><rect class="basic label-container"  x="-81.734375" y="-39.375" width="163.46875" height="78.75"></rect><g class="label"  transform="translate(-51.734375, -24.375)"><rect></rect><foreignObject width="103.46875" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>ci_docs_only<br><small>파일 목록 → yes/no</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-a5c25a6235-flowchart-S8-7" data-look="classic" transform="translate(1871.6171875, 47.375)"><rect class="basic label-container"  x="-87.7890625" y="-39.375" width="175.578125" height="78.75"></rect><g class="label"  transform="translate(-57.7890625, -24.375)"><rect></rect><foreignObject width="115.578125" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>ci_needs_macos<br><small>파일 목록 → yes/no</small></p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-a5c25a6235-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-a5c25a6235-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-a5c25a6235-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre>
+<div class="tw"><table><thead><tr><th>상태</th><th>단계</th><th>받는 값 → 돌려주는 값</th><th>코드 대조</th><th>화면</th></tr></thead><tbody><tr><td>미지정</td><td>list_tests</td><td>폴더들 · 파일 → 'path&lt;TAB&gt;표시' 줄</td><td>근거없음</td><td>—</td></tr><tr><td>미지정</td><td>classify</td><td>'path&lt;TAB&gt;표시' → 'parallel/serial&lt;TAB&gt;path'</td><td>근거없음</td><td>—</td></tr><tr><td>미지정</td><td>partition</td><td>목록 + 'key&lt;TAB&gt;초' + i/n → 목록</td><td>근거없음</td><td>—</td></tr><tr><td>미지정</td><td>run_batch</td><td>목록 + 동시 수 → 결과 줄들</td><td>근거없음</td><td>—</td></tr><tr><td>미지정</td><td>summarize</td><td>결과 줄들 → 표 · 실패 목록 · 합계</td><td>근거없음</td><td>—</td></tr><tr><td>미지정</td><td>report</td><td>요약 → 화면 · 종료 코드</td><td>근거없음</td><td>—</td></tr><tr><td>미지정</td><td>ci_docs_only</td><td>파일 목록 → yes/no</td><td>근거없음</td><td>—</td></tr><tr><td>미지정</td><td>ci_needs_macos</td><td>파일 목록 → yes/no</td><td>근거없음</td><td>—</td></tr></tbody></table></div></section>
+<section id="__lint" class="lint slide-page" data-idx="4"><h2>품질 리포트 <span class="lint-count">2</span></h2>
+     <p class="sub">원문에 없는 내용은 채우지 않음 — 전문 기획서가 보통 갖추는데 이 문서엔 빠진 항목입니다.</p>
+     <div class="callout warn"><div>성공지표(Metrics) 섹션이 없습니다 — baseline→target 지표를 권장합니다.</div></div><div class="callout warn"><div>예외처리(Edge cases) 섹션이 없습니다.</div></div></section>
+<section class="print-source"><h2>기획서 원문</h2><h3>PLAN.md</h3><pre class="code"><code>---
+title: CI 단축 — 시험을 여러 워커로 나눠 Contracts 3분 안에, 문서 · 버전 PR 은 무거운 시험 건너뛰기
+slug: 20261028-wookiya1364-ci-parallel-tests
+author: wookiya1364
+created_at: 2026-10-28
+status: testing
+kind: refactor
+lang: korean
+tags: [ci, tests, speed]
+raw_sources:
+  - scv/conversations/20261022-165947-scv-mods-install-command.md
+refs: []
+invariants:
+  - "병합에 필요한 검사 이름(Contracts (ubuntu-latest) · Contracts (macos-latest) 등)은 그대로다 — 저장소 규칙을 바꾸지 않는다"
+  - "시험 하나라도 실패하면 CI 가 실패하고, 실패한 시험 이름과 그 로그 전문이 보인다"
+  - "맥 · 리눅스 · bash 3.2 에서 똑같이 돈다"
+---
+
+# CI 단축 — 시험을 여러 워커로 나눠 Contracts 3분 안에, 문서 · 버전 PR 은 무거운 시험 건너뛰기
+
+## Summary
+
+SCV Core CI 의 Contracts 작업은 우분투 13분 · 맥 15~16분이 든다 — 계약 시험 · 공유 회귀 · 집중 시험(64개)을 한 러너에서 차례로 돌리기 때문(확인, PR #363).
+첫 시도(한 러너 안에서 동시에, PR #365 1차)는 우분투 664 → 349초 · 맥 719 → 588초에 그쳤다: 러너 하나의 CPU 를 나눠 써서 시험마다 느려졌고(맥 시험 시간 합 719 → 1397초), 10초 한도 속도 검사 하나가 부하로 실패했다(확인).
+그래서 시험을 **여러 워커(별도 러너)**로 나눈다. 시험별 시간 기록으로 조각 합을 고르게 하고, 조각 안에서는 차례로 돌려 속도 검사가 흔들리지 않게 한다. 사용자 목표: Contracts 작업 전체 3분 이내(우분투 · 맥).
+문서 · 버전만 바뀐 PR 은 무거운 시험을 건너뛴다.
+
+## Goals / Non-Goals
+
+- **Goals**
+  - Contracts (ubuntu-latest) · Contracts (macos-latest) 가 PR 을 연 뒤 3분 안에 끝난다(조각 대기 포함).
+  - 실패가 나면 어떤 시험이 실패했는지와 그 로그 전문이 그 조각 작업에 바로 보인다.
+  - 문서(docs/) · VERSION · CHANGELOG 만 바뀐 PR 은 무거운 시험 없이 통과 보고.
+  - codex 래퍼 CI 도 같은 도구(0.72.0 릴리스 체인에서 래퍼 쪽 연결).
+- **Non-Goals**
+  - 문서 검사(머리말 · 안내와 문서 일치 · 기획서 문서 회귀) 빼기 — 사용자 결정으로 유지.
+  - 느린 시험 자체를 빠르게 고치기 — 따로(시간 표만 남긴다).
+  - 시험 내용 · 시간 한도 값 바꾸기 — 예외 하나: 다시 쓴 요청 T7 의 다음 턴 상한 0.5 → 1.0초(사용자 결정 2026-10-28, 맥 러너가 혼자 돌아도 +0.64초).
+
+## Approach Overview
+
+- 시험 실행 도구(`core/tests/run-focused.sh`)가 시험 파일 묶음(코어 집중 시험 · 계약 시험 · 공유 회귀)을 받아 **조각 i/n** 만 돌린다. 조각 나누기는 시간 기록(`core/tests/timings.tsv`)을 보고 긴 것부터 가장 덜 찬 조각에 넣는다(기록 없는 시험은 기본값). 조각 안에서는 차례로(동시 1).
+- 한 러너 안에서 동시에 돌리는 방식(--jobs)은 로컬용으로 남긴다. 시간 한도 시험은 '# scv-test: serial' 표시로 끝에 혼자.
+- CI: 작은 'plan' 작업이 전체 시험 여부(문서 · 버전만 바뀐 PR 인지)를 정하고, 운영체제마다 조각 작업들(우분투 6 · 맥 9 — 맥 러너가 시험마다 약 2배 느려, 맥 전용 시간 기록 timings-macos.tsv)이 돌며, 결과를 모으는 작업이 지금 필수 검사 이름(Contracts (ubuntu-latest) · Contracts (macos-latest))으로 성공/실패를 보고한다.
+- 문서 · 버전 판정은 바뀐 파일 목록만 보는 순수 함수 — README · core/ 아래 .md(실행되는 규약) · 워크플로는 문서로 치지 않는다.
+
+## 순수함수 · 파이프라인 (Pure functions &amp; pipeline)
+
+```
+flow(
+  list_tests,     // 시험 폴더들 + 덧붙일 파일 → 시험 파일 목록
+  classify,       // 목록 + 각 파일 앞부분 → { 동시에, 혼자 }
+  partition,      // 목록 + 시간 기록 + 조각 i/n → 이 조각이 돌릴 목록
+  run_batch,      // 목록 + 동시 수 → 시험별 결과(종료 코드 · 초 · 로그 위치)
+  summarize,      // 결과 → 표 줄들 + 실패 목록 + 최종 종료 코드
+  report,         // 요약 → 화면 출력(실패 로그 전문 포함)
+)
+lane = ci_docs_only(바뀐 파일 목록)   // CI 'plan' 작업: 전체 시험을 돌릴지
+```
+
+| # | 단계 | 하는 일 | 받는 값 → 돌려주는 값 | 순수/부수효과 |
+|---|---|---|---|---|
+| 1 | list_tests | 시험 파일을 모은다 | 폴더들 · 파일 → 'path&lt;TAB&gt;표시' 줄 | 부수효과 (입구 — 폴더 읽기) |
+| 2 | classify | 혼자 돌 시험과 동시에 돌 시험을 가른다 | 'path&lt;TAB&gt;표시' → 'parallel/serial&lt;TAB&gt;path' | 순수 |
+| 3 | partition | 시간 기록으로 조각을 고르게 나눠 i 번째만 고른다 | 목록 + 'key&lt;TAB&gt;초' + i/n → 목록 | 순수 |
+| 4 | run_batch | 고른 시험을 돌리고 결과를 남긴다 | 목록 + 동시 수 → 결과 줄들 | 부수효과 (시험 실행 · 로그 쓰기) |
+| 5 | summarize | 결과를 표와 실패 목록으로 만든다 | 결과 줄들 → 표 · 실패 목록 · 합계 | 순수 |
+| 6 | report | 표와 실패 로그를 찍고 종료 코드로 끝낸다 | 요약 → 화면 · 종료 코드 | 부수효과 (출구) |
+| 7 | ci_docs_only | 바뀐 파일이 전부 문서 · 버전인지 본다 | 파일 목록 → yes/no | 순수 |
+| 8 | ci_needs_macos | 맥 조각이 필요한지(코드가 바뀌었는지) 본다 | 파일 목록 → yes/no | 순수 |
+
+- 부수효과 위치: 1 · 4 · 6 과 CI 의 git diff(파일 목록 얻기). 2 · 3 · 5 · 7 은 문자열만 받고 돌려준다.
+- 재사용: 첫 시도의 실행 도구를 그대로 키운다. 조각 안은 동시 1 이라 시간 한도 시험이 흔들리지 않는다.
+
+## Guardrails
+
+- 병합에 필요한 검사 이름을 바꾸지 않는다 — 저장소 규칙(ruleset)은 건드리지 않는다.
+- 시험 내용 · 시간 한도 값은 바꾸지 않는다(예외: T7 다음 턴 상한 0.5 → 1.0초, 사용자 결정). 동시에 돌려서 깨지는 시험은 "혼자" 표시로 옮기거나 조각 안에서 차례로 돌릴 뿐, 고치거나 지우지 않는다.
+- 문서 · 버전 판정이 애매하면 전체 시험을 돈다(건너뛰기는 확실할 때만).
+- 실패를 숨기지 않는다: 하나라도 실패하면 0 이 아닌 코드로 끝나고, 실패한 시험의 로그 전문을 보인다.
+- 맥 · 리눅스 · bash 3.2 에서 같은 결과(GNU 전용 옵션 금지).
+- `.github/scripts/test-ci-fast-lanes.sh` 가 요구하는 작업 규칙(자동 작업 6분 제한 등)을 어기지 않는다.
+- 공개 저장소에 로컬 경로 · 세션 id 를 쓰지 않는다(개인정보 검사).
+
+## Exit criteria
+
+- All TESTS.md scenarios pass
+- PR CI 에서 Contracts (ubuntu-latest) 가 3분 안에 보고된다 — 실측으로 확인, 두 번 이상.
+- Contracts (macos-latest) 는 맥 동시 한도(5대, 실측) 안에서 처음(15~16분)보다 크게 줄어든다 — 사용자 결정(2026-10-28): 맥 3분은 다음 계획(훅 속도)으로 넘긴다.
+- 시험 하나를 일부러 실패시킨 실행에서 Contracts 가 실패하고, 실패한 시험 이름과 로그가 그 조각 작업에 보인다.
+- 문서 · 버전만 바뀐 PR 에서 무거운 시험 없이 통과 보고 — 이 계획 병합 뒤 첫 그런 PR(0.72.0 변경 기록 PR)에서 확인한다(이 PR 은 코드를 바꾸므로 여기서는 확인할 수 없다).
+
+## Suggested path
+
+1. 시험 실행 도구를 만든다 — `list_tests`, `classify`, `run_batch`, `summarize`, `report`
+2. 도구의 시험(가짜 시험 폴더: 통과 · 실패 · 혼자 표시)을 만든다 — `classify`, `summarize`
+3. 시간 한도가 빡빡한 시험에 "혼자" 표시를 붙인다 — 실측으로 고른 두 시험에 표시
+4. 조각 나누기와 시간 기록을 더한다 — `partition`
+5. 문서 · 버전 판정을 더한다 — `ci_docs_only`
+6. 코어 CI 를 plan · 조각 · 모으는 작업으로 바꾼다 — 워크플로 재구성, 필수 검사 이름 그대로
+7. 이 컴퓨터에서 코어 · codex 사본으로 모든 조각을 돌려 전부 통과 확인 — 로컬 확인
+8. PR CI 두 번 + 일부러 실패 한 번 + 문서만 PR 한 번으로 시간과 보고를 확인 — CI 실측
+9. 0.72.0 릴리스 체인에서 codex 래퍼 CI 의 코어 시험을 같은 도구로 바꾼다 — 래퍼 연결
+10. 맥에서 느린 곳을 줄인다(사용자 요청으로 더함): 설정 불러오기를 jq 한 번으로, 진단의 같은 셈 한 번으로, README 검사의 되풀이 찾기 기억, 중복 시험 2곳 제거 — 결과는 옛 길과 바이트까지 같게
+11. 코드가 안 바뀐 PR(.md · VERSION 만)은 맥 조각을 건너뛴다 — `ci_needs_macos`
+
+## Related Documents
+
+- `.github/workflows/core-ci.yml` — 집중 시험 단계
+- codex 래퍼 `.github/workflows/plugin-ci.yml` · `core-sync.yml` — 같은 루프
+
+## Risks / Open Questions
+
+- 맥 러너는 동시에 쓸 수 있는 수에 한도가 있다(문서 기준 5, 미확인) — 조각을 늘려도 줄을 서고, 래퍼 저장소의 맥 작업과도 같은 한도를 나눠 쓸 수 있다(미확인).
+- 맥 러너 속도 편차가 크다(같은 계약 시험 141초 · 249초, 확인) — 3분 목표가 맥에서 넘칠 수 있다. 넘치면 숫자로 보고한다.
+- 동시에 돌리면 시험끼리 같은 임시 파일 · 홈 폴더를 쓸 수 있다 — 이 컴퓨터 실험에서는 부딪힘 없음(확인), 러너에서는 미확인.
+- 속도 검사가 러너에서 더 흔들릴 수 있다 — "혼자" 표시로 막지만, 맥 러너 자체의 흔들림(#364 의 T7 실패)은 이 계획으로 없어지지 않는다.
+
+## Links
+
+- Raw originals: (listed in frontmatter)
+- Related PRs: #363 (단계 시간 측정), #364 (T7 속도 검사 흔들림), #365 (첫 시도 측정 · 이 계획의 PR)</code></pre><h3>FEATURE_ARCHITECTURE.md</h3><pre class="code"><code>---
+title: CI 단축 — 코어 시험을 한 작업 안에서 동시에, 속도 검사는 끝에 혼자
+slug: 20261028-wookiya1364-ci-parallel-tests
+created_at: 2026-10-28
+status: planned
+---
+
+# Architecture — CI 단축 — 코어 시험을 한 작업 안에서 동시에, 속도 검사는 끝에 혼자
+
+&gt; Two-diagram view of this feature. **Review and edit before `/scv:work`** —
+&gt; diagrams are LLM-generated and may have inaccuracies.
+
+## 1. Component data flow
+
+시험 실행 도구 안에서 시험 목록이 결과 표가 되기까지.
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  CoreCI[코어 CI 집중 시험 단계] --&gt;|"bash core/tests/run-focused.sh"| ListTests
+  CodexCI[codex 래퍼 CI 코어 시험] --&gt;|"격리 사본에서 run-focused.sh"| ListTests
+  Dir[(시험 폴더 core/tests)] --&gt;|"test-*.sh 이름순"| ListTests[list_tests]
+  ListTests --&gt;|"파일 목록"| Classify[classify]
+  Classify --&gt;|"동시에 목록 · 혼자 목록"| RunBatch[run_batch]
+  RunBatch --&gt;|"동시 수만큼 겹쳐 실행, 혼자는 끝에"| Logs[(시험별 로그)]
+  RunBatch --&gt;|"이름 · 종료 코드 · 초"| Summarize[summarize]
+  Summarize --&gt;|"표 · 실패 목록 · 종료 코드"| Report[report]
+  Logs --&gt;|"실패한 시험의 로그 전문"| Report
+  Report --&gt;|"exit 0 / 1"| CoreCI
+  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+  class Classify,Summarize key
+```
+
+## 2. Position in whole architecture
+
+Where this feature sits in the system. New components highlighted in yellow.
+
+&gt; Source: scv graph (built 2026-10-28)
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart TB
+  subgraph "core/tests"
+    RunDry[run-dry.sh]
+    Autosync[test-autosync.sh]
+    Prompting[test-model-prompting.sh]
+    Budget[test-help-budget.sh]
+    RunFocused[run-focused.sh]:::new
+    TestRunFocused[test-run-focused.sh]:::new
+  end
+  subgraph ".github/workflows"
+    CoreCI[core-ci.yml 집중 시험 단계]
+  end
+  subgraph "codex 래퍼"
+    PluginCI[plugin-ci.yml · core-sync.yml]
+  end
+  CoreCI --&gt;|"공유 회귀"| RunDry
+  CoreCI -.-&gt;|"집중 시험"| RunFocused
+  PluginCI -.-&gt;|"격리 사본의 집중 시험"| RunFocused
+  RunFocused -.-&gt;|"동시에"| Autosync
+  RunFocused -.-&gt;|"동시에"| Prompting
+  RunFocused -.-&gt;|"동시에"| Budget
+  TestRunFocused -.-&gt;|"가짜 시험 폴더로 검사"| RunFocused
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```</code></pre><h3>TESTS.md</h3><pre class="code"><code># Test Plan — CI 단축 — 시험을 여러 워커로 나눠 Contracts 3분 안에, 문서 · 버전 PR 은 무거운 시험 건너뛰기
+
+## Overview
+
+시험 실행 도구가 (1) 시험을 동시에 돌려 시간을 줄이고, (2) 실패를 숨기지 않으며, (3) 속도 검사를 끝에 혼자 돌리는지 확인한다.
+가짜 시험 폴더로 도구 자체를 시험하고, 실제 64개 시험과 PR CI 실행 기록으로 시간을 잰다.
+
+## Test scenarios
+
+### T1. 모두 통과하면 0 으로 끝난다
+
+- **Setup**: 가짜 시험 폴더 — 통과하는 시험 3개.
+- **Run**: 도구를 그 폴더에 돌린다.
+- **Expected**: 시험마다 통과 줄 하나와 걸린 초, 마지막 줄에 통과 3 · 실패 0.
+- **Pass criterion**: 종료 코드 0, 통과 줄 3개.
+
+### T2. 하나라도 실패하면 실패로 끝나고 이름과 로그 전문이 보인다
+
+- **Setup**: 통과 2개 + 실패 1개(고유한 문구를 찍고 1 로 끝남).
+- **Run**: 도구를 돌린다.
+- **Expected**: 실패한 시험 이름이 실패 목록에 있고, 그 시험이 찍은 고유 문구가 출력에 그대로 있다.
+- **Pass criterion**: 종료 코드 0 이 아님, 실패 이름 · 고유 문구 모두 출력에 있음.
+
+### T3. 혼자 표시가 붙은 시험은 다른 시험과 겹치지 않고 끝에 돈다
+
+- **Setup**: 동시에 돌 시험 3개(각각 시작 · 끝 시각을 파일에 남김) + 혼자 표시 시험 1개(같은 방식).
+- **Run**: 동시 수 3 으로 도구를 돌린다.
+- **Expected**: 혼자 시험의 시작 시각이 다른 모든 시험의 끝 시각보다 늦다.
+- **Pass criterion**: 겹침 0.
+
+### T4. 동시에 돈다(차례로가 아니다)
+
+- **Setup**: 각각 2초 쉬는 시험 4개.
+- **Run**: 동시 수 4 로 도구를 돌린다.
+- **Expected**: 전체가 8초보다 훨씬 짧다.
+- **Pass criterion**: 전체 5초 미만.
+
+### T5. 동시 수를 정할 수 있고, 1 이면 차례로 돈다
+
+- **Setup**: T4 와 같은 폴더.
+- **Run**: 동시 수 1 로 돌린다.
+- **Expected**: 차례로 돌아 8초 이상.
+- **Pass criterion**: 전체 8초 이상, 통과 4.
+
+### T6. 가르기(classify)와 요약(summarize)은 순수하다
+
+- **Setup**: 파일 이름 목록과 표시 줄 문자열, 결과 줄 문자열.
+- **Run**: 두 함수를 같은 입력으로 두 번 부른다.
+- **Expected**: 같은 출력, 파일 · 폴더를 만들지 않음.
+- **Pass criterion**: 두 출력이 같고, 임시 폴더가 비어 있음.
+
+### T7. bash 3.2 에서도 같다
+
+- **Setup**: 시스템 bash(맥 /bin/bash 3.2).
+- **Run**: T1 · T2 · T3 을 시스템 bash 로 돌린다.
+- **Expected**: 같은 결과.
+- **Pass criterion**: 세 시나리오 모두 통과.
+
+### T8. 실제 시험 64개가 도구로 모두 통과한다(코어 · codex 사본)
+
+- **Setup**: 이 저장소, 그리고 codex 도구로 만든 코어 사본(격리 폴더 이름 `core`).
+- **Run**: 두 곳에서 도구로 집중 시험 전체를 돌린다.
+- **Expected**: 실패 0. 시간 표가 찍힌다.
+- **Pass criterion**: 두 곳 모두 실패 0.
+
+### T9. PR CI 에서 Contracts (ubuntu-latest) 가 3분 안에, 맥은 동시 한도 안에서 크게 줄어든다
+
+- **Setup**: 이 계획의 PR.
+- **Run**: CI 를 두 번 이상 돌리고, 운영체제마다 첫 작업 시작부터 결과 작업 끝까지를 실행 기록에서 읽는다.
+- **Expected**: 우분투 180초 이하. 맥은 처음(15~16분)보다 크게 짧다(맥 동시 한도 5대).
+- **Pass criterion**: 두 실행 모두 통과 + 우분투 180초 이하 + 맥 처음의 절반 이하.
+
+### T10. 일부러 실패시킨 CI 실행에서 실패가 보인다
+
+- **Setup**: 실패하는 시험을 하나 넣은 임시 커밋(병합하지 않는 시험용 브랜치).
+- **Run**: CI 를 돌린다.
+- **Expected**: Contracts 작업 실패, 로그에 그 시험 이름과 출력.
+- **Pass criterion**: 작업 실패 + 로그에 시험 이름.
+
+### T11. 병합에 필요한 검사 이름이 그대로다
+
+- **Setup**: 이 계획의 PR.
+- **Run**: PR 검사 목록과 저장소 규칙의 필수 검사 목록을 비교한다.
+- **Expected**: 이름이 모두 같다(Contracts (ubuntu-latest) · Contracts (macos-latest) · DeckUI · Deterministic release artifact · check).
+- **Pass criterion**: 차이 0.
+
+### T12. 조각 나누기는 고르고, 빠짐 · 겹침이 없다(순수)
+
+- **Setup**: 시험 이름 10개와 시간 기록(한 개는 기록 없음).
+- **Run**: 조각 수 3 으로 1/3 · 2/3 · 3/3 을 각각 고르고, 같은 입력으로 한 번 더.
+- **Expected**: 세 조각을 합치면 원래 목록과 같다(빠짐 0 · 겹침 0). 가장 긴 시험은 혼자 한 조각에 간다. 같은 입력 → 같은 출력.
+- **Pass criterion**: 합집합 = 원래 목록, 교집합 0, 두 번의 출력이 같음, 조각 합의 최대 − 최소 ≤ 가장 긴 시험.
+
+### T13. 문서 · 버전 판정(순수)
+
+- **Setup**: 바뀐 파일 목록 여러 벌.
+- **Run**: 판정 함수에 넣는다.
+- **Expected**: `VERSION`+`CHANGELOG.md` → yes, `docs/a.md` → yes, `README.md` → no(README 검사 대상), `core/protocols/help.md` → no(실행되는 규약), `.github/workflows/x.yml` → no, 빈 목록 → no(애매하면 전체).
+- **Pass criterion**: 모든 경우가 기대와 같다.
+
+### T14. 문서 · 버전만 바뀐 PR 에서 Contracts 두 개가 무거운 시험 없이 통과 보고
+
+- **Setup**: docs/ 한 줄만 바꾼 시험용 PR(병합하지 않음).
+- **Run**: CI 를 돌린다.
+- **Expected**: 조각 작업이 건너뛰어지고, Contracts (ubuntu-latest) · Contracts (macos-latest) 는 통과.
+- **Pass criterion**: 두 검사 통과 + 조각 작업 skipped.
+
+### T15. 설정 불러오기는 한 번에 읽어도 값이 옛 길과 바이트까지 같다
+
+- **Setup**: 공백 · $ · 따옴표 · 탭 · 줄바꿈 · 숫자 · true/false/null · 비밀 키 · 환경 우선이 섞인 설정 두 파일.
+- **Run**: 키마다 settings_get(옛 길)과 env_load(새 길)를 같은 껍데기에서 비교.
+- **Expected**: 값이 모두 같고, 일반 파일의 비밀 키는 알리되 값은 찍지 않는다.
+- **Pass criterion**: `core/tests/test-env-load.sh` 통과(bash 5 · 3.2).
+
+### T16. 맥 조각이 필요한지 판정(순수)
+
+- **Setup**: 바뀐 파일 목록 여러 벌.
+- **Run**: ci_needs_macos 에 넣는다.
+- **Expected**: .md · VERSION 만 → no, .sh · 워크플로 · JSON 하나라도 → yes, 빈 목록 → yes.
+- **Pass criterion**: `tests/test-ci-plan.sh` 통과.
+
+## How to run
+
+```bash
+bash core/tests/test-run-focused.sh &amp;&amp; bash core/tests/test-env-load.sh &amp;&amp; bash tests/test-ci-plan.sh &amp;&amp; bash core/tests/run-focused.sh --dir tests --dir core/tests --also core/tests/run-dry.sh
+```
+
+## Pass criteria
+
+- T1–T8 · T12 · T13 · T15 · T16 은 로컬에서 통과, T9–T11 은 PR CI 실행 기록으로 확인, T14 는 병합 뒤 첫 문서 · 버전 PR 에서.
+- 실패를 숨기는 경로가 없다(T2 · T10).</code></pre></section>
+</div>
+</div>
+<aside class="source-panel" id="scvSourcePanel">
+      <div class="panel-resize-handle" id="scvResizeHandle" title="드래그해서 크기 조절"></div>
+      <div class="panel-head"><span class="panel-title">기획서 원문</span><button class="panel-close" onclick="scvTogglePanel()" title="숨기기 (S)">✕</button></div>
+      <div class="panel-tabs"><button class="panel-tab" data-idx="0" onclick="scvSelectSource(0)">PLAN.md</button><button class="panel-tab active" data-idx="1" onclick="scvSelectSource(1)">FEATURE_ARCHITECTURE.md</button><button class="panel-tab" data-idx="2" onclick="scvSelectSource(2)">TESTS.md</button></div>
+      <div class="panel-body"><pre class="code src-doc" data-idx="0"><code>---
+title: CI 단축 — 시험을 여러 워커로 나눠 Contracts 3분 안에, 문서 · 버전 PR 은 무거운 시험 건너뛰기
+slug: 20261028-wookiya1364-ci-parallel-tests
+author: wookiya1364
+created_at: 2026-10-28
+status: testing
+kind: refactor
+lang: korean
+tags: [ci, tests, speed]
+raw_sources:
+  - scv/conversations/20261022-165947-scv-mods-install-command.md
+refs: []
+invariants:
+  - "병합에 필요한 검사 이름(Contracts (ubuntu-latest) · Contracts (macos-latest) 등)은 그대로다 — 저장소 규칙을 바꾸지 않는다"
+  - "시험 하나라도 실패하면 CI 가 실패하고, 실패한 시험 이름과 그 로그 전문이 보인다"
+  - "맥 · 리눅스 · bash 3.2 에서 똑같이 돈다"
+---
+
+# CI 단축 — 시험을 여러 워커로 나눠 Contracts 3분 안에, 문서 · 버전 PR 은 무거운 시험 건너뛰기
+
+## Summary
+
+SCV Core CI 의 Contracts 작업은 우분투 13분 · 맥 15~16분이 든다 — 계약 시험 · 공유 회귀 · 집중 시험(64개)을 한 러너에서 차례로 돌리기 때문(확인, PR #363).
+첫 시도(한 러너 안에서 동시에, PR #365 1차)는 우분투 664 → 349초 · 맥 719 → 588초에 그쳤다: 러너 하나의 CPU 를 나눠 써서 시험마다 느려졌고(맥 시험 시간 합 719 → 1397초), 10초 한도 속도 검사 하나가 부하로 실패했다(확인).
+그래서 시험을 **여러 워커(별도 러너)**로 나눈다. 시험별 시간 기록으로 조각 합을 고르게 하고, 조각 안에서는 차례로 돌려 속도 검사가 흔들리지 않게 한다. 사용자 목표: Contracts 작업 전체 3분 이내(우분투 · 맥).
+문서 · 버전만 바뀐 PR 은 무거운 시험을 건너뛴다.
+
+## Goals / Non-Goals
+
+- **Goals**
+  - Contracts (ubuntu-latest) · Contracts (macos-latest) 가 PR 을 연 뒤 3분 안에 끝난다(조각 대기 포함).
+  - 실패가 나면 어떤 시험이 실패했는지와 그 로그 전문이 그 조각 작업에 바로 보인다.
+  - 문서(docs/) · VERSION · CHANGELOG 만 바뀐 PR 은 무거운 시험 없이 통과 보고.
+  - codex 래퍼 CI 도 같은 도구(0.72.0 릴리스 체인에서 래퍼 쪽 연결).
+- **Non-Goals**
+  - 문서 검사(머리말 · 안내와 문서 일치 · 기획서 문서 회귀) 빼기 — 사용자 결정으로 유지.
+  - 느린 시험 자체를 빠르게 고치기 — 따로(시간 표만 남긴다).
+  - 시험 내용 · 시간 한도 값 바꾸기 — 예외 하나: 다시 쓴 요청 T7 의 다음 턴 상한 0.5 → 1.0초(사용자 결정 2026-10-28, 맥 러너가 혼자 돌아도 +0.64초).
+
+## Approach Overview
+
+- 시험 실행 도구(`core/tests/run-focused.sh`)가 시험 파일 묶음(코어 집중 시험 · 계약 시험 · 공유 회귀)을 받아 **조각 i/n** 만 돌린다. 조각 나누기는 시간 기록(`core/tests/timings.tsv`)을 보고 긴 것부터 가장 덜 찬 조각에 넣는다(기록 없는 시험은 기본값). 조각 안에서는 차례로(동시 1).
+- 한 러너 안에서 동시에 돌리는 방식(--jobs)은 로컬용으로 남긴다. 시간 한도 시험은 '# scv-test: serial' 표시로 끝에 혼자.
+- CI: 작은 'plan' 작업이 전체 시험 여부(문서 · 버전만 바뀐 PR 인지)를 정하고, 운영체제마다 조각 작업들(우분투 6 · 맥 9 — 맥 러너가 시험마다 약 2배 느려, 맥 전용 시간 기록 timings-macos.tsv)이 돌며, 결과를 모으는 작업이 지금 필수 검사 이름(Contracts (ubuntu-latest) · Contracts (macos-latest))으로 성공/실패를 보고한다.
+- 문서 · 버전 판정은 바뀐 파일 목록만 보는 순수 함수 — README · core/ 아래 .md(실행되는 규약) · 워크플로는 문서로 치지 않는다.
+
+## 순수함수 · 파이프라인 (Pure functions &amp; pipeline)
+
+```
+flow(
+  list_tests,     // 시험 폴더들 + 덧붙일 파일 → 시험 파일 목록
+  classify,       // 목록 + 각 파일 앞부분 → { 동시에, 혼자 }
+  partition,      // 목록 + 시간 기록 + 조각 i/n → 이 조각이 돌릴 목록
+  run_batch,      // 목록 + 동시 수 → 시험별 결과(종료 코드 · 초 · 로그 위치)
+  summarize,      // 결과 → 표 줄들 + 실패 목록 + 최종 종료 코드
+  report,         // 요약 → 화면 출력(실패 로그 전문 포함)
+)
+lane = ci_docs_only(바뀐 파일 목록)   // CI 'plan' 작업: 전체 시험을 돌릴지
+```
+
+| # | 단계 | 하는 일 | 받는 값 → 돌려주는 값 | 순수/부수효과 |
+|---|---|---|---|---|
+| 1 | list_tests | 시험 파일을 모은다 | 폴더들 · 파일 → 'path&lt;TAB&gt;표시' 줄 | 부수효과 (입구 — 폴더 읽기) |
+| 2 | classify | 혼자 돌 시험과 동시에 돌 시험을 가른다 | 'path&lt;TAB&gt;표시' → 'parallel/serial&lt;TAB&gt;path' | 순수 |
+| 3 | partition | 시간 기록으로 조각을 고르게 나눠 i 번째만 고른다 | 목록 + 'key&lt;TAB&gt;초' + i/n → 목록 | 순수 |
+| 4 | run_batch | 고른 시험을 돌리고 결과를 남긴다 | 목록 + 동시 수 → 결과 줄들 | 부수효과 (시험 실행 · 로그 쓰기) |
+| 5 | summarize | 결과를 표와 실패 목록으로 만든다 | 결과 줄들 → 표 · 실패 목록 · 합계 | 순수 |
+| 6 | report | 표와 실패 로그를 찍고 종료 코드로 끝낸다 | 요약 → 화면 · 종료 코드 | 부수효과 (출구) |
+| 7 | ci_docs_only | 바뀐 파일이 전부 문서 · 버전인지 본다 | 파일 목록 → yes/no | 순수 |
+| 8 | ci_needs_macos | 맥 조각이 필요한지(코드가 바뀌었는지) 본다 | 파일 목록 → yes/no | 순수 |
+
+- 부수효과 위치: 1 · 4 · 6 과 CI 의 git diff(파일 목록 얻기). 2 · 3 · 5 · 7 은 문자열만 받고 돌려준다.
+- 재사용: 첫 시도의 실행 도구를 그대로 키운다. 조각 안은 동시 1 이라 시간 한도 시험이 흔들리지 않는다.
+
+## Guardrails
+
+- 병합에 필요한 검사 이름을 바꾸지 않는다 — 저장소 규칙(ruleset)은 건드리지 않는다.
+- 시험 내용 · 시간 한도 값은 바꾸지 않는다(예외: T7 다음 턴 상한 0.5 → 1.0초, 사용자 결정). 동시에 돌려서 깨지는 시험은 "혼자" 표시로 옮기거나 조각 안에서 차례로 돌릴 뿐, 고치거나 지우지 않는다.
+- 문서 · 버전 판정이 애매하면 전체 시험을 돈다(건너뛰기는 확실할 때만).
+- 실패를 숨기지 않는다: 하나라도 실패하면 0 이 아닌 코드로 끝나고, 실패한 시험의 로그 전문을 보인다.
+- 맥 · 리눅스 · bash 3.2 에서 같은 결과(GNU 전용 옵션 금지).
+- `.github/scripts/test-ci-fast-lanes.sh` 가 요구하는 작업 규칙(자동 작업 6분 제한 등)을 어기지 않는다.
+- 공개 저장소에 로컬 경로 · 세션 id 를 쓰지 않는다(개인정보 검사).
+
+## Exit criteria
+
+- All TESTS.md scenarios pass
+- PR CI 에서 Contracts (ubuntu-latest) 가 3분 안에 보고된다 — 실측으로 확인, 두 번 이상.
+- Contracts (macos-latest) 는 맥 동시 한도(5대, 실측) 안에서 처음(15~16분)보다 크게 줄어든다 — 사용자 결정(2026-10-28): 맥 3분은 다음 계획(훅 속도)으로 넘긴다.
+- 시험 하나를 일부러 실패시킨 실행에서 Contracts 가 실패하고, 실패한 시험 이름과 로그가 그 조각 작업에 보인다.
+- 문서 · 버전만 바뀐 PR 에서 무거운 시험 없이 통과 보고 — 이 계획 병합 뒤 첫 그런 PR(0.72.0 변경 기록 PR)에서 확인한다(이 PR 은 코드를 바꾸므로 여기서는 확인할 수 없다).
+
+## Suggested path
+
+1. 시험 실행 도구를 만든다 — `list_tests`, `classify`, `run_batch`, `summarize`, `report`
+2. 도구의 시험(가짜 시험 폴더: 통과 · 실패 · 혼자 표시)을 만든다 — `classify`, `summarize`
+3. 시간 한도가 빡빡한 시험에 "혼자" 표시를 붙인다 — 실측으로 고른 두 시험에 표시
+4. 조각 나누기와 시간 기록을 더한다 — `partition`
+5. 문서 · 버전 판정을 더한다 — `ci_docs_only`
+6. 코어 CI 를 plan · 조각 · 모으는 작업으로 바꾼다 — 워크플로 재구성, 필수 검사 이름 그대로
+7. 이 컴퓨터에서 코어 · codex 사본으로 모든 조각을 돌려 전부 통과 확인 — 로컬 확인
+8. PR CI 두 번 + 일부러 실패 한 번 + 문서만 PR 한 번으로 시간과 보고를 확인 — CI 실측
+9. 0.72.0 릴리스 체인에서 codex 래퍼 CI 의 코어 시험을 같은 도구로 바꾼다 — 래퍼 연결
+10. 맥에서 느린 곳을 줄인다(사용자 요청으로 더함): 설정 불러오기를 jq 한 번으로, 진단의 같은 셈 한 번으로, README 검사의 되풀이 찾기 기억, 중복 시험 2곳 제거 — 결과는 옛 길과 바이트까지 같게
+11. 코드가 안 바뀐 PR(.md · VERSION 만)은 맥 조각을 건너뛴다 — `ci_needs_macos`
+
+## Related Documents
+
+- `.github/workflows/core-ci.yml` — 집중 시험 단계
+- codex 래퍼 `.github/workflows/plugin-ci.yml` · `core-sync.yml` — 같은 루프
+
+## Risks / Open Questions
+
+- 맥 러너는 동시에 쓸 수 있는 수에 한도가 있다(문서 기준 5, 미확인) — 조각을 늘려도 줄을 서고, 래퍼 저장소의 맥 작업과도 같은 한도를 나눠 쓸 수 있다(미확인).
+- 맥 러너 속도 편차가 크다(같은 계약 시험 141초 · 249초, 확인) — 3분 목표가 맥에서 넘칠 수 있다. 넘치면 숫자로 보고한다.
+- 동시에 돌리면 시험끼리 같은 임시 파일 · 홈 폴더를 쓸 수 있다 — 이 컴퓨터 실험에서는 부딪힘 없음(확인), 러너에서는 미확인.
+- 속도 검사가 러너에서 더 흔들릴 수 있다 — "혼자" 표시로 막지만, 맥 러너 자체의 흔들림(#364 의 T7 실패)은 이 계획으로 없어지지 않는다.
+
+## Links
+
+- Raw originals: (listed in frontmatter)
+- Related PRs: #363 (단계 시간 측정), #364 (T7 속도 검사 흔들림), #365 (첫 시도 측정 · 이 계획의 PR)</code></pre><pre class="code src-doc active" data-idx="1"><code>---
+title: CI 단축 — 코어 시험을 한 작업 안에서 동시에, 속도 검사는 끝에 혼자
+slug: 20261028-wookiya1364-ci-parallel-tests
+created_at: 2026-10-28
+status: planned
+---
+
+<mark class="src-hl"># Architecture — CI 단축 — 코어 시험을 한 작업 안에서 동시에, 속도 검사는 끝에 혼자
+
+&gt; Two-diagram view of this feature. **Review and edit before `/scv:work`** —
+&gt; diagrams are LLM-generated and may have inaccuracies.
+</mark>
+## 1. Component data flow
+
+시험 실행 도구 안에서 시험 목록이 결과 표가 되기까지.
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  CoreCI[코어 CI 집중 시험 단계] --&gt;|"bash core/tests/run-focused.sh"| ListTests
+  CodexCI[codex 래퍼 CI 코어 시험] --&gt;|"격리 사본에서 run-focused.sh"| ListTests
+  Dir[(시험 폴더 core/tests)] --&gt;|"test-*.sh 이름순"| ListTests[list_tests]
+  ListTests --&gt;|"파일 목록"| Classify[classify]
+  Classify --&gt;|"동시에 목록 · 혼자 목록"| RunBatch[run_batch]
+  RunBatch --&gt;|"동시 수만큼 겹쳐 실행, 혼자는 끝에"| Logs[(시험별 로그)]
+  RunBatch --&gt;|"이름 · 종료 코드 · 초"| Summarize[summarize]
+  Summarize --&gt;|"표 · 실패 목록 · 종료 코드"| Report[report]
+  Logs --&gt;|"실패한 시험의 로그 전문"| Report
+  Report --&gt;|"exit 0 / 1"| CoreCI
+  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+  class Classify,Summarize key
+```
+
+## 2. Position in whole architecture
+
+Where this feature sits in the system. New components highlighted in yellow.
+
+&gt; Source: scv graph (built 2026-10-28)
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart TB
+  subgraph "core/tests"
+    RunDry[run-dry.sh]
+    Autosync[test-autosync.sh]
+    Prompting[test-model-prompting.sh]
+    Budget[test-help-budget.sh]
+    RunFocused[run-focused.sh]:::new
+    TestRunFocused[test-run-focused.sh]:::new
+  end
+  subgraph ".github/workflows"
+    CoreCI[core-ci.yml 집중 시험 단계]
+  end
+  subgraph "codex 래퍼"
+    PluginCI[plugin-ci.yml · core-sync.yml]
+  end
+  CoreCI --&gt;|"공유 회귀"| RunDry
+  CoreCI -.-&gt;|"집중 시험"| RunFocused
+  PluginCI -.-&gt;|"격리 사본의 집중 시험"| RunFocused
+  RunFocused -.-&gt;|"동시에"| Autosync
+  RunFocused -.-&gt;|"동시에"| Prompting
+  RunFocused -.-&gt;|"동시에"| Budget
+  TestRunFocused -.-&gt;|"가짜 시험 폴더로 검사"| RunFocused
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```</code></pre><pre class="code src-doc" data-idx="2"><code># Test Plan — CI 단축 — 시험을 여러 워커로 나눠 Contracts 3분 안에, 문서 · 버전 PR 은 무거운 시험 건너뛰기
+
+## Overview
+
+시험 실행 도구가 (1) 시험을 동시에 돌려 시간을 줄이고, (2) 실패를 숨기지 않으며, (3) 속도 검사를 끝에 혼자 돌리는지 확인한다.
+가짜 시험 폴더로 도구 자체를 시험하고, 실제 64개 시험과 PR CI 실행 기록으로 시간을 잰다.
+
+## Test scenarios
+
+### T1. 모두 통과하면 0 으로 끝난다
+
+- **Setup**: 가짜 시험 폴더 — 통과하는 시험 3개.
+- **Run**: 도구를 그 폴더에 돌린다.
+- **Expected**: 시험마다 통과 줄 하나와 걸린 초, 마지막 줄에 통과 3 · 실패 0.
+- **Pass criterion**: 종료 코드 0, 통과 줄 3개.
+
+### T2. 하나라도 실패하면 실패로 끝나고 이름과 로그 전문이 보인다
+
+- **Setup**: 통과 2개 + 실패 1개(고유한 문구를 찍고 1 로 끝남).
+- **Run**: 도구를 돌린다.
+- **Expected**: 실패한 시험 이름이 실패 목록에 있고, 그 시험이 찍은 고유 문구가 출력에 그대로 있다.
+- **Pass criterion**: 종료 코드 0 이 아님, 실패 이름 · 고유 문구 모두 출력에 있음.
+
+### T3. 혼자 표시가 붙은 시험은 다른 시험과 겹치지 않고 끝에 돈다
+
+- **Setup**: 동시에 돌 시험 3개(각각 시작 · 끝 시각을 파일에 남김) + 혼자 표시 시험 1개(같은 방식).
+- **Run**: 동시 수 3 으로 도구를 돌린다.
+- **Expected**: 혼자 시험의 시작 시각이 다른 모든 시험의 끝 시각보다 늦다.
+- **Pass criterion**: 겹침 0.
+
+### T4. 동시에 돈다(차례로가 아니다)
+
+- **Setup**: 각각 2초 쉬는 시험 4개.
+- **Run**: 동시 수 4 로 도구를 돌린다.
+- **Expected**: 전체가 8초보다 훨씬 짧다.
+- **Pass criterion**: 전체 5초 미만.
+
+### T5. 동시 수를 정할 수 있고, 1 이면 차례로 돈다
+
+- **Setup**: T4 와 같은 폴더.
+- **Run**: 동시 수 1 로 돌린다.
+- **Expected**: 차례로 돌아 8초 이상.
+- **Pass criterion**: 전체 8초 이상, 통과 4.
+
+### T6. 가르기(classify)와 요약(summarize)은 순수하다
+
+- **Setup**: 파일 이름 목록과 표시 줄 문자열, 결과 줄 문자열.
+- **Run**: 두 함수를 같은 입력으로 두 번 부른다.
+- **Expected**: 같은 출력, 파일 · 폴더를 만들지 않음.
+- **Pass criterion**: 두 출력이 같고, 임시 폴더가 비어 있음.
+
+### T7. bash 3.2 에서도 같다
+
+- **Setup**: 시스템 bash(맥 /bin/bash 3.2).
+- **Run**: T1 · T2 · T3 을 시스템 bash 로 돌린다.
+- **Expected**: 같은 결과.
+- **Pass criterion**: 세 시나리오 모두 통과.
+
+### T8. 실제 시험 64개가 도구로 모두 통과한다(코어 · codex 사본)
+
+- **Setup**: 이 저장소, 그리고 codex 도구로 만든 코어 사본(격리 폴더 이름 `core`).
+- **Run**: 두 곳에서 도구로 집중 시험 전체를 돌린다.
+- **Expected**: 실패 0. 시간 표가 찍힌다.
+- **Pass criterion**: 두 곳 모두 실패 0.
+
+### T9. PR CI 에서 Contracts (ubuntu-latest) 가 3분 안에, 맥은 동시 한도 안에서 크게 줄어든다
+
+- **Setup**: 이 계획의 PR.
+- **Run**: CI 를 두 번 이상 돌리고, 운영체제마다 첫 작업 시작부터 결과 작업 끝까지를 실행 기록에서 읽는다.
+- **Expected**: 우분투 180초 이하. 맥은 처음(15~16분)보다 크게 짧다(맥 동시 한도 5대).
+- **Pass criterion**: 두 실행 모두 통과 + 우분투 180초 이하 + 맥 처음의 절반 이하.
+
+### T10. 일부러 실패시킨 CI 실행에서 실패가 보인다
+
+- **Setup**: 실패하는 시험을 하나 넣은 임시 커밋(병합하지 않는 시험용 브랜치).
+- **Run**: CI 를 돌린다.
+- **Expected**: Contracts 작업 실패, 로그에 그 시험 이름과 출력.
+- **Pass criterion**: 작업 실패 + 로그에 시험 이름.
+
+### T11. 병합에 필요한 검사 이름이 그대로다
+
+- **Setup**: 이 계획의 PR.
+- **Run**: PR 검사 목록과 저장소 규칙의 필수 검사 목록을 비교한다.
+- **Expected**: 이름이 모두 같다(Contracts (ubuntu-latest) · Contracts (macos-latest) · DeckUI · Deterministic release artifact · check).
+- **Pass criterion**: 차이 0.
+
+### T12. 조각 나누기는 고르고, 빠짐 · 겹침이 없다(순수)
+
+- **Setup**: 시험 이름 10개와 시간 기록(한 개는 기록 없음).
+- **Run**: 조각 수 3 으로 1/3 · 2/3 · 3/3 을 각각 고르고, 같은 입력으로 한 번 더.
+- **Expected**: 세 조각을 합치면 원래 목록과 같다(빠짐 0 · 겹침 0). 가장 긴 시험은 혼자 한 조각에 간다. 같은 입력 → 같은 출력.
+- **Pass criterion**: 합집합 = 원래 목록, 교집합 0, 두 번의 출력이 같음, 조각 합의 최대 − 최소 ≤ 가장 긴 시험.
+
+### T13. 문서 · 버전 판정(순수)
+
+- **Setup**: 바뀐 파일 목록 여러 벌.
+- **Run**: 판정 함수에 넣는다.
+- **Expected**: `VERSION`+`CHANGELOG.md` → yes, `docs/a.md` → yes, `README.md` → no(README 검사 대상), `core/protocols/help.md` → no(실행되는 규약), `.github/workflows/x.yml` → no, 빈 목록 → no(애매하면 전체).
+- **Pass criterion**: 모든 경우가 기대와 같다.
+
+### T14. 문서 · 버전만 바뀐 PR 에서 Contracts 두 개가 무거운 시험 없이 통과 보고
+
+- **Setup**: docs/ 한 줄만 바꾼 시험용 PR(병합하지 않음).
+- **Run**: CI 를 돌린다.
+- **Expected**: 조각 작업이 건너뛰어지고, Contracts (ubuntu-latest) · Contracts (macos-latest) 는 통과.
+- **Pass criterion**: 두 검사 통과 + 조각 작업 skipped.
+
+### T15. 설정 불러오기는 한 번에 읽어도 값이 옛 길과 바이트까지 같다
+
+- **Setup**: 공백 · $ · 따옴표 · 탭 · 줄바꿈 · 숫자 · true/false/null · 비밀 키 · 환경 우선이 섞인 설정 두 파일.
+- **Run**: 키마다 settings_get(옛 길)과 env_load(새 길)를 같은 껍데기에서 비교.
+- **Expected**: 값이 모두 같고, 일반 파일의 비밀 키는 알리되 값은 찍지 않는다.
+- **Pass criterion**: `core/tests/test-env-load.sh` 통과(bash 5 · 3.2).
+
+### T16. 맥 조각이 필요한지 판정(순수)
+
+- **Setup**: 바뀐 파일 목록 여러 벌.
+- **Run**: ci_needs_macos 에 넣는다.
+- **Expected**: .md · VERSION 만 → no, .sh · 워크플로 · JSON 하나라도 → yes, 빈 목록 → yes.
+- **Pass criterion**: `tests/test-ci-plan.sh` 통과.
+
+## How to run
+
+```bash
+bash core/tests/test-run-focused.sh &amp;&amp; bash core/tests/test-env-load.sh &amp;&amp; bash tests/test-ci-plan.sh &amp;&amp; bash core/tests/run-focused.sh --dir tests --dir core/tests --also core/tests/run-dry.sh
+```
+
+## Pass criteria
+
+- T1–T8 · T12 · T13 · T15 · T16 은 로컬에서 통과, T9–T11 은 PR CI 실행 기록으로 확인, T14 는 병합 뒤 첫 문서 · 버전 PR 에서.
+- 실패를 숨기는 경로가 없다(T2 · T10).</code></pre></div>
+    </aside>
+</div>
+<div class="deck-footer">
+      <button class="deck-arrow" id="scvPrev" disabled="" onclick="scvGoto(scvIdx()-1)">‹ 이전</button>
+      <div class="deck-dots"><button class="deck-dot active" data-idx="0" onclick="scvGoto(0)" aria-label="1"></button><button class="deck-dot" data-idx="1" onclick="scvGoto(1)" aria-label="2"></button><button class="deck-dot" data-idx="2" onclick="scvGoto(2)" aria-label="3"></button><button class="deck-dot" data-idx="3" onclick="scvGoto(3)" aria-label="4"></button><button class="deck-dot" data-idx="4" onclick="scvGoto(4)" aria-label="5"></button></div>
+      <span class="deck-counter" id="scvCounter">1 / 5</span>
+      <button class="deck-arrow" id="scvNext" onclick="scvGoto(scvIdx()+1)">다음 ›</button>
+    </div>
+</div>
+
+<script>
+  var SCV_ANCHORS = ["Architecture — CI 단축 — 코어 시험을 한 작업 안에서 동시에, 속도 검사는 끝에 혼자","1. Component data flow","2. Position in whole architecture","변경 지도",null];
+  var scvPageIdx = 0;
+  function scvIdx(){ return scvPageIdx; }
+  function scvEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function scvHighlight(anchor){
+    var docs = document.querySelectorAll('.src-doc');
+    docs.forEach(function(el){
+      var code = el.querySelector('code');
+      if(code) code.innerHTML = scvEsc(code.textContent);
+    });
+    if(!anchor) return;
+    for (var i=0;i<docs.length;i++){
+      var code = docs[i].querySelector('code');
+      if(!code) continue;
+      var raw = code.textContent;
+      var lines = raw.split('\n');
+      var start=-1, end=lines.length;
+      for (var j=0;j<lines.length;j++){
+        var m = lines[j].match(/^#{1,6}\s+(.*)$/);
+        if (m && m[1].trim() === String(anchor).trim()) { start = j; break; }
+      }
+      if (start < 0) continue;
+      for (var k=start+1;k<lines.length;k++){ if (/^#{1,6}\s+/.test(lines[k])) { end = k; break; } }
+      var before = lines.slice(0,start).join('\n'), hl = lines.slice(start,end).join('\n'), after = lines.slice(end).join('\n');
+      code.innerHTML = scvEsc(before) + (before ? '\n' : '') + '<mark class="src-hl">' + scvEsc(hl) + '</mark>' + (after ? '\n' + scvEsc(after) : '');
+      if (typeof scvSelectSource === 'function') scvSelectSource(i);
+      var markEl = docs[i].querySelector('mark.src-hl');
+      if (markEl && markEl.scrollIntoView) markEl.scrollIntoView({ block: 'center' });
+      return;
+    }
+  }
+  function scvGoto(n){
+    var total = 5;
+    n = Math.max(0, Math.min(total - 1, n));
+    scvPageIdx = n;
+    document.querySelectorAll('.slide-page').forEach(function(p){ p.classList.toggle('active', p.dataset.idx === String(n)); });
+    document.querySelectorAll('.deck-nav-item').forEach(function(el){
+      var on = el.dataset.idx === String(n);
+      el.classList.toggle('active', on);
+      // The nav is one scrolling row now, so the active pill can sit past the
+      // right edge. Scroll the STRIP, not the page — scrollIntoView on the
+      // element would also scroll .scroll-main and lose the reader's place.
+      if (on && el.parentElement) {
+        var strip = el.parentElement;
+        var left = el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2;
+        strip.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+      }
+    });
+    document.querySelectorAll('.deck-dot').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
+    if (typeof window.scvRunMermaid === 'function') { try { window.scvRunMermaid(); } catch (e) {} }
+    var prevBtn = document.getElementById('scvPrev'), nextBtn = document.getElementById('scvNext'), counter = document.getElementById('scvCounter');
+    if (prevBtn) prevBtn.disabled = (n === 0);
+    if (nextBtn) nextBtn.disabled = (n === total - 1);
+    if (counter) counter.textContent = (n + 1) + ' / ' + total;
+    scvHighlight(SCV_ANCHORS[n]);
+    var main = document.querySelector('.scroll-main');
+    if (main) main.scrollTop = 0;
+  }
+  function scvTogglePanel(){ var p=document.getElementById('scvSourcePanel'); if(p) p.classList.toggle('closed'); }
+  function scvSelectSource(i){
+    document.querySelectorAll('.panel-tab').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+    document.querySelectorAll('.src-doc').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+  }
+  (function(){
+    // 패널 좌측 경계 드래그 리사이즈 — 원본 SourcePanel 과 같은 산식(최소 320px,
+    // 본문에 최소 420px 남김).
+    var handle = document.getElementById('scvResizeHandle');
+    var panel = document.getElementById('scvSourcePanel');
+    if (!handle || !panel) return;
+    var MOBILE_BP = 640;
+    handle.addEventListener('mousedown', function(e){
+      e.preventDefault();
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+      function onMove(ev){
+        // 버튼을 놓친 채(창 밖 등) mouseup 을 못 받은 경우 — 버튼이 눌려있지 않으면 즉시 정리.
+        if (ev.buttons === 0) { onUp(); return; }
+        var raw = window.innerWidth - ev.clientX;
+        var max = Math.max(320, window.innerWidth - 420);
+        panel.style.width = Math.min(max, Math.max(320, raw)) + 'px';
+      }
+      function onUp(){
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        window.removeEventListener('blur', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('blur', onUp);
+    });
+    // 인라인 width 는 스타일시트의 반응형 브레이크포인트(640px 모바일 전체폭·900px 좁은폭)
+    // 보다 항상 우선한다 — 창 크기가 바뀔 때마다 다시 맞춰줘야 브레이크포인트가 살아난다.
+    window.addEventListener('resize', function(){
+      if (!panel.style.width) return;
+      if (window.innerWidth <= MOBILE_BP) { panel.style.width = ''; return; }
+      var max = Math.max(320, window.innerWidth - 420);
+      if (parseFloat(panel.style.width) > max) panel.style.width = max + 'px';
+    });
+  })();
+  document.addEventListener('keydown', function(e){
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') scvGoto(scvIdx() + 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') scvGoto(scvIdx() - 1);
+    else if (e.key === 'Home') scvGoto(0);
+    else if (e.key === 'End') scvGoto(5 - 1);
+    else if (e.key === 's' || e.key === 'S') scvTogglePanel();
+  });
+  scvGoto(0);
+</script>
+
+
+
+<div class="mermaidTooltip" style="opacity: 0; position: absolute; text-align: center; max-width: 200px; padding: 2px; font-size: 12px; background: rgb(255, 255, 222); border: 1px solid rgb(51, 51, 51); border-radius: 2px; pointer-events: none; z-index: 100;"></div></body></html>
