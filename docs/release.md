@@ -10,7 +10,7 @@
    ```bash
    bash tests/run.sh
    bash core/tests/run-dry.sh
-   for test_file in core/tests/test-*.sh; do bash "$test_file"; done
+   bash core/tests/run-focused.sh   # every core/tests/test-*.sh, overlapped; timing tests run alone at the end
    pnpm -C core/DeckUI typecheck
    pnpm -C core/DeckUI build:deck
    tools/release-artifact.sh --output-dir dist

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # test-rewrite-stays-current.sh — 다시 쓴 요청이 일 내내 맞게 (v0.65.0+).
+# scv-test: serial — 시간 한도를 잰다(다른 시험과 겹치면 흔들림). run-focused.sh 가 끝에 혼자 돌린다.
 #
 # 계획: scv/promote/20261003-wookiya1364-rewrite-stays-current/TESTS.md 의 T1~T10 (픽스처로 도는 자동 검사).
 #   T1  보이는 곳 — 맨 위 한 줄 + 결론 뒤 전문, 빠진 쪽을 이름으로 말한다

@@ -91,10 +91,10 @@ jobs:
 
       - name: Focused suites
         if: env.SCV_CI_FULL == 'true'
-        run: |
-          for test_file in core/tests/test-*.sh; do
-            bash "$test_file"
-          done
+        # One test after another took 11–12 minutes here. The runner overlaps them up
+        # to the runner's core count, keeps every log, and runs the tests that measure
+        # wall-clock limits ('# scv-test: serial') alone at the end.
+        run: bash core/tests/run-focused.sh
 
   deckui:
     name: DeckUI
