@@ -2,6 +2,25 @@
 
 All notable changes to SCV Core are documented here.
 
+## [0.72.0] - 2026-10-28
+
+### 개인정보 검사 — 병합 전에 막는다
+
+- `core/scripts/check-privacy.sh`(순수부 `lib/privacy.sh`): PR 의 커밋 메시지와 더해진 줄에서 로컬 경로 · 세션 id · 세션 링크 줄 · 비밀 목록 낱말(`SCV_PRIVACY_TERMS`, 값은 저장소에 두지 않음)을 찾으면 막는다. 작성자 이름 · 메일 검사는 `SCV_PRIVACY_EMAILS=on` 일 때만.
+- `branch-flow.yml` 에 Privacy gate 단계. 저장소 전체 훑기 `tools/privacy-audit.sh`.
+- SCV 기록(journal · conversations · dreams · raw)은 공개 저장소에서 빠지고 비공개 저장소로 — `.gitignore` 가 연결(심볼릭 링크)도 잡고, `pr-helper` 는 기록 폴더가 연결이어도 결정 기록을 담는다.
+- 과거 기록을 다시 썼다: 옛 → 새 코어 커밋 대응표 `docs/history-rewrite-2026-10.tsv`.
+- 시험 `test-check-privacy.sh`.
+
+### 문서 최신화
+
+- README 3개 언어: 구조 · 루프 머메이드 그림, 액션 20개 한눈 표. `docs/architecture.md`: 매 턴 훅 순서도, 릴리스 채널, 모드. 루프 · 구조 GIF 다시 뽑음.
+- `tools/check-readme.sh` 가 명령 목록 · 그림 수까지 언어판끼리 맞춰 본다.
+
+### CI
+
+- 워크플로 Node 22 → 26.
+
 ## [0.71.0] - 2026-10-26
 
 ### 채널 — 개발 · 스테이징 · 운영을 바꿔 끼워 받기
