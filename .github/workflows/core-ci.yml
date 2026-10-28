@@ -46,55 +46,132 @@ env:
       || (github.event_name == 'pull_request' && github.base_ref == 'main' && startsWith(github.head_ref, 'fix/')) }}
 
 jobs:
-  contracts:
-    name: Contracts (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+  # WHERE THE CONTRACTS TIME GOES — and why it is split across runners.
+  #
+  # Contract tests, the shared regression and the focused suites ran one after another
+  # on one runner: 13 minutes on ubuntu, 15–16 on macOS. Overlapping them on that one
+  # runner barely helped — the tests share its CPU, so each one slows down (macOS: the
+  # tests' own times summed to 719 s run one by one, 1397 s overlapped three at a time).
+  # Separate runners each bring their own CPU, so the work is cut into shards, balanced
+  # by core/tests/timings.tsv, and each shard runs its part one test at a time — which
+  # also keeps the wall-clock checks inside some tests steady.
+  #
+  # The branch ruleset requires "Contracts (ubuntu-latest)" and "Contracts (macos-latest)".
+  # Those two names now belong to small result jobs that wait for their shards and
+  # report one verdict, so the ruleset does not change.
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    outputs:
+      full: ${{ steps.lane.outputs.full }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Decide the lane
+        id: lane
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          docs_only=no
+          if [[ "$SCV_CI_FULL" == "true" && -n "$BASE_SHA" ]]; then
+            docs_only="$(bash tools/ci-plan.sh "$BASE_SHA" "$HEAD_SHA" | sed -n 's/^docs_only=//p')"
+          fi
+          full=false
+          [[ "$SCV_CI_FULL" == "true" && "$docs_only" != "yes" ]] && full=true
+          echo "lane: SCV_CI_FULL=$SCV_CI_FULL docs_only=$docs_only → full=$full"
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+      # A docs- or version-only PR skips the heavy shards, but the checks that read
+      # those documents still run here.
+      - name: Documents a docs-only change can break
+        if: steps.lane.outputs.docs_only == 'yes'
+        run: |
+          bash tools/check-readme.sh --profile core .
+          bash core/scripts/check-frontmatter.sh --project-dir .
+          bash tests/test-guard-consistency.sh
+
+  shards-ubuntu:
+    name: Shard (ubuntu ${{ matrix.shard }}/6)
+    needs: plan
+    if: needs.plan.outputs.full == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@v5
+      - name: Shell syntax and this repository's own plans
+        if: matrix.shard == 1
+        run: |
+          find core/scripts core/tests tests tools -type f -name '*.sh' -exec bash -n {} +
+          bash core/scripts/check-frontmatter.sh --project-dir .
+      - name: Contracts, shared regression and focused suites (this shard)
+        run: bash core/tests/run-focused.sh --dir tests --dir core/tests --also core/tests/run-dry.sh --shard ${{ matrix.shard }}/6
 
+  shards-macos:
+    name: Shard (macos ${{ matrix.shard }}/5)
+    needs: plan
+    if: needs.plan.outputs.full == 'true'
+    runs-on: macos-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@v5
       - name: Install modern Bash on macOS
-        if: runner.os == 'macOS'
         run: |
           brew list bash >/dev/null 2>&1 || brew install bash
           modern_bash="$(brew --prefix)/bin/bash"
           "$modern_bash" -c 'test "${BASH_VERSINFO[0]}" -ge 4'
           echo "$(brew --prefix)/bin" >> "$GITHUB_PATH"
-
-      - name: Shell syntax
-        if: env.SCV_CI_FULL == 'true'
+      - name: Shell syntax and this repository's own plans
+        if: matrix.shard == 1
         run: |
-          find core/scripts core/tests tests tools -type f -name '*.sh' \
-            -exec bash -n {} +
+          find core/scripts core/tests tests tools -type f -name '*.sh' -exec bash -n {} +
+          bash core/scripts/check-frontmatter.sh --project-dir .
+      - name: Contracts, shared regression and focused suites (this shard)
+        run: bash core/tests/run-focused.sh --dir tests --dir core/tests --also core/tests/run-dry.sh --shard ${{ matrix.shard }}/5
 
-      - name: Core contracts and transition transcript
-        if: env.SCV_CI_FULL == 'true'
-        run: bash tests/run.sh
+  contracts-ubuntu:
+    name: Contracts (ubuntu-latest)
+    needs: [plan, shards-ubuntu]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Verdict
+        env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          FULL: ${{ needs.plan.outputs.full }}
+          SHARDS: ${{ needs.shards-ubuntu.result }}
+        run: |
+          echo "plan=$PLAN_RESULT full=$FULL shards=$SHARDS"
+          [[ "$PLAN_RESULT" == "success" ]] || exit 1
+          if [[ "$FULL" == "true" ]]; then [[ "$SHARDS" == "success" ]]; else [[ "$SHARDS" == "skipped" ]]; fi
 
-      - name: Frontmatter — this repository's own plans
-        if: env.SCV_CI_FULL == 'true'
-        # run-dry.sh exercises this script against synthetic fixtures in a temp
-        # dir. Nothing ran it against the repository itself, so every plan the
-        # project has ever shipped went unchecked while CI stayed green.
-        run: bash core/scripts/check-frontmatter.sh --project-dir .
-
-      - name: Guard and documents agree
-        if: env.SCV_CI_FULL == 'true'
-        run: bash tests/test-guard-consistency.sh
-
-      - name: Shared regression
-        if: env.SCV_CI_FULL == 'true'
-        run: bash core/tests/run-dry.sh
-
-      - name: Focused suites
-        if: env.SCV_CI_FULL == 'true'
-        # One test after another took 11–12 minutes here. The runner overlaps them up
-        # to the runner's core count, keeps every log, and runs the tests that measure
-        # wall-clock limits ('# scv-test: serial') alone at the end.
-        run: bash core/tests/run-focused.sh
+  contracts-macos:
+    name: Contracts (macos-latest)
+    needs: [plan, shards-macos]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Verdict
+        env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          FULL: ${{ needs.plan.outputs.full }}
+          SHARDS: ${{ needs.shards-macos.result }}
+        run: |
+          echo "plan=$PLAN_RESULT full=$FULL shards=$SHARDS"
+          [[ "$PLAN_RESULT" == "success" ]] || exit 1
+          if [[ "$FULL" == "true" ]]; then [[ "$SHARDS" == "success" ]]; else [[ "$SHARDS" == "skipped" ]]; fi
 
   deckui:
     name: DeckUI
