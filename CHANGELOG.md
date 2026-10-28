@@ -17,9 +17,18 @@ All notable changes to SCV Core are documented here.
 - README 3개 언어: 구조 · 루프 머메이드 그림, 액션 20개 한눈 표. `docs/architecture.md`: 매 턴 훅 순서도, 릴리스 채널, 모드. 루프 · 구조 GIF 다시 뽑음.
 - `tools/check-readme.sh` 가 명령 목록 · 그림 수까지 언어판끼리 맞춰 본다.
 
-### CI
+### CI 단축 — 시험을 여러 러너로 나눠 돌린다
 
+- 새 실행 도구 `core/tests/run-focused.sh`: 시험을 시간 기록(`core/tests/timings.tsv` · 맥 `timings-macos.tsv`)으로 고르게 나눠 `--shard I/N` 조각만 돈다. 실패한 시험은 로그 전문을 찍는다. `# scv-test: serial` 표시가 붙은 시험은 끝에 혼자.
+- Contracts 가 우분투 6 · 맥 5 조각으로 — 우분투 약 13분 → 2분 남짓, 맥 15~16분 → 5분 남짓. 필수 검사 이름(`Contracts (ubuntu-latest)` · `Contracts (macos-latest)`)은 그대로.
+- `tools/ci-plan.sh`: 문서 · 버전만 바뀐 PR 은 무거운 시험을 건너뛰고, `.md` · 버전만 바뀐 PR 은 맥 조각을 건너뛴다.
+- 중복으로 다른 시험을 다시 돌리던 곳 2곳을 정리, 다시 쓴 요청 다음 턴 속도 상한 0.5 → 1.0초(맥 러너 실측).
 - 워크플로 Node 22 → 26.
+
+### 훅 속도
+
+- 설정 불러오기(`env_load`)가 키마다 jq 를 띄우던 것을 jq 한 번으로(`settings_lookup_many_json`) — 빈 저장소 매 턴 훅 7.3 → 1.8초, 진단 5.7 → 0.5초. 옛 길과 값이 바이트까지 같은지 보는 시험 `test-env-load.sh`.
+- 도움말 진단이 상태 수를 두 번 세지 않게, `check-readme.sh` 가 같은 이름을 다시 찾지 않게.
 
 ## [0.71.0] - 2026-10-26
 
