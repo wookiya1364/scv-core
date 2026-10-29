@@ -26,6 +26,7 @@ SCV_AUTO_PROMPT_PREFIX=Another example session sent a message:
 SCV_AUTO_PROMPT_SUFFIX=This came from another example session
 SCV_JUDGE_COMMAND=scripts/show-real-judge.sh
 SCV_CHOICE_REJECTED_PREFIX=<example-rejected>
+SCV_DECKUI_DIR=vendor/scv-core/core/DeckUI
 ```
 
 `SCV_PROMPTING_GUIDES` is optional (v0.59.0+, §9); leave it out when the wrapper ships no
@@ -73,6 +74,10 @@ run time; the report waits for it, and runs it from the cache folder.
 `SCV_CHOICE_REJECTED_PREFIX` is optional (v0.68.0+): the start of the tool result the host returns when it rejects a
 choice-tool call before the person sees it. The real-use report then does not count that window as asking; a window the
 person saw and dismissed still counts. Leave it out when the host never rejects such calls silently.
+
+`SCV_DECKUI_DIR` is optional (v0.72.2+): the deck engine folder, relative to the Core root. The deck runtime reads it only
+when the Core root has no `DeckUI/` of its own — for a wrapper whose skills run with the plugin top as the Core root (the
+Claude wrapper points it at `vendor/scv-core/core/DeckUI`). Leave it out when the skills run the vendored Core directly.
 
 Validate it before vendoring:
 

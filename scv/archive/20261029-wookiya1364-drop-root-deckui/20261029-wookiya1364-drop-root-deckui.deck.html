@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Architecture — claude 래퍼의 중복 DeckUI 없애기</title>
+<style>
+/* Dark only — the light token set and its toggle were removed:
+   FE 프로젝트의 다크-기본+라이트-오버라이드 관례와 동일한 모양(속성 하나만 바뀌면
+   전체가 재테마된다). head 맨 앞 인라인 스크립트가 pre-paint 로 저장된 선택을 적용해
+   깜빡임(FOUC)이 없다. */
+/* Dark only. Ported from the owner's DesignSystem .dark block (shadcn oklch ->
+   sRGB, every neutral at chroma 0). The blue-cast greys this replaces
+   (#171922 / #1d2029 / #2c3040 / #9096a8) were the single loudest reason the
+   two decks read as different systems.
+
+   Contrast figures are WCAG 2.x, measured against the surface named. */
+:root{
+  /* surfaces */
+  --bg:#0a0a0a;                  /* the one ground */
+  --panel:#171717;               /* cards, aside, code */
+  --surface-2:#121212;           /* zebra rows, quiet fills */
+  --surface-3:#151515;           /* table head, code block */
+
+  /* text */
+  --fg:#fafafa;                  /* 18.97:1 on --bg */
+  --fg-body:#e2e2e2;             /* 15.28:1 on --bg  · body copy */
+  --fg-soft:#d6d6d6;             /* 13.62:1 on --bg  · text inside a tinted card */
+  --muted-foreground:#a1a1a1;    /*  7.66:1 on --bg  · 6.94:1 on --panel */
+
+  /* lines — alpha so ONE value composites correctly over bg and panel alike */
+  --border:rgba(255,255,255,.10);
+  --border-strong:#707070;       /* load-bearing rules. Measured where it actually
+                                    sits, not on --bg: 3.62:1 on --panel (node
+                                    fill), 3.69:1 on --surface-3 (figure ground),
+                                    5.87:1 on --bg. #4d4d4d cleared 3:1 against
+                                    --bg alone and failed at 2.12:1 on a node. */
+  --ring:#737373;                /*  4.18:1 on --bg */
+
+  /* brand — the owner's rose, kept for a public product on their say-so.
+     TWO values, because one cannot do both jobs: oklch(.455 .188 13.697)
+     = #a50036 measures 2.50:1 as text on --bg and is unreadable. The text
+     value is the same hue lifted in lightness only. */
+  --primary:#a50036;             /* fill · white on it 7.58:1 */
+  --primary-text:#fc7184;        /* text · 7.39:1 on --bg · 6.69:1 on --panel */
+  --on-primary:#fafafa;          /* 7.58:1 on the --primary plate */
+
+  /* status */
+  --good:#4bd39a;                /*  9.53:1 on --bg */
+  --warn:#e3b153;                /*  9.18:1 on --bg */
+  --danger:#f4837f;              /*  7.22:1 on --bg */
+  --on-warn:#241a06;             /*  8.72:1 on the --warn plate */
+}
+*{box-sizing:border-box}
+/* One scroll region, and only one. The app shell owns the scrolling; the document
+   behind it must never scroll too. Without this the page picks up a second scrollbar
+   whenever the shell ends up a few pixels taller than the viewport (100svh vs 100%
+   rounding is enough), and the reader gets two bars with no way to tell which one the
+   wheel will move. Print restores normal flow below. */
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+html{scroll-behavior:smooth}
+body{margin:0;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:var(--fg);background:var(--bg)}
+/* Controls do not inherit the document font — a UA default applies unless asked.
+   Six controls below set font-size alone or an invalid `font:` shorthand, and
+   all of them rendered in 13.333px/400/Arial. This one line is what makes the
+   per-control rules that follow actually reach the element. */
+button,input,select,textarea{font:inherit;color:inherit}
+/* 문서 = 스크롤되는 본문(좌) + 상시 원문 마크다운 패널(우, sticky) — 이게 scv:deck 의
+   정체성이다: 렌더링과 원문이 늘 같은 화면에 나란히 있어야 서로 어긋나지 않았다는 게
+   보장된다. 인쇄 시에는 패널을 접고 본문 뒤에 원문을 부록으로 붙인다(.print-source). */
+/* Three rows over the viewport: header, content, footer. The header and the
+   footer are chrome and must not scroll away with the text — before this they
+   lived inside .wrap and pushed 268px of nav in front of the first sentence. */
+.shell{display:grid;grid-template-rows:auto 1fr auto;height:100svh;overflow:hidden}
+.shell-mid{display:flex;min-height:0;overflow:hidden}
+/* A container so a figure can measure the READING area and break out of the
+   840px text column. 100vw would count the source panel too and push the
+   diagram under it. */
+.scroll-main{flex:1;min-width:0;overflow-y:auto;container-type:inline-size}
+.wrap{--doc-pad:clamp(20px,5vw,56px);max-width:840px;margin:0 auto;min-height:100%;padding:0 var(--doc-pad) 96px}
+header.doc{display:flex;align-items:center;gap:16px;min-width:0;background:var(--bg);border-bottom:1px solid var(--border);padding:11px 20px}
+header.doc h1{font-size:15px;font-weight:600;margin:0;flex-shrink:0;max-width:34ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)}
+.header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.panel-toggle{flex-shrink:0;font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer}
+.panel-toggle:hover{background:var(--border);color:var(--fg)}
+.panel-toggle .kbd{opacity:.55;margin-left:4px}
+.source-panel{position:relative;width:min(440px,38vw);flex-shrink:0;border-left:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column}
+.source-panel.closed{display:none}
+.panel-resize-handle{position:absolute;left:0;top:0;bottom:0;width:7px;margin-left:-4px;cursor:col-resize;z-index:6}
+.panel-resize-handle:hover{background:rgba(127,137,160,.25)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-title{font-size:12px;color:var(--muted-foreground);font-weight:700;letter-spacing:.02em}
+.panel-close{border:none;background:none;color:var(--muted-foreground);cursor:pointer;font-size:14px;padding:2px 7px;border-radius:5px;line-height:1.4}
+.panel-close:hover{background:var(--border);color:var(--fg)}
+.panel-tabs{display:flex;gap:2px;padding:9px 12px 0;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.panel-tab{font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);padding:7px 10px;border:none;background:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.panel-tab.active{color:var(--fg);border-bottom-color:var(--primary)}
+.panel-body{flex:1;overflow-y:auto;padding:14px}
+.panel-body .src-doc{display:none;margin:0}
+.panel-body .src-doc.active{display:block}
+.print-source{display:none}
+/* 목차(nav.toc) 는 인쇄본 전용(펼친 전체 문서엔 목차가 자연스럽다). 화면에서는
+   deck-nav(아래) 가 같은 역할을 대신한다 — 페이지 번호 pill + 클릭 이동. */
+@media screen{nav.toc{display:none}}
+nav.toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:26px 0}
+nav.toc h3{margin:0 0 8px;font-size:12px;letter-spacing:.04em;color:var(--muted-foreground);text-transform:uppercase}
+nav.toc ol{margin:0;padding-left:20px;columns:2;gap:24px}
+nav.toc a{color:var(--fg);text-decoration:none}
+nav.toc a:hover{color:var(--primary);text-decoration:underline}
+section{padding:22px 0;border-top:1px solid var(--border)}
+section:first-of-type{border-top:none}
+/* 페이지 넘김(화면 전용) — 한 번에 한 섹션만. 인쇄 시엔 전부 펼쳐서 보여준다. */
+@media screen{.slide-page{display:none}.slide-page.active{display:block}}
+/* One scrolling row, never wrapped. The reference sets flex-wrap AND
+   overflow-x-auto together; flex-wrap wins, and fed 19 labels its own header
+   grows to three rows. nowrap is the one place this deliberately differs. */
+.deck-nav{display:flex;flex-wrap:nowrap;gap:4px;margin:0;flex:1;min-width:0;overflow-x:auto;scrollbar-width:thin}
+.deck-nav::-webkit-scrollbar{height:6px}
+.deck-nav::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.deck-nav-item{font-weight:400;font-size:12px;line-height:16px;color:var(--muted-foreground);background:none;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;white-space:nowrap}
+.deck-nav-item:hover{color:var(--fg)}
+.deck-nav-item.active{background:var(--primary-text);color:var(--bg);font-weight:500}
+.deck-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0;padding:11px 20px;border-top:1px solid var(--border);background:var(--bg)}
+.deck-arrow{font-weight:600;font-size:13px;line-height:1;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;cursor:pointer}
+.deck-arrow:disabled{opacity:.35;cursor:default}
+.deck-arrow:not(:disabled):hover{background:var(--panel)}
+.deck-dots{display:flex;align-items:center;gap:6px}
+.deck-dot{width:8px;height:8px;border-radius:999px;background:var(--border);border:none;cursor:pointer;padding:0}
+.deck-dot.active{background:var(--primary);width:20px;border-radius:5px}
+.deck-counter{font-size:12px;color:var(--muted-foreground);min-width:52px;text-align:center}
+mark.src-hl{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--fg);border-left:2px solid var(--warn);border-radius:0;padding:0 2px}
+h2{font-size:32px;line-height:1.15;letter-spacing:-.02em;margin:.1em 0 .5em;font-weight:700;color:var(--fg)}
+h4{margin:1.1em 0 .35em;font-size:17px;font-weight:600;color:var(--fg)}
+.subhead{font-size:20px;font-weight:600;margin:1.4em 0 .4em;color:var(--fg)}
+.kicker{font-size:14px;font-weight:600;letter-spacing:.02em;color:var(--primary-text);margin-bottom:6px}
+.sub{font-size:18px;line-height:1.55;color:var(--muted-foreground);margin:-.1em 0 1.3em;max-width:62ch}
+p{margin:.65em 0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul{margin:.6em 0;padding-left:0;list-style:none}
+ol{margin:.6em 0;padding-left:22px}
+li{margin:0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul>li{position:relative;padding-left:18px;margin:8px 0}
+ul>li::before{content:"";position:absolute;left:0;top:.62em;width:6px;height:6px;border-radius:50%;background:color-mix(in srgb,var(--primary-text) 70%,transparent)}
+ol>li{margin:8px 0}
+.tw{overflow-x:auto;margin:.8em 0}
+table{border-collapse:collapse;width:100%;font-size:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+th,td{border:none;border-bottom:1px solid var(--border);padding:10px 14px;text-align:left;vertical-align:top;color:var(--fg-body)}
+tbody tr:last-child td{border-bottom:none}
+thead th{background:var(--surface-3);font-weight:600;font-size:12px;letter-spacing:.02em;color:var(--muted-foreground)}
+table.kv th{background:none;width:30%;white-space:nowrap;font-weight:500;color:var(--muted-foreground)}
+.kpi{display:flex;flex-wrap:wrap;gap:12px;margin:.8em 0}
+.kpi-card{flex:1 1 160px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--panel)}
+.kpi-label{font-size:13px;color:var(--muted-foreground);margin-bottom:6px}
+.kpi-nums{display:flex;align-items:center;gap:8px;font-weight:700}
+.kpi-nums .base{color:var(--muted-foreground)}
+.kpi-nums .arrow{color:var(--primary)}
+.kpi-nums .target{color:var(--good)}
+.goals{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:.8em 0}
+.goal-col{border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+.goal-col.g{border-left:4px solid var(--good)}
+.goal-col.ng{border-left:4px solid var(--danger)}
+pre.code{background:var(--surface-3);color:var(--fg-body);border-radius:10px;padding:14px 16px;overflow-x:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;margin:.8em 0}
+/* mermaid 는 항상 라이트 카드에 그린다(테마 무관, pre.code 가 항상 다크인 것과 대칭) —
+   mermaid 렌더 테마를 다크로 다시 그리려면 이미 SVG 로 처리된 노드를 되돌려야 해서
+   토글마다 재처리가 필요해진다. 대신 다이어그램 카드 자체를 고정 라이트로 둬서
+   토글과 무관하게 항상 선명하게 읽힌다. */
+/* A figure, not a paragraph. The SVG now carries its natural width, so the
+   frame scrolls instead of shrinking it — a 1437px graph squeezed into an
+   840px column rendered its 16px labels at 7.7px, which was the single worst
+   readability defect in the deck. */
+/* Full bleed: the figure uses the whole reading area, not the 840px measure the
+   prose wants. A 1388px graph inside an 840px column left ~215px of dead gutter
+   on each side AND a scrollbar — the worst of both. */
+pre.mermaid{background:var(--surface-3);border:1px solid var(--border-strong);border-radius:10px;padding:14px;margin:1.1em 0;overflow-x:auto;text-align:left}
+@supports (width:100cqw){
+  pre.mermaid{
+    /* A 16px gutter, not the prose gutter. Text wants a comfortable measure; a
+       figure wants the glass. With the source panel open — which is the deck's
+       whole point and stays open — every pixel of the reading area counts. */
+    --bleed:calc(100cqw - 32px);
+    width:var(--bleed);
+    max-width:var(--bleed);
+    margin-inline:calc((100% - var(--bleed)) / 2);
+  }
+}
+/* Fit the frame when there is room; below 900px stop shrinking and scroll
+   instead. Scaling all the way down is what made 16px labels render at 7.7px,
+   and a scrollbar is better than text nobody can read. */
+pre.mermaid svg{max-width:100%;min-width:900px;height:auto}
+/* The diagram lives in a <pre>, whose UA default is white-space:pre, and that
+   inherits into every label. Mermaid sizes an edge label's box for TWO wrapped
+   lines (200x48.75) and the text then refused to wrap, so anything past 200px
+   was clipped mid-word — "BASE_REF, HEAD_REF, PR_TITLE" measured 230px of text
+   in a 200px box. Labels are prose, not preformatted text. */
+pre.mermaid foreignObject,pre.mermaid foreignObject *{white-space:normal}
+/* On a narrow window there is nothing to floor — let it fit rather than force
+   a scrollbar the reader cannot escape. */
+@media (max-width:900px){pre.mermaid svg{min-width:0}}
+pre.mermaid.mermaid-fallback{text-align:left;white-space:pre;overflow-x:auto;background:#0f1320;color:#e6e9f0;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:30px 16px 14px;position:relative}
+pre.mermaid.mermaid-fallback::before{content:"\29c9 \b2e4\c774\c5b4\adf8\b7a8 \c6d0\bcf8 (\c624\d504\b77c\c778 \b610\b294 CDN \bbf8\b85c\b4dc)";position:absolute;top:8px;left:16px;font:600 11px/1 -apple-system,sans-serif;color:var(--muted-foreground)}
+/* A tinted card, not a left rule — the reference's Callout. color-mix keeps one
+   hue per tone instead of a second hand-picked hex for the fill. */
+.callout{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:1em 0;background:var(--panel)}
+.callout-title{font-weight:600;font-size:16px;margin-bottom:4px;color:var(--fg)}
+.callout p,.callout li{font-size:14px;color:var(--fg-soft)}
+.callout.info{border-color:color-mix(in srgb,var(--primary-text) 30%,transparent);background:color-mix(in srgb,var(--primary-text) 10%,var(--bg))}
+.callout.good{border-color:color-mix(in srgb,var(--good) 30%,transparent);background:color-mix(in srgb,var(--good) 10%,var(--bg))}
+.callout.warn{border-color:color-mix(in srgb,var(--warn) 30%,transparent);background:color-mix(in srgb,var(--warn) 10%,var(--bg))}
+.callout.danger{border-color:color-mix(in srgb,var(--danger) 30%,transparent);background:color-mix(in srgb,var(--danger) 10%,var(--bg))}
+.callout.next{border-style:dashed;border-color:var(--border-strong);background:var(--surface-2)}
+.lint h2{color:var(--warn)}
+.lint-count{display:inline-block;background:var(--warn);color:var(--on-warn);border-radius:999px;font-size:12px;padding:1px 9px;vertical-align:middle}
+/* 화면목업(와이어프레임) 킷 — scv 자체 기본 스킨(2순위 폴백): DesignSystem 의 실제
+   다크 팔레트를 distill(무채색 표면 + 단일 로즈 악센트 + border-only depth + pill
+   배지, 글라스 없음 — DesignSystem 본체엔 글라스가 없다). 문서 자체의 라이트/다크
+   토글과는 독립적으로 항상 이 다크 스킨을 쓴다(--wf-* 로 스코프해 문서 테마 변수와
+   충돌하지 않음) — mermaid 카드를 항상 라이트로 고정하는 것과 같은 이유(재처리 없이
+   항상 또렷하게). 프로젝트 실제 토큰(1순위) 자동감지는 아직 없음 — 후속 작업.
+   버튼은 항상 disabled(정적 예시 그림이라 실제 인터랙션 없음). */
+.wf-screen{
+  margin:1em 0;
+  --wf-bg:#0a0a0b; --wf-fg:#fafafa; --wf-card:#1c1c1e; --wf-border:rgba(255,255,255,.1);
+  --wf-muted:#232326; --wf-muted-fg:#9a9a9f;
+  --wf-primary:#a53257; --wf-primary-fg:#fdf1f3;
+  --wf-success:#34d399; --wf-success-bg:rgba(16,185,129,.15); --wf-success-border:rgba(16,185,129,.4);
+  --wf-danger:#ef6b6b; --wf-danger-bg:rgba(239,107,107,.14);
+  --wf-info:#60a5fa; --wf-info-bg:rgba(96,165,250,.15);
+  --wf-warn:#e0ab48; --wf-warn-bg:rgba(224,171,72,.15);
+  --wf-radius:10px; --wf-radius-pill:999px;
+}
+/* 번호식 화면설계서 — the picture keeps the stage, the prose stands beside it.
+   Sidebar sits right of the picture on a wide screen and DROPS BELOW under 900px,
+   because squeezing the drawing to fit a column is exactly the regression that made
+   an earlier deck's diagram render at 0.483 scale (16px type → 7.7px). */
+.wf-speclayout{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,360px);gap:16px;align-items:start;margin:1em 0}
+.wf-speclayout > .wf-screen{margin:0;min-width:0}
+/* A spec sheet is a FIGURE, not prose: the 840px reading measure that suits paragraphs
+   starves the drawing and crams the detail list against it. Take the full glass, same
+   as a standalone diagram does — the picture gets the room, the detail panel sits at
+   the right edge. */
+@supports (width:100cqw){
+  .wf-speclayout{
+    --bleed:calc(100cqw - 32px);
+    width:var(--bleed);
+    max-width:var(--bleed);
+    margin-inline:calc((100% - var(--bleed)) / 2);
+  }
+}
+/* A diagram needs more room than a wireframe; with the bleed a full-size flowchart
+   fits beside the panel on a wide screen. Below that it stacks rather than shrink —
+   squeezing an 800px flowchart into a narrow column renders 16px labels at ~8px, the
+   regression that made an earlier deck unreadable. */
+@media (max-width:1200px){
+  .wf-speclayout-diagram{grid-template-columns:minmax(0,1fr)}
+  .wf-speclayout-diagram > .wf-spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:start}
+}
+/* Undo the full-bleed above: that rule widens a STANDALONE diagram to the reading
+   glass, which inside a spec frame just bursts the frame (the picture then gets
+   cropped by wf-frame's overflow:hidden). In here the frame is the glass. */
+/* Keep the diagram card's own surface. Making it transparent put mermaid's
+   light-assuming palette (#eaeaea fills, #666 text) straight onto the dark frame, and a
+   sequence diagram's message text became unreadable — the deck draws diagrams on their
+   own card for exactly this reason (see the note above pre.mermaid). */
+.wf-screen pre.mermaid{margin:0;margin-inline:0;width:auto;max-width:100%;padding:10px;overflow-x:auto}
+.wf-screen pre.mermaid svg{min-width:0;max-width:100%;height:auto}
+@media (max-width:900px){.wf-speclayout,.wf-speclayout-diagram{grid-template-columns:minmax(0,1fr)}}
+@media print{.wf-speclayout,.wf-speclayout-diagram{grid-template-columns:minmax(0,1fr);break-inside:avoid}}
+/* Grid, not flex-wrap: in a narrow column the name TRUNCATES instead of shoving
+   PAGE CODE onto its own half-empty row (the identity strip must read as one line). */
+.wf-pagebar{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:stretch;margin-bottom:8px;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;font-size:12.5px}
+.wf-pagebar-key{padding:6px 10px;background:var(--surface-3);color:var(--muted-foreground);font-weight:700;font-size:11px;letter-spacing:.04em;white-space:nowrap;display:flex;align-items:center}
+.wf-pagebar-name{min-width:0;padding:6px 10px;background:var(--surface-2);color:var(--foreground);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center}
+.wf-pagebar-code{padding:6px 10px;background:var(--surface-2);color:var(--foreground);font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;display:flex;align-items:center}
+.wf-marked{display:flex;align-items:flex-start;gap:8px}
+.wf-marked + .wf-marked{margin-top:2px}
+.wf-marked-body{flex:1;min-width:0}
+.wf-marker{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;margin-top:3px;padding:0 5px;border-radius:999px;font:700 11.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.wf-marker-fn{background:var(--wf-primary,#a53257);color:var(--wf-primary-fg,#fdf1f3)}
+.wf-marker-action{background:var(--wf-info,#60a5fa);color:#0a0a0b}
+.wf-spec{display:flex;flex-direction:column;gap:12px;min-width:0}
+.wf-spec-group{border:1px solid var(--border-strong);border-radius:10px;background:var(--surface-2);overflow:hidden}
+.wf-spec-title{padding:7px 12px;background:var(--surface-3);border-bottom:1px solid var(--border-strong);font-weight:700;font-size:12.5px;letter-spacing:.02em}
+.wf-spec-item{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;border-top:1px solid var(--border)}
+.wf-spec-item:first-of-type{border-top:0}
+.wf-spec-badge{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);font:700 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.wf-spec-item-act .wf-spec-badge{background:var(--wf-info,#60a5fa);color:#0a0a0b;border-color:transparent}
+.wf-spec-body{flex:1;min-width:0;font-size:12.5px;line-height:1.6}
+.wf-spec-name{font-weight:600;margin-bottom:2px}
+.wf-spec-notes{margin:0;padding-left:1.1em;color:var(--muted-foreground)}
+.wf-spec-notes li{margin:1px 0}
+.wf-spec-state{margin-left:4px;padding:1px 6px;border-radius:999px;border:1px solid var(--border-strong);font:700 10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+.wf-spec-state-added{background:#FFE082;border-color:#F57C00;color:#000}
+.wf-spec-state-changed{background:#90CAF9;border-color:#1565C0;color:#000}
+.wf-spec-state-removed{background:transparent;border-color:#EF9A9A;color:#EF9A9A;border-style:dashed}
+.wf-spec-state-reused{background:var(--surface-3);border-color:var(--border-strong);color:var(--muted-foreground)}
+.wf-spec-step{margin-left:6px;padding:1px 6px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);color:var(--muted-foreground);font:600 10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+.wf-sub-title{margin:12px 0 6px;font-weight:700;font-size:12.5px;letter-spacing:.02em}
+/* "Called from" sits ABOVE the picture, so the first thing a backend reader learns is
+   which screen and which element reaches this endpoint. */
+.wf-screen > .wf-validations:first-of-type{margin-bottom:2px}
+.wf-diagram-label{margin:8px 0 2px;font-size:11.5px;color:var(--muted-foreground)}
+.wf-diagram-label:first-child{margin-top:0}
+/* Validation table — one row per rule, the numbers it touches in the first column so a
+   rule shared by several markers is traceable instead of scattered through prose. */
+.wf-validations{margin-top:2px}
+.wf-vtable{width:100%;border-collapse:collapse;font-size:12px;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;table-layout:auto}
+.wf-vtable th{padding:6px 9px;background:var(--surface-3);border-bottom:1px solid var(--border-strong);text-align:left;font-weight:700;white-space:nowrap}
+.wf-vtable td{padding:6px 9px;border-top:1px solid var(--border);vertical-align:top;line-height:1.55}
+.wf-vt-marker{width:1%;white-space:nowrap;font:700 11px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted-foreground)}
+/* State variants — a strip under the frame, never a third column: a third column would
+   squeeze the picture, which is the one thing this format exists to protect. */
+.wf-states-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.wf-state{min-width:0}
+.wf-state-label{display:flex;align-items:center;gap:5px;margin-bottom:4px;font-size:11.5px;color:var(--muted-foreground)}
+.wf-state-marker{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);font:700 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--foreground)}
+.wf-state-frame{border:1px solid var(--wf-border,var(--border-strong));border-radius:8px;background:var(--wf-bg,var(--surface-2));padding:9px 10px}
+.wf-chrome{display:flex;align-items:center;gap:7px;padding:9px 12px;border-bottom:1px solid var(--wf-border);background:var(--wf-card)}
+.wf-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;opacity:.7}
+.wf-dot-r{background:#fb2c36}.wf-dot-y{background:#fe9a00}.wf-dot-g{background:#00bc7d}
+.wf-url{margin-left:6px;padding:2px 8px;border-radius:5px;background:var(--wf-muted);color:var(--wf-muted-fg,var(--muted-foreground));font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wf-frame{border:1px solid var(--wf-border);border-radius:calc(var(--wf-radius) + 4px);background:var(--wf-bg);color:var(--wf-fg);overflow:hidden}
+.wf-nav{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--wf-border);background:var(--wf-bg);flex-wrap:wrap}
+.wf-nav-item{font-size:13px;color:var(--wf-muted-fg);padding:12px 11px;border-bottom:2px solid transparent}
+.wf-nav-item.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-primary)}
+.wf-body{padding:20px}
+.wf-header{margin-bottom:0}
+.wf-header-title{font-size:16px;font-weight:600;color:var(--wf-fg)}
+.wf-header-sub{font-size:12.5px;color:var(--wf-muted-fg);margin-top:3px}
+.wf-toolbar{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+.wf-tabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid var(--wf-border)}
+.wf-tab{font-size:12.5px;color:var(--wf-muted-fg);padding:7px 11px;border-bottom:2px solid transparent}
+.wf-tab.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-muted-fg)}
+.wf-btn{font-weight:500;font-size:12.5px;line-height:1;padding:8px 13px;border-radius:8px;border:1px solid transparent;background:var(--wf-muted);color:var(--wf-fg);cursor:default}
+.wf-btn-primary{background:var(--wf-primary);color:var(--wf-primary-fg)}
+.wf-btn-danger{background:var(--wf-danger-bg);color:var(--wf-danger)}
+.wf-input{display:inline-flex;align-items:center;font-size:12.5px;color:var(--wf-muted-fg);padding:8px 12px;border:1px solid var(--wf-border);border-radius:8px;background:var(--wf-card);min-width:120px}
+.wf-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.wf-table th,.wf-table td{border-bottom:1px solid var(--wf-border);padding:9px 10px;text-align:left}
+.wf-table th{color:var(--wf-muted-fg);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.02em}
+.wf-badge{display:inline-flex;align-items:center;height:20px;border-radius:var(--wf-radius-pill);padding:0 9px;font-size:10.5px;font-weight:500;border:1px solid transparent}
+.wf-badge-muted{background:var(--wf-muted);color:var(--wf-muted-fg);border-color:var(--wf-border)}
+.wf-badge-info{background:var(--wf-info-bg);color:var(--wf-info);border-color:rgba(96,165,250,.35)}
+.wf-badge-good{background:var(--wf-success-bg);color:var(--wf-success);border-color:var(--wf-success-border)}
+.wf-badge-warn{background:var(--wf-warn-bg);color:var(--wf-warn);border-color:rgba(224,171,72,.35)}
+.wf-badge-danger{background:var(--wf-danger-bg);color:var(--wf-danger);border-color:rgba(239,107,107,.35)}
+.wf-card{border-radius:var(--wf-radius);border:1px solid var(--wf-border);padding:14px 16px;margin-bottom:10px;background:var(--wf-card)}
+.wf-card-title{font-size:13px;font-weight:600;color:var(--wf-fg);margin-bottom:8px}
+.wf-list{list-style:none;margin:0;padding:0}
+.wf-list li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--wf-border);font-size:12.5px;color:var(--wf-fg)}
+.wf-list li:last-child{border-bottom:none}
+.wf-form{display:flex;flex-direction:column;gap:8px}
+.wf-field{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--wf-muted-fg)}
+.wf-text{font-size:12.5px;color:var(--wf-fg);margin:.3em 0}
+@media (max-width:900px){.source-panel{width:min(360px,44vw)}}
+@media (max-width:640px){.goals{grid-template-columns:1fr}nav.toc ol{columns:1}.shell{flex-direction:column;height:auto;overflow:visible}.scroll-main{overflow:visible}.source-panel{width:100%;height:60vh}}
+/* Paper is the one place the light values live. This is not a second theme the
+   reader can choose — @media print is unreachable on screen, persists nothing,
+   and shows no control. The screen deck stays dark only.
+   It has to redeclare the TOKENS, not just body: the old block set
+   background:#fff on body while every surface below it kept painting from
+   --bg, so the PDF was 20 pages of dark slabs on a white sheet. */
+@media print{
+  /* The single-scroll-region clamp is a SCREEN concern — on paper the document must
+     flow normally, or everything past the first page is clipped away. */
+  html,body{height:auto;overflow:visible}
+  :root{
+    --bg:#ffffff; --panel:#f6f7f8; --surface-2:#fafafa; --surface-3:#f4f4f5;
+    --fg:#111418;                /* 17.74:1 on white */
+    --fg-body:#1c1f24;           /* 15.42:1 */
+    --fg-soft:#33373d;           /* 10.87:1 */
+    --muted-foreground:#565d6b;  /*  6.45:1 */
+    --border:rgba(0,0,0,.14); --border-strong:#8a8f98; --ring:#8a8f98;
+    --primary:#a50036;           /* the brand fill survives; white on it 7.58:1 */
+    --primary-text:#8f0030;      /*  8.75:1 on white — the light form of the rose */
+    --on-primary:#ffffff;
+    --good:#0f7a4d;              /*  5.24:1 */
+    --warn:#8a6100;              /*  5.40:1 */
+    --danger:#b32d1f;            /*  6.18:1 */
+    --on-warn:#fdf6e6;
+    --wf-bg:#ffffff; --wf-fg:#111418; --wf-card:#f6f6f7;
+    --wf-border:rgba(0,0,0,.16); --wf-muted:#f0f0f1; --wf-muted-fg:#565d6b;
+  }
+  @page{size:A4;margin:14mm 12mm}
+  body{background:#fff;display:block;height:auto}
+  .shell{display:block;height:auto;overflow:visible}
+  .shell-mid{display:block;overflow:visible}
+  .scroll-main{overflow:visible;height:auto}
+  .wrap{box-shadow:none;max-width:none;padding:0}
+  header.doc{position:static;border-bottom:1px solid var(--border);padding:0 0 8px}
+  .panel-toggle,.source-panel,.deck-nav,.deck-footer{display:none}
+  nav.toc{display:block;break-inside:avoid}
+  /* break-inside:avoid on a 3000px section dumps most of a page. Keep headings
+     with what follows and protect only the things that must not split. */
+  h2,h3,h4,.subhead{break-after:avoid}
+  figure,table,pre.code,.callout,.wf-screen{break-inside:avoid}
+  /* Paper cannot scroll, so a wide graph gets its own landscape sheet. */
+  @page dg{size:A4 landscape;margin:12mm}
+  pre.mermaid{page:dg;overflow:visible;break-inside:avoid;max-height:180mm}
+  pre.mermaid svg{max-width:100%;height:auto}
+  .print-source{display:block;break-before:page}
+  .print-source h3{margin-top:1.6em;font-size:14px}
+}
+</style>
+<style id="scv-mermaid-contrast">
+/* Diagram palette. static-mermaid.mjs strips the id-scoped rules, the
+   !important flags and the inline colour attributes first, so plain specificity
+   is enough here — before that, an author rule at (1,3,1) with !important still
+   lost to style="fill:#FFE082 !important" on a classDef node. */
+pre.mermaid .flowchart-link,pre.mermaid .edgePath .path,pre.mermaid path.flowchart-link{stroke:var(--fg-body);stroke-width:1.6px;fill:none}
+pre.mermaid .marker,pre.mermaid marker path,pre.mermaid .arrowMarkerPath{fill:var(--fg-body);stroke:var(--fg-body)}
+pre.mermaid .node rect,pre.mermaid .node circle,pre.mermaid .node polygon,pre.mermaid .node path{fill:var(--panel);stroke:var(--border-strong);stroke-width:1.2px}
+pre.mermaid .nodeLabel,pre.mermaid .nodeLabel p,pre.mermaid .label,pre.mermaid text{fill:var(--fg);color:var(--fg)}
+pre.mermaid .edgeLabel,pre.mermaid .edgeLabel p{background-color:var(--surface-3);color:var(--fg-body)}
+pre.mermaid .edgeLabel rect,pre.mermaid .labelBkg{fill:var(--surface-3);opacity:1}
+pre.mermaid .cluster rect{fill:var(--surface-2);stroke:var(--border-strong)}
+pre.mermaid .cluster text,pre.mermaid .cluster .nodeLabel{fill:var(--muted-foreground);color:var(--muted-foreground)}
+/* The two semantic highlights the protocol sanctions. Any other per-node colour
+   is stripped, so these are the only ones that survive — deck.md says so. */
+pre.mermaid .node.new rect,pre.mermaid g.new rect{fill:#5a4415;stroke:var(--warn);stroke-width:1.8px}
+pre.mermaid .node.new .nodeLabel,pre.mermaid g.new .nodeLabel{fill:#f6e8c8;color:#f6e8c8}
+pre.mermaid .node.changed rect,pre.mermaid g.changed rect{fill:#16324f;stroke:#6fb4f2;stroke-width:1.8px}
+pre.mermaid .node.changed .nodeLabel,pre.mermaid g.changed .nodeLabel{fill:#d9ecff;color:#d9ecff}
+/* SEQUENCE diagrams — a backend spec draws the ORDER of a request, and mermaid's own
+   palette for this type assumes a light page (#eaeaea boxes, #333 text). Normalization
+   demotes mermaid's id-scoped rules to .scv-mmd (0,2,0), so these "pre.mermaid svg .x"
+   selectors (0,2,2) win without !important. Without them the message text renders dark
+   grey on the dark card and the whole diagram is unreadable — the same contrast failure
+   the deck redesign fixed for flowcharts, one diagram type later. */
+pre.mermaid svg .actor,pre.mermaid svg rect.actor{fill:var(--panel);stroke:var(--border-strong);stroke-width:1.2px}
+pre.mermaid svg text.actor,pre.mermaid svg text.actor tspan,pre.mermaid svg .actor > tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .actor-line{stroke:var(--border-strong);stroke-width:1px}
+pre.mermaid svg .messageText,pre.mermaid svg text.messageText{fill:var(--fg);stroke:none}
+pre.mermaid svg .messageLine0,pre.mermaid svg .messageLine1{stroke:var(--fg-body);stroke-width:1.5px}
+pre.mermaid svg .labelBox{fill:var(--surface-2);stroke:var(--border-strong)}
+/* sectionTitle is the else-branch label of an alt block — miss it and half the
+   branches in a failure flow stay unreadable while the other half look fine. */
+pre.mermaid svg .labelText,pre.mermaid svg .labelText tspan,pre.mermaid svg .loopText,pre.mermaid svg .loopText tspan,pre.mermaid svg .sectionTitle,pre.mermaid svg .sectionTitle tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .loopLine{stroke:var(--border-strong)}
+pre.mermaid svg .note{fill:var(--surface-2);stroke:var(--border-strong)}
+pre.mermaid svg .noteText,pre.mermaid svg .noteText tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .sequenceNumber{fill:var(--bg)}
+pre.mermaid svg .activation0,pre.mermaid svg .activation1,pre.mermaid svg .activation2{fill:var(--surface-3);stroke:var(--border-strong)}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="doc"><h1>Architecture — claude 래퍼의 중복 DeckUI 없애기</h1><nav class="deck-nav"><button class="deck-nav-item active" data-idx="0" onclick="scvGoto(0)">1. Architecture — cla</button><button class="deck-nav-item" data-idx="1" onclick="scvGoto(1)">2. 1. Component data </button><button class="deck-nav-item" data-idx="2" onclick="scvGoto(2)">3. 2. Position in who</button><button class="deck-nav-item" data-idx="3" onclick="scvGoto(3)">4. 변경 지도</button><button class="deck-nav-item" data-idx="4" onclick="scvGoto(4)">5. 품질 리포트</button></nav><div class="header-actions"><button class="panel-toggle" onclick="scvTogglePanel()" title="원문 패널 토글 (S)">기획서 원문 <span class="kbd">S</span></button></div></header>
+<div class="shell-mid">
+<div class="scroll-main">
+<div class="wrap">
+<nav class="toc"><h3>목차</h3><ol><li><a href="#s-0-architecture--claude-래퍼의-중복-deckui-없애기">Architecture — claude 래퍼의 중복 DeckUI 없애기</a></li><li><a href="#s-1-1-component-data-flow">1. Component data flow</a></li><li><a href="#s-2-2-position-in-whole-architecture">2. Position in whole architecture</a></li><li><a href="#s-3-변경-지도">변경 지도</a></li></ol></nav>
+<section id="s-0-architecture--claude-래퍼의-중복-deckui-없애기" class="slide-page active" data-idx="0"><h2>Architecture — claude 래퍼의 중복 DeckUI 없애기</h2><div class="callout info"><div class="callout-title">참고</div><div>Two-diagram view of this feature. Review and edit before /scv:work —
+diagrams are LLM-generated and may have inaccuracies.</div></div></section>
+<section id="s-1-1-component-data-flow" class="slide-page" data-idx="1"><div class="kicker">Architecture — claude 래퍼의 중복 DeckUI 없애기</div><h2>1. Component data flow</h2><p>deck 이 엔진을 찾아 HTML 을 만드는 흐름(바뀐 뒤). 노란 칸이 이번에 바뀌는 곳.</p>
+<pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="2485.265625" height="237.11703491210938" class="scv-mmd" id="scv-mmd-499c8643a8" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 -0.000003814697265625 2485.265625 237.11703491210938" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}.scv-mmd .key&gt;*{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .key span{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .key tspan{fill:rgb(0, 0, 0);}</style><g><marker id="scv-mmd-499c8643a8_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-499c8643a8_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-499c8643a8_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-499c8643a8_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-499c8643a8_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-499c8643a8_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-499c8643a8_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-499c8643a8_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-499c8643a8_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-499c8643a8_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-499c8643a8_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-499c8643a8_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M163.547,69.444L182.945,69.444C202.344,69.444,241.141,69.444,289.091,69.444C337.042,69.444,394.146,69.444,422.698,69.444L451.25,69.444" id="scv-mmd-499c8643a8-L_DeckSkill_DeckSh_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_DeckSkill_DeckSh_0" data-points="W3sieCI6MTYzLjU0Njg3NSwieSI6NjkuNDQzODg5NjE3OTE5OTJ9LHsieCI6Mjc5LjkzNzUsInkiOjY5LjQ0Mzg4OTYxNzkxOTkyfSx7IngiOjQ1NS4yNSwieSI6NjkuNDQzODg5NjE3OTE5OTJ9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M569.063,69.444L596.626,69.444C624.19,69.444,679.318,69.444,723.982,74.154C768.647,78.864,802.848,88.285,819.949,92.995L837.05,97.705" id="scv-mmd-499c8643a8-L_DeckSh_Resolve_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_DeckSh_Resolve_0" data-points="W3sieCI6NTY5LjA2MjUsInkiOjY5LjQ0Mzg4OTYxNzkxOTkyfSx7IngiOjczNC40NDUzMTI1LCJ5Ijo2OS40NDM4ODk2MTc5MTk5Mn0seyJ4Ijo4NDAuOTA2MjUsInkiOjk4Ljc2NzQyMzU3NzA4NH1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M627.984,186.006L645.728,186.006C663.471,186.006,698.958,186.006,733.803,181.296C768.647,176.586,802.848,167.166,819.949,162.455L837.05,157.745" id="scv-mmd-499c8643a8-L_HostProfile_Resolve_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_HostProfile_Resolve_0" data-points="W3sieCI6NjI3Ljk4NDM3NSwieSI6MTg2LjAwNjM4OTYxNzkxOTkyfSx7IngiOjczNC40NDUzMTI1LCJ5IjoxODYuMDA2Mzg5NjE3OTE5OTJ9LHsieCI6ODQwLjkwNjI1LCJ5IjoxNTYuNjgyODU1NjU4NzU1ODR9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1051.172,127.725L1072.005,127.725C1092.839,127.725,1134.505,127.725,1175.505,127.725C1216.505,127.725,1256.839,127.725,1277.005,127.725L1297.172,127.725" id="scv-mmd-499c8643a8-L_Resolve_EngineCore_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Resolve_EngineCore_0" data-points="W3sieCI6MTA1MS4xNzE4NzUsInkiOjEyNy43MjUxMzk2MTc5MTk5Mn0seyJ4IjoxMTc2LjE3MTg3NSwieSI6MTI3LjcyNTEzOTYxNzkxOTkyfSx7IngiOjEzMDEuMTcxODc1LCJ5IjoxMjcuNzI1MTM5NjE3OTE5OTJ9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1561.172,127.725L1573.572,127.725C1585.971,127.725,1610.771,127.725,1634.904,127.725C1659.036,127.725,1682.503,127.725,1694.236,127.725L1705.969,127.725" id="scv-mmd-499c8643a8-L_EngineCore_Runtime_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_EngineCore_Runtime_0" data-points="W3sieCI6MTU2MS4xNzE4NzUsInkiOjEyNy43MjUxMzk2MTc5MTk5Mn0seyJ4IjoxNjM1LjU3MDMxMjUsInkiOjEyNy43MjUxMzk2MTc5MTk5Mn0seyJ4IjoxNzA5Ljk2ODc1LCJ5IjoxMjcuNzI1MTM5NjE3OTE5OTJ9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1890.625,91.304L1902.702,86.435C1914.779,81.565,1938.932,71.826,1962.419,66.957C1985.906,62.088,2008.727,62.088,2020.137,62.088L2031.547,62.088" id="scv-mmd-499c8643a8-L_Runtime_Cache_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Runtime_Cache_0" data-points="W3sieCI6MTg5MC42MjUsInkiOjkxLjMwNDI4NjY1OTg0MjN9LHsieCI6MTk2My4wODU5Mzc1LCJ5Ijo2Mi4wODc1OTMwNzg2MTMyOH0seyJ4IjoyMDM1LjU0Njg3NSwieSI6NjIuMDg3NTkzMDc4NjEzMjh9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1890.625,164.146L1902.702,169.015C1914.779,173.885,1938.932,183.624,1965.37,188.493C1991.807,193.363,2020.529,193.363,2034.889,193.363L2049.25,193.363" id="scv-mmd-499c8643a8-L_Runtime_Build_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Runtime_Build_0" data-points="W3sieCI6MTg5MC42MjUsInkiOjE2NC4xNDU5OTI1NzU5OTc1Mn0seyJ4IjoxOTYzLjA4NTkzNzUsInkiOjE5My4zNjI2ODYxNTcyMjY1Nn0seyJ4IjoyMDUzLjI1LCJ5IjoxOTMuMzYyNjg2MTU3MjI2NTZ9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M2199.469,193.363L2216.285,193.363C2233.102,193.363,2266.734,193.363,2296.75,193.363C2326.766,193.363,2353.164,193.363,2366.363,193.363L2379.563,193.363" id="scv-mmd-499c8643a8-L_Build_Html_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Build_Html_0" data-points="W3sieCI6MjE5OS40Njg3NSwieSI6MTkzLjM2MjY4NjE1NzIyNjU2fSx7IngiOjIzMDAuMzY3MTg3NSwieSI6MTkzLjM2MjY4NjE1NzIyNjU2fSx7IngiOjIzODMuNTYyNSwieSI6MTkzLjM2MjY4NjE1NzIyNjU2fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(279.9375, 69.44388961791992)"><g class="label" data-id="L_DeckSkill_DeckSh_0" transform="translate(-91.390625, -12.1875)"><foreignObject width="182.78125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>scripts/deck.sh &lt;계획 폴더&gt;</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(734.4453125, 69.44388961791992)"><g class="label" data-id="L_DeckSh_Resolve_0" transform="translate(-81.4609375, -12.1875)"><foreignObject width="162.921875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>deck-runtime.sh ensure</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(734.4453125, 186.00638961791992)"><g class="label" data-id="L_HostProfile_Resolve_0" transform="translate(-76.3515625, -12.1875)"><foreignObject width="152.703125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>엔진 위치(코어 루트 기준)</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1176.171875, 127.72513961791992)"><g class="label" data-id="L_Resolve_EngineCore_0" transform="translate(-100, -24.375)"><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>설정 없음 → 코어 루트/DeckUI · 있음 → 그 경로</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1635.5703125, 127.72513961791992)"><g class="label" data-id="L_EngineCore_Runtime_0" transform="translate(-49.3984375, -12.1875)"><foreignObject width="98.796875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>엔진 해시로 이름</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1963.0859375, 62.08759307861328)"><g class="label" data-id="L_Runtime_Cache_0" transform="translate(-38.53125, -12.1875)"><foreignObject width="77.0625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>설치 · 재사용</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1963.0859375, 193.36268615722656)"><g class="label" data-id="L_Runtime_Build_0" transform="translate(-47.4609375, -12.1875)"><foreignObject width="94.921875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>transform.mjs</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(2300.3671875, 193.36268615722656)"><g class="label" data-id="L_Build_Html_0" transform="translate(-58.1953125, -12.1875)"><foreignObject width="116.390625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>&lt;계획&gt;.deck.html</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-499c8643a8-flowchart-DeckSkill-0" data-look="classic" transform="translate(85.7734375, 69.44388961791992)"><rect class="basic label-container"  x="-77.7734375" y="-27.1875" width="155.546875" height="54.375"></rect><g class="label"  transform="translate(-47.7734375, -12.1875)"><rect></rect><foreignObject width="95.546875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>/scv:deck 스킬</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-499c8643a8-flowchart-DeckSh-1" data-look="classic" transform="translate(512.15625, 69.44388961791992)"><rect class="basic label-container"  x="-56.90625" y="-27.1875" width="113.8125" height="54.375"></rect><g class="label"  transform="translate(-26.90625, -12.1875)"><rect></rect><foreignObject width="53.8125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>deck.sh</p></span></div></foreignObject></g></g><g class="node default key" id="scv-mmd-499c8643a8-flowchart-Resolve-3" data-look="classic" transform="translate(946.0390625, 127.72513961791992)"><rect class="basic label-container" style="stroke-width:2px" x="-105.1328125" y="-39.375" width="210.265625" height="78.75"></rect><g class="label"  transform="translate(-75.1328125, -24.375)"><rect></rect><foreignObject width="150.265625" height="48.75"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>① resolveDeckSource<br>엔진 위치 판단</p></span></div></foreignObject></g></g><g class="node default key" id="scv-mmd-499c8643a8-flowchart-HostProfile-4" data-look="classic" transform="translate(512.15625, 186.00638961791992)"><rect class="basic label-container" style="stroke-width:2px" x="-115.828125" y="-39.375" width="231.65625" height="78.75"></rect><g class="label"  transform="translate(-85.828125, -24.375)"><rect></rect><foreignObject width="171.65625" height="48.75"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>래퍼 설정<br>adapter/claude-code.env</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-499c8643a8-flowchart-EngineCore-7" data-look="classic" transform="translate(1431.171875, 127.72513961791992)"><rect class="basic label-container"  x="-130" y="-51.5625" width="260" height="103.125"></rect><g class="label"  transform="translate(-100, -36.5625)"><rect></rect><foreignObject width="200" height="73.125"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>코어 사본 안 DeckUI<br>vendor/scv-core/core/DeckUI</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-499c8643a8-flowchart-Runtime-9" data-look="classic" transform="translate(1800.296875, 127.72513961791992)"><rect class="basic label-container"  x="-90.328125" y="-39.375" width="180.65625" height="78.75"></rect><g class="label"  transform="translate(-60.328125, -24.375)"><rect></rect><foreignObject width="120.65625" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>② ensureRuntime<br>렌더러 런타임</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-499c8643a8-flowchart-Cache-11" data-look="classic" transform="translate(2126.359375, 62.08759307861328)"><path d="M0,14.808397880146758 a90.8125,14.808397880146758 0,0,0 181.625,0 a90.8125,14.808397880146758 0,0,0 -181.625,0 l0,78.55839788014676 a90.8125,14.808397880146758 0,0,0 181.625,0 l0,-78.55839788014676" class="basic label-container outer-path"  transform="translate(-90.8125, -54.087596820220135)"></path><g class="label"  transform="translate(-83.3125, -14.375)"><rect></rect><foreignObject width="166.625" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>런타임 캐시<br>SCV_DECK_CACHE_DIR</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-499c8643a8-flowchart-Build-13" data-look="classic" transform="translate(2126.359375, 193.36268615722656)"><rect class="basic label-container"  x="-73.109375" y="-27.1875" width="146.21875" height="54.375"></rect><g class="label"  transform="translate(-43.109375, -12.1875)"><rect></rect><foreignObject width="86.21875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>③ buildDeck</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-499c8643a8-flowchart-Html-15" data-look="classic" transform="translate(2430.4140625, 193.36268615722656)"><path d="M0,10.711223833678645 a46.8515625,10.711223833678645 0,0,0 93.703125,0 a46.8515625,10.711223833678645 0,0,0 -93.703125,0 l0,50.086223833678645 a46.8515625,10.711223833678645 0,0,0 93.703125,0 l0,-50.086223833678645" class="basic label-container outer-path"  transform="translate(-46.8515625, -35.75433575051797)"></path><g class="label"  transform="translate(-39.3515625, -2.1875)"><rect></rect><foreignObject width="78.703125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>deck HTML</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-499c8643a8-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-499c8643a8-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-499c8643a8-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre>
+<p>동기화 쪽(claude 래퍼):</p>
+<pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="1660.6875" height="223.5" class="scv-mmd" id="scv-mmd-8118587476" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 1660.6875 223.5" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}.scv-mmd .key&gt;*{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .key span{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .key tspan{fill:rgb(0, 0, 0);}</style><g><marker id="scv-mmd-8118587476_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-8118587476_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-8118587476_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-8118587476_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-8118587476_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-8118587476_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-8118587476_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-8118587476_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-8118587476_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-8118587476_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-8118587476_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-8118587476_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M203.139,145.031L219.685,150.214C236.231,155.396,269.322,165.76,320.492,170.943C371.661,176.125,440.909,176.125,507.436,176.125C573.964,176.125,637.771,176.125,679.245,176.125C720.719,176.125,739.859,176.125,749.43,176.125L759,176.125" id="scv-mmd-8118587476-L_Sync_Vendor_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Sync_Vendor_0" data-points="W3sieCI6MjAzLjEzOTEzNzkwMjE0NDc3LCJ5IjoxNDUuMDMxMjV9LHsieCI6MzAyLjQxNDA2MjUsInkiOjE3Ni4xMjV9LHsieCI6NTEwLjE1NjI1LCJ5IjoxNzYuMTI1fSx7IngiOjcwMS41NzgxMjUsInkiOjE3Ni4xMjV9LHsieCI6NzYzLCJ5IjoxNzYuMTI1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M203.139,90.656L219.685,85.474C236.231,80.292,269.322,69.927,298.159,64.745C326.995,59.563,351.576,59.563,363.866,59.563L376.156,59.563" id="scv-mmd-8118587476-L_Sync_Paths_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Sync_Paths_0" data-points="W3sieCI6MjAzLjEzOTEzNzkwMjE0NDc3LCJ5Ijo5MC42NTYyNX0seyJ4IjozMDIuNDE0MDYyNSwieSI6NTkuNTYyNX0seyJ4IjozODAuMTU2MjUsInkiOjU5LjU2MjV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M640.156,59.563L650.393,59.563C660.63,59.563,681.104,59.563,707.078,59.563C733.052,59.563,764.526,59.563,780.263,59.563L796,59.563" id="scv-mmd-8118587476-L_Paths_Root_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Paths_Root_0" data-points="W3sieCI6NjQwLjE1NjI1LCJ5Ijo1OS41NjI1fSx7IngiOjcwMS41NzgxMjUsInkiOjU5LjU2MjV9LHsieCI6ODAwLCJ5Ijo1OS41NjI1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M932.844,59.563L953.508,59.563C974.172,59.563,1015.5,59.563,1051.478,64.539C1087.457,69.515,1118.086,79.468,1133.4,84.444L1148.714,89.42" id="scv-mmd-8118587476-L_Root_Verify_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Root_Verify_0" data-points="W3sieCI6OTMyLjg0Mzc1LCJ5Ijo1OS41NjI1fSx7IngiOjEwNTYuODI4MTI1LCJ5Ijo1OS41NjI1fSx7IngiOjExNTIuNTE4NTE1NDE1NTQ5NywieSI6OTAuNjU2MjV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M969.844,176.125L984.341,176.125C998.839,176.125,1027.833,176.125,1057.645,171.149C1087.457,166.172,1118.086,156.22,1133.4,151.244L1148.714,146.267" id="scv-mmd-8118587476-L_Vendor_Verify_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Vendor_Verify_0" data-points="W3sieCI6OTY5Ljg0Mzc1LCJ5IjoxNzYuMTI1fSx7IngiOjEwNTYuODI4MTI1LCJ5IjoxNzYuMTI1fSx7IngiOjExNTIuNTE4NTE1NDE1NTQ5NywieSI6MTQ1LjAzMTI1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1328.563,117.844L1341.656,117.844C1354.75,117.844,1380.938,117.844,1406.458,117.844C1431.979,117.844,1456.833,117.844,1469.26,117.844L1481.688,117.844" id="scv-mmd-8118587476-L_Verify_Result_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Verify_Result_0" data-points="W3sieCI6MTMyOC41NjI1LCJ5IjoxMTcuODQzNzV9LHsieCI6MTQwNy4xMjUsInkiOjExNy44NDM3NX0seyJ4IjoxNDg1LjY4NzUsInkiOjExNy44NDM3NX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(510.15625, 176.125)"><g class="label" data-id="L_Sync_Vendor_0" transform="translate(-42.09375, -12.1875)"><foreignObject width="84.1875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>vendor-core</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(302.4140625, 59.5625)"><g class="label" data-id="L_Sync_Paths_0" transform="translate(-52.7421875, -12.1875)"><foreignObject width="105.484375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>project-core.sh</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(701.578125, 59.5625)"><g class="label" data-id="L_Paths_Root_0" transform="translate(-36.421875, -12.1875)"><foreignObject width="72.84375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>맨 위로 복사</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1056.828125, 59.5625)"><g class="label" data-id="L_Root_Verify_0" transform="translate(-61.984375, -12.1875)"><foreignObject width="123.96875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>기대 목록 · 실제 트리</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1056.828125, 176.125)"><g class="label" data-id="L_Vendor_Verify_0" transform="translate(-40.921875, -12.1875)"><foreignObject width="81.84375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>손대지 않았나</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1407.125, 117.84375)"><g class="label" data-id="L_Verify_Result_0" transform="translate(-53.5625, -12.1875)"><foreignObject width="107.125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>일치 / 어긋난 경로</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-8118587476-flowchart-Sync-0" data-look="classic" transform="translate(116.3359375, 117.84375)"><rect class="basic label-container"  x="-108.3359375" y="-27.1875" width="216.671875" height="54.375"></rect><g class="label"  transform="translate(-78.3359375, -12.1875)"><rect></rect><foreignObject width="156.671875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>sync-core.sh --version</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-8118587476-flowchart-Vendor-1" data-look="classic" transform="translate(866.421875, 176.125)"><rect class="basic label-container"  x="-103.421875" y="-39.375" width="206.84375" height="78.75"></rect><g class="label"  transform="translate(-73.421875, -24.375)"><rect></rect><foreignObject width="146.84375" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>코어 사본<br>vendor/scv-core/core</p></span></div></foreignObject></g></g><g class="node default key" id="scv-mmd-8118587476-flowchart-Paths-3" data-look="classic" transform="translate(510.15625, 59.5625)"><rect class="basic label-container" style="stroke-width:2px" x="-130" y="-51.5625" width="260" height="103.125"></rect><g class="label"  transform="translate(-100, -36.5625)"><rect></rect><foreignObject width="200" height="73.125"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>④ projectionPaths<br>scripts · template · assets (DeckUI 빠짐)</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-8118587476-flowchart-Root-5" data-look="classic" transform="translate(866.421875, 59.5625)"><rect class="basic label-container"  x="-66.421875" y="-27.1875" width="132.84375" height="54.375"></rect><g class="label"  transform="translate(-36.421875, -12.1875)"><rect></rect><foreignObject width="72.84375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>맨 위 투영본</p></span></div></foreignObject></g></g><g class="node default key" id="scv-mmd-8118587476-flowchart-Verify-7" data-look="classic" transform="translate(1236.1875, 117.84375)"><rect class="basic label-container" style="stroke-width:2px" x="-92.375" y="-27.1875" width="184.75" height="54.375"></rect><g class="label"  transform="translate(-62.375, -12.1875)"><rect></rect><foreignObject width="124.75" height="24.375"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>⑤ verifyProjection</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-8118587476-flowchart-Result-11" data-look="classic" transform="translate(1569.1875, 117.84375)"><rect class="basic label-container"  x="-83.5" y="-27.1875" width="167" height="54.375"></rect><g class="label"  transform="translate(-53.5, -12.1875)"><rect></rect><foreignObject width="107" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>동기화 성공 · 실패</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-8118587476-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-8118587476-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-8118587476-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre></section>
+<section id="s-2-2-position-in-whole-architecture" class="slide-page" data-idx="2"><div class="kicker">Architecture — claude 래퍼의 중복 DeckUI 없애기</div><h2>2. Position in whole architecture</h2><p>세 저장소에서 DeckUI 가 어디 있는지 — 바뀐 뒤. 노란 칸이 새로 생기거나 바뀌는 것, 점선이 새 연결.</p>
+<div class="callout info"><div class="callout-title">참고</div><div>Source: scv graph (built 2026-10-29) — 이 계획의 deck 파일들은 그래프에 근거(지난 계획 · 함께 바뀐 기록)가 없어, 저장소 묶음(코어 · ../scv-claude-code · ../scv-codex)만 그래프에서 가져오고 나머지는 PLAN.md 에서 그렸다.</div></div>
+<pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="1565.14453125" height="501" class="scv-mmd" id="scv-mmd-5dad86344e" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 1565.14453125 501" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}.scv-mmd .new&gt;*{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .new span{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .new tspan{fill:rgb(0, 0, 0);}</style><g><marker id="scv-mmd-5dad86344e_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-5dad86344e_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-5dad86344e_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-5dad86344e_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-5dad86344e_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-5dad86344e_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-5dad86344e_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-5dad86344e_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-5dad86344e_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-5dad86344e_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-5dad86344e_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-5dad86344e_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"><g class="cluster" id="scv-mmd-5dad86344e-../scv-codex" data-look="classic"><rect  x="1227.14453125" y="364.25" width="330" height="128.75"></rect><g class="cluster-label" transform="translate(1349.55859375, 364.25)"><foreignObject width="85.171875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>../scv-codex</p></span></div></foreignObject></g></g><g class="cluster" id="scv-mmd-5dad86344e-../scv-claude-code" data-look="classic"><rect  x="8" y="8" width="579.51953125" height="485"></rect><g class="cluster-label" transform="translate(232.626953125, 8)"><foreignObject width="130.265625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>../scv-claude-code</p></span></div></foreignObject></g></g><g class="cluster" id="scv-mmd-5dad86344e-subGraph0" data-look="classic"><rect  x="607.51953125" y="186.125" width="599.625" height="306.875"></rect><g class="cluster-label" transform="translate(867.36328125, 186.125)"><foreignObject width="79.9375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>scv-core (.)</p></span></div></foreignObject></g></g></g><g class="edgePaths"><path d="M735.176,277.688L735.176,285.917C735.176,294.146,735.176,310.604,735.176,325.031C735.176,339.458,735.176,351.854,673.19,365.94C611.204,380.026,487.233,395.801,425.247,403.689L363.261,411.577" id="scv-mmd-5dad86344e-L_CoreDeckUI_ClaudeVendor_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_CoreDeckUI_ClaudeVendor_0" data-points="W3sieCI6NzM1LjE3NTc4MTI1LCJ5IjoyNzcuNjg3NX0seyJ4Ijo3MzUuMTc1NzgxMjUsInkiOjMyNy4wNjI1fSx7IngiOjczNS4xNzU3ODEyNSwieSI6MzY0LjI1fSx7IngiOjM1OS4yOTI5Njg3NSwieSI6NDEyLjA4MjEzNzEyMTA2MDA0fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M827.832,269.256L875.428,278.89C923.025,288.525,1018.217,307.794,1065.814,323.626C1113.41,339.458,1113.41,351.854,1137.55,363.627C1161.689,375.4,1209.968,386.551,1234.108,392.126L1258.247,397.701" id="scv-mmd-5dad86344e-L_CoreDeckUI_CodexVendor_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_CoreDeckUI_CodexVendor_0" data-points="W3sieCI6ODI3LjgzMjAzMTI1LCJ5IjoyNjkuMjU1NTUxMDgwMjY2MDZ9LHsieCI6MTExMy40MTAxNTYyNSwieSI6MzI3LjA2MjV9LHsieCI6MTExMy40MTAxNTYyNSwieSI6MzY0LjI1fSx7IngiOjEyNjIuMTQ0NTMxMjUsInkiOjM5OC42MDA4OTU1MDk4Mzh9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1006.699,277.688L1006.699,285.917C1006.699,294.146,1006.699,310.604,1006.699,325.031C1006.699,339.458,1006.699,351.854,1006.699,363.583C1006.699,375.313,1006.699,386.375,1006.699,391.906L1006.699,397.438" id="scv-mmd-5dad86344e-L_CoreRuntime_HostKey_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_CoreRuntime_HostKey_0" data-points="W3sieCI6MTAwNi42OTkyMTg3NSwieSI6Mjc3LjY4NzV9LHsieCI6MTAwNi42OTkyMTg3NSwieSI6MzI3LjA2MjV9LHsieCI6MTAwNi42OTkyMTg3NSwieSI6MzY0LjI1fSx7IngiOjEwMDYuNjk5MjE4NzUsInkiOjQwMS40Mzc1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M165.914,87.375L165.914,95.604C165.914,103.833,165.914,120.292,165.914,136.75C165.914,153.208,165.914,169.667,169.549,181.587C173.183,193.508,180.452,200.891,184.086,204.583L187.721,208.275" id="scv-mmd-5dad86344e-L_ClaudeEnv_ClaudeScripts_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_ClaudeEnv_ClaudeScripts_0" data-points="W3sieCI6MTY1LjkxNDA2MjUsInkiOjg3LjM3NX0seyJ4IjoxNjUuOTE0MDYyNSwieSI6MTM2Ljc1fSx7IngiOjE2NS45MTQwNjI1LCJ5IjoxODYuMTI1fSx7IngiOjE5MC41MjcyMjk5NzU3MjgxNSwieSI6MjExLjEyNX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M229.293,289.875L229.293,296.073C229.293,302.271,229.293,314.667,229.293,327.063C229.293,339.458,229.293,351.854,229.293,361.552C229.293,371.25,229.293,378.25,229.293,381.75L229.293,385.25" id="scv-mmd-5dad86344e-L_ClaudeScripts_ClaudeVendor_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_ClaudeScripts_ClaudeVendor_0" data-points="W3sieCI6MjI5LjI5Mjk2ODc1LCJ5IjoyODkuODc1fSx7IngiOjIyOS4yOTI5Njg3NSwieSI6MzI3LjA2MjV9LHsieCI6MjI5LjI5Mjk2ODc1LCJ5IjozNjQuMjV9LHsieCI6MjI5LjI5Mjk2ODc1LCJ5IjozODkuMjV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M435.594,87.375L435.594,95.604C435.594,103.833,435.594,120.292,435.594,136.75C435.594,153.208,435.594,169.667,422.877,181.864C410.161,194.061,384.728,201.997,372.012,205.965L359.295,209.933" id="scv-mmd-5dad86344e-L_ClaudeRoot_ClaudeScripts_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_ClaudeRoot_ClaudeScripts_0" data-points="W3sieCI6NDM1LjU5Mzc1LCJ5Ijo4Ny4zNzV9LHsieCI6NDM1LjU5Mzc1LCJ5IjoxMzYuNzV9LHsieCI6NDM1LjU5Mzc1LCJ5IjoxODYuMTI1fSx7IngiOjM1NS40NzY5NDE3NDc1NzI4LCJ5IjoyMTEuMTI1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(735.17578125, 327.0625)"><g class="label" data-id="L_CoreDeckUI_ClaudeVendor_0" transform="translate(-73.734375, -12.1875)"><foreignObject width="147.46875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>release tarball · 동기화</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1113.41015625, 327.0625)"><g class="label" data-id="L_CoreDeckUI_CodexVendor_0" transform="translate(-73.734375, -12.1875)"><foreignObject width="147.46875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>release tarball · 동기화</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1006.69921875, 327.0625)"><g class="label" data-id="L_CoreRuntime_HostKey_0" transform="translate(-12.9765625, -12.1875)"><foreignObject width="25.953125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>읽음</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(165.9140625, 136.75)"><g class="label" data-id="L_ClaudeEnv_ClaudeScripts_0" transform="translate(-100, -24.375)"><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>엔진 위치 = vendor/scv-core/core/DeckUI</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(229.29296875, 327.0625)"><g class="label" data-id="L_ClaudeScripts_ClaudeVendor_0" transform="translate(-27.9453125, -12.1875)"><foreignObject width="55.890625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>엔진 읽음</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(435.59375, 136.75)"><g class="label" data-id="L_ClaudeRoot_ClaudeScripts_0" transform="translate(-27.9453125, -12.1875)"><foreignObject width="55.890625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>투영 중단</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-5dad86344e-flowchart-CoreDeckUI-0" data-look="classic" transform="translate(735.17578125, 250.5)"><rect class="basic label-container"  x="-92.65625" y="-27.1875" width="185.3125" height="54.375"></rect><g class="label"  transform="translate(-62.65625, -12.1875)"><rect></rect><foreignObject width="125.3125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>core/DeckUI (원본)</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-5dad86344e-flowchart-CoreRuntime-1" data-look="classic" transform="translate(1006.69921875, 250.5)"><rect class="basic label-container"  x="-128.8671875" y="-27.1875" width="257.734375" height="54.375"></rect><g class="label"  transform="translate(-98.8671875, -12.1875)"><rect></rect><foreignObject width="197.734375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>core/scripts/deck-runtime.sh</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-5dad86344e-flowchart-HostKey-2" data-look="classic" transform="translate(1006.69921875, 428.625)"><rect class="basic label-container" style="stroke-width:2px" x="-102.84375" y="-27.1875" width="205.6875" height="54.375"></rect><g class="label"  transform="translate(-72.84375, -12.1875)"><rect></rect><foreignObject width="145.6875" height="24.375"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>래퍼 설정의 엔진 위치 키</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-5dad86344e-flowchart-ClaudeVendor-3" data-look="classic" transform="translate(229.29296875, 428.625)"><rect class="basic label-container"  x="-130" y="-39.375" width="260" height="78.75"></rect><g class="label"  transform="translate(-100, -24.375)"><rect></rect><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>vendor/scv-core/core/DeckUI</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-5dad86344e-flowchart-ClaudeEnv-4" data-look="classic" transform="translate(165.9140625, 60.1875)"><rect class="basic label-container" style="stroke-width:2px" x="-115.828125" y="-27.1875" width="231.65625" height="54.375"></rect><g class="label"  transform="translate(-85.828125, -12.1875)"><rect></rect><foreignObject width="171.65625" height="24.375"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>adapter/claude-code.env</p></span></div></foreignObject></g></g><g class="node default new" id="scv-mmd-5dad86344e-flowchart-ClaudeRoot-5" data-look="classic" transform="translate(435.59375, 60.1875)"><rect class="basic label-container" style="stroke-width:2px" x="-103.8515625" y="-27.1875" width="207.703125" height="54.375"></rect><g class="label"  transform="translate(-73.8515625, -12.1875)"><rect></rect><foreignObject width="147.703125" height="24.375"><div  xmlns="http://www.w3.org/1999/xhtml"><span  class="nodeLabel"><p>맨 위 DeckUI/ — 없어짐</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-5dad86344e-flowchart-ClaudeScripts-6" data-look="classic" transform="translate(229.29296875, 250.5)"><rect class="basic label-container"  x="-130" y="-39.375" width="260" height="78.75"></rect><g class="label"  transform="translate(-100, -24.375)"><rect></rect><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>scripts/deck-runtime.sh (투영본)</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-5dad86344e-flowchart-CodexVendor-7" data-look="classic" transform="translate(1392.14453125, 428.625)"><rect class="basic label-container"  x="-130" y="-39.375" width="260" height="78.75"></rect><g class="label"  transform="translate(-100, -24.375)"><rect></rect><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>plugins/scv/vendor/scv-core/core/DeckUI</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-5dad86344e-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-5dad86344e-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-5dad86344e-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre></section>
+<section id="s-3-변경-지도" class="slide-page" data-idx="3"><div class="kicker">Architecture — claude 래퍼의 중복 DeckUI 없애기</div><h2>변경 지도</h2><pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="1339.171875" height="94.75" class="scv-mmd" id="scv-mmd-fc3a1bde49" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 1339.171875 94.75" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}.scv-mmd .added&gt;*{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .added span{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .added tspan{fill:rgb(0, 0, 0);}.scv-mmd .changed&gt;*{fill:rgb(144, 202, 249);stroke:rgb(21, 101, 192);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .changed span{fill:rgb(144, 202, 249);stroke:rgb(21, 101, 192);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .changed tspan{fill:rgb(0, 0, 0);}.scv-mmd .removed&gt;*{fill:rgb(45, 45, 45);stroke:rgb(239, 154, 154);stroke-width:2px;stroke-dasharray:4,3;color:rgb(239, 154, 154);}.scv-mmd .removed span{fill:rgb(45, 45, 45);stroke:rgb(239, 154, 154);stroke-width:2px;stroke-dasharray:4,3;color:rgb(239, 154, 154);}.scv-mmd .removed tspan{fill:rgb(239, 154, 154);}</style><g><marker id="scv-mmd-fc3a1bde49_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-fc3a1bde49_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-fc3a1bde49_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-fc3a1bde49_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-fc3a1bde49_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-fc3a1bde49_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-fc3a1bde49_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-fc3a1bde49_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-fc3a1bde49_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-fc3a1bde49_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-fc3a1bde49_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-fc3a1bde49_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M251.359,47.375L255.526,47.375C259.693,47.375,268.026,47.375,275.693,47.375C283.359,47.375,290.359,47.375,293.859,47.375L297.359,47.375" id="scv-mmd-fc3a1bde49-L_S1_S2_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S1_S2_0" data-points="W3sieCI6MjUxLjM1OTM3NSwieSI6NDcuMzc1fSx7IngiOjI3Ni4zNTkzNzUsInkiOjQ3LjM3NX0seyJ4IjozMDEuMzU5Mzc1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M483.875,47.375L488.042,47.375C492.208,47.375,500.542,47.375,508.208,47.375C515.875,47.375,522.875,47.375,526.375,47.375L529.875,47.375" id="scv-mmd-fc3a1bde49-L_S2_S3_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S2_S3_0" data-points="W3sieCI6NDgzLjg3NSwieSI6NDcuMzc1fSx7IngiOjUwOC44NzUsInkiOjQ3LjM3NX0seyJ4Ijo1MzMuODc1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M762.109,47.375L766.276,47.375C770.443,47.375,778.776,47.375,786.443,47.375C794.109,47.375,801.109,47.375,804.609,47.375L808.109,47.375" id="scv-mmd-fc3a1bde49-L_S3_S4_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S3_S4_0" data-points="W3sieCI6NzYyLjEwOTM3NSwieSI6NDcuMzc1fSx7IngiOjc4Ny4xMDkzNzUsInkiOjQ3LjM3NX0seyJ4Ijo4MTIuMTA5Mzc1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1034.031,47.375L1038.198,47.375C1042.365,47.375,1050.698,47.375,1058.365,47.375C1066.031,47.375,1073.031,47.375,1076.531,47.375L1080.031,47.375" id="scv-mmd-fc3a1bde49-L_S4_S5_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S4_S5_0" data-points="W3sieCI6MTAzNC4wMzEyNSwieSI6NDcuMzc1fSx7IngiOjEwNTkuMDMxMjUsInkiOjQ3LjM3NX0seyJ4IjoxMDg0LjAzMTI1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_S1_S2_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S2_S3_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S3_S4_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S4_S5_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-fc3a1bde49-flowchart-S1-0" data-look="classic" transform="translate(129.6796875, 47.375)"><rect class="basic label-container"  x="-121.6796875" y="-39.375" width="243.359375" height="78.75"></rect><g class="label"  transform="translate(-91.6796875, -24.375)"><rect></rect><foreignObject width="183.359375" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>resolveDeckSource<br><small>코어 루트 · 설정 값 → 엔진 폴더 경로</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-fc3a1bde49-flowchart-S2-1" data-look="classic" transform="translate(392.6171875, 47.375)"><rect class="basic label-container"  x="-91.2578125" y="-39.375" width="182.515625" height="78.75"></rect><g class="label"  transform="translate(-61.2578125, -24.375)"><rect></rect><foreignObject width="122.515625" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>ensureRuntime<br><small>엔진 폴더 → 런타임 폴더</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-fc3a1bde49-flowchart-S3-2" data-look="classic" transform="translate(647.9921875, 47.375)"><rect class="basic label-container"  x="-114.1171875" y="-39.375" width="228.234375" height="78.75"></rect><g class="label"  transform="translate(-84.1171875, -24.375)"><rect></rect><foreignObject width="168.234375" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>buildDeck<br><small>런타임 · 계획 폴더 → HTML 파일</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-fc3a1bde49-flowchart-S4-3" data-look="classic" transform="translate(923.0703125, 47.375)"><rect class="basic label-container"  x="-110.9609375" y="-39.375" width="221.921875" height="78.75"></rect><g class="label"  transform="translate(-80.9609375, -24.375)"><rect></rect><foreignObject width="161.921875" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>projectionPaths<br><small>코어 사본 목록 → 투영 경로 목록</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-fc3a1bde49-flowchart-S5-4" data-look="classic" transform="translate(1207.6015625, 47.375)"><rect class="basic label-container"  x="-123.5703125" y="-39.375" width="247.140625" height="78.75"></rect><g class="label"  transform="translate(-93.5703125, -24.375)"><rect></rect><foreignObject width="187.140625" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>verifyProjection<br><small>기대 목록 · 실제 트리 → 일치 / 어긋남</small></p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-fc3a1bde49-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-fc3a1bde49-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-fc3a1bde49-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre>
+<div class="tw"><table><thead><tr><th>상태</th><th>단계</th><th>받는 값 → 돌려주는 값</th><th>코드 대조</th><th>화면</th></tr></thead><tbody><tr><td>미지정</td><td>resolveDeckSource</td><td>코어 루트 · 설정 값 → 엔진 폴더 경로</td><td>근거없음</td><td>—</td></tr><tr><td>미지정</td><td>ensureRuntime</td><td>엔진 폴더 → 런타임 폴더</td><td>근거없음</td><td>—</td></tr><tr><td>미지정</td><td>buildDeck</td><td>런타임 · 계획 폴더 → HTML 파일</td><td>근거없음</td><td>—</td></tr><tr><td>미지정</td><td>projectionPaths</td><td>코어 사본 목록 → 투영 경로 목록</td><td>근거없음</td><td>—</td></tr><tr><td>미지정</td><td>verifyProjection</td><td>기대 목록 · 실제 트리 → 일치 / 어긋남</td><td>근거없음</td><td>—</td></tr></tbody></table></div></section>
+<section id="__lint" class="lint slide-page" data-idx="4"><h2>품질 리포트 <span class="lint-count">2</span></h2>
+     <p class="sub">원문에 없는 내용은 채우지 않음 — 전문 기획서가 보통 갖추는데 이 문서엔 빠진 항목입니다.</p>
+     <div class="callout warn"><div>성공지표(Metrics) 섹션이 없습니다 — baseline→target 지표를 권장합니다.</div></div><div class="callout warn"><div>예외처리(Edge cases) 섹션이 없습니다.</div></div></section>
+<section class="print-source"><h2>기획서 원문</h2><h3>PLAN.md</h3><pre class="code"><code>---
+title: claude 래퍼의 중복 DeckUI 없애기 — deck 이 코어 사본 안 엔진을 읽게
+slug: 20261029-wookiya1364-drop-root-deckui
+author: wookiya1364
+created_at: 2026-10-29
+status: testing
+kind: refactor
+lang: korean
+tags: [wrapper, deck, cleanup]
+raw_sources:
+  - scv/conversations/20261022-165947-scv-mods-install-command.md
+refs: []
+invariants:
+  - "설치한 claude 플러그인의 /scv:deck 이 같은 계획에서 바이트까지 같은 문서 HTML 을 만들고, --slides 도 만들어진다"
+---
+
+# claude 래퍼의 중복 DeckUI 없애기 — deck 이 코어 사본 안 엔진을 읽게
+
+## Summary
+
+claude 래퍼 저장소에는 deck 엔진(DeckUI)이 두 벌 있다 — 코어 사본 안(`vendor/scv-core/core/DeckUI`)과 저장소 맨 위(`DeckUI/`, 528K · 파일 44개, 내용 같음, 확인). 맨 위 것은 `scripts/project-core.sh` 가 옛 경로 호환용으로 만드는 투영본이고, claude 의 `/scv:deck` 이 지금 이것을 읽는다(`scripts/deck-runtime.sh` 의 `SOURCE_DECKUI="$CORE_DIR/DeckUI"`, CORE_DIR = 플러그인 루트, 확인).
+codex 래퍼는 이미 코어 사본 안 한 벌만 쓴다(확인).
+deck 이 코어 사본 안 엔진을 읽게 바꾸고, 맨 위 투영본과 그것을 위한 특별 취급(동기화 도구 · 시험 · CI 트리거 · 문서)을 걷어낸다. 사용자 요청: "굳이 있어야 해? 삭제해도 된다면 하고 싶은데"(2026-10-29).
+
+## Goals / Non-Goals
+
+- **Goals**
+  - claude 래퍼 저장소 · 설치본에서 DeckUI 가 한 벌(코어 사본 안)만 남는다.
+  - 설치한 claude 플러그인의 `/scv:deck` 이 지금과 같은 결과를 낸다 — 같은 계획에서 문서 HTML 이 바이트까지 같고, `--slides` 도 만들어진다.
+  - 코어 · claude · codex 를 모두 릴리스한다(코어가 바뀌면 codex 도 같은 코어를 싣는다).
+- **Non-Goals**
+  - 다른 투영본(맨 위 `scripts/` · `template/` · `assets/`) 건드리기 — 사용자 결정으로 이번엔 DeckUI 만.
+  - deck 의 출력 · 렌더러 자체를 바꾸기.
+  - 예전 버전 런타임 캐시를 그대로 이어 쓰게 보장하기 — 업데이트 뒤 첫 deck 에서 렌더러를 한 번 다시 깔아도 된다(사용자 결정).
+
+## Approach Overview
+
+1. **엔진 위치를 래퍼가 정한다.** 코어의 deck 은 지금 "코어 루트 바로 아래 DeckUI" 만 안다. 래퍼 설정(host profile)이 코어 루트 기준 엔진 위치를 줄 수 있게 하고, 비어 있으면 지금과 같은 자리(코어 루트 아래)를 쓴다 — codex · 코어 자체는 동작이 그대로다. 이미 같은 방식으로 쓰는 키가 있다(`SCV_PROMPTING_GUIDES`: 래퍼마다 코어 루트 기준 상대 경로가 다름).
+2. **claude 설정에 위치 한 줄.** claude 래퍼의 `adapter/claude-code.env` 에 코어 사본 안 엔진 위치를 적는다(루트 `host-profile.env` 는 동기화가 만드는 생성물이라 손대지 않는다 — 메모의 0.63.0 교훈).
+3. **투영에서 DeckUI 를 뺀다.** `scripts/project-core.sh` 가 맨 위 `DeckUI/` 를 더 만들지 않게, 이미 있는 맨 위 사본은 지운다.
+4. **특별 취급 정리.** `scripts/sync-core.sh`(DeckUI 언급 35곳) · `tests/test-sync-core-atomicity.sh`(59곳) · `.github/scripts/test-sync-core-smoke.sh` 에서 맨 위 DeckUI 전용 처리(무시 · 미추적 파일 예외 등)를 걷어내되, 코어 사본이 손대지 않은 그대로인지 보는 검사는 약해지지 않게.
+5. **흔적 정리.** `core-contract.yml` 트리거의 `'DeckUI/**'`, `.gitattributes` 의 `DeckUI/**`, PR 양식의 `pnpm -C DeckUI`, 설계 문서(`docs/design/shared-core-wrapper.md`) · `adapter/README.md` 의 맨 위 DeckUI 설명.
+6. **설치본으로 확인.** 바꾸기 전 설치본과 바꾼 설치본에서 같은 보관 계획으로 문서 deck 을 만들어 바이트 비교, `--slides` 도 한 번.
+
+## 순수함수 · 파이프라인 (Pure functions &amp; pipeline)
+
+```
+flow(
+  resolveDeckSource,   // (코어 루트, 래퍼 설정) → 엔진 폴더 경로
+  ensureRuntime,       // (엔진 폴더) → 런타임 폴더 (캐시 — 부수효과)
+  buildDeck,           // (런타임 폴더, 계획 폴더) → deck HTML (파일 쓰기 — 부수효과)
+)
+flow(
+  projectionPaths,     // (코어 사본) → 맨 위로 투영할 경로 목록 (DeckUI 없음)
+  verifyProjection,    // (기대 목록, 실제 트리) → 일치 / 어긋난 경로
+)
+```
+
+| # | 단계 | 하는 일 | 받는 값 → 돌려주는 값 | 순수/부수효과 |
+|---|---|---|---|---|
+| 1 | `resolveDeckSource` | 래퍼 설정에 엔진 위치가 있으면 그것, 없으면 코어 루트 아래 DeckUI | 코어 루트 · 설정 값 → 엔진 폴더 경로 | 순수 |
+| 2 | `ensureRuntime` | 엔진 폴더로 렌더러 런타임 캐시를 준비(없거나 다르면 새로 깖) | 엔진 폴더 → 런타임 폴더 | 부수효과 (캐시 쓰기) |
+| 3 | `buildDeck` | 계획 문서를 deck HTML 로 만든다(바뀌지 않음) | 런타임 · 계획 폴더 → HTML 파일 | 부수효과 (출구) |
+| 4 | `projectionPaths` | 코어 사본에서 맨 위로 투영할 경로를 고른다 — DeckUI 는 빠짐 | 코어 사본 목록 → 투영 경로 목록 | 순수 |
+| 5 | `verifyProjection` | 투영 · 코어 사본이 기대와 같은지 보고 어긋난 경로를 돌려준다 | 기대 목록 · 실제 트리 → 일치 / 어긋남 | 순수 |
+
+- 부수효과 위치: 런타임 캐시 쓰기(2), deck HTML 쓰기(3), 동기화의 파일 쓰기 · 지우기(투영 실행).
+- 재사용: 코어의 기존 `deck-runtime.sh` 캐시 로직(엔진 해시로 이름 짓기)과 `deck.sh` 변환은 그대로 쓴다.
+
+## Guardrails
+
+- 설치한 claude 플러그인의 `/scv:deck` 결과가 바뀌면 안 된다 — 같은 계획 → 같은 문서 HTML(바이트), `--slides` 만들어짐(invariant).
+- codex 래퍼의 deck 동작이 바뀌면 안 된다 — 엔진 위치 설정이 비어 있으면 코어는 지금과 똑같이 동작한다.
+- 코어 사본(`vendor/scv-core/**`)은 손으로 고치지 않는다 — 코어 변경은 코어 저장소에서, 래퍼에는 동기화로만.
+- 루트 `host-profile.env` 는 생성물 — 손대지 않고 `adapter/claude-code.env` 만 고친 뒤 동기화로 만든다.
+- 다른 투영본(`scripts/` · `template/` · `assets/`)은 그대로.
+- 코어 사본이 손대지 않은 그대로인지 보는 동기화 검사는 약해지지 않는다.
+- 맥 + 리눅스 · bash 3.2 에서 똑같이 돈다.
+- 안전 검사(출처 · 개인정보 · 벤더 게이트)를 우회하지 않는다.
+
+## Exit criteria
+
+- All TESTS.md scenarios pass
+- claude 래퍼 저장소에 맨 위 `DeckUI/` 가 없고, `git grep DeckUI` 의 남은 줄이 코어 사본 · 릴리스 기록 · 엔진 위치 설정뿐이다.
+- 업데이트한 claude 설치본에서 보관 계획 하나로 만든 문서 deck 이 바꾸기 전 설치본의 것과 바이트까지 같고, `--slides` 가 만들어진다(실제 실행).
+- 코어 · claude · codex 가 운영 릴리스까지 나간다.
+
+## Suggested path
+
+1. 바꾸기 전 설치본(claude 0.72.1)으로 보관 계획 하나의 문서 deck 을 만들어 기준 HTML 로 둔다 — 비교할 기준 결과를 남긴다
+2. 코어: 래퍼 설정의 엔진 위치를 읽고, 비면 지금 자리 — `resolveDeckSource`
+3. 코어 시험: 설정 있음 · 없음 · 잘못된 경로(밖으로 나가는 경로 · 없는 폴더) — 엔진 위치 판단을 검사한다
+4. 코어 PR · 0.72.2(또는 다음 판) 버전 PR · codex 사본 코어 시험 · 코어 릴리스 — 코어를 먼저 낸다
+5. claude 동기화 브랜치: 설정 한 줄, 투영에서 DeckUI 빼기, 맨 위 사본 지우기 — `projectionPaths`
+6. claude 동기화 도구 · 시험 · CI 트리거 · 문서의 맨 위 DeckUI 처리 정리 — `verifyProjection`
+7. claude 래퍼 시험 전부 + CI, 업데이트한 설치본에서 deck 문서 바이트 비교 · `--slides` — `ensureRuntime`, `buildDeck`
+8. codex 동기화 · 릴리스, claude 릴리스 — 세 저장소 운영 릴리스를 마친다
+
+## Related Documents
+
+- 메모: 래퍼 릴리스 절차(scv-wrapper-repos-release-after-core)
+
+## Risks / Open Questions
+
+- deck 런타임 캐시 이름이 엔진 해시라 내용이 같으면 그대로 쓰일 수 있다(추정) — 다시 깔려도 된다는 결정이라 막히지 않는다.
+- 동기화 도구의 DeckUI 특별 취급(무시 · 미추적 파일 예외)이 예전 설치본의 남은 `node_modules` · `dist-deck` 를 다루려던 것이라(추정), 걷어낸 뒤 예전 저장소 사본에서 동기화가 "모르는 파일" 로 멈출 수 있다 — 시험으로 확인한다.
+- 이 컴퓨터에 설치된 claude 는 0.70.4 — 기준 HTML 을 만들려면 먼저 0.72.1 로 올려야 한다(설치본 업데이트는 사용자 동의 뒤).
+
+## Links
+
+- Raw originals: (listed in frontmatter)
+- Related PRs:</code></pre><h3>FEATURE_ARCHITECTURE.md</h3><pre class="code"><code>---
+title: claude 래퍼의 중복 DeckUI 없애기 — deck 이 코어 사본 안 엔진을 읽게
+slug: 20261029-wookiya1364-drop-root-deckui
+created_at: 2026-10-29
+status: planned
+---
+
+# Architecture — claude 래퍼의 중복 DeckUI 없애기
+
+&gt; Two-diagram view of this feature. **Review and edit before `/scv:work`** —
+&gt; diagrams are LLM-generated and may have inaccuracies.
+
+## 1. Component data flow
+
+deck 이 엔진을 찾아 HTML 을 만드는 흐름(바뀐 뒤). 노란 칸이 이번에 바뀌는 곳.
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  DeckSkill["/scv:deck 스킬"] --&gt;|"scripts/deck.sh &lt;계획 폴더&gt;"| DeckSh["deck.sh"]
+  DeckSh --&gt;|"deck-runtime.sh ensure"| Resolve["① resolveDeckSource&lt;br/&gt;엔진 위치 판단"]:::key
+  HostProfile["래퍼 설정&lt;br/&gt;adapter/claude-code.env"]:::key --&gt;|"엔진 위치(코어 루트 기준)"| Resolve
+  Resolve --&gt;|"설정 없음 → 코어 루트/DeckUI · 있음 → 그 경로"| EngineCore["코어 사본 안 DeckUI&lt;br/&gt;vendor/scv-core/core/DeckUI"]
+  EngineCore --&gt;|"엔진 해시로 이름"| Runtime["② ensureRuntime&lt;br/&gt;렌더러 런타임"]
+  Runtime --&gt;|"설치 · 재사용"| Cache[("런타임 캐시&lt;br/&gt;SCV_DECK_CACHE_DIR")]
+  Runtime --&gt;|"transform.mjs"| Build["③ buildDeck"]
+  Build --&gt;|"&lt;계획&gt;.deck.html"| Html[("deck HTML")]
+  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```
+
+동기화 쪽(claude 래퍼):
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  Sync["sync-core.sh --version"] --&gt;|"vendor-core"| Vendor["코어 사본&lt;br/&gt;vendor/scv-core/core"]
+  Sync --&gt;|"project-core.sh"| Paths["④ projectionPaths&lt;br/&gt;scripts · template · assets (DeckUI 빠짐)"]:::key
+  Paths --&gt;|"맨 위로 복사"| Root["맨 위 투영본"]
+  Root --&gt;|"기대 목록 · 실제 트리"| Verify["⑤ verifyProjection"]:::key
+  Vendor --&gt;|"손대지 않았나"| Verify
+  Verify --&gt;|"일치 / 어긋난 경로"| Result["동기화 성공 · 실패"]
+  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```
+
+## 2. Position in whole architecture
+
+세 저장소에서 DeckUI 가 어디 있는지 — 바뀐 뒤. 노란 칸이 새로 생기거나 바뀌는 것, 점선이 새 연결.
+
+&gt; Source: scv graph (built 2026-10-29) — 이 계획의 deck 파일들은 그래프에 근거(지난 계획 · 함께 바뀐 기록)가 없어, 저장소 묶음(코어 · ../scv-claude-code · ../scv-codex)만 그래프에서 가져오고 나머지는 PLAN.md 에서 그렸다.
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart TB
+  subgraph "scv-core (.)"
+    CoreDeckUI["core/DeckUI (원본)"]
+    CoreRuntime["core/scripts/deck-runtime.sh"]
+    HostKey["래퍼 설정의 엔진 위치 키"]:::new
+  end
+  subgraph "../scv-claude-code"
+    ClaudeVendor["vendor/scv-core/core/DeckUI"]
+    ClaudeEnv["adapter/claude-code.env"]:::new
+    ClaudeRoot["맨 위 DeckUI/ — 없어짐"]:::new
+    ClaudeScripts["scripts/deck-runtime.sh (투영본)"]
+  end
+  subgraph "../scv-codex"
+    CodexVendor["plugins/scv/vendor/scv-core/core/DeckUI"]
+  end
+  CoreDeckUI --&gt;|"release tarball · 동기화"| ClaudeVendor
+  CoreDeckUI --&gt;|"release tarball · 동기화"| CodexVendor
+  CoreRuntime --&gt;|"읽음"| HostKey
+  ClaudeEnv -.-&gt;|"엔진 위치 = vendor/scv-core/core/DeckUI"| ClaudeScripts
+  ClaudeScripts -.-&gt;|"엔진 읽음"| ClaudeVendor
+  ClaudeRoot -.-&gt;|"투영 중단"| ClaudeScripts
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```</code></pre><h3>TESTS.md</h3><pre class="code"><code># Test Plan — claude 래퍼의 중복 DeckUI 없애기 — deck 이 코어 사본 안 엔진을 읽게
+
+## Overview
+
+맨 위 DeckUI 투영본을 없앤 뒤에도 claude 의 `/scv:deck` 이 같은 결과를 내는지(바이트 비교), codex · 코어의 deck 이 그대로인지, 동기화 도구의 손대지 않음 검사가 약해지지 않았는지 본다. 대화(117~118턴)에서 나온 요구 하나하나가 시나리오다.
+
+## Test scenarios
+
+### T1. 엔진 위치 — 설정이 없으면 지금 자리
+
+- **Setup**: 래퍼 설정에 엔진 위치 키가 없는 코어 트리(코어 저장소 자체, codex 사본).
+- **Run**: 코어 시험에서 엔진 위치 판단을 부른다.
+- **Expected**: 코어 루트 아래 `DeckUI` 를 돌려준다.
+- **Pass criterion**: 돌려준 경로 = `&lt;코어 루트&gt;/DeckUI`.
+
+### T2. 엔진 위치 — 코어 루트에 엔진이 없고 설정이 있으면 그 자리
+
+- **Setup**: 코어 루트 아래 DeckUI 가 없는 트리(claude 의 플러그인 최상위와 같은 모양)에, 설정으로 코어 루트 기준 상대 경로를 준다. 코어 루트에 엔진이 있으면 그것이 설정보다 앞선다(코어 · codex · claude 의 코어 사본 동작 그대로).
+- **Run**: 같은 판단을 부른다.
+- **Expected**: 그 경로를 돌려준다.
+- **Pass criterion**: 돌려준 경로 = 설정 경로를 코어 루트 기준으로 푼 것.
+
+### T3. 엔진 위치 — 잘못된 설정은 막는다
+
+- **Setup**: 없는 폴더, 연결(심볼릭 링크), 플러그인 밖으로 나가는 경로('..' · 절대 경로).
+- **Run**: deck 준비를 부른다.
+- **Expected**: 설명이 붙은 오류로 멈추고 아무것도 쓰지 않는다.
+- **Pass criterion**: 종료 코드 ≠ 0, 오류 문구에 경로 · 이유, 캐시 폴더 변화 없음.
+
+### T4. claude 래퍼에 맨 위 DeckUI 가 없다
+
+- **Setup**: 동기화를 마친 claude 래퍼 브랜치.
+- **Run**: `ls DeckUI`, `git grep -n DeckUI -- . ':!vendor' ':!CHANGELOG*' ':!docs/releases'`.
+- **Expected**: 폴더 없음. 남은 줄은 엔진 위치 설정 · deck 스크립트 · 역사 설명뿐.
+- **Pass criterion**: 맨 위 `DeckUI/` 없음, 남은 줄 목록을 PR 본문에 그대로 싣는다.
+
+### T5. 투영이 DeckUI 를 다시 만들지 않는다
+
+- **Setup**: claude 래퍼에서 투영 스크립트를 처음부터 다시 돌린다.
+- **Run**: `scripts/project-core.sh`(또는 `sync-core.sh --version &lt;ver&gt;`) 실행 뒤 `git status`.
+- **Expected**: 맨 위 `DeckUI/` 가 생기지 않고, 다른 투영본(`scripts/` · `template/` · `assets/`)은 그대로.
+- **Pass criterion**: `git status` 가 깨끗, `DeckUI/` 없음.
+
+### T6. 손대지 않음 검사는 그대로
+
+- **Setup**: 코어 사본 안 DeckUI 파일 하나를 손으로 바꾼 사본.
+- **Run**: claude 의 코어 확인(`verify-core.sh` / 동기화 원자성 시험).
+- **Expected**: 바뀐 파일 이름을 대며 실패.
+- **Pass criterion**: 실패 + 그 파일 경로가 출력에 있다.
+
+### T7. 같은 계획 → 같은 문서 HTML (설치본, 바이트)
+
+- **Setup**: 바꾸기 전 claude 설치본(0.72.1)으로 보관 계획 하나(예: `scv/archive/20261028-wookiya1364-ci-parallel-tests`)의 문서 deck 을 만들어 기준으로 둔다.
+- **Run**: 바꾼 claude 설치본(새 릴리스, 또는 같은 내용의 로컬 설치)으로 같은 계획의 문서 deck 을 만든다.
+- **Expected**: 두 HTML 이 같다.
+- **Pass criterion**: `cmp` 가 같음(다르면 차이 줄을 보고하고 멈춘다).
+
+### T8. `--slides` 가 만들어진다 (설치본)
+
+- **Setup**: T7 의 바꾼 설치본.
+- **Run**: 같은 계획으로 `deck.sh &lt;계획&gt; --slides`.
+- **Expected**: 슬라이드 HTML 이 만들어진다(첫 실행이면 렌더러를 한 번 깔아도 됨 — 사용자 결정).
+- **Pass criterion**: 종료 0, 출력 파일이 있고 크기 &gt; 0.
+
+### T9. codex · 코어의 deck 은 그대로
+
+- **Setup**: 코어 저장소와 codex 사본(설정에 엔진 위치 없음).
+- **Run**: 기존 deck 시험(`test-deck-*.sh`) 전부, codex 사본에서 코어 시험 전부.
+- **Expected**: 모두 통과.
+- **Pass criterion**: `run-focused: … fail=0`.
+
+### T10. 맥 · 리눅스 · bash 3.2
+
+- **Setup**: 새로 넣거나 바꾼 시험.
+- **Run**: 이 맥에서 `/bin/bash`(3.2) 로, CI 에서 우분투 · 맥으로.
+- **Expected**: 모두 통과.
+- **Pass criterion**: 로컬 3.2 통과 + 코어 · claude CI 통과.
+
+### T11. 세 저장소 운영 릴리스
+
+- **Setup**: 위가 모두 통과.
+- **Run**: 코어 → claude · codex 릴리스 절차(메모).
+- **Expected**: 세 저장소 최신 릴리스가 새 판.
+- **Pass criterion**: `gh release list -L 1` 세 저장소 모두 새 판 Latest.
+
+## How to run
+
+```bash
+bash core/tests/run-focused.sh --dir core/tests
+```
+
+## Pass criteria
+
+- T1–T10 통과(T7 은 바이트 같음), T11 은 릴리스 뒤 확인.
+- 실패가 있으면 그 시험 이름 · 출력으로 보고하고 멈춘다.
+
+## Related Documents
+
+- `PLAN.md`, `FEATURE_ARCHITECTURE.md`</code></pre></section>
+</div>
+</div>
+<aside class="source-panel" id="scvSourcePanel">
+      <div class="panel-resize-handle" id="scvResizeHandle" title="드래그해서 크기 조절"></div>
+      <div class="panel-head"><span class="panel-title">기획서 원문</span><button class="panel-close" onclick="scvTogglePanel()" title="숨기기 (S)">✕</button></div>
+      <div class="panel-tabs"><button class="panel-tab" data-idx="0" onclick="scvSelectSource(0)">PLAN.md</button><button class="panel-tab active" data-idx="1" onclick="scvSelectSource(1)">FEATURE_ARCHITECTURE.md</button><button class="panel-tab" data-idx="2" onclick="scvSelectSource(2)">TESTS.md</button></div>
+      <div class="panel-body"><pre class="code src-doc" data-idx="0"><code>---
+title: claude 래퍼의 중복 DeckUI 없애기 — deck 이 코어 사본 안 엔진을 읽게
+slug: 20261029-wookiya1364-drop-root-deckui
+author: wookiya1364
+created_at: 2026-10-29
+status: testing
+kind: refactor
+lang: korean
+tags: [wrapper, deck, cleanup]
+raw_sources:
+  - scv/conversations/20261022-165947-scv-mods-install-command.md
+refs: []
+invariants:
+  - "설치한 claude 플러그인의 /scv:deck 이 같은 계획에서 바이트까지 같은 문서 HTML 을 만들고, --slides 도 만들어진다"
+---
+
+# claude 래퍼의 중복 DeckUI 없애기 — deck 이 코어 사본 안 엔진을 읽게
+
+## Summary
+
+claude 래퍼 저장소에는 deck 엔진(DeckUI)이 두 벌 있다 — 코어 사본 안(`vendor/scv-core/core/DeckUI`)과 저장소 맨 위(`DeckUI/`, 528K · 파일 44개, 내용 같음, 확인). 맨 위 것은 `scripts/project-core.sh` 가 옛 경로 호환용으로 만드는 투영본이고, claude 의 `/scv:deck` 이 지금 이것을 읽는다(`scripts/deck-runtime.sh` 의 `SOURCE_DECKUI="$CORE_DIR/DeckUI"`, CORE_DIR = 플러그인 루트, 확인).
+codex 래퍼는 이미 코어 사본 안 한 벌만 쓴다(확인).
+deck 이 코어 사본 안 엔진을 읽게 바꾸고, 맨 위 투영본과 그것을 위한 특별 취급(동기화 도구 · 시험 · CI 트리거 · 문서)을 걷어낸다. 사용자 요청: "굳이 있어야 해? 삭제해도 된다면 하고 싶은데"(2026-10-29).
+
+## Goals / Non-Goals
+
+- **Goals**
+  - claude 래퍼 저장소 · 설치본에서 DeckUI 가 한 벌(코어 사본 안)만 남는다.
+  - 설치한 claude 플러그인의 `/scv:deck` 이 지금과 같은 결과를 낸다 — 같은 계획에서 문서 HTML 이 바이트까지 같고, `--slides` 도 만들어진다.
+  - 코어 · claude · codex 를 모두 릴리스한다(코어가 바뀌면 codex 도 같은 코어를 싣는다).
+- **Non-Goals**
+  - 다른 투영본(맨 위 `scripts/` · `template/` · `assets/`) 건드리기 — 사용자 결정으로 이번엔 DeckUI 만.
+  - deck 의 출력 · 렌더러 자체를 바꾸기.
+  - 예전 버전 런타임 캐시를 그대로 이어 쓰게 보장하기 — 업데이트 뒤 첫 deck 에서 렌더러를 한 번 다시 깔아도 된다(사용자 결정).
+
+## Approach Overview
+
+1. **엔진 위치를 래퍼가 정한다.** 코어의 deck 은 지금 "코어 루트 바로 아래 DeckUI" 만 안다. 래퍼 설정(host profile)이 코어 루트 기준 엔진 위치를 줄 수 있게 하고, 비어 있으면 지금과 같은 자리(코어 루트 아래)를 쓴다 — codex · 코어 자체는 동작이 그대로다. 이미 같은 방식으로 쓰는 키가 있다(`SCV_PROMPTING_GUIDES`: 래퍼마다 코어 루트 기준 상대 경로가 다름).
+2. **claude 설정에 위치 한 줄.** claude 래퍼의 `adapter/claude-code.env` 에 코어 사본 안 엔진 위치를 적는다(루트 `host-profile.env` 는 동기화가 만드는 생성물이라 손대지 않는다 — 메모의 0.63.0 교훈).
+3. **투영에서 DeckUI 를 뺀다.** `scripts/project-core.sh` 가 맨 위 `DeckUI/` 를 더 만들지 않게, 이미 있는 맨 위 사본은 지운다.
+4. **특별 취급 정리.** `scripts/sync-core.sh`(DeckUI 언급 35곳) · `tests/test-sync-core-atomicity.sh`(59곳) · `.github/scripts/test-sync-core-smoke.sh` 에서 맨 위 DeckUI 전용 처리(무시 · 미추적 파일 예외 등)를 걷어내되, 코어 사본이 손대지 않은 그대로인지 보는 검사는 약해지지 않게.
+5. **흔적 정리.** `core-contract.yml` 트리거의 `'DeckUI/**'`, `.gitattributes` 의 `DeckUI/**`, PR 양식의 `pnpm -C DeckUI`, 설계 문서(`docs/design/shared-core-wrapper.md`) · `adapter/README.md` 의 맨 위 DeckUI 설명.
+6. **설치본으로 확인.** 바꾸기 전 설치본과 바꾼 설치본에서 같은 보관 계획으로 문서 deck 을 만들어 바이트 비교, `--slides` 도 한 번.
+
+## 순수함수 · 파이프라인 (Pure functions &amp; pipeline)
+
+```
+flow(
+  resolveDeckSource,   // (코어 루트, 래퍼 설정) → 엔진 폴더 경로
+  ensureRuntime,       // (엔진 폴더) → 런타임 폴더 (캐시 — 부수효과)
+  buildDeck,           // (런타임 폴더, 계획 폴더) → deck HTML (파일 쓰기 — 부수효과)
+)
+flow(
+  projectionPaths,     // (코어 사본) → 맨 위로 투영할 경로 목록 (DeckUI 없음)
+  verifyProjection,    // (기대 목록, 실제 트리) → 일치 / 어긋난 경로
+)
+```
+
+| # | 단계 | 하는 일 | 받는 값 → 돌려주는 값 | 순수/부수효과 |
+|---|---|---|---|---|
+| 1 | `resolveDeckSource` | 래퍼 설정에 엔진 위치가 있으면 그것, 없으면 코어 루트 아래 DeckUI | 코어 루트 · 설정 값 → 엔진 폴더 경로 | 순수 |
+| 2 | `ensureRuntime` | 엔진 폴더로 렌더러 런타임 캐시를 준비(없거나 다르면 새로 깖) | 엔진 폴더 → 런타임 폴더 | 부수효과 (캐시 쓰기) |
+| 3 | `buildDeck` | 계획 문서를 deck HTML 로 만든다(바뀌지 않음) | 런타임 · 계획 폴더 → HTML 파일 | 부수효과 (출구) |
+| 4 | `projectionPaths` | 코어 사본에서 맨 위로 투영할 경로를 고른다 — DeckUI 는 빠짐 | 코어 사본 목록 → 투영 경로 목록 | 순수 |
+| 5 | `verifyProjection` | 투영 · 코어 사본이 기대와 같은지 보고 어긋난 경로를 돌려준다 | 기대 목록 · 실제 트리 → 일치 / 어긋남 | 순수 |
+
+- 부수효과 위치: 런타임 캐시 쓰기(2), deck HTML 쓰기(3), 동기화의 파일 쓰기 · 지우기(투영 실행).
+- 재사용: 코어의 기존 `deck-runtime.sh` 캐시 로직(엔진 해시로 이름 짓기)과 `deck.sh` 변환은 그대로 쓴다.
+
+## Guardrails
+
+- 설치한 claude 플러그인의 `/scv:deck` 결과가 바뀌면 안 된다 — 같은 계획 → 같은 문서 HTML(바이트), `--slides` 만들어짐(invariant).
+- codex 래퍼의 deck 동작이 바뀌면 안 된다 — 엔진 위치 설정이 비어 있으면 코어는 지금과 똑같이 동작한다.
+- 코어 사본(`vendor/scv-core/**`)은 손으로 고치지 않는다 — 코어 변경은 코어 저장소에서, 래퍼에는 동기화로만.
+- 루트 `host-profile.env` 는 생성물 — 손대지 않고 `adapter/claude-code.env` 만 고친 뒤 동기화로 만든다.
+- 다른 투영본(`scripts/` · `template/` · `assets/`)은 그대로.
+- 코어 사본이 손대지 않은 그대로인지 보는 동기화 검사는 약해지지 않는다.
+- 맥 + 리눅스 · bash 3.2 에서 똑같이 돈다.
+- 안전 검사(출처 · 개인정보 · 벤더 게이트)를 우회하지 않는다.
+
+## Exit criteria
+
+- All TESTS.md scenarios pass
+- claude 래퍼 저장소에 맨 위 `DeckUI/` 가 없고, `git grep DeckUI` 의 남은 줄이 코어 사본 · 릴리스 기록 · 엔진 위치 설정뿐이다.
+- 업데이트한 claude 설치본에서 보관 계획 하나로 만든 문서 deck 이 바꾸기 전 설치본의 것과 바이트까지 같고, `--slides` 가 만들어진다(실제 실행).
+- 코어 · claude · codex 가 운영 릴리스까지 나간다.
+
+## Suggested path
+
+1. 바꾸기 전 설치본(claude 0.72.1)으로 보관 계획 하나의 문서 deck 을 만들어 기준 HTML 로 둔다 — 비교할 기준 결과를 남긴다
+2. 코어: 래퍼 설정의 엔진 위치를 읽고, 비면 지금 자리 — `resolveDeckSource`
+3. 코어 시험: 설정 있음 · 없음 · 잘못된 경로(밖으로 나가는 경로 · 없는 폴더) — 엔진 위치 판단을 검사한다
+4. 코어 PR · 0.72.2(또는 다음 판) 버전 PR · codex 사본 코어 시험 · 코어 릴리스 — 코어를 먼저 낸다
+5. claude 동기화 브랜치: 설정 한 줄, 투영에서 DeckUI 빼기, 맨 위 사본 지우기 — `projectionPaths`
+6. claude 동기화 도구 · 시험 · CI 트리거 · 문서의 맨 위 DeckUI 처리 정리 — `verifyProjection`
+7. claude 래퍼 시험 전부 + CI, 업데이트한 설치본에서 deck 문서 바이트 비교 · `--slides` — `ensureRuntime`, `buildDeck`
+8. codex 동기화 · 릴리스, claude 릴리스 — 세 저장소 운영 릴리스를 마친다
+
+## Related Documents
+
+- 메모: 래퍼 릴리스 절차(scv-wrapper-repos-release-after-core)
+
+## Risks / Open Questions
+
+- deck 런타임 캐시 이름이 엔진 해시라 내용이 같으면 그대로 쓰일 수 있다(추정) — 다시 깔려도 된다는 결정이라 막히지 않는다.
+- 동기화 도구의 DeckUI 특별 취급(무시 · 미추적 파일 예외)이 예전 설치본의 남은 `node_modules` · `dist-deck` 를 다루려던 것이라(추정), 걷어낸 뒤 예전 저장소 사본에서 동기화가 "모르는 파일" 로 멈출 수 있다 — 시험으로 확인한다.
+- 이 컴퓨터에 설치된 claude 는 0.70.4 — 기준 HTML 을 만들려면 먼저 0.72.1 로 올려야 한다(설치본 업데이트는 사용자 동의 뒤).
+
+## Links
+
+- Raw originals: (listed in frontmatter)
+- Related PRs:</code></pre><pre class="code src-doc active" data-idx="1"><code>---
+title: claude 래퍼의 중복 DeckUI 없애기 — deck 이 코어 사본 안 엔진을 읽게
+slug: 20261029-wookiya1364-drop-root-deckui
+created_at: 2026-10-29
+status: planned
+---
+
+<mark class="src-hl"># Architecture — claude 래퍼의 중복 DeckUI 없애기
+
+&gt; Two-diagram view of this feature. **Review and edit before `/scv:work`** —
+&gt; diagrams are LLM-generated and may have inaccuracies.
+</mark>
+## 1. Component data flow
+
+deck 이 엔진을 찾아 HTML 을 만드는 흐름(바뀐 뒤). 노란 칸이 이번에 바뀌는 곳.
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  DeckSkill["/scv:deck 스킬"] --&gt;|"scripts/deck.sh &lt;계획 폴더&gt;"| DeckSh["deck.sh"]
+  DeckSh --&gt;|"deck-runtime.sh ensure"| Resolve["① resolveDeckSource&lt;br/&gt;엔진 위치 판단"]:::key
+  HostProfile["래퍼 설정&lt;br/&gt;adapter/claude-code.env"]:::key --&gt;|"엔진 위치(코어 루트 기준)"| Resolve
+  Resolve --&gt;|"설정 없음 → 코어 루트/DeckUI · 있음 → 그 경로"| EngineCore["코어 사본 안 DeckUI&lt;br/&gt;vendor/scv-core/core/DeckUI"]
+  EngineCore --&gt;|"엔진 해시로 이름"| Runtime["② ensureRuntime&lt;br/&gt;렌더러 런타임"]
+  Runtime --&gt;|"설치 · 재사용"| Cache[("런타임 캐시&lt;br/&gt;SCV_DECK_CACHE_DIR")]
+  Runtime --&gt;|"transform.mjs"| Build["③ buildDeck"]
+  Build --&gt;|"&lt;계획&gt;.deck.html"| Html[("deck HTML")]
+  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```
+
+동기화 쪽(claude 래퍼):
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  Sync["sync-core.sh --version"] --&gt;|"vendor-core"| Vendor["코어 사본&lt;br/&gt;vendor/scv-core/core"]
+  Sync --&gt;|"project-core.sh"| Paths["④ projectionPaths&lt;br/&gt;scripts · template · assets (DeckUI 빠짐)"]:::key
+  Paths --&gt;|"맨 위로 복사"| Root["맨 위 투영본"]
+  Root --&gt;|"기대 목록 · 실제 트리"| Verify["⑤ verifyProjection"]:::key
+  Vendor --&gt;|"손대지 않았나"| Verify
+  Verify --&gt;|"일치 / 어긋난 경로"| Result["동기화 성공 · 실패"]
+  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```
+
+## 2. Position in whole architecture
+
+세 저장소에서 DeckUI 가 어디 있는지 — 바뀐 뒤. 노란 칸이 새로 생기거나 바뀌는 것, 점선이 새 연결.
+
+&gt; Source: scv graph (built 2026-10-29) — 이 계획의 deck 파일들은 그래프에 근거(지난 계획 · 함께 바뀐 기록)가 없어, 저장소 묶음(코어 · ../scv-claude-code · ../scv-codex)만 그래프에서 가져오고 나머지는 PLAN.md 에서 그렸다.
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart TB
+  subgraph "scv-core (.)"
+    CoreDeckUI["core/DeckUI (원본)"]
+    CoreRuntime["core/scripts/deck-runtime.sh"]
+    HostKey["래퍼 설정의 엔진 위치 키"]:::new
+  end
+  subgraph "../scv-claude-code"
+    ClaudeVendor["vendor/scv-core/core/DeckUI"]
+    ClaudeEnv["adapter/claude-code.env"]:::new
+    ClaudeRoot["맨 위 DeckUI/ — 없어짐"]:::new
+    ClaudeScripts["scripts/deck-runtime.sh (투영본)"]
+  end
+  subgraph "../scv-codex"
+    CodexVendor["plugins/scv/vendor/scv-core/core/DeckUI"]
+  end
+  CoreDeckUI --&gt;|"release tarball · 동기화"| ClaudeVendor
+  CoreDeckUI --&gt;|"release tarball · 동기화"| CodexVendor
+  CoreRuntime --&gt;|"읽음"| HostKey
+  ClaudeEnv -.-&gt;|"엔진 위치 = vendor/scv-core/core/DeckUI"| ClaudeScripts
+  ClaudeScripts -.-&gt;|"엔진 읽음"| ClaudeVendor
+  ClaudeRoot -.-&gt;|"투영 중단"| ClaudeScripts
+  classDef new fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+```</code></pre><pre class="code src-doc" data-idx="2"><code># Test Plan — claude 래퍼의 중복 DeckUI 없애기 — deck 이 코어 사본 안 엔진을 읽게
+
+## Overview
+
+맨 위 DeckUI 투영본을 없앤 뒤에도 claude 의 `/scv:deck` 이 같은 결과를 내는지(바이트 비교), codex · 코어의 deck 이 그대로인지, 동기화 도구의 손대지 않음 검사가 약해지지 않았는지 본다. 대화(117~118턴)에서 나온 요구 하나하나가 시나리오다.
+
+## Test scenarios
+
+### T1. 엔진 위치 — 설정이 없으면 지금 자리
+
+- **Setup**: 래퍼 설정에 엔진 위치 키가 없는 코어 트리(코어 저장소 자체, codex 사본).
+- **Run**: 코어 시험에서 엔진 위치 판단을 부른다.
+- **Expected**: 코어 루트 아래 `DeckUI` 를 돌려준다.
+- **Pass criterion**: 돌려준 경로 = `&lt;코어 루트&gt;/DeckUI`.
+
+### T2. 엔진 위치 — 코어 루트에 엔진이 없고 설정이 있으면 그 자리
+
+- **Setup**: 코어 루트 아래 DeckUI 가 없는 트리(claude 의 플러그인 최상위와 같은 모양)에, 설정으로 코어 루트 기준 상대 경로를 준다. 코어 루트에 엔진이 있으면 그것이 설정보다 앞선다(코어 · codex · claude 의 코어 사본 동작 그대로).
+- **Run**: 같은 판단을 부른다.
+- **Expected**: 그 경로를 돌려준다.
+- **Pass criterion**: 돌려준 경로 = 설정 경로를 코어 루트 기준으로 푼 것.
+
+### T3. 엔진 위치 — 잘못된 설정은 막는다
+
+- **Setup**: 없는 폴더, 연결(심볼릭 링크), 플러그인 밖으로 나가는 경로('..' · 절대 경로).
+- **Run**: deck 준비를 부른다.
+- **Expected**: 설명이 붙은 오류로 멈추고 아무것도 쓰지 않는다.
+- **Pass criterion**: 종료 코드 ≠ 0, 오류 문구에 경로 · 이유, 캐시 폴더 변화 없음.
+
+### T4. claude 래퍼에 맨 위 DeckUI 가 없다
+
+- **Setup**: 동기화를 마친 claude 래퍼 브랜치.
+- **Run**: `ls DeckUI`, `git grep -n DeckUI -- . ':!vendor' ':!CHANGELOG*' ':!docs/releases'`.
+- **Expected**: 폴더 없음. 남은 줄은 엔진 위치 설정 · deck 스크립트 · 역사 설명뿐.
+- **Pass criterion**: 맨 위 `DeckUI/` 없음, 남은 줄 목록을 PR 본문에 그대로 싣는다.
+
+### T5. 투영이 DeckUI 를 다시 만들지 않는다
+
+- **Setup**: claude 래퍼에서 투영 스크립트를 처음부터 다시 돌린다.
+- **Run**: `scripts/project-core.sh`(또는 `sync-core.sh --version &lt;ver&gt;`) 실행 뒤 `git status`.
+- **Expected**: 맨 위 `DeckUI/` 가 생기지 않고, 다른 투영본(`scripts/` · `template/` · `assets/`)은 그대로.
+- **Pass criterion**: `git status` 가 깨끗, `DeckUI/` 없음.
+
+### T6. 손대지 않음 검사는 그대로
+
+- **Setup**: 코어 사본 안 DeckUI 파일 하나를 손으로 바꾼 사본.
+- **Run**: claude 의 코어 확인(`verify-core.sh` / 동기화 원자성 시험).
+- **Expected**: 바뀐 파일 이름을 대며 실패.
+- **Pass criterion**: 실패 + 그 파일 경로가 출력에 있다.
+
+### T7. 같은 계획 → 같은 문서 HTML (설치본, 바이트)
+
+- **Setup**: 바꾸기 전 claude 설치본(0.72.1)으로 보관 계획 하나(예: `scv/archive/20261028-wookiya1364-ci-parallel-tests`)의 문서 deck 을 만들어 기준으로 둔다.
+- **Run**: 바꾼 claude 설치본(새 릴리스, 또는 같은 내용의 로컬 설치)으로 같은 계획의 문서 deck 을 만든다.
+- **Expected**: 두 HTML 이 같다.
+- **Pass criterion**: `cmp` 가 같음(다르면 차이 줄을 보고하고 멈춘다).
+
+### T8. `--slides` 가 만들어진다 (설치본)
+
+- **Setup**: T7 의 바꾼 설치본.
+- **Run**: 같은 계획으로 `deck.sh &lt;계획&gt; --slides`.
+- **Expected**: 슬라이드 HTML 이 만들어진다(첫 실행이면 렌더러를 한 번 깔아도 됨 — 사용자 결정).
+- **Pass criterion**: 종료 0, 출력 파일이 있고 크기 &gt; 0.
+
+### T9. codex · 코어의 deck 은 그대로
+
+- **Setup**: 코어 저장소와 codex 사본(설정에 엔진 위치 없음).
+- **Run**: 기존 deck 시험(`test-deck-*.sh`) 전부, codex 사본에서 코어 시험 전부.
+- **Expected**: 모두 통과.
+- **Pass criterion**: `run-focused: … fail=0`.
+
+### T10. 맥 · 리눅스 · bash 3.2
+
+- **Setup**: 새로 넣거나 바꾼 시험.
+- **Run**: 이 맥에서 `/bin/bash`(3.2) 로, CI 에서 우분투 · 맥으로.
+- **Expected**: 모두 통과.
+- **Pass criterion**: 로컬 3.2 통과 + 코어 · claude CI 통과.
+
+### T11. 세 저장소 운영 릴리스
+
+- **Setup**: 위가 모두 통과.
+- **Run**: 코어 → claude · codex 릴리스 절차(메모).
+- **Expected**: 세 저장소 최신 릴리스가 새 판.
+- **Pass criterion**: `gh release list -L 1` 세 저장소 모두 새 판 Latest.
+
+## How to run
+
+```bash
+bash core/tests/run-focused.sh --dir core/tests
+```
+
+## Pass criteria
+
+- T1–T10 통과(T7 은 바이트 같음), T11 은 릴리스 뒤 확인.
+- 실패가 있으면 그 시험 이름 · 출력으로 보고하고 멈춘다.
+
+## Related Documents
+
+- `PLAN.md`, `FEATURE_ARCHITECTURE.md`</code></pre></div>
+    </aside>
+</div>
+<div class="deck-footer">
+      <button class="deck-arrow" id="scvPrev" disabled="" onclick="scvGoto(scvIdx()-1)">‹ 이전</button>
+      <div class="deck-dots"><button class="deck-dot active" data-idx="0" onclick="scvGoto(0)" aria-label="1"></button><button class="deck-dot" data-idx="1" onclick="scvGoto(1)" aria-label="2"></button><button class="deck-dot" data-idx="2" onclick="scvGoto(2)" aria-label="3"></button><button class="deck-dot" data-idx="3" onclick="scvGoto(3)" aria-label="4"></button><button class="deck-dot" data-idx="4" onclick="scvGoto(4)" aria-label="5"></button></div>
+      <span class="deck-counter" id="scvCounter">1 / 5</span>
+      <button class="deck-arrow" id="scvNext" onclick="scvGoto(scvIdx()+1)">다음 ›</button>
+    </div>
+</div>
+
+<script>
+  var SCV_ANCHORS = ["Architecture — claude 래퍼의 중복 DeckUI 없애기","1. Component data flow","2. Position in whole architecture","변경 지도",null];
+  var scvPageIdx = 0;
+  function scvIdx(){ return scvPageIdx; }
+  function scvEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function scvHighlight(anchor){
+    var docs = document.querySelectorAll('.src-doc');
+    docs.forEach(function(el){
+      var code = el.querySelector('code');
+      if(code) code.innerHTML = scvEsc(code.textContent);
+    });
+    if(!anchor) return;
+    for (var i=0;i<docs.length;i++){
+      var code = docs[i].querySelector('code');
+      if(!code) continue;
+      var raw = code.textContent;
+      var lines = raw.split('\n');
+      var start=-1, end=lines.length;
+      for (var j=0;j<lines.length;j++){
+        var m = lines[j].match(/^#{1,6}\s+(.*)$/);
+        if (m && m[1].trim() === String(anchor).trim()) { start = j; break; }
+      }
+      if (start < 0) continue;
+      for (var k=start+1;k<lines.length;k++){ if (/^#{1,6}\s+/.test(lines[k])) { end = k; break; } }
+      var before = lines.slice(0,start).join('\n'), hl = lines.slice(start,end).join('\n'), after = lines.slice(end).join('\n');
+      code.innerHTML = scvEsc(before) + (before ? '\n' : '') + '<mark class="src-hl">' + scvEsc(hl) + '</mark>' + (after ? '\n' + scvEsc(after) : '');
+      if (typeof scvSelectSource === 'function') scvSelectSource(i);
+      var markEl = docs[i].querySelector('mark.src-hl');
+      if (markEl && markEl.scrollIntoView) markEl.scrollIntoView({ block: 'center' });
+      return;
+    }
+  }
+  function scvGoto(n){
+    var total = 5;
+    n = Math.max(0, Math.min(total - 1, n));
+    scvPageIdx = n;
+    document.querySelectorAll('.slide-page').forEach(function(p){ p.classList.toggle('active', p.dataset.idx === String(n)); });
+    document.querySelectorAll('.deck-nav-item').forEach(function(el){
+      var on = el.dataset.idx === String(n);
+      el.classList.toggle('active', on);
+      // The nav is one scrolling row now, so the active pill can sit past the
+      // right edge. Scroll the STRIP, not the page — scrollIntoView on the
+      // element would also scroll .scroll-main and lose the reader's place.
+      if (on && el.parentElement) {
+        var strip = el.parentElement;
+        var left = el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2;
+        strip.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+      }
+    });
+    document.querySelectorAll('.deck-dot').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
+    if (typeof window.scvRunMermaid === 'function') { try { window.scvRunMermaid(); } catch (e) {} }
+    var prevBtn = document.getElementById('scvPrev'), nextBtn = document.getElementById('scvNext'), counter = document.getElementById('scvCounter');
+    if (prevBtn) prevBtn.disabled = (n === 0);
+    if (nextBtn) nextBtn.disabled = (n === total - 1);
+    if (counter) counter.textContent = (n + 1) + ' / ' + total;
+    scvHighlight(SCV_ANCHORS[n]);
+    var main = document.querySelector('.scroll-main');
+    if (main) main.scrollTop = 0;
+  }
+  function scvTogglePanel(){ var p=document.getElementById('scvSourcePanel'); if(p) p.classList.toggle('closed'); }
+  function scvSelectSource(i){
+    document.querySelectorAll('.panel-tab').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+    document.querySelectorAll('.src-doc').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+  }
+  (function(){
+    // 패널 좌측 경계 드래그 리사이즈 — 원본 SourcePanel 과 같은 산식(최소 320px,
+    // 본문에 최소 420px 남김).
+    var handle = document.getElementById('scvResizeHandle');
+    var panel = document.getElementById('scvSourcePanel');
+    if (!handle || !panel) return;
+    var MOBILE_BP = 640;
+    handle.addEventListener('mousedown', function(e){
+      e.preventDefault();
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+      function onMove(ev){
+        // 버튼을 놓친 채(창 밖 등) mouseup 을 못 받은 경우 — 버튼이 눌려있지 않으면 즉시 정리.
+        if (ev.buttons === 0) { onUp(); return; }
+        var raw = window.innerWidth - ev.clientX;
+        var max = Math.max(320, window.innerWidth - 420);
+        panel.style.width = Math.min(max, Math.max(320, raw)) + 'px';
+      }
+      function onUp(){
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        window.removeEventListener('blur', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('blur', onUp);
+    });
+    // 인라인 width 는 스타일시트의 반응형 브레이크포인트(640px 모바일 전체폭·900px 좁은폭)
+    // 보다 항상 우선한다 — 창 크기가 바뀔 때마다 다시 맞춰줘야 브레이크포인트가 살아난다.
+    window.addEventListener('resize', function(){
+      if (!panel.style.width) return;
+      if (window.innerWidth <= MOBILE_BP) { panel.style.width = ''; return; }
+      var max = Math.max(320, window.innerWidth - 420);
+      if (parseFloat(panel.style.width) > max) panel.style.width = max + 'px';
+    });
+  })();
+  document.addEventListener('keydown', function(e){
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') scvGoto(scvIdx() + 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') scvGoto(scvIdx() - 1);
+    else if (e.key === 'Home') scvGoto(0);
+    else if (e.key === 'End') scvGoto(5 - 1);
+    else if (e.key === 's' || e.key === 'S') scvTogglePanel();
+  });
+  scvGoto(0);
+</script>
+
+
+
+<div class="mermaidTooltip" style="opacity: 0; position: absolute; text-align: center; max-width: 200px; padding: 2px; font-size: 12px; background: rgb(255, 255, 222); border: 1px solid rgb(51, 51, 51); border-radius: 2px; pointer-events: none; z-index: 100;"></div></body></html>
