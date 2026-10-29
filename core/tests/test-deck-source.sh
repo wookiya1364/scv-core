@@ -57,5 +57,17 @@ mkdir -p "$P5/linked"; ln -s "$P5/vendor/scv-core/core/DeckUI" "$P5/linked/DeckU
 o="$(rt_path "$P5")"; rc=$?
 [[ $rc -ne 0 && "$o" == *"missing or unsafe"* ]] && ok "T3 연결(심볼릭 링크) 폴더 → 멈춘다" || fail "T3 symlink rc=$rc [$o]"
 
+P6="$WORK/p6"; mk_plugin "$P6" "SCV_DECKUI_DIR=vendor/scv-core/core/DeckUI"
+mkdir -p "$P6/DeckUI/node_modules/x"   # 예전 작업본에 남은 실행 찌꺼기 — 엔진 파일 없음
+o="$(rt_path "$P6")"; rc=$?
+o2="$(rt_path "$P2")"
+[[ $rc -eq 0 && "$o" == "$o2" ]] && ok "T2 맨 위에 찌꺼기 DeckUI 만 남아 있으면 엔진으로 보지 않고 설정 자리를 쓴다" || fail "T2 leftover rc=$rc [$o] vs [$o2]"
+
+P7="$WORK/p7"; mk_plugin "$P7" "SCV_DECKUI_DIR=vendor/scv-core/core/DeckUI"
+mkdir -p "$WORK/outside/scv-core/core"; mv "$P7/vendor/scv-core/core/DeckUI" "$WORK/outside/scv-core/core/"
+rm -rf "$P7/vendor"; ln -s "$WORK/outside" "$P7/vendor"
+o="$(rt_path "$P7")"; rc=$?
+[[ $rc -ne 0 && "$o" == *"resolves outside the Core root"* ]] && ok "T3 중간 폴더가 밖을 가리키는 연결이면 멈춘다" || fail "T3 parent symlink rc=$rc [$o]"
+
 echo "test-deck-source: PASS=$PASS FAIL=$FAIL"
 (( FAIL == 0 ))
