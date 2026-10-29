@@ -1737,3 +1737,35 @@ merge_policy: preserve
 - path delta: 래퍼 속 코어 커밋 번호는 바꾸지 않음(해시 사슬 · 릴리스 tarball 에 묶여 있어 바꾸면 검증이 깨짐) → 옛→새 번호 표 문서로; 작성자 · 메일 바꾸기는 사용자 결정으로 뺌; 백업은 이 컴퓨터가 아닌 비공개 GitHub 저장소로; 덮어쓰기 중 채널 동기화가 래퍼 ref 를 바꿔 lease 가 멈춤 → 다시 백업 · 다시 쓰기; 세션 줄 규칙은 호스트 이름 없이 일반형([A-Z]…-Session:)으로; .gitignore 는 연결도 잡게 끝의 / 제거
 - refs: scv/archive/20261027-wookiya1364-privacy-history-purge/PLAN.md
 - conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
+
+## [2026-10-28 10:58] wookiya1364 — CI 단축 — 코어 시험을 한 작업 안에서 동시에, 속도 검사는 끝에 혼자
+
+- verdict: adopted
+- why: 집중 시험이 64개를 차례로 돌려 우분투 664초 · 맥 719초(확인). 4개씩 동시에 314초 · 64/0(이 컴퓨터). 도구를 코어에 두어 codex 래퍼 CI 도 같이 빨라진다.
+- discarded alternatives: CI 작업 여러 개로 나누기 — 조각마다 준비 시간 · 맥 러너 줄서기, 가장 느린 시험(153초) 밑으로 못 내려감 / 둘 다 — 바꿀 곳이 가장 많음 / 문서 · 버전 PR 건너뛰기 — 이번엔 미룸
+- refs: scv/promote/20261028-wookiya1364-ci-parallel-tests/PLAN.md
+- conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
+
+## [2026-10-28 16:47] wookiya1364 — CI 단축 — 시험을 여러 워커로 나눠 Contracts 3분 안에, 문서 · 버전 PR 은 무거운 시험 건너뛰기 archived
+
+- verdict: archived
+- why: Contracts 를 계약 시험 · 공유 회귀 · 집중 시험 묶음으로 보고 시간 기록(운영체제별)으로 고르게 조각 내 러너 여러 대에서 차례로 돈다(우분투 6 · 맥 5 — 맥 동시 한도 5 실측). 결과 작업이 필수 검사 이름을 그대로 보고. 우분투 13분 → 2분 9초, 맥 15~16분 → 5분 28초. 맥이 느린 진짜 원인은 시험이 부르는 훅: 설정 불러오기가 키마다 jq(47개)를 띄워 진단 한 번 2초 — jq 한 번으로 바꿔 매 턴 훅 7.3 → 1.8초(옛 길과 값 바이트 비교 시험). 앞으로 깨면 안 되는 것: env_load 값 = 키마다 settings_get, 조각 합집합 = 전체 시험.
+- path delta: 한 러너 안 동시 실행(1차)은 CPU 를 나눠 시험마다 느려지고(맥 합 719 → 1397초) 10초 속도 검사가 부하로 실패해 워커 나누기로 바꿈(사용자 요청). 맥 9조각은 동시 한도 5로 줄 서 400초 → 5조각. 맥 3분은 시험 총량을 더 줄여야 해 훅 속도를 이 계획에서 일부 고침(설정 · 진단 · README 검사 · 중복 시험 2곳) 뒤 남은 것은 다음 계획으로(사용자 결정). 다시 쓴 요청 T7 다음 턴 상한 0.5 → 1.0초(사용자 결정, 맥 러너가 혼자 돌아도 +0.64초). 문서만 PR 확인(T14)은 병합 뒤 첫 그런 PR 로.
+- refs: scv/archive/20261028-wookiya1364-ci-parallel-tests/PLAN.md
+- conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
+
+## [2026-10-29 11:04] wookiya1364 — claude 래퍼의 중복 DeckUI 없애기 — deck 이 코어 사본 안 엔진을 읽게
+
+- verdict: adopted
+- why: claude 래퍼에 DeckUI 가 두 벌(맨 위 투영본 528K · 44파일 = 코어 사본과 같음, 확인). deck 이 맨 위 것을 읽어 지우려면 엔진 위치를 래퍼 설정으로 받게 하고 투영 · 동기화 특별 취급을 걷는다. 판정: 설치본에서 같은 계획 → 같은 문서 HTML(바이트).
+- discarded alternatives: 그대로 두기 — 자동 생성이라 손은 안 가지만 사용자가 삭제를 원함 / 다음 훅 속도 계획과 묶기 — 한 계획이 커져 원인 찾기 어려움 / 다른 투영본(scripts · template · assets)까지 — 범위가 커져 이번엔 DeckUI 만
+- refs: scv/promote/20261029-wookiya1364-drop-root-deckui/PLAN.md
+- conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
+
+## [2026-10-29 18:39] wookiya1364 — claude 래퍼의 중복 DeckUI 없애기 — deck 이 코어 사본 안 엔진을 읽게 archived
+
+- verdict: archived
+- why: claude 래퍼 맨 위 DeckUI 사본을 지우고, 래퍼 설정 SCV_DECKUI_DIR(코어 루트 기준 상대 경로)로 엔진 자리를 알린다. 코어 루트 아래 DeckUI 는 엔진 파일이 있을 때만 쓰고, 설정 자리는 실제 위치도 코어 루트 안이어야 한다 — 코어 · codex 동작은 그대로. 같은 계획 → 같은 deck HTML(바이트 동일) 확인, 회귀 73/0. 앞으로 깨지면 안 되는 것: 투영 · 동기화가 맨 위 DeckUI 를 다시 만들지 않음.
+- path delta: 코어 deck 시험 6개가 엔진을 직접 찾던 것을 실제 deck 과 같은 런타임 준비를 지나게 바꿈 — 그러다 캐시에서 도는 생성기가 Graft 어댑터를 못 찾던 기존 버그를 찾아 고침(SCV_DECK_CORE_ROOT, Graft 있는 곳에선 변경 지도가 붙는 의도된 변화). 적대 검토 지적 4건(남은 빈 DeckUI 선택 · PR 템플릿 · 낡은 동기화 · 부모 심볼릭 링크) 반영. 기준 HTML 은 설치본(0.70.4) 대신 claude v0.72.1 트리에서 뽑음 — 설치본 T7 은 릴리스 뒤로. effort heavy 판정 · heavy 사용 · 검토 반박 1회 · 승급 없음.
+- refs: scv/archive/20261029-wookiya1364-drop-root-deckui/PLAN.md
+- conversation: scv/conversations/20261022-165947-scv-mods-install-command.md

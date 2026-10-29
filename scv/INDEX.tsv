@@ -137,3 +137,7 @@ decision	코어-래퍼-모드-문서-최신화-빠진-기능-채우기-루프-�
 decision	코어-래퍼-모드-문서-최신화-빠진-기능-채우기-루프-구조-미러-그림-archived	scv/DECISIONS.md	207425	1099	2026-10-27 10:31	[archived] 코어 · 래퍼 · 모드 문서 최신화 — 빠진 기능 채우기 + 루프 · 구조 · 미러 그림 archived
 decision	공개-저장소-개인정보-정리-과거-기록까지-지우고-다시-쌓이지-않게-scv-기록은-비공개	scv/DECISIONS.md	208524	1106	2026-10-27 11:00	[adopted] 공개 저장소 개인정보 정리 — 과거 기록까지 지우고, 다시 쌓이지 않게, SCV 기록은 비공개 저장소로
 decision	공개-저장소-개인정보-정리-과거-기록까지-지우고-다시-쌓이지-않게-scv-기록은-비공개	scv/DECISIONS.md	209630	1478	2026-10-27 13:01	[archived] 공개 저장소 개인정보 정리 — 과거 기록까지 지우고, 다시 쌓이지 않게, SCV 기록은 비공개 저장소로 archived
+decision	ci-단축-코어-시험을-한-작업-안에서-동시에-속도-검사는-끝에-혼자	scv/DECISIONS.md	211108	772	2026-10-28 10:58	[adopted] CI 단축 — 코어 시험을 한 작업 안에서 동시에, 속도 검사는 끝에 혼자
+decision	ci-단축-시험을-여러-워커로-나눠-contracts-3분-안에-문서-버전-pr-은-무	scv/DECISIONS.md	211880	1678	2026-10-28 16:47	[archived] CI 단축 — 시험을 여러 워커로 나눠 Contracts 3분 안에, 문서 · 버전 PR 은 무거운 시험 건너뛰기 archived
+decision	claude-래퍼의-중복-deckui-없애기-deck-이-코어-사본-안-엔진을-읽게	scv/DECISIONS.md	213558	924	2026-10-29 11:04	[adopted] claude 래퍼의 중복 DeckUI 없애기 — deck 이 코어 사본 안 엔진을 읽게
+decision	claude-래퍼의-중복-deckui-없애기-deck-이-코어-사본-안-엔진을-읽게-a	scv/DECISIONS.md	214482	1452	2026-10-29 18:39	[archived] claude 래퍼의 중복 DeckUI 없애기 — deck 이 코어 사본 안 엔진을 읽게 archived
