@@ -5,6 +5,19 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 CORE_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 SOURCE_DECKUI="$CORE_DIR/DeckUI"
+# 래퍼 설정 SCV_DECKUI_DIR(0.72.2+)이 엔진 자리를 알려 줄 수 있다 — 두 라이브러리가 함께 있을 때만(이 스크립트만 따로 복사한 트리는 지금 자리).
+if [[ -f "$SCRIPT_DIR/lib/host-profile.sh" && -f "$SCRIPT_DIR/lib/deck-source.sh" ]]; then
+  # shellcheck source=lib/host-profile.sh
+  source "$SCRIPT_DIR/lib/host-profile.sh"
+  # shellcheck source=lib/deck-source.sh
+  source "$SCRIPT_DIR/lib/deck-source.sh"
+  scv_host_profile_load
+  _own=no; [[ -d "$CORE_DIR/DeckUI" && ! -L "$CORE_DIR/DeckUI" ]] && _own=yes
+  SOURCE_DECKUI="$(scv_deck_source_dir "$CORE_DIR" "${SCV_DECKUI_DIR:-}" "$_own")" || {
+    echo "ERROR: host profile SCV_DECKUI_DIR must be a path inside the plugin, relative to the Core root: ${SCV_DECKUI_DIR:-}" >&2
+    exit 1
+  }
+fi
 COMMAND="${1:-}"
 LEGACY_ROOT=
 REUSE_EXISTING=0
