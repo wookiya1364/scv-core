@@ -141,3 +141,5 @@ decision	ci-단축-코어-시험을-한-작업-안에서-동시에-속도-검사
 decision	ci-단축-시험을-여러-워커로-나눠-contracts-3분-안에-문서-버전-pr-은-무	scv/DECISIONS.md	211880	1678	2026-10-28 16:47	[archived] CI 단축 — 시험을 여러 워커로 나눠 Contracts 3분 안에, 문서 · 버전 PR 은 무거운 시험 건너뛰기 archived
 decision	claude-래퍼의-중복-deckui-없애기-deck-이-코어-사본-안-엔진을-읽게	scv/DECISIONS.md	213558	924	2026-10-29 11:04	[adopted] claude 래퍼의 중복 DeckUI 없애기 — deck 이 코어 사본 안 엔진을 읽게
 decision	claude-래퍼의-중복-deckui-없애기-deck-이-코어-사본-안-엔진을-읽게-a	scv/DECISIONS.md	214482	1452	2026-10-29 18:39	[archived] claude 래퍼의 중복 DeckUI 없애기 — deck 이 코어 사본 안 엔진을 읽게 archived
+decision	매-턴-훅-속도-같은-판단은-한-번-설정은-파일당-한-번-읽기	scv/DECISIONS.md	215934	920	2026-10-30 10:44	[adopted] 매 턴 훅 속도 — 같은 판단은 한 번, 설정은 파일당 한 번 읽기
+decision	매-턴-훅-속도-같은-판단은-한-번-설정은-파일당-한-번-읽기-archived	scv/DECISIONS.md	216854	1374	2026-10-31 12:37	[archived] 매 턴 훅 속도 — 같은 판단은 한 번, 설정은 파일당 한 번 읽기 archived

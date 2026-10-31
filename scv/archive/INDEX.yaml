@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-10-29T09:39:33Z
+generated_at: 2026-10-31T03:37:21Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -390,5 +390,9 @@ archives:
     status: testing
   - slug: 20261029-wookiya1364-drop-root-deckui
     title: "claude 래퍼의 중복 DeckUI 없애기 — deck 이 코어 사본 안 엔진을 읽게"
+    kind: refactor
+    status: testing
+  - slug: 20261030-wookiya1364-hook-dedupe-settings-read
+    title: "매 턴 훅 속도 — 같은 판단은 한 번, 설정은 파일당 한 번 읽기"
     kind: refactor
     status: testing
