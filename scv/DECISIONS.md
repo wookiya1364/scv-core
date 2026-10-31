@@ -1769,3 +1769,19 @@ merge_policy: preserve
 - path delta: 코어 deck 시험 6개가 엔진을 직접 찾던 것을 실제 deck 과 같은 런타임 준비를 지나게 바꿈 — 그러다 캐시에서 도는 생성기가 Graft 어댑터를 못 찾던 기존 버그를 찾아 고침(SCV_DECK_CORE_ROOT, Graft 있는 곳에선 변경 지도가 붙는 의도된 변화). 적대 검토 지적 4건(남은 빈 DeckUI 선택 · PR 템플릿 · 낡은 동기화 · 부모 심볼릭 링크) 반영. 기준 HTML 은 설치본(0.70.4) 대신 claude v0.72.1 트리에서 뽑음 — 설치본 T7 은 릴리스 뒤로. effort heavy 판정 · heavy 사용 · 검토 반박 1회 · 승급 없음.
 - refs: scv/archive/20261029-wookiya1364-drop-root-deckui/PLAN.md
 - conversation: scv/conversations/20261022-165947-scv-mods-install-command.md
+
+## [2026-10-30 10:44] wookiya1364 — 매 턴 훅 속도 — 같은 판단은 한 번, 설정은 파일당 한 번 읽기
+
+- verdict: adopted
+- why: 매 턴 훅 1회 1.09–1.25초(맥, 측정). 시간은 같은 판단 중복(kind 2번 · choice-gate 3번)과 설정 키마다 jq(44번)에서 나온다. 출력 바이트는 그대로 두고 이 둘만 줄여 매 턴 대기와 맥 CI Contracts(5분 28초)를 함께 줄인다.
+- discarded alternatives: model-prompting 호출 묶기까지 — 더 줄지만 등록 · 검사 스크립트의 만나는 면이 바뀌어 다음 계획으로 / 시험 쪽만 줄이기 — 사용자 매 턴 대기가 그대로 / 코어 저장소 hydrate · 표시 바꾸기 — 표시는 사실, 복사본은 어긋날 위험(그대로 두기)
+- refs: scv/promote/20261030-wookiya1364-hook-dedupe-settings-read/PLAN.md
+- conversation: scv/conversations/20261030-103500-hook-speed-hydrate.md
+
+## [2026-10-31 12:37] wookiya1364 — 매 턴 훅 속도 — 같은 판단은 한 번, 설정은 파일당 한 번 읽기 archived
+
+- verdict: archived
+- why: settings_get 이 파일 내용 → 키·값 표를 jq 한 번으로 만들어 재사용(탭 · 줄바꿈 · NUL · 같은 키 두 번 · 이름 아닌 키는 예전 키별 읽기로), 매 턴 훅이 kind · choice-gate state 를 한 번 구해 show-real 에 넘김. 앞으로 깨지면 안 되는 것: 훅 출력 · 설정 값이 옛 길과 바이트까지 같음(fixture 1100개 × bash 5.3 · 3.2 · jq 없음), show-real 단독 호출은 스스로 구함. 실측: 훅 1회 1.04 → 0.72초(맥, 5회 가운데 값); PR #378 CI 맥 조각 합 1570 → 1119초(-29%, 최장 350 → 297), 우분투 738 → 707초(-4%) — 전후 각 1회라 러너 편차 포함.
+- path delta: CI 기준을 'Contracts 5분 28초'에서 시험 조각 시간으로 바꿈 — ci-parallel-tests 뒤 Contracts 는 2–4초라 계획의 기준이 낡음. 자주 읽는 다섯 스크립트에 settings_preload 를 넣는 단계 추가(계획엔 훅만). 도중 수정: 지문 파일 재생성, 시험의 호스트 도구 이름 중립화, T38 용 판별 줄을 같은 표식으로 감쌈.
+- refs: scv/archive/20261030-wookiya1364-hook-dedupe-settings-read/PLAN.md
+- conversation: scv/conversations/20261030-103500-hook-speed-hydrate.md
