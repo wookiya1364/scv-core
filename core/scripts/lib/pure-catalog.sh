@@ -11,6 +11,7 @@
 #   pc_validate_entries     항목 + 종류 표 → 빈 칸 · 모르는 종류
 #   pc_split_example        예시 한 줄 → 인자 · 기대 출력 · 기대 종료 코드
 #   pc_duplicate_pairs      지문 줄들 → 지문이 같은 짝
+#   pc_mutual_pairs         방향 있는 짝 → 양쪽 다 성립하는 짝
 #   pc_allowed_filter       짝 + 예외 목록 → 남는 짝 · 이유 없는 예외
 #   pc_render_catalog       항목 + 종류 표 → 사전 파일 글들
 #   pc_oversize_files       사전 파일 글들 + 한도 → 한도를 넘은 파일
@@ -103,7 +104,7 @@ _PC_AWK_PC_RENDER_CATALOG='
         m = 0
         for (i = 1; i <= nf; i++) if (fbase[files[i]] == order[o]) sel[++m] = files[i]
         for (a = 1; a <= m; a++) for (b = a + 1; b <= m; b++) if (sel[b] < sel[a]) { t = sel[a]; sel[a] = sel[b]; sel[b] = t }
-        for (a = 1; a <= m; a++) printf "| %s | %s | %d | [%s](%s) |\n", flabel[sel[a]], desc[order[o]], cnt[sel[a]], sel[a], sel[a]
+        for (a = 1; a <= m; a++) printf "| %s | %s | %d | [%s](%s) |\n", flabel[sel[a]], ((flabel[sel[a]] in desc) ? desc[flabel[sel[a]]] : desc[order[o]]), cnt[sel[a]], sel[a], sel[a]
       }
       print ""
       printf "전체 %d개\n", total
@@ -116,7 +117,7 @@ _PC_AWK_PC_RENDER_CATALOG='
           for (x = 1; x <= n; x++) { key[x] = rkey[f, x]; val[x] = rbody[f, x] }
           for (x = 1; x <= n; x++) for (y = x + 1; y <= n; y++) if (key[y] < key[x]) { t = key[x]; key[x] = key[y]; key[y] = t; t = val[x]; val[x] = val[y]; val[y] = t }
           print "@@FILE " f
-          printf "# %s — %s\n\n", flabel[f], desc[order[o]]
+          printf "# %s — %s\n\n", flabel[f], ((flabel[f] in desc) ? desc[flabel[f]] : desc[order[o]])
           printf "> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). %d개.\n", n
           for (x = 1; x <= n; x++) { print ""; print val[x] }
         }
@@ -178,13 +179,14 @@ pc_validate_entries() {
 }
 
 # @pure
-# 역할: 예시 한 줄을 인자 · 기대 출력 · 기대 종료 코드 세 칸(탭)으로 나눈다
+# 역할: 예시 한 줄을 인자 · 기대 출력 · 기대 종료 코드 · 파이프 여부(1/0) 네 칸(탭)으로 나눈다
 # 종류: 꺼내기
-# 예: '"a" "b" → "ab"' → $'"a" "b"\t"ab"\t0'
-# 예: '"0.9" "1.0" → [1]' → $'"0.9" "1.0"\t\'\'\t1'
-# 예: '<<< "x" → "1" [2]' → $'<<< "x"\t"1"\t2'
+# 예: '"a" "b" → "ab"' → $'"a" "b"\t"ab"\t0\t0'
+# 예: '"0.9" "1.0" → [1]' → $'"0.9" "1.0"\t\'\'\t1\t0'
+# 예: '<<< "x" → "1" [2]' → $'<<< "x"\t"1"\t2\t0'
+# 예: '"a|b" x | head → "a"' → $'"a|b" x | head\t"a"\t0\t1'
 pc_split_example() {
-  local ex="${1:-}" args expect status=0 i=0 n q="" c at=-1
+  local ex="${1:-}" args expect status=0 i=0 n q="" c at=-1 pipe=0
   n=${#ex}
   # 따옴표 밖의 첫 → 가 경계다. 예시 글 자체에 → 가 들어 있어도 따옴표 안이면 건너뛴다.
   while [[ $i -lt $n ]]; do
@@ -199,6 +201,7 @@ pc_split_example() {
         elif [[ "$c" == '"' ]]; then q=d
         elif [[ "$c" == '$' && "${ex:i+1:1}" == "'" ]]; then q=ds; i=$((i + 1))
         elif [[ "$c" == '\' ]]; then i=$((i + 1))
+        elif [[ "$c" == '|' ]]; then pipe=1
         fi ;;
     esac
     i=$((i + 1))
@@ -211,7 +214,7 @@ pc_split_example() {
     status="${BASH_REMATCH[2]}"; expect="${BASH_REMATCH[1]}"
   fi
   [[ -n "$expect" ]] || expect="''"
-  printf '%s\t%s\t%s\n' "$args" "$expect" "$status"
+  printf '%s\t%s\t%s\t%s\n' "$args" "$expect" "$status" "$pipe"
 }
 
 # @pure
@@ -231,6 +234,25 @@ pc_duplicate_pairs() {
       [[ "${keys[i]}" == "${keys[j]}" ]] || continue
       a="${names[i]}"; b="${names[j]}"
       printf '%s\t%s\n' "$a" "$b"
+    done
+  done
+}
+
+# @pure
+# 역할: 방향 있는 '가<탭>나' 줄들에서 양쪽 방향이 다 있는 짝만 한 번씩 낸다
+# 종류: 고르기
+# 예: $'a\tb\na\tc\nb\ta' → $'a\tb'
+# 예: $'a\tb' → ""
+pc_mutual_pairs() {
+  local lines="${1:-}" x y i j n=0
+  local -a xs=() ys=()
+  while IFS=$'\t' read -r x y; do
+    [[ -n "$y" ]] || continue
+    xs[n]="$x"; ys[n]="$y"; n=$((n + 1))
+  done <<< "$lines"
+  for (( i = 0; i != n; i++ )); do
+    for (( j = i + 1; j != n; j++ )); do
+      [[ "${xs[j]}" == "${ys[i]}" && "${ys[j]}" == "${xs[i]}" ]] && printf '%s\t%s\n' "${xs[i]}" "${ys[i]}"
     done
   done
 }

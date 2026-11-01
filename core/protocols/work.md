@@ -328,7 +328,12 @@ displace:
   `## 순수함수 · 파이프라인` section as written; if the plan lacks it, say so and ask
   rather than inventing a shape.
 - Search the existing codebase first; extend or reuse what is there. Do not add a
-  parallel way of doing something that already has one.
+  parallel way of doing something that already has one. Before writing a new pure
+  function in SCV's own code, read `core/catalog/pure/INDEX.md` (the pure-function
+  catalog's table of contents), pick the kind of work, and open that one kind file —
+  reuse a function whose 역할 line fits instead of scanning the codebase. A new
+  function gets its 역할 · 종류 · 예 lines and a rebuilt catalog
+  (`core/contracts/purity.md`); `pure-catalog.sh check` fails on a duplicate.
 - Choose the simplest implementation that fully satisfies the current requirement.
   Build for what is asked, not for a future that has not been specified.
 - Keep components modular with one clear concern, and boundaries a reader can name.

@@ -58,6 +58,10 @@ case "$VERDICT" in
 esac
 
 # @pure
+# 역할: 제목에서 부를 이름을 만든다 — 소문자 · 숫자 · 한글만 남기고 나머지는 -, 최대 48자
+# 종류: 지문
+# 예: 'Hello, World!  Fix #12' → "hello-world-fix-12"
+# 예: '  --a--  ' → "a"
 # decisions_slug <제목> — 제목에서 부를 이름을 만든다. 문자열만 다룬다.
 decisions_slug() {
   local t="${1:-}"
