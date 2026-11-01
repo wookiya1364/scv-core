@@ -1816,3 +1816,11 @@ merge_policy: preserve
 - discarded alternatives: 언어 목록(셸 · TS · 파이썬) — 사용자: 역할 · 입력 · 출력만 알면 됨 · 언어별 함수 파싱 — 이름을 표식에 적으면 불필요 · 다른 언어 예시 실행 — 언어별 실행기가 필요해 다음 후보
 - refs: scv/promote/20261101-wookiya1364-project-pure-catalog/PLAN.md
 - conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 17:48] wookiya1364 — 프로젝트 순수함수 사전 — 어느 언어든 scv/core 에 archived
+
+- verdict: archived
+- why: 어떤 주석 모양이든 '@pure 이름' 표식으로 함수를 찾아 그 저장소의 scv/core/catalog/pure 에 사전을 만든다(언어 목록 없음). 셸은 예시 실행, 다른 언어는 칸 검사 · 예시 글 비교. 항목마다 언어를 적고, 다른 언어끼리 같은 입출력은 중복이 아니라 '다른 언어 짝'(사용자 요구).
+- path delta: 구현 중 사용자 요구로 바뀜: 다른 언어끼리 같은 입출력은 중복 의심 → '다른 언어 짝' 표기(같은 언어끼리만 중복 의심), 항목에 언어(확장자) 추가 — scv-core 사전 위치 줄에 '· sh' 가 붙음. 예시 글 비교를 셸 반복에서 awk 한 번으로(240개 비교가 몇 분 → 1초 미만).
+- refs: scv/archive/20261101-wookiya1364-project-pure-catalog/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md

@@ -34,12 +34,12 @@
 - **Expected**: 셸 함수 '예시가 틀렸다'. 결과 줄에 '실행 1 · 칸만 5'.
 - **Pass criterion**: 틀린 예시 줄이 셸 함수만, 개수 줄이 맞다.
 
-### P5. 다른 언어 사이 중복 — 예시 글로
+### P5. 같은 언어끼리는 중복 의심, 다른 언어끼리는 '다른 언어 짝'
 
-- **Setup**: TS `formatDate` 와 파이썬 `fmt_date` 가 같은 예(`"2026-01-02" → "26/01/02"`)를 공유. 또 TS `trimA` 와 파이썬 `trim_b` 는 같은 입력에 다른 출력인 예가 있다.
-- **Run**: check.
-- **Expected**: formatDate · fmt_date 만 중복 의심. trimA · trim_b 는 아님.
-- **Pass criterion**: 중복 의심 정확히 한 짝.
+- **Setup**: TS `formatDate` 와 파이썬 `fmt_date` 가 같은 예(`"2026-01-02" → "26/01/02"`)를 공유. 이어서 같은 예를 가진 TS `shortDate` 를 더한다.
+- **Run**: build · check.
+- **Expected**: formatDate · fmt_date 는 중복이 아니라 서로의 항목에 `다른 언어 짝: … (py)` · `(ts)` 로 적힌다(사용자 요구 2026-11-01 — 프론트 · 백엔드처럼 언어마다 따로 둘 수 있다). formatDate · shortDate(같은 TS)는 중복 의심.
+- **Pass criterion**: 짝 줄 두 개, 중복 의심은 같은 언어 한 짝만.
 
 ### P6. 제외 폴더의 표식은 무시
 

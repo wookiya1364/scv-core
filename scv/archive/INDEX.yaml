@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-01T03:20:57Z
+generated_at: 2026-11-01T08:48:34Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -395,6 +395,10 @@ archives:
   - slug: 20261030-wookiya1364-hook-dedupe-settings-read
     title: "매 턴 훅 속도 — 같은 판단은 한 번, 설정은 파일당 한 번 읽기"
     kind: refactor
+    status: testing
+  - slug: 20261101-wookiya1364-project-pure-catalog
+    title: "프로젝트 순수함수 사전 — 어느 언어든 scv/core 에"
+    kind: feature
     status: testing
   - slug: 20261101-wookiya1364-pure-function-catalog
     title: "순수함수 목록 — 만들기 전에 목록에서 찾아 재사용"
