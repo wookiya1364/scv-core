@@ -1,6 +1,6 @@
 # 판정/answer — 답 · 메시지 글을 보고 판정한다 — 표가 있나, 묻는 글인가, 확인인가
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 22개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 23개.
 
 ### _scv_choice_blank
 - 역할: 줄이 빈 줄(ASCII 공백 · NBSP · 전각 공백뿐)이면 성공(0), 아니면 실패(1)로 알린다
@@ -61,6 +61,14 @@
 - 예: `"" abc 1 yes → "missing"`
 - 예: `abc abc 0 yes → "skip"`
 
+### scv_is_topline
+- 역할: 한 줄이 답 맨 위 '이해한 대로' 줄(이렇게 이해하고 일함: · Understood as: · こう理解して進める:)인지 1|0 으로 정한다
+- 위치: scripts/lib/text.sh · @pure · sh
+- 예: `"**이렇게 이해하고 일함:** 정리" → "1"`
+- 예: `"  Understood as : fix" → "1"`
+- 예: `"> 이렇게 이해하고 일함: 인용" → "0"`
+- 예: `"결론이다." → "0"`
+
 ### scv_mp_answer_has_problem_table
 - 역할: 답에 "문제 표"(위치 · 깨지는 것 칸 등)가 있는지 1|0 으로 정한다
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
@@ -78,6 +86,7 @@
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
 - 예: `"이렇게 이해하고 일함: 정리" → "1"`
 - 예: `"없음" → "0"`
+- 예: `$'결론이다.\n이렇게 이해하고 일함: 정리' → "1"`
 
 ### scv_mp_answer_shows_rewrite
 - 역할: 답의 코드 블록 밖 인용 줄에 다시 쓴 요청이 보이는지 1|0 으로 정한다
