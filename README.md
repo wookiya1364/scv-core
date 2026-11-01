@@ -154,6 +154,15 @@ read. Every key and its default:
   as a numbered screen spec: one big picture with numbered markers, the detail
   for each number beside it, and a validation table, with `PLAN.md` and
   `TESTS.md` as source tabs.
+- **Pure-function catalog** — every function marked `@pure` or `@deterministic`
+  carries a role, a kind, and examples beside the code, and
+  `core/scripts/pure-catalog.sh build` turns them into a catalog (a contents
+  page plus one file per kind). `check` refuses an empty field, an example that
+  does not run as written, two functions with the same output for the same
+  input, and a stale catalog. Work and codegen read the catalog before writing
+  a new pure function, so an existing one is reused instead of rewritten.
+  `build --project` does the same for any project and language, knowing only
+  comment prefixes ([the purity contract](core/contracts/purity.md)).
 - **SCV's own graph** — docs links, archived plans → files, decision
   references, and files that change together, rebuilt automatically by
   promote and work with bash and jq, no install (`SCV_GRAPH`). Graft is
@@ -229,6 +238,13 @@ title: `[no-plan: <reason>]` and `[manual-vendor: <reason>]`. The reason is
 required; an empty marker is refused. Core's own CI runs the provenance gate;
 the vendor gate ships for the wrappers, which are the repositories that carry a
 vendored Core.
+
+A third gate guards privacy. `core/scripts/check-privacy.sh` refuses a pull
+request whose commit messages or added lines carry a local home path, a session
+id or session link, or a word from a private list kept outside the repository
+(`SCV_PRIVACY_TERMS`); author name and email are checked only with
+`SCV_PRIVACY_EMAILS=on`. Core's CI runs it on every pull request, and
+`tools/privacy-audit.sh` sweeps the whole repository.
 
 See [Architecture](docs/architecture.md),
 [Wrapper integration](docs/wrapper-integration.md), and the

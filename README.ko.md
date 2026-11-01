@@ -147,6 +147,13 @@ flowchart LR
   액션은 계획의 그림 문서(`FEATURE_ARCHITECTURE.md`)를 번호식 화면설계서로
   그립니다. 큰 그림 하나에 번호를 달고, 번호마다 설명을 옆에 두고, 검증 문구
   표를 붙이며, `PLAN.md`와 `TESTS.md`는 원문 탭으로 따라옵니다.
+- **순수함수 사전** — `@pure`나 `@deterministic` 표식이 달린 함수마다 역할,
+  종류, 예시를 코드 옆에 적고, `core/scripts/pure-catalog.sh build`가 이를
+  사전(차례 한 장과 종류별 파일)으로 만듭니다. `check`는 빈 칸, 적힌 대로
+  돌지 않는 예시, 같은 입력에 같은 출력을 내는 두 함수, 낡은 사전을 거부합니다.
+  work와 codegen은 새 순수함수를 쓰기 전에 사전을 읽어, 이미 있는 함수를 다시
+  만들지 않고 가져다 씁니다. `build --project`는 주석 앞머리 모양만 알고 어느
+  프로젝트, 어느 언어에서든 같은 일을 합니다([순수성 계약](core/contracts/purity.md)).
 - **SCV 자체 그래프** — 문서 링크, 보관된 계획과 파일, 결정 참조, 함께 바뀌는
   파일을 promote 와 work 가 bash 와 jq 만으로 자동으로 다시 만듭니다. 설치할
   것이 없습니다(`SCV_GRAPH`). Graft 는 선택입니다. 설치돼 있으면 계획 · 구현
@@ -221,6 +228,12 @@ fail-open 해서 모든 프로젝트의 쓰기를 막는 사태를 피합니다.
 이유는 필수이며, 이유 없는 marker는 거부합니다. Core 자체 CI는 provenance
 게이트를 실행하고, vendor 게이트는 vendor된 Core를 가진 래퍼 저장소를 위해
 배포됩니다.
+
+세 번째 게이트는 개인정보를 지킵니다. `core/scripts/check-privacy.sh`는 커밋
+메시지나 더해진 줄에 로컬 홈 경로, 세션 id나 세션 링크, 저장소 밖에 둔 비밀
+목록의 낱말(`SCV_PRIVACY_TERMS`)이 있는 PR을 거부합니다. 작성자 이름과 메일은
+`SCV_PRIVACY_EMAILS=on`일 때만 봅니다. Core CI는 모든 PR에서 이를 실행하고,
+`tools/privacy-audit.sh`는 저장소 전체를 훑습니다.
 
 자세한 경계는 [아키텍처](docs/architecture.md)와
 [래퍼 통합](docs/wrapper-integration.md)을 참고하세요. 실제 변경을 어느
