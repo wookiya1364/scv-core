@@ -71,6 +71,14 @@ run "$P"
 grep -q 'FAILED_SLUGS: 2' <<<"$OUT" && grep -q 'failed_slugs: 20261101-tester-a 20261101-tester-b' <<<"$OUT" && ok "a · b 만 실패" || fail "R3: $(grep -E 'FAILED|failed_slugs' <<<"$OUT" | tr '\n' ' ')"
 grep -q 'shared test: bash t/bad.sh (exit 1)' <<<"$OUT" || true
 
+echo "R3b. 동시에 돌 때만 실패하는 시험은 혼자 다시 돌아 통과"
+P="$(mk_project r3b)"
+for n in q1 q2; do mk_test "$P" "$n" "touch \"$P/busy.$n\"; sleep 1; rm -f \"$P/busy.$n\""; mk_slug "$P" "20261101-tester-$n" "bash t/$n.sh"; done
+mk_test "$P" alone "sleep 0.3; ls \"$P\"/busy.* >/dev/null 2>&1 && exit 1; exit 0"
+mk_slug "$P" "20261101-tester-alone" "bash t/alone.sh"
+OUT="$(cd "$P" && SCV_TEST_JOBS=4 bash "$RUNNER" 2>&1)"
+grep -q 'PASSED_SLUGS: 3' <<<"$OUT" && grep -q 'reran 1 failed shared test(s) alone' <<<"$OUT" && ok "혼자 다시 돌아 통과(1개)" || fail "R3b: $(grep -E 'PASSED|FAILED|reran' <<<"$OUT" | tr '\n' ' ')"
+
 echo "R4. serial 표시 시험은 혼자"
 P="$(mk_project r4)"
 for n in p1 p2 p3; do mk_test "$P" "$n" "touch \"$P/running.$n\"; sleep 1; rm -f \"$P/running.$n\""; mk_slug "$P" "20261101-tester-$n" "bash t/$n.sh"; done

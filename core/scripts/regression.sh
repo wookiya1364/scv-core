@@ -397,9 +397,19 @@ memo_prerun_shared() {
     ( rc=0; run_scenario_clean "$key" >"$MEMO_DIR/$i.out" 2>&1 || rc=$?; echo "$rc" > "$MEMO_DIR/$i.rc" ) &
   done
   wait
-  for i in "${serial[@]}"; do
+  # 동시에 돌다 실패한 시험은 다 끝난 뒤 혼자 한 번 더 — 시간 한도를 재는 시험이 다른 시험과 겹쳐 느려져
+  # 떨어진 것을 하나씩 돌던 예전 판정과 같게 맞춘다(2026-11-01: 실체 보여 주기 T11 60초 한도가 66초).
+  # 혼자 돌아도 실패하면 그대로 실패다.
+  local -a again=()
+  local serial_set=" ${serial[*]} "
+  for (( i = 0; i != ${#keys[@]}; i++ )); do
+    [[ "$serial_set" == *" $i "* ]] && continue
+    [[ "$(cat "$MEMO_DIR/$i.rc" 2>/dev/null || echo 1)" == 0 ]] || again+=("$i")
+  done
+  for i in "${serial[@]}" "${again[@]}"; do
     ( rc=0; run_scenario_clean "${keys[i]}" >"$MEMO_DIR/$i.out" 2>&1 || rc=$?; echo "$rc" > "$MEMO_DIR/$i.rc" )
   done
+  [[ $QUIET -eq 0 && ${#again[@]} -gt 0 ]] && echo "  ↺ reran ${#again[@]} failed shared test(s) alone"
   MEMO_TABLE=""
   for (( i = 0; i != ${#keys[@]}; i++ )); do
     MEMO_RC[${keys[i]}]="$(cat "$MEMO_DIR/$i.rc" 2>/dev/null || echo 1)"
@@ -697,7 +707,7 @@ main() {
   local gen_used=0 gen_hits=0 uk
   for uk in "${!MEMO_USES[@]}"; do gen_used=$((gen_used + 1)); gen_hits=$((gen_hits + ${MEMO_USES[$uk]} - 1)); done
   echo "MEMOIZED_GATES: $((MEMO_GATES + gen_used)) (reused $((MEMO_HITS + gen_hits)) time(s))"
-  [[ -n "$MEMO_DIR" && -d "$MEMO_DIR" ]] && rm -rf "$MEMO_DIR"
+  [[ -n "$MEMO_DIR" && -d "$MEMO_DIR" && "${SCV_REGRESSION_KEEP:-}" != 1 ]] && rm -rf "$MEMO_DIR"
   echo "PASSED_SLUGS: $passed"
   echo "FAILED_SLUGS: $failed"
   if [[ $failed -gt 0 ]]; then
