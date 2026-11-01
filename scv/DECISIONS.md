@@ -1840,3 +1840,19 @@ merge_policy: preserve
 - path delta: 구현 중 사용자 요구로 바뀜: 다른 언어끼리 같은 입출력은 중복 의심 → '다른 언어 짝' 표기(같은 언어끼리만 중복 의심), 항목에 언어(확장자) 추가 — scv-core 사전 위치 줄에 '· sh' 가 붙음. 예시 글 비교를 셸 반복에서 awk 한 번으로(240개 비교가 몇 분 → 1초 미만).
 - refs: scv/archive/20261101-wookiya1364-project-pure-catalog/PLAN.md
 - conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 22:27] wookiya1364 — SCV 지침 충돌 11곳 정리
+
+- verdict: adopted
+- why: 지침끼리 같은 순간 반대로 요구하는 11곳을 원문으로 확인 — 모델이 매번 다른 쪽을 어겨 답 모양 경고 · 막힘이 생김. 사용자가 곳마다 맥락을 듣고 추천 방향대로 확정.
+- discarded alternatives: 문장 뜻을 비교하는 자동 충돌 검사 — 잘못 걸리기 쉬워 기계로 재는 첫 문장 검사만 시험; 고치지 않고 기록만 — 같은 경고가 매 턴 반복
+- refs: scv/promote/20261101-wookiya1364-instruction-conflicts/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 23:42] wookiya1364 — SCV 지침 충돌 11곳 정리 archived
+
+- verdict: archived
+- why: 지침끼리 반대로 요구하던 11곳을 확정한 방향으로 맞춤: 맨 위 줄은 첫 문장 셈에서 빼고(검사도), 7조에 해로운·효과 없는 변경 예외, 보관 검색 끝 선택 창, 짧은 턴은 일지 한 줄, 첫 결과 확인은 묻는 예외, 재생성 파일은 불변 대상 밖, 묶어 묻기 허용, 범위 밖은 묻고서만, handoff 표시만 커밋 예외. 앞으로 깨지면 안 되는 것: 매 턴 안내 줄 400B 한도, 금지 행동을 허용하는 표현('by hand') 금지, 해소 순서는 SCV.md 한 곳.
+- path delta: 재조사 1차에서 남은 3곳 · 새로 드러난 2곳(recording 자기 우선순위, 매 턴 안내 줄) · 낡은 3곳을 같은 계획에서 더 고침. 첫 문장 검사는 결론 밑 인용 · 표 줄에서 문단을 끝내도록 넓힘(재조사가 찾은 빈틈). 쉬운 말 절 14곳 대신 prompt-refine 한 곳에 예외를 둠(4조).
+- refs: scv/archive/20261101-wookiya1364-instruction-conflicts/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md

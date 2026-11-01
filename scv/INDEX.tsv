@@ -150,3 +150,5 @@ decision	회귀-시험-같은-시험은-한-번만-여러-개를-동시에	scv/D
 decision	회귀-시험-같은-시험은-한-번만-여러-개를-동시에-archived	scv/DECISIONS.md	222554	1303	2026-11-01 16:22	[archived] 회귀 시험 — 같은 시험은 한 번만, 여러 개를 동시에 archived
 decision	프로젝트-순수함수-사전-어느-언어든-scv-core-에	scv/DECISIONS.md	223857	918	2026-11-01 13:30	[adopted] 프로젝트 순수함수 사전 — 어느 언어든 scv/core 에
 decision	프로젝트-순수함수-사전-어느-언어든-scv-core-에-archived	scv/DECISIONS.md	224775	1019	2026-11-01 17:48	[archived] 프로젝트 순수함수 사전 — 어느 언어든 scv/core 에 archived
+decision	scv-지침-충돌-11곳-정리	scv/DECISIONS.md	225794	688	2026-11-01 22:27	[adopted] SCV 지침 충돌 11곳 정리
+decision	scv-지침-충돌-11곳-정리-archived	scv/DECISIONS.md	226482	1175	2026-11-01 23:42	[archived] SCV 지침 충돌 11곳 정리 archived
