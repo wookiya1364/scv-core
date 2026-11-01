@@ -1785,3 +1785,11 @@ merge_policy: preserve
 - path delta: CI 기준을 'Contracts 5분 28초'에서 시험 조각 시간으로 바꿈 — ci-parallel-tests 뒤 Contracts 는 2–4초라 계획의 기준이 낡음. 자주 읽는 다섯 스크립트에 settings_preload 를 넣는 단계 추가(계획엔 훅만). 도중 수정: 지문 파일 재생성, 시험의 호스트 도구 이름 중립화, T38 용 판별 줄을 같은 표식으로 감쌈.
 - refs: scv/archive/20261030-wookiya1364-hook-dedupe-settings-read/PLAN.md
 - conversation: scv/conversations/20261030-103500-hook-speed-hydrate.md
+
+## [2026-11-01 10:24] wookiya1364 — 순수함수 목록 — 만들기 전에 목록에서 찾아 재사용
+
+- verdict: adopted
+- why: SCV 순수 표식 함수 234개 중 역할 설명은 22개뿐이라 재사용하려면 코드 전체를 훑어야 했고, 기능마다 다듬기 · 파싱을 따로 만들어 왔다. 코드 옆 주석(역할 · 종류 · 예시)에서 종류별 사전 + 차례를 생성하고, 같은 입력 → 같은 출력 지문으로 중복을 잡는다.
+- discarded alternatives: 계획서 재사용 줄 강제 — 사전 읽기 규칙 + 중복 검사로 충분(사용자) · 번호 순 파일 분할 — 어느 파일인지 몰라 전부 열어야 함 · 기능별 분할 — 다른 기능의 같은 일 함수를 못 찾음 · 몸체 글자 비교 — 모양만 다른 같은 함수를 놓침 · 기존 중복은 목록만 — 진짜 같으면 합쳐도 동작 동일(사용자), 경계 입력 · 전체 시험으로 오판만 막음
+- refs: scv/promote/20261101-wookiya1364-pure-function-catalog/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
