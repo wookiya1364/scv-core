@@ -113,7 +113,7 @@ EXPECT_INDEX='| 다듬기 | 글자를 정리한다 — 공백 · 대소문자 ·
 | 비교 | 둘을 비교해 순서나 같음을 낸다 — 버전 · 숫자 · 집합 | 1 | [compare.md](compare.md) |'
 if [[ $RC -eq 0 && -f "$WORK/t4/cat/INDEX.md" && -f "$WORK/t4/cat/tidy.md" && -f "$WORK/t4/cat/compare.md" ]] \
    && [[ "$(grep '^| [^종-]' "$WORK/t4/cat/INDEX.md")" == "$EXPECT_INDEX" ]] \
-   && grep -q '^### t_wrap$' "$WORK/t4/cat/tidy.md" && grep -q '^- 위치: lib/a.sh · @pure$' "$WORK/t4/cat/compare.md" \
+   && grep -q '^### t_wrap$' "$WORK/t4/cat/tidy.md" && grep -q '^- 위치: lib/a.sh · @pure · sh$' "$WORK/t4/cat/compare.md" \
    && grep -q '^- 예: `"2" "1" → \[1\]`$' "$WORK/t4/cat/compare.md"; then
   ok "차례 두 줄(개수 2 · 1)과 종류 파일 두 개, 함수마다 역할 · 위치 · 예"
 else fail "T4 — rc=$RC"; printf '%s\n' "$OUT" | sed 's/^/      /'; ls "$WORK/t4/cat" | sed 's/^/      /'; fi

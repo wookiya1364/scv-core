@@ -1824,3 +1824,19 @@ merge_policy: preserve
 - path delta: 측정하며 세 번 고침: (1) 블록에 cd 하나만 있어도 계획 전체를 공유에서 빼던 것 → 괄호 하위 셸의 cd 는 허용, (2) '코어 시험 전부' 반복 줄은 시험 파일 하나하나로 나눠 공유, (3) 한 줄에 이은 시험(&& || ;)도 하나씩. 그리고 동시 실행 실패는 혼자 재실행. 기존 메모 시험 T2 기대값을 1회 → 2회(함께 · 혼자)로. 개인정보 검사: 사용자 이름 한 글자 경로는 예시로(사전 PR 예시가 이력에 남아 이력 검사가 떨어짐).
 - refs: scv/archive/20261101-wookiya1364-regression-dedupe-parallel/PLAN.md
 - conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 13:30] wookiya1364 — 프로젝트 순수함수 사전 — 어느 언어든 scv/core 에
+
+- verdict: adopted
+- why: 사용자 프로젝트 함수도 그 저장소의 scv/core/catalog/pure 에 모아 기기 · 협업자가 같은 사전을 본다. 언어를 정하지 않는다(사용자: 자바 · C · 러스트 등 무엇이든) — 표식 줄에 이름(@pure 이름), 주석 모양만 안다. 셸은 예시 실행, 다른 언어는 칸 검사 + 예시 글 비교로 중복.
+- discarded alternatives: 언어 목록(셸 · TS · 파이썬) — 사용자: 역할 · 입력 · 출력만 알면 됨 · 언어별 함수 파싱 — 이름을 표식에 적으면 불필요 · 다른 언어 예시 실행 — 언어별 실행기가 필요해 다음 후보
+- refs: scv/promote/20261101-wookiya1364-project-pure-catalog/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 17:48] wookiya1364 — 프로젝트 순수함수 사전 — 어느 언어든 scv/core 에 archived
+
+- verdict: archived
+- why: 어떤 주석 모양이든 '@pure 이름' 표식으로 함수를 찾아 그 저장소의 scv/core/catalog/pure 에 사전을 만든다(언어 목록 없음). 셸은 예시 실행, 다른 언어는 칸 검사 · 예시 글 비교. 항목마다 언어를 적고, 다른 언어끼리 같은 입출력은 중복이 아니라 '다른 언어 짝'(사용자 요구).
+- path delta: 구현 중 사용자 요구로 바뀜: 다른 언어끼리 같은 입출력은 중복 의심 → '다른 언어 짝' 표기(같은 언어끼리만 중복 의심), 항목에 언어(확장자) 추가 — scv-core 사전 위치 줄에 '· sh' 가 붙음. 예시 글 비교를 셸 반복에서 awk 한 번으로(240개 비교가 몇 분 → 1초 미만).
+- refs: scv/archive/20261101-wookiya1364-project-pure-catalog/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md

@@ -195,3 +195,31 @@ bash core/scripts/pure-catalog.sh check   # 빈 칸 · 틀린 예시 · 중복 �
 `scv/core/catalog/pure/duplicates-allowed.tsv` 에 `함수A<탭>함수B<탭>왜 다른가` 를 적는다.
 이유 칸이 빈 줄은 검사가 막는다. 다르다는 걸 보여 주는 입력을 두 함수의 예시에 더하는
 쪽이 더 낫다 — 그러면 예외 없이 통과한다.
+
+### 어느 프로젝트든 — 언어 상관없이
+
+사용자 프로젝트도 같은 사전을 그 저장소의 `scv/core/catalog/pure/` 에 둔다. 언어는 정하지 않는다
+— 기계가 알아야 하는 것은 주석 앞머리 모양(`#` `//` `///` `/*` `*` `--` `;` `%` `'`)뿐이고, 함수
+이름은 표식 줄에 직접 적는다.
+
+```java
+/**
+ * @pure add
+ * 역할: 두 정수를 더한다
+ * 종류: 세기
+ * 예: 1 2 → 3
+ */
+```
+
+```bash
+bash <SCV 코어>/scripts/pure-catalog.sh build --project   # 그 저장소 어디서든
+bash <SCV 코어>/scripts/pure-catalog.sh check --project
+```
+
+- 고르는 파일: 추적 파일 중 표식이 든 것. `tests` · `test` · `__tests__` · `spec` · `node_modules` ·
+  `vendor` · `dist` · `build` · `target` · `scv` 폴더는 뺀다(`SCV_CATALOG_EXCLUDE` 로 바꾼다).
+- 예시: 셸 함수는 실제로 돌린다. 다른 언어는 칸만 본다 — 결과 줄에 `예시 실행 n · 칸만 m` 으로 밝힌다.
+- 항목마다 언어를 적는다(파일 확장자): `- 위치: src/date.ts · @pure · ts`.
+- 중복: 같은 언어끼리 같은 입력에 같은 출력인 예시를 공유하고 어긋나는 예시가 없으면 중복 의심.
+  **다른 언어끼리는 중복이 아니다** — 프론트(TS)와 백엔드(파이썬)처럼 같은 일을 언어마다 따로 두는
+  경우가 있다. 그런 함수는 서로의 항목에 `- 다른 언어 짝: fmt_date (py)` 로 적힌다.

@@ -4,7 +4,7 @@
 
 ### scv_ver_lt
 - 역할: 첫 버전이 둘째 버전보다 낮으면 참(숫자로 비교, 접미사는 무시)
-- 위치: scripts/lib/template-digest.sh · @pure
+- 위치: scripts/lib/template-digest.sh · @pure · sh
 - 예: `0.9.1 0.10.0 → ""`
 - 예: `1.2.3 1.2.3 → "" [1]`
 - 예: `0.10.0 0.9.1 → "" [1]`
