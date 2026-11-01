@@ -1,6 +1,6 @@
 # 다듬기 — 글자를 정리한다 — 공백 · 대소문자 · 이스케이프 · 자르기
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 13개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 14개.
 
 ### record_kind_normalize
 - 역할: 기록 종류 이름의 앞뒤 공백을 떼고 소문자로 맞춘다 — 모르는 종류는 빈 값
@@ -37,6 +37,13 @@
 - 위치: scripts/lib/force-help.sh · @pure · sh
 - 예: `<<< $'no marker here' → "no marker here"`
 - 예: `<<< $'intro\nCurrent project diagnosis\nstate ok\nLearn more\nlong text' → $'Current project diagnosis\nstate ok'`
+
+### scv_lint_skip_top_line
+- 역할: 답의 첫 줄이 맨 위 '이해한 대로' 줄이면 그 줄과 뒤 빈 줄을 떼고 나머지를 낸다 — 아니면 그대로
+- 위치: scripts/lib/help-state.sh · @pure · sh
+- 예: `$'이렇게 이해하고 일함: 정리.\n\n결론이다.\n' → "결론이다."`
+- 예: `$'결론이다.\n둘째.\n' → $'결론이다.\n둘째.'`
+- 예: `$'> 이렇게 이해하고 일함: 인용\n본문.\n' → $'> 이렇게 이해하고 일함: 인용\n본문.'`
 
 ### scv_lint_strip_quoted
 - 역할: 글에서 따옴표 · 괄호 안을 비워 인용문 속 마침표를 문장 끝으로 세지 않게 한다
