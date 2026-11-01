@@ -22,7 +22,8 @@
 PC_SEP=$'\x1f'
 
 # awk 프로그램은 함수 밖에 둔다 — 비교 부등호가 순수 검사기의 리다이렉션 탐지에 걸리지
-# 않게(다른 lib 과 같은 방식).
+# 않게(다른 lib 과 같은 방식). awk 는 LC_ALL=C 로 부른다 — 맥 awk 는 en_US 같은 로캘에서
+# 문자열 같음(==)을 strcoll 로 보아 서로 다른 한글을 같다고 한다(2026-11-01 맥 CI 에서 확인).
 
 _PC_AWK_PC_KINDS_FROM_CONTRACT='
     /^\| 종류 \| 파일 \| 하는 일 \|/ { on = 1; next }
@@ -136,7 +137,7 @@ _PC_AWK_PC_OVERSIZE_FILES='
 # 종류: 꺼내기
 # 예: <<< $'x\n| 종류 | 파일 | 하는 일 |\n|---|---|---|\n| 세기 | count | 센다 |\n\ny' → $'세기\tcount\t센다'
 pc_kinds_from_contract() {
-  awk "$_PC_AWK_PC_KINDS_FROM_CONTRACT"
+  LC_ALL=C awk "$_PC_AWK_PC_KINDS_FROM_CONTRACT"
 }
 
 # @deterministic
@@ -144,7 +145,7 @@ pc_kinds_from_contract() {
 # 종류: 꺼내기
 # 예: "lib/a.sh" <<< $'# @pure\n# 역할: 센다\n# 종류: 세기\n# 예: "a" → "1"\nf() {\n}' → $'lib/a.sh\tpure\tf\t센다\t세기\t"a" → "1"'
 pc_extract_entries() {
-  awk -v file="${1:-}" -v sep="$PC_SEP" "$_PC_AWK_PC_EXTRACT_ENTRIES"
+  LC_ALL=C awk -v file="${1:-}" -v sep="$PC_SEP" "$_PC_AWK_PC_EXTRACT_ENTRIES"
 }
 
 # @pure
@@ -288,7 +289,7 @@ pc_allowed_filter() {
 # 예: $'lib/a.sh\tpure\tf\t센다\t세기\t"a" → "1"' $'세기\tcount\t센다' → $'@@FILE INDEX.md\n# 순수함수 사전 — 차례\n\n> 생성물 — 손으로 고치지 말 것. 다시 만들기: `bash core/scripts/pure-catalog.sh build`\n>\n> 새 함수를 만들기 전에: 아래에서 종류를 고르고, 그 종류 파일 하나만 연다.\n\n| 종류 | 하는 일 | 개수 | 파일 |\n|---|---|---|---|\n| 세기 | 센다 | 1 | [count.md](count.md) |\n\n전체 1개\n@@FILE count.md\n# 세기 — 센다\n\n> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 1개.\n\n### f\n- 역할: 센다\n- 위치: lib/a.sh · @pure\n- 예: `"a" → "1"`'
 pc_render_catalog() {
   local entries="${1:-}" kinds="${2:-}"
-  printf '%s\n' "$entries" | PC_KINDS="$kinds" awk -F'\t' -v sep="$PC_SEP" "$_PC_AWK_PC_RENDER_CATALOG"
+  printf '%s\n' "$entries" | PC_KINDS="$kinds" LC_ALL=C awk -F'\t' -v sep="$PC_SEP" "$_PC_AWK_PC_RENDER_CATALOG"
 }
 
 # @deterministic
@@ -296,5 +297,5 @@ pc_render_catalog() {
 # 종류: 고르기
 # 예: $'@@FILE a.md\n1\n2\n3\n@@FILE b.md\n1' "2" → $'a.md\t3'
 pc_oversize_files() {
-  printf '%s\n' "${1:-}" | awk -v lim="${2:-400}" "$_PC_AWK_PC_OVERSIZE_FILES"
+  printf '%s\n' "${1:-}" | LC_ALL=C awk -v lim="${2:-400}" "$_PC_AWK_PC_OVERSIZE_FILES"
 }

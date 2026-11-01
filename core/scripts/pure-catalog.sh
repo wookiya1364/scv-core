@@ -59,8 +59,8 @@ while IFS= read -r f; do
   rel="${f#"$BASE"/}"
   ENTRIES+="$(pc_extract_entries "$rel" < "$f")"$'\n'
 done < <(find "$ROOT" -type f -name '*.sh' | LC_ALL=C sort)
-ENTRIES="$(printf '%s' "$ENTRIES" | awk 'NF')"
-COUNT="$(printf '%s' "$ENTRIES" | awk 'NF' | wc -l | tr -d ' ')"
+ENTRIES="$(printf '%s' "$ENTRIES" | LC_ALL=C awk 'NF')"
+COUNT="$(printf '%s' "$ENTRIES" | LC_ALL=C awk 'NF' | wc -l | tr -d ' ')"
 PC_ALL="$ENTRIES"
 ALLOWED=""; [[ -f "$ALLOWED_FILE" ]] && ALLOWED="$(cat "$ALLOWED_FILE")"
 
@@ -78,7 +78,7 @@ _pc_load() {
     f="$BASE/$rel"
     case "$rel" in
       lib/*|*/lib/*) [[ "$rel" == "$prev" ]] || source "$f"; prev="$rel" ;;
-      *) eval "$(awk -v fn="$name" '$0 ~ "^"fn"\\(\\)[[:space:]]*\\{" {on=1} on {print} on && /^\}$/ {exit}' "$f")" ;;
+      *) eval "$(LC_ALL=C awk -v fn="$name" '$0 ~ "^"fn"\\(\\)[[:space:]]*\\{" {on=1} on {print} on && /^\}$/ {exit}' "$f")" ;;
     esac
   done <<< "$PC_ALL"
 }
@@ -194,7 +194,7 @@ _pc_directed() (
   while read -r f partners; do
     [[ -n "$f" ]] || continue
     ( for p in $partners; do _pc_behaves_as "$f" "$p" && printf '%s\t%s\n' "$f" "$p"; done )
-  done < <(printf '%s\n' "$1" | awk -F'\t' -v part="${PC_PART:-0/1}" 'NF == 2 { l[$1] = l[$1] " " $2; l[$2] = l[$2] " " $1; if (!($1 in o)) { o[$1] = ++k; ord[k] = $1 } if (!($2 in o)) { o[$2] = ++k; ord[k] = $2 } } END { split(part, pj, "/"); for (i = 1; i <= k; i++) if ((i - 1) % pj[2] == pj[1]) print ord[i] l[ord[i]] }')
+  done < <(printf '%s\n' "$1" | LC_ALL=C awk -F'\t' -v part="${PC_PART:-0/1}" 'NF == 2 { l[$1] = l[$1] " " $2; l[$2] = l[$2] " " $1; if (!($1 in o)) { o[$1] = ++k; ord[k] = $1 } if (!($2 in o)) { o[$2] = ++k; ord[k] = $2 } } END { split(part, pj, "/"); for (i = 1; i <= k; i++) if ((i - 1) % pj[2] == pj[1]) print ord[i] l[ord[i]] }')
 )
 
 # _pc_parallel <함수> — 항목을 PC_JOBS 묶음으로 나눠 동시에 돌리고 출력을 묶음 순서대로 잇는다
@@ -202,7 +202,7 @@ PC_JOBS=4
 _pc_parallel() {
   local k part
   for (( k = 0; k != PC_JOBS; k++ )); do
-    part="$(printf '%s\n' "$PC_ALL" | awk -v k="$k" -v j="$PC_JOBS" 'NF && (NR - 1) % j == k')"
+    part="$(printf '%s\n' "$PC_ALL" | LC_ALL=C awk -v k="$k" -v j="$PC_JOBS" 'NF && (NR - 1) % j == k')"
     ( ENTRIES="$part"; PC_TMP="$PC_TMP.$1.$k"; "$1" ) > "$PC_TMP.out.$1.$k" &
   done
   wait
@@ -214,7 +214,7 @@ _pc_parallel() {
 RENDERED="$(pc_render_catalog "$ENTRIES" "$KINDS")"
 
 _pc_files_in_render() { printf '%s\n' "$RENDERED" | sed -n 's/^@@FILE //p'; }
-_pc_file_text() { printf '%s\n' "$RENDERED" | awk -v f="$1" '/^@@FILE /{on = (substr($0, 8) == f); next} on'; }
+_pc_file_text() { printf '%s\n' "$RENDERED" | LC_ALL=C awk -v f="$1" '/^@@FILE /{on = (substr($0, 8) == f); next} on'; }
 
 # ---------------------------------------------------------------- 출구: build
 

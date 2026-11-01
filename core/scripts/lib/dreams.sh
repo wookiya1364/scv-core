@@ -410,7 +410,7 @@ scv_dreams_tips() {
 # @deterministic
 # 역할: 글을 한 줄로 줄이고 경로 · 메일 · id · 열쇠 값을 가려 정해진 글자 수까지 자른다
 # 종류: 다듬기
-# 예: "mail a@b.com token=abc123 /Users/x/y" → 'mail [메일] token=[REDACTED] [경로]'
+# 예: "mail a@b.com token=abc123 /opt/x/y" → 'mail [메일] token=[REDACTED] [경로]'
 # 예: "abcdefghij" 5 → 'abcde…'
 # <글> [<최대 글자 수, 기본 160>] → 가린 한 줄 발췌. 경로(/… · ~/… · C:\…) → [경로], 메일 → [메일], 세션 id · UUID → [id],
 # 열쇠 모양 값(password · token · secret · api key 뒤의 값, Bearer, 알려진 접두 토큰, 32자 이상 무작위 문자열) → [REDACTED].

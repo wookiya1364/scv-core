@@ -29,7 +29,7 @@
 ### scv_dreams_mask
 - 역할: 글을 한 줄로 줄이고 경로 · 메일 · id · 열쇠 값을 가려 정해진 글자 수까지 자른다
 - 위치: scripts/lib/dreams.sh · @deterministic
-- 예: `"mail a@b.com token=abc123 /Users/x/y" → 'mail [메일] token=[REDACTED] [경로]'`
+- 예: `"mail a@b.com token=abc123 /opt/x/y" → 'mail [메일] token=[REDACTED] [경로]'`
 - 예: `"abcdefghij" 5 → 'abcde…'`
 
 ### scv_force_trim_diagnosis
