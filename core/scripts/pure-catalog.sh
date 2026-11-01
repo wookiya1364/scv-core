@@ -36,7 +36,7 @@ esac
 # 사전은 저장소의 scv/core/ 아래 — 커밋되는 자리라 기기 · 협업자가 같은 사전을 본다.
 # 래퍼 설치본(코어 사본)에는 scv/ 가 없다: 그때는 사전 낡음 · 크기 검사를 건너뛰고 예시 · 중복만 본다.
 ROOT="$CORE_DIR/scripts"; CATALOG="$( cd "$CORE_DIR/.." && pwd )/scv/core/catalog/pure"; BASE="$CORE_DIR"
-CATALOG_GIVEN=0
+CATALOG_GIVEN=0; PROJECT=""
 CONTRACT="$CORE_DIR/contracts/purity.md"; LIMIT=400
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -45,9 +45,18 @@ while [[ $# -gt 0 ]]; do
     --base) BASE="$2"; shift 2 ;;
     --contract) CONTRACT="$2"; shift 2 ;;
     --limit) LIMIT="$2"; shift 2 ;;
+    --project)
+      # 프로젝트 모드: 그 저장소의 추적 파일 중 표식이 든 것 — 언어 상관없이 — 을 읽어
+      # 그 저장소의 scv/core/catalog/pure 에 사전을 둔다(기기 · 협업자가 같은 사전을 본다).
+      if [[ -n "${2:-}" && "${2:0:2}" != "--" ]]; then PROJECT="$2"; shift 2; else PROJECT="."; shift; fi ;;
     *) echo "pure-catalog.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+if [[ -n "$PROJECT" ]]; then
+  ROOT="$(git -C "$PROJECT" rev-parse --show-toplevel 2>/dev/null)" || { echo "✖ git 저장소가 아니다: $PROJECT" >&2; exit 2; }
+  BASE="$ROOT"
+  [[ $CATALOG_GIVEN -eq 1 ]] || { CATALOG="$ROOT/scv/core/catalog/pure"; CATALOG_GIVEN=1; }
+fi
 if [[ -f "$ROOT" ]]; then ROOT="$( cd "$( dirname "$ROOT" )" && pwd )/$( basename "$ROOT" )"; else ROOT="$( cd "$ROOT" && pwd )" || exit 2; fi
 BASE="$( cd "$BASE" && pwd )" || exit 2
 ALLOWED_FILE="$CATALOG/duplicates-allowed.tsv"
@@ -60,14 +69,29 @@ NO_HOME=0
 KINDS="$(pc_kinds_from_contract < "$CONTRACT")"
 [[ -n "$KINDS" ]] || { echo "✖ 종류 표를 못 찾았다: $CONTRACT" >&2; exit 2; }
 
+# 프로젝트 모드에서 빼는 폴더(경로 마디 이름) — 시험 · 의존성 · 생성물. SCV_CATALOG_EXCLUDE 로 바꾼다.
+PC_EXCLUDE="${SCV_CATALOG_EXCLUDE:-tests test __tests__ spec node_modules vendor dist build target scv .git}"
+_pc_files() {
+  if [[ -z "$PROJECT" ]]; then find "$ROOT" -type f -name '*.sh' | LC_ALL=C sort; return; fi
+  local f seg skip
+  git -C "$ROOT" grep -l -I -E '@(pure|deterministic)' -- . 2>/dev/null | LC_ALL=C sort | while IFS= read -r f; do
+    skip=0
+    for seg in $PC_EXCLUDE; do [[ "/$f" == *"/$seg/"* ]] && { skip=1; break; }; done
+    [[ $skip -eq 0 ]] && printf '%s\n' "$ROOT/$f"
+  done
+}
 ENTRIES=""
 while IFS= read -r f; do
   rel="${f#"$BASE"/}"
   ENTRIES+="$(pc_extract_entries "$rel" < "$f")"$'\n'
-done < <(find "$ROOT" -type f -name '*.sh' | LC_ALL=C sort)
+done < <(_pc_files)
 ENTRIES="$(printf '%s' "$ENTRIES" | LC_ALL=C awk 'NF')"
 COUNT="$(printf '%s' "$ENTRIES" | LC_ALL=C awk 'NF' | wc -l | tr -d ' ')"
-PC_ALL="$ENTRIES"
+# 예시를 실제로 돌리는 것은 셸 함수만 — 다른 언어는 칸만 보고 예시 글끼리 중복을 견준다.
+PC_ALL="$(printf '%s\n' "$ENTRIES" | LC_ALL=C awk -F'\t' '$1 ~ /\.sh$/')"
+PC_TEXT="$(printf '%s\n' "$ENTRIES" | LC_ALL=C awk -F'\t' 'NF && $1 !~ /\.sh$/')"
+N_RUN="$(printf '%s' "$PC_ALL" | LC_ALL=C awk 'NF' | wc -l | tr -d ' ')"
+N_TEXT=$((COUNT - N_RUN))
 ALLOWED=""; [[ -f "$ALLOWED_FILE" ]] && ALLOWED="$(cat "$ALLOWED_FILE")"
 
 # ---------------------------------------------------------------- 함수 불러 보기
@@ -217,7 +241,18 @@ _pc_parallel() {
 
 # ---------------------------------------------------------------- 사전 글
 
-RENDERED="$(pc_render_catalog "$ENTRIES" "$KINDS")"
+# 예시 글 비교: 같은 언어끼리 같은 입출력이면 중복 의심(셸은 실행 지문이 맡는다),
+# 다른 언어끼리면 중복이 아니라 '다른 언어 짝' — 프론트(TS) · 백엔드(파이썬)처럼 언어마다 따로 두는 함수다.
+TEXT_PAIRS="$(pc_text_duplicates "$ENTRIES")"
+# 짝 표기에 상대의 언어도 적는다: "fmt_date (py)"
+TWINS="$(printf '%s\n' "$TEXT_PAIRS" | LC_ALL=C awk -F'\t' '$3 == "cross" { print $1 "\t" $2 }' | while IFS=$'\t' read -r a b; do
+  [[ -n "$a" ]] || continue
+  fa="$(printf '%s\n' "$ENTRIES" | LC_ALL=C awk -F'\t' -v n="$a" '$3 == n { print $1; exit }')"
+  fb="$(printf '%s\n' "$ENTRIES" | LC_ALL=C awk -F'\t' -v n="$b" '$3 == n { print $1; exit }')"
+  printf '%s (%s)\t%s (%s)\n' "$a" "$(pc_lang_of "$fa")" "$b" "$(pc_lang_of "$fb")"
+done)"
+SAME_TEXT="$(printf '%s\n' "$TEXT_PAIRS" | LC_ALL=C awk -F'\t' '$3 == "same" { print $1 "\t" $2 }')"
+RENDERED="$(pc_render_catalog "$ENTRIES" "$KINDS" "$TWINS")"
 
 _pc_files_in_render() { printf '%s\n' "$RENDERED" | sed -n 's/^@@FILE //p'; }
 _pc_file_text() { printf '%s\n' "$RENDERED" | LC_ALL=C awk -v f="$1" '/^@@FILE /{on = (substr($0, 8) == f); next} on'; }
@@ -269,6 +304,17 @@ _pc_directed_all() {
   for (( k = 0; k != PC_JOBS; k++ )); do cat "$PC_TMP.out.dir.$k"; done
 }
 CONFIRMED="$( [[ -n "$CANDIDATES" ]] && pc_mutual_pairs "$(_pc_directed_all)" )"
+# 셸 아닌 언어: 예시 글끼리 — 같은 입력에 같은 출력을 공유하고 어긋남이 없으면 중복 의심
+# 셸 짝은 실행 지문이 이미 봤다 — 글 비교의 같은 언어 짝은 셸이 아닌 것만 쓴다.
+TEXT_DUPS=""
+if [[ -n "$SAME_TEXT" ]]; then
+  TEXT_DUPS="$(while IFS=$'\t' read -r a b; do
+    [[ -n "$a" ]] || continue
+    la="$(printf '%s\n' "$ENTRIES" | LC_ALL=C awk -F'\t' -v n="$a" '$3 == n { print $1; exit }')"
+    [[ "$(pc_lang_of "$la")" == sh ]] || printf '%s\t%s\n' "$a" "$b"
+  done <<< "$SAME_TEXT")"
+fi
+[[ -n "$TEXT_DUPS" ]] && CONFIRMED="$(printf '%s\n%s' "$CONFIRMED" "$TEXT_DUPS" | LC_ALL=C awk 'NF')"
 DUPS="$(pc_allowed_filter "$CONFIRMED" "$ALLOWED")"
 if [[ -n "$DUPS" ]]; then
   while IFS=$'\t' read -r a b c; do
@@ -298,7 +344,11 @@ done
 [[ -z "$STALE" ]] || report "✖ 사전이 낡았다:$STALE — 다시 만들기: bash core/scripts/pure-catalog.sh build"
 
 if [[ $FAILS -eq 0 ]]; then
-  echo "OK  catalog: ${COUNT}개 함수 · 예시 전부 맞음 · 중복 의심 0 · $HOME_NOTE"
+  if [[ $N_TEXT -gt 0 ]]; then
+    echo "OK  catalog: ${COUNT}개 함수(예시 실행 ${N_RUN} · 칸만 ${N_TEXT}) · 중복 의심 0 · $HOME_NOTE"
+  else
+    echo "OK  catalog: ${COUNT}개 함수 · 예시 전부 맞음 · 중복 의심 0 · $HOME_NOTE"
+  fi
   exit 0
 fi
 echo "" >&2

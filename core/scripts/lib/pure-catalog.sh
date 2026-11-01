@@ -12,6 +12,8 @@
 #   pc_split_example        예시 한 줄 → 인자 · 기대 출력 · 기대 종료 코드
 #   pc_duplicate_pairs      지문 줄들 → 지문이 같은 짝
 #   pc_mutual_pairs         방향 있는 짝 → 양쪽 다 성립하는 짝
+#   pc_lang_of              파일 경로 → 언어 표시(확장자)
+#   pc_text_duplicates      항목들 → 예시 글이 같은 짝 + 같은/다른 언어
 #   pc_allowed_filter       짝 + 예외 목록 → 남는 짝 · 이유 없는 예외
 #   pc_render_catalog       항목 + 종류 표 → 사전 파일 글들
 #   pc_oversize_files       사전 파일 글들 + 한도 → 한도를 넘은 파일
@@ -39,33 +41,49 @@ _PC_AWK_PC_KINDS_FROM_CONTRACT='
 '
 
 _PC_AWK_PC_EXTRACT_ENTRIES='
-    function reset() { tier = ""; role = ""; kind = ""; ex = "" }
-    function grab(line, key,   v) {
+    # 주석 앞머리를 떼고 본문을 낸다. 주석이 아니면 "\001". 언어 목록 없이 앞머리 모양만 안다:
+    # # · // · /// · /* · * · */ · -- · ; · % · 작은따옴표(VB).
+    function body(line,   v, re) {
       v = line
-      sub(/^[[:space:]]*#[[:space:]]*/, "", v)
+      re = "^[[:space:]]*(///?|/[*]+|[*]/|[*]|#+|--|;+|%+|\047)"
+      if (!match(v, re)) return "\001"
+      v = substr(v, RSTART + RLENGTH)
+      sub(/^[[:space:]]+/, "", v); sub(/[[:space:]]+$/, "", v)
+      return v
+    }
+    function reset() { tier = ""; name = ""; role = ""; kind = ""; ex = "" }
+    function grab(v, key) {
       if (index(v, key ":") != 1) return ""
       v = substr(v, length(key) + 2)
       sub(/^[[:space:]]+/, "", v); sub(/[[:space:]]+$/, "", v)
       return v
     }
+    function emit(n) { printf "%s\t%s\t%s\t%s\t%s\t%s\n", file, tier, n, role, kind, ex }
     BEGIN { reset() }
-    /^[[:space:]]*#[[:space:]]*@pure[[:space:]]*$/          { tier = "pure"; next }
-    /^[[:space:]]*#[[:space:]]*@deterministic[[:space:]]*$/ { tier = "deterministic"; next }
-    /^[[:space:]]*#/ {
-      v = grab($0, "역할"); if (v != "") { role = v; next }
-      v = grab($0, "종류"); if (v != "") { kind = v; next }
-      v = grab($0, "예");   if (v != "") { ex = (ex == "" ? v : ex sep v); next }
-      next
-    }
-    /^[[:space:]]*$/ { if (tier == "") reset(); next }
-    /^[a-zA-Z_][a-zA-Z0-9_]*\(\)[[:space:]]*\{/ {
-      if (tier != "") {
-        name = $0; sub(/\(\).*/, "", name); gsub(/[[:space:]]/, "", name)
-        printf "%s\t%s\t%s\t%s\t%s\t%s\n", file, tier, name, role, kind, ex
+    {
+      c = body($0)
+      if (c != "\001") {
+        if (c ~ /^@(pure|deterministic)([[:space:]]+[A-Za-z_][A-Za-z0-9_.:$-]*)?$/) {
+          if (tier != "" && name != "") emit(name)
+          reset()
+          tier = (c ~ /^@pure/) ? "pure" : "deterministic"
+          if (c ~ /[[:space:]]/) { name = c; sub(/^@[a-z]+[[:space:]]+/, "", name) }
+          next
+        }
+        v = grab(c, "역할"); if (v != "") { role = v; next }
+        v = grab(c, "종류"); if (v != "") { kind = v; next }
+        v = grab(c, "예");   if (v != "") { ex = (ex == "" ? v : ex sep v); next }
+        next
       }
-      reset(); next
+      if ($0 ~ /^[[:space:]]*$/) { if (tier == "") reset(); next }
+      if (tier != "" && name != "") { emit(name); reset(); next }
+      if (tier != "" && $0 ~ /^[a-zA-Z_][a-zA-Z0-9_]*\(\)[[:space:]]*\{/) {
+        n = $0; sub(/\(\).*/, "", n); gsub(/[[:space:]]/, "", n)
+        emit(n)
+      }
+      reset()
     }
-    { reset() }
+    END { if (tier != "" && name != "") emit(name) }
 '
 
 _PC_AWK_PC_RENDER_CATALOG='
@@ -74,6 +92,16 @@ _PC_AWK_PC_RENDER_CATALOG='
       for (i = 1; i <= nk; i++) {
         if (kl[i] == "") continue
         split(kl[i], c, "\t"); slug[c[1]] = c[2]; desc[c[1]] = c[3]; order[++no] = c[1]
+      }
+      # 다른 언어 짝(같은 입출력을 언어마다 따로 두는 함수) — 서로의 항목에 적는다
+      nt = split(ENVIRON["PC_TWINS"], tl, "\n")
+      for (i = 1; i <= nt; i++) {
+        if (tl[i] == "") continue
+        split(tl[i], c, "\t")
+        # 짝 줄은 "이름" 또는 "이름 (언어)" — 열쇠는 이름만
+        ka = c[1]; sub(/ \(.*$/, "", ka); kb = c[2]; sub(/ \(.*$/, "", kb)
+        twin[ka] = (ka in twin ? twin[ka] ", " : "") c[2]
+        twin[kb] = (kb in twin ? twin[kb] ", " : "") c[1]
       }
     }
     NF >= 3 && $3 != "" {
@@ -84,7 +112,9 @@ _PC_AWK_PC_RENDER_CATALOG='
       label = base (sub_ != "" ? "/" sub_ : "")
       if (!(f in cnt)) { files[++nf] = f; flabel[f] = label; fbase[f] = base }
       cnt[f]++
-      body = "### " $3 "\n- 역할: " $4 "\n- 위치: " $1 " · @" $2
+      lang = $1; sub(/^.*\//, "", lang); if (index(lang, ".") > 0) sub(/^.*\./, "", lang)
+      body = "### " $3 "\n- 역할: " $4 "\n- 위치: " $1 " · @" $2 " · " lang
+      if ($3 in twin) body = body "\n- 다른 언어 짝: " twin[$3]
       ne = split($6, exs, sep)
       for (j = 1; j <= ne; j++) body = body "\n- 예: `" exs[j] "`"
       rkey[f, cnt[f]] = $3; rbody[f, cnt[f]] = body
@@ -126,6 +156,39 @@ _PC_AWK_PC_RENDER_CATALOG='
     }
 '
 
+_PC_AWK_PC_TEXT_DUPLICATES='
+    # 줄: 이름 · 언어 · 입력 · 출력. 같은 (입력, 출력) 을 가진 이름들이 후보, 같은 입력에 다른 출력이 있으면 아님.
+    NF >= 4 {
+      if (!($1 in ord)) { ord[$1] = ++no; nm[no] = $1; lang[$1] = $2 }
+      nr++; rn[nr] = $1; ra[nr] = $3; re[nr] = $4
+      if ($3 != "" && $3 != "\047\047" && $3 != "\"\"") {
+        k = $3 SUBSEP $4
+        if (!((k, $1) in seen)) { seen[k, $1] = 1; bucket[k] = bucket[k] SUBSEP $1 }
+      }
+    }
+    END {
+      for (k in bucket) {
+        m = split(substr(bucket[k], 2), bl, SUBSEP)
+        for (x = 1; x <= m; x++) for (y = x + 1; y <= m; y++) {
+          p = bl[x]; q = bl[y]
+          if (ord[q] < ord[p]) { t = p; p = q; q = t }
+          cand[p SUBSEP q] = 1
+        }
+      }
+      for (i = 1; i <= nr; i++) for (j = 1; j <= nr; j++)
+        if (rn[i] != rn[j] && ra[i] == ra[j] && re[i] != re[j]) {
+          p = rn[i]; q = rn[j]
+          if (ord[q] < ord[p]) { t = p; p = q; q = t }
+          clash[p SUBSEP q] = 1
+        }
+      for (a = 1; a <= no; a++) for (b = a + 1; b <= no; b++) {
+        pq = nm[a] SUBSEP nm[b]
+        if ((pq in cand) && !(pq in clash))
+          printf "%s\t%s\t%s\n", nm[a], nm[b], (lang[nm[a]] == lang[nm[b]] ? "same" : "cross")
+      }
+    }
+'
+
 _PC_AWK_PC_OVERSIZE_FILES='
     /^@@FILE / { if (f != "" && n > lim) printf "%s\t%d\n", f, n; f = substr($0, 8); n = 0; next }
     { n++ }
@@ -141,9 +204,11 @@ pc_kinds_from_contract() {
 }
 
 # @deterministic
-# 역할: 스크립트 글에서 표식 달린 함수마다 역할 · 종류 · 예시를 뽑아 항목 줄로 낸다
+# 역할: 소스 글에서 표식(어떤 주석 모양이든 '@pure 이름', 셸은 이름 없이도) 달린 함수마다 역할 · 종류 · 예시를 뽑아 항목 줄로 낸다
 # 종류: 꺼내기
 # 예: "lib/a.sh" <<< $'# @pure\n# 역할: 센다\n# 종류: 세기\n# 예: "a" → "1"\nf() {\n}' → $'lib/a.sh\tpure\tf\t센다\t세기\t"a" → "1"'
+# 예: "src/a.ts" <<< $'// @pure add\n// 역할: 더한다\n// 종류: 세기\n// 예: 1 2 → 3\nexport const add = (a, b) => a + b' → $'src/a.ts\tpure\tadd\t더한다\t세기\t1 2 → 3'
+# 예: "A.java" <<< $'/**\n * @deterministic clamp\n * 역할: 범위로 자른다\n * 종류: 다듬기\n * 예: 5 0 3 → 3\n */\nint clamp(int v, int lo, int hi)' → $'A.java\tdeterministic\tclamp\t범위로 자른다\t다듬기\t5 0 3 → 3'
 pc_extract_entries() {
   LC_ALL=C awk -v file="${1:-}" -v sep="$PC_SEP" "$_PC_AWK_PC_EXTRACT_ENTRIES"
 }
@@ -259,6 +324,40 @@ pc_mutual_pairs() {
 }
 
 # @pure
+# 역할: 파일 경로의 확장자로 언어 표시를 낸다 — 언어 목록 없이, 확장자가 없으면 파일 이름
+# 종류: 꺼내기
+# 예: "src/date.ts" → "ts"
+# 예: "lib/a.b/Makefile" → "Makefile"
+# 예: "x.tar.gz" → "gz"
+pc_lang_of() {
+  local f="${1##*/}"
+  [[ "$f" == *.* ]] && f="${f##*.}"
+  printf '%s' "$f"
+}
+
+# @deterministic
+# 역할: 항목들의 예시를 글로 비교해, 같은 입력에 같은 출력인 예시를 공유하고 어긋남이 없는 함수 짝을 같은 언어(same) · 다른 언어(cross) 표시와 함께 낸다
+# 종류: 고르기
+# 예: $'a.ts\tpure\tfmt\tr\t변환\t"2026-01-02" → "26/01/02"\nb.py\tpure\tfmt_date\tr\t변환\t"2026-01-02" → "26/01/02"' → $'fmt\tfmt_date\tcross'
+# 예: $'a.ts\tpure\tf\tr\t다듬기\t" a " → "a"\nb.ts\tpure\tg\tr\t다듬기\t" a " → "a"\x1f"b " → "B"\nc.rs\tpure\th\tr\t다듬기\t"b " → "b"' → $'f\tg\tsame'
+# 빈 입력('' · "")만 같은 예시는 증거로 치지 않는다 — 빈 값에 빈 값을 내는 함수는 흔하다.
+pc_text_duplicates() {
+  local entries="${1:-}" line file tier name role kind exs ex split args expect st rows=""
+  while IFS= read -r line; do
+    IFS=$'\x1d' read -r file tier name role kind exs <<< "${line//$'\t'/$'\x1d'}"
+    [[ -n "$name" && -n "$exs" ]] || continue
+    while IFS= read -r ex; do
+      [[ -n "$ex" ]] || continue
+      split="$(pc_split_example "$ex")" || continue
+      IFS=$'\x1d' read -r args expect st _ <<< "${split//$'\t'/$'\x1d'}"
+      rows+="$name"$'\x1d'"$(pc_lang_of "$file")"$'\x1d'"$args"$'\x1d'"$expect [$st]"$'\n'
+    done <<< "${exs//$PC_SEP/$'\n'}"
+  done <<< "$entries"
+  # 짝 찾기는 awk 한 번 — 함수 240개를 셸 반복으로 서로 견주면 몇 분이 걸렸다(2026-11-01).
+  printf '%s' "$rows" | LC_ALL=C awk -F'\035' "$_PC_AWK_PC_TEXT_DUPLICATES"
+}
+
+# @pure
 # 역할: 짝 목록에서 예외 목록에 이유와 함께 적힌 짝을 빼고, 이유 없는 예외는 따로 표시한다
 # 종류: 고르기
 # 예: $'a\tb\nc\td' $'b\ta\t줄바꿈 처리가 다름' → $'c\td'
@@ -284,12 +383,12 @@ pc_allowed_filter() {
 }
 
 # @deterministic
-# 역할: 항목과 종류 표로 사전 파일들(차례 + 종류별)의 글을 만든다. 파일마다 '@@FILE 이름' 줄로 시작
+# 역할: 항목 · 종류 표 · 다른 언어 짝으로 사전 파일들(차례 + 종류별)의 글을 만든다. 파일마다 '@@FILE 이름' 줄로 시작, 항목에 언어 표시
 # 종류: 조립
-# 예: $'lib/a.sh\tpure\tf\t센다\t세기\t"a" → "1"' $'세기\tcount\t센다' → $'@@FILE INDEX.md\n# 순수함수 사전 — 차례\n\n> 생성물 — 손으로 고치지 말 것. 다시 만들기: `bash core/scripts/pure-catalog.sh build`\n>\n> 새 함수를 만들기 전에: 아래에서 종류를 고르고, 그 종류 파일 하나만 연다.\n\n| 종류 | 하는 일 | 개수 | 파일 |\n|---|---|---|---|\n| 세기 | 센다 | 1 | [count.md](count.md) |\n\n전체 1개\n@@FILE count.md\n# 세기 — 센다\n\n> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 1개.\n\n### f\n- 역할: 센다\n- 위치: lib/a.sh · @pure\n- 예: `"a" → "1"`'
+# 예: $'lib/a.sh\tpure\tf\t센다\t세기\t"a" → "1"' $'세기\tcount\t센다' → $'@@FILE INDEX.md\n# 순수함수 사전 — 차례\n\n> 생성물 — 손으로 고치지 말 것. 다시 만들기: `bash core/scripts/pure-catalog.sh build`\n>\n> 새 함수를 만들기 전에: 아래에서 종류를 고르고, 그 종류 파일 하나만 연다.\n\n| 종류 | 하는 일 | 개수 | 파일 |\n|---|---|---|---|\n| 세기 | 센다 | 1 | [count.md](count.md) |\n\n전체 1개\n@@FILE count.md\n# 세기 — 센다\n\n> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 1개.\n\n### f\n- 역할: 센다\n- 위치: lib/a.sh · @pure · sh\n- 예: `"a" → "1"`'
 pc_render_catalog() {
-  local entries="${1:-}" kinds="${2:-}"
-  printf '%s\n' "$entries" | PC_KINDS="$kinds" LC_ALL=C awk -F'\t' -v sep="$PC_SEP" "$_PC_AWK_PC_RENDER_CATALOG"
+  local entries="${1:-}" kinds="${2:-}" twins="${3:-}"
+  printf '%s\n' "$entries" | PC_KINDS="$kinds" PC_TWINS="$twins" LC_ALL=C awk -F'\t' -v sep="$PC_SEP" "$_PC_AWK_PC_RENDER_CATALOG"
 }
 
 # @deterministic
