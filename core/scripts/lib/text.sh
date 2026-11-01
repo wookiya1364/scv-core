@@ -23,3 +23,16 @@ scv_lower() {
   done
   printf '%s' "$out"
 }
+
+# @pure
+# 역할: (T12 시험용 — 일부러 넣은 중복, 곧 되돌림) 설정 값을 on|off 로
+# 종류: 판정
+# 예: ' "OFF" ' → "off"
+scv_t12_dup_switch() {
+  local v="${1:-}"
+  v="${v//[[:space:]]/}"; v="${v//\"/}"; v="${v//\'/}"
+  case "$v" in
+    [Oo][Ff][Ff]) printf 'off' ;;
+    *)            printf 'on'  ;;
+  esac
+}
