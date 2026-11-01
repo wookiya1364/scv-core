@@ -3,7 +3,7 @@ title: 회귀 시험 — 같은 시험은 한 번만, 여러 개를 동시에
 slug: 20261101-wookiya1364-regression-dedupe-parallel
 author: wookiya1364
 created_at: 2026-11-01
-status: planned
+status: testing
 kind: refactor
 lang: korean
 tags: [regression, performance, tests]

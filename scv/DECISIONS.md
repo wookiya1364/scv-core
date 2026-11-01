@@ -1816,3 +1816,11 @@ merge_policy: preserve
 - discarded alternatives: 회귀를 건너뛰고 CI 만 믿기 — 보관된 계획별 판정이 사라짐 · 시험을 계획마다 병렬로(블록 단위) — 같은 시험이 여전히 반복
 - refs: scv/promote/20261101-wookiya1364-regression-dedupe-parallel/PLAN.md
 - conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 16:22] wookiya1364 — 회귀 시험 — 같은 시험은 한 번만, 여러 개를 동시에 archived
+
+- verdict: archived
+- why: 보관 계획 블록의 시험 파일 하나를 부르는 줄(이은 줄 안의 것 포함)을 모아 한 번씩 동시에 돌리고 계획별 판정에 나눠 준다. 전체 회귀 18분 21초 · 76/76(예전 49분 넘게 미완). 지킬 것: 동시 실행에서 실패한 공유 시험은 혼자 다시 돌려 하나씩 돌던 판정과 맞춘다(시간 한도 시험 — 실체 보여 주기 T11 이 66초로 60초 한도를 넘었다).
+- path delta: 측정하며 세 번 고침: (1) 블록에 cd 하나만 있어도 계획 전체를 공유에서 빼던 것 → 괄호 하위 셸의 cd 는 허용, (2) '코어 시험 전부' 반복 줄은 시험 파일 하나하나로 나눠 공유, (3) 한 줄에 이은 시험(&& || ;)도 하나씩. 그리고 동시 실행 실패는 혼자 재실행. 기존 메모 시험 T2 기대값을 1회 → 2회(함께 · 혼자)로. 개인정보 검사: 사용자 이름 한 글자 경로는 예시로(사전 PR 예시가 이력에 남아 이력 검사가 떨어짐).
+- refs: scv/archive/20261101-wookiya1364-regression-dedupe-parallel/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md

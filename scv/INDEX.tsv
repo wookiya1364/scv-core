@@ -147,3 +147,4 @@ decision	순수함수-목록-만들기-전에-목록에서-찾아-재사용	scv/
 decision	순수함수-목록-만들기-전에-목록에서-찾아-재사용-archived	scv/DECISIONS.md	219343	1393	2026-11-01 12:21	[archived] 순수함수 목록 — 만들기 전에 목록에서 찾아 재사용 archived
 decision	순수함수-사전-위치를-scv-core-로-맥-기본-bash-3-2-차이-고침	scv/DECISIONS.md	220736	1068	2026-11-01 13:10	[lesson] 순수함수 사전 — 위치를 scv/core 로, 맥 기본 bash 3.2 차이 고침
 decision	회귀-시험-같은-시험은-한-번만-여러-개를-동시에	scv/DECISIONS.md	221804	750	2026-11-01 13:30	[adopted] 회귀 시험 — 같은 시험은 한 번만, 여러 개를 동시에
+decision	회귀-시험-같은-시험은-한-번만-여러-개를-동시에-archived	scv/DECISIONS.md	222554	1303	2026-11-01 16:22	[archived] 회귀 시험 — 같은 시험은 한 번만, 여러 개를 동시에 archived
