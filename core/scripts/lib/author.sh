@@ -43,7 +43,8 @@ scv_author_slug() {
   for (( i = 0; i < ${#in}; i++ )); do
     ch="${in:i:1}"
     case "$ch" in
-      [a-z0-9._-]) out+="$ch" ;;
+      # 맥 기본 bash 3.2 는 UTF-8 지역 설정에서 [a-z] 범위가 대문자까지 맞춘다 — 글자를 하나하나 적는다
+      [abcdefghijklmnopqrstuvwxyz0123456789._-]) out+="$ch" ;;
       *)
         # Any other ASCII char (space, /, :, quotes, control chars, ...) is
         # unsafe or ambiguous in a filename → dash. Non-ASCII (한글 etc.) kept.

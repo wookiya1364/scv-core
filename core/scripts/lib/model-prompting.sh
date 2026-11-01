@@ -458,7 +458,8 @@ scv_mp_guides_candidates() {
 # 순서: 공통 순서대로, 같은 id 는 모델 쪽 label 이 이긴다, 그 뒤 모델에만 있는 항목. id 는 소문자 · 숫자 · - 만.
 scv_mp_checklist_merge() {
   local common="${1:-}" model="${2:-}" id label rest out="" mids="" mlabels="" line
-  _ok_id() { [[ -n "$1" ]] || return 1; local t="${1//[a-z0-9-]/}"; [[ -z "$t" ]]; }
+  # 맥 기본 bash 3.2 는 UTF-8 지역 설정에서 [a-z] 범위가 대문자까지 맞춘다 — 글자를 하나하나 적는다
+  _ok_id() { [[ -n "$1" ]] || return 1; local t="${1//[abcdefghijklmnopqrstuvwxyz0123456789-]/}"; [[ -z "$t" ]]; }
   while IFS=$'\t' read -r id label rest || [[ -n "$id" ]]; do
     [[ -z "$id" || "$id" == \#* || -z "$label" ]] && continue; _ok_id "$id" || continue
     mids="$mids|$id|"; mlabels="$mlabels$id"$'\t'"$label"$'\n'
