@@ -1,0 +1,75 @@
+# 세기 — 개수 · 길이 · 합계를 센다
+
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 14개.
+
+### scv_as_count_terms
+- 역할: 한 줄에 낱말 목록 중 몇 개가 들어 있는지 센다(대소문자 무시)
+- 위치: scripts/lib/archive-search.sh · @deterministic
+- 예: `'Fix the Login bug' $'login\nbug\nlogout' → "2"`
+- 예: `'nothing' $'login' → "0"`
+
+### scv_dreams_distribution
+- 역할: 계획마다 보관까지의 사람 질의 수와 근거 턴 id 를 센다(마지막 줄 #open 은 보관 뒤 질의 수)
+- 위치: scripts/lib/dreams.sh · @pure
+- 예: `$'s1\t1\t2026-10-01T01:00:00Z\tfix it\ns1\t2\t2026-10-02T01:00:00Z\tdo more' $'20261002\tplan-a' 0 → $'plan-a\t20261002\t2\ts1/1\n#open\t0'`
+
+### scv_dreams_periods
+- 역할: 사람 턴 줄들과 보관 줄들을 기간별 질의 · 보관 수와 비율 줄로 센다
+- 위치: scripts/lib/dreams.sh · @pure
+- 예: `$'s1\t1\t2026-10-01T01:00:00Z\tfix it\ns1\t2\t2026-10-02T01:00:00Z\tdo more' $'20261002\tplan-a' 0 month → $'20261001\t20261031\t2\t1\t2.0'`
+
+### scv_dreams_totals
+- 역할: 기간 줄들에서 마지막 보관이 있는 기간까지의 질의 합과 보관 합을 센다
+- 위치: scripts/lib/dreams.sh · @pure
+- 예: `$'20261001\t20261010\t5\t0\t-\n20261011\t20261020\t3\t2\t1.5' → $'8\t2'`
+
+### scv_graft_ext_histogram
+- 역할: 표준입력 파일 경로들에서 "확장자 개수" 표를 만든다(확장자 없는 파일은 뺌, 순서 불정)
+- 위치: scripts/lib/graft.sh · @deterministic
+- 예: `<<< $'a.py\nb.py\nREADME' → $'py\t2'`
+
+### scv_graft_supported_count
+- 역할: 확장자 히스토그램에서 지원 언어 파일 수의 합을 낸다
+- 위치: scripts/lib/graft.sh · @pure
+- 예: `$'py\t3\nmd\t5\nts\t2' → "5"`
+
+### scv_graph_cochange
+- 역할: 계획별 파일 목록(touches 줄들)에서 함께 바뀐 파일 쌍과 횟수 · 근거 slug 를 "a\x1fb\x1f횟수\x1f근거" 줄들로 센다 (jq 필요)
+- 위치: scripts/lib/graph.sh · @deterministic
+- 예: `$'p1\x1fa b c\np2\x1fa b\n' → $'a\x1fb\x1f2\x1fp1 p2\na\x1fc\x1f1\x1fp1\nb\x1fc\x1f1\x1fp1'`
+
+### scv_mp_age_days
+- 역할: 가져온 날짜부터 오늘까지 지난 일수를 센다(형식 오류면 빈 값)
+- 위치: scripts/lib/model-prompting.sh · @pure
+- 예: `2026-01-01 2026-01-11 → "10"`
+- 예: `2026-01-11 2026-01-01 → "0"`
+
+### scv_mx_aggregate
+- 역할: 지표 줄들을 값 있는 수 · 전체 수 · 합 · 평균x10 · 중앙값x10 한 줄로 요약한다
+- 위치: scripts/lib/metrics.sh · @pure
+- 예: `$'a\t10\nb\t20\nc\tnone\n' → $'2\t3\t30\t150\t150'`
+
+### scv_mx_count_answers
+- 역할: 저널에서 답 기록 머리줄을 모델 id 별로 세어 많은 순으로 낸다 (표기 없는 답은 라벨 "-")
+- 위치: scripts/lib/metrics.sh · @pure
+- 예: `$'### [09:00:00] assistant · m1\n### [09:01:00] assistant\n### [09:02:00] assistant · m1\n' → $'m1\t2\n-\t1'`
+
+### scv_mx_count_turns
+- 역할: 대화 파일 텍스트의 "## Turn N" 헤딩 수를 센다 (코드 블록 안은 제외)
+- 위치: scripts/lib/metrics.sh · @pure
+- 예: `$'## Turn 1 — a\n```\n## Turn 2 — x\n```\n## Turn 3 — b\n' → "2"`
+
+### scv_mx_metric_lead_time
+- 역할: 색인의 slug 마다 가장 이른 adopted 에서 archived 까지 걸린 분 수를 낸다 (없으면 none)
+- 위치: scripts/lib/metrics.sh · @pure
+- 예: `$'a\tx\ty\n' $'a\tadopted\t100\na\tarchived\t160\n' → $'a\t60'`
+
+### scv_show_real_count
+- 역할: 분류된 턴 줄들을 두 기간(켜기 전 · 켠 뒤)별로 세션 · 턴 · 바뀐 턴 · 보여 준 턴 등으로 센다
+- 위치: scripts/lib/show-real.sh · @pure
+- 예: `$'s1\t2026-10-01T01:00:00Z\t1\t1\t1\t0\t1\ns1\t2026-10-02T01:00:00Z\t1\t0\t1\t1\t0' 0 "20261001 20261001" "20261002 20261002" → $'before\t1\t1\t1\t1\t0\t1\nafter\t1\t1\t1\t0\t1\t0'`
+
+### scv_show_real_judge_count
+- 역할: 판정자 답 줄들에서 기간마다 판정한 턴 · 그중 보여 줌 · 판정 못 한 턴을 센다
+- 위치: scripts/lib/show-real.sh · @pure
+- 예: `$'A\tk\ts\tt\tb\tyes\nA\tk\ts\tt\tb\tno\nA\tk\ts\tt\ta\tunjudged' → $'before\t2\t1\t0\nafter\t0\t0\t1'`

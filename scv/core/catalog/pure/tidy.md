@@ -1,0 +1,78 @@
+# 다듬기 — 글자를 정리한다 — 공백 · 대소문자 · 이스케이프 · 자르기
+
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 13개.
+
+### record_kind_normalize
+- 역할: 기록 종류 이름의 앞뒤 공백을 떼고 소문자로 맞춘다 — 모르는 종류는 빈 값
+- 위치: scripts/lib/record-index.sh · @pure
+- 예: `' Decision ' → "decision"`
+- 예: `plan → "plan"`
+- 예: `nope → ""`
+
+### scv_answer_body
+- 역할: 답에서 코드 블록(``` 울타리 안)과 인용 줄을 빼고 본문만 남긴다
+- 위치: scripts/lib/choices.sh · @pure
+- 예: `$'a?\n> quoted?\n```\ncode?\n```\nb\n' → $'a?\nb'`
+
+### scv_as_excerpt
+- 역할: 아주 긴 줄에서 낱말이 맞은 자리 앞뒤만 남긴 대목을 낸다(짧으면 그대로)
+- 위치: scripts/lib/archive-search.sh · @deterministic
+- 예: `'short line' short 100 → "short line"`
+- 예: `'aaaaaaaaaaaaaaaaaaaaTARGETbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' TARGET 20 → "…aaaaaaTARGETbbbbbbbb…"`
+
+### scv_dreams_esc
+- 역할: 글의 & · 꺾쇠 · 따옴표 · « » 를 HTML 에 넣을 수 있게 이스케이프한다
+- 위치: scripts/lib/dreams.sh · @pure
+- 예: `"a & b" → 'a &amp; b'`
+- 예: `"x«y»" → 'x&laquo;y&raquo;'`
+
+### scv_dreams_mask
+- 역할: 글을 한 줄로 줄이고 경로 · 메일 · id · 열쇠 값을 가려 정해진 글자 수까지 자른다
+- 위치: scripts/lib/dreams.sh · @deterministic
+- 예: `"mail a@b.com token=abc123 /opt/x/y" → 'mail [메일] token=[REDACTED] [경로]'`
+- 예: `"abcdefghij" 5 → 'abcde…'`
+
+### scv_force_trim_diagnosis
+- 역할: 표준입력 점검 출력에서 진단부터 끝까지만 남긴다(표지를 못 찾으면 전체 그대로)
+- 위치: scripts/lib/force-help.sh · @pure
+- 예: `<<< $'no marker here' → "no marker here"`
+- 예: `<<< $'intro\nCurrent project diagnosis\nstate ok\nLearn more\nlong text' → $'Current project diagnosis\nstate ok'`
+
+### scv_lint_strip_quoted
+- 역할: 글에서 따옴표 · 괄호 안을 비워 인용문 속 마침표를 문장 끝으로 세지 않게 한다
+- 위치: scripts/lib/help-state.sh · @pure
+- 예: `'a "b. c" d' → "a   d"`
+
+### scv_lower
+- 역할: ASCII 대문자만 소문자로 바꾼다 — 공백 · 한글 · 기호는 그대로(맥 기본 bash 3.2 에서도 됨)
+- 위치: scripts/lib/text.sh · @pure
+- 예: `" AbC-1 " → " abc-1 "`
+- 예: `"한글 OK" → "한글 ok"`
+- 예: `"" → ""`
+
+### scv_mp_normalize_id
+- 역할: 모델 id 를 앞뒤 공백 없이 소문자로 바꾸고 끝의 "[…]" 표기를 지운다
+- 위치: scripts/lib/model-prompting.sh · @pure
+- 예: `"  Model-X-4[1m] " → "model-x-4"`
+- 예: `"X-5" → "x-5"`
+
+### scv_mp_principle_text
+- 역할: 구역에서 표식 줄과 통로별 해로운 변경 줄을 뺀 원칙 전문을 낸다
+- 위치: scripts/lib/model-prompting.sh · @pure
+- 예: `$'tag: [P]\nbody\nharm-text: x' → "body"`
+- 예: `plain → "plain"`
+
+### scv_mp_register_normalize
+- 역할: 제출 텍스트를 탭 구분 세 칸으로 맞춘다(" | " 도 받고 앞뒤 공백을 자른다)
+- 위치: scripts/lib/model-prompting.sh · @pure
+- 예: `$'a | msg | v\n\nb\tna\tv2' → $'a\tmsg\tv\nb\tna\tv2\n'`
+
+### scv_mx_strip_comment
+- 역할: 값 뒤의 " # 주석" 과 감싼 따옴표를 떼고 남은 값을 낸다
+- 위치: scripts/lib/metrics.sh · @pure
+- 예: `'"my title" # note' → "my title"`
+
+### scv_mx_trim
+- 역할: 앞뒤 공백 · 탭 · 줄바꿈을 지운다
+- 위치: scripts/lib/metrics.sh · @pure
+- 예: `"  a b  " → "a b"`

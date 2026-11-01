@@ -1785,3 +1785,26 @@ merge_policy: preserve
 - path delta: CI 기준을 'Contracts 5분 28초'에서 시험 조각 시간으로 바꿈 — ci-parallel-tests 뒤 Contracts 는 2–4초라 계획의 기준이 낡음. 자주 읽는 다섯 스크립트에 settings_preload 를 넣는 단계 추가(계획엔 훅만). 도중 수정: 지문 파일 재생성, 시험의 호스트 도구 이름 중립화, T38 용 판별 줄을 같은 표식으로 감쌈.
 - refs: scv/archive/20261030-wookiya1364-hook-dedupe-settings-read/PLAN.md
 - conversation: scv/conversations/20261030-103500-hook-speed-hydrate.md
+
+## [2026-11-01 10:24] wookiya1364 — 순수함수 목록 — 만들기 전에 목록에서 찾아 재사용
+
+- verdict: adopted
+- why: SCV 순수 표식 함수 234개 중 역할 설명은 22개뿐이라 재사용하려면 코드 전체를 훑어야 했고, 기능마다 다듬기 · 파싱을 따로 만들어 왔다. 코드 옆 주석(역할 · 종류 · 예시)에서 종류별 사전 + 차례를 생성하고, 같은 입력 → 같은 출력 지문으로 중복을 잡는다.
+- discarded alternatives: 계획서 재사용 줄 강제 — 사전 읽기 규칙 + 중복 검사로 충분(사용자) · 번호 순 파일 분할 — 어느 파일인지 몰라 전부 열어야 함 · 기능별 분할 — 다른 기능의 같은 일 함수를 못 찾음 · 몸체 글자 비교 — 모양만 다른 같은 함수를 놓침 · 기존 중복은 목록만 — 진짜 같으면 합쳐도 동작 동일(사용자), 경계 입력 · 전체 시험으로 오판만 막음
+- refs: scv/promote/20261101-wookiya1364-pure-function-catalog/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 12:21] wookiya1364 — 순수함수 목록 — 만들기 전에 목록에서 찾아 재사용 archived
+
+- verdict: archived
+- why: 표식 함수 238개 전부에 역할 · 종류 · 예시(실제로 돌려 검사)를 달고 core/catalog/pure/ 에 차례 + 종류별 사전을 생성한다. 같은 입력 → 같은 출력 지문으로 중복을 잡아 실제 저장소에서 진짜 중복 두 무리(스위치 해석 5개 · 목록 빼기 2개)를 찾아 합쳤다. 앞으로 지킬 것: 예시에 호스트 이름 금지(호스트 중립 검사가 6개 시험을 떨어뜨림), 예시에 파이프 금지, 사전은 손으로 고치지 않음.
+- path delta: 계획에 없던 것: 판정 종류가 400줄에 닿아 answer · gate 세부 종류, 검사 17.4초 → 5.1초 최적화(셸 띄우기 줄임 · 예시 미리 풀기 · 4묶음 동시), 합친 함수는 지우지 않고 기존 이름을 한 줄 위임으로 남김(호출 17곳 · 시험 무변경), 공용 구현은 어느 기능 것도 아닌 lib/switch.sh(예전 '훅끼리 안 묶이게' 의도 유지). 234개 채우기는 파일이 안 겹치는 4묶음 배경 위임. 회귀는 같은 시험 3.4배 반복으로 49분 뒤 중단 — 개선은 다음 계획.
+- refs: scv/archive/20261101-wookiya1364-pure-function-catalog/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 13:10] wookiya1364 — 순수함수 사전 — 위치를 scv/core 로, 맥 기본 bash 3.2 차이 고침
+
+- verdict: lesson
+- why: 사전은 저장소의 scv/core/catalog/pure 에 둔다(사용자 요구: 기기 · 협업자가 같은 맥락) — 래퍼 설치본엔 scv/ 가 없어 낡음 검사를 건너뜀. 사전의 예시 실행이 맥 · 리눅스 차이를 처음 잡았다: (1) 맥 awk 는 en_US 등 UTF-8 로캘에서 == 를 strcoll 로 봐 서로 다른 한글을 같다고 함 → awk 는 LC_ALL=C, (2) 맥 기본 bash 3.2 엔 ${x,,} 가 없음 → scv_lower, (3) bash 3.2 UTF-8 로캘에서 글롭 [a-z] 가 대문자도 맞춤(=~ 정규식은 괜찮음) → 글자를 하나하나 적음. T13 이 맥 CI 에서 bash 3.2 · en_US 로 예시 전부를 돈다. T12: 일부러 넣은 중복에 CI 빨강(맥 · 우분투) → 되돌려 초록. CI 추가 시간 맥 22초 · 우분투 7초.
+- refs: scv/archive/20261101-wookiya1364-pure-function-catalog/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md

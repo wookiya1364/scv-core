@@ -10,6 +10,11 @@
 #   scv_privacy_term_hit <줄> <목록 원문>  → 걸린 목록 줄 번호(1부터) 또는 빈 값 — 낱말 경계, 대소문자 무시
 #   scv_privacy_path_skipped <경로>        → 종료 코드 0 이면 검사하지 않는 경로(가짜 시험 자료 · 래퍼 안 Core 사본)
 # @pure
+# 역할: 공개해도 되는 메일 주소(GitHub noreply · 봇)면 참
+# 종류: 판정
+# 예: 1+a@users.noreply.github.com → ""
+# 예: noreply@anthropic.com → ""
+# 예: me@gmail.com → "" [1]
 
 scv_privacy_email_ok() {
   case "${1:-}" in
