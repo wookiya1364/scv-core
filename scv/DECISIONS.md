@@ -1808,3 +1808,11 @@ merge_policy: preserve
 - why: 사전은 저장소의 scv/core/catalog/pure 에 둔다(사용자 요구: 기기 · 협업자가 같은 맥락) — 래퍼 설치본엔 scv/ 가 없어 낡음 검사를 건너뜀. 사전의 예시 실행이 맥 · 리눅스 차이를 처음 잡았다: (1) 맥 awk 는 en_US 등 UTF-8 로캘에서 == 를 strcoll 로 봐 서로 다른 한글을 같다고 함 → awk 는 LC_ALL=C, (2) 맥 기본 bash 3.2 엔 ${x,,} 가 없음 → scv_lower, (3) bash 3.2 UTF-8 로캘에서 글롭 [a-z] 가 대문자도 맞춤(=~ 정규식은 괜찮음) → 글자를 하나하나 적음. T13 이 맥 CI 에서 bash 3.2 · en_US 로 예시 전부를 돈다. T12: 일부러 넣은 중복에 CI 빨강(맥 · 우분투) → 되돌려 초록. CI 추가 시간 맥 22초 · 우분투 7초.
 - refs: scv/archive/20261101-wookiya1364-pure-function-catalog/PLAN.md
 - conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 13:30] wookiya1364 — 회귀 시험 — 같은 시험은 한 번만, 여러 개를 동시에
+
+- verdict: adopted
+- why: 보관된 계획 92개가 같은 시험을 각자 적어 회귀가 49분 넘게 미완(실행 250번 중 서로 다른 시험 73개). 시험 파일 하나를 부르는 줄을 전부 한 번만, 시작 때 동시에 돌리고 계획별 판정에 나눠 준다.
+- discarded alternatives: 회귀를 건너뛰고 CI 만 믿기 — 보관된 계획별 판정이 사라짐 · 시험을 계획마다 병렬로(블록 단위) — 같은 시험이 여전히 반복
+- refs: scv/promote/20261101-wookiya1364-regression-dedupe-parallel/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md

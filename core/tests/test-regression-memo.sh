@@ -71,7 +71,7 @@ echo "── T5 a block without gates is left byte-identical ──"
 src="$(sed -n '/^memo_rewrite_block()/,/^}/p' "$RUNNER")"
 [[ -n "$src" ]] && ok "rewrite function present" || fail "T5 rewrite function missing"
 blk=$'echo hello\nbash core/tests/test-alpha.sh\nls -la'
-res="$(cd "$WORK" && QUIET=1 TIMEOUT=5 bash -c 'source <(sed -n "/^declare -A MEMO_RC/,/^}/p" "'"$RUNNER"'" | head -1); '"$(sed -n '/^memo_rewrite_block()/,/^}/p' "$RUNNER" | sed 's/^/ /')"'; printf "%s\n" "$0" | memo_rewrite_block' "$blk" 2>/dev/null || true)"
+res="$(cd "$WORK" && QUIET=1 TIMEOUT=5 bash -c 'source "'"$CORE/scripts/lib/regression-memo.sh"'"; source <(sed -n "/^declare -A MEMO_RC/,/^}/p" "'"$RUNNER"'" | head -1); '"$(sed -n '/^memo_rewrite_block()/,/^}/p' "$RUNNER" | sed 's/^/ /')"'; printf "%s\n" "$0" | memo_rewrite_block' "$blk" 2>/dev/null || true)"
 [[ "$res" == "$blk" ]] && ok "no gate → unchanged" || fail "T5 rewrite changed a gate-free block: [$res]"
 
 echo
