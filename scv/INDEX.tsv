@@ -143,3 +143,10 @@ decision	claude-래퍼의-중복-deckui-없애기-deck-이-코어-사본-안-엔
 decision	claude-래퍼의-중복-deckui-없애기-deck-이-코어-사본-안-엔진을-읽게-a	scv/DECISIONS.md	214482	1452	2026-10-29 18:39	[archived] claude 래퍼의 중복 DeckUI 없애기 — deck 이 코어 사본 안 엔진을 읽게 archived
 decision	매-턴-훅-속도-같은-판단은-한-번-설정은-파일당-한-번-읽기	scv/DECISIONS.md	215934	920	2026-10-30 10:44	[adopted] 매 턴 훅 속도 — 같은 판단은 한 번, 설정은 파일당 한 번 읽기
 decision	매-턴-훅-속도-같은-판단은-한-번-설정은-파일당-한-번-읽기-archived	scv/DECISIONS.md	216854	1374	2026-10-31 12:37	[archived] 매 턴 훅 속도 — 같은 판단은 한 번, 설정은 파일당 한 번 읽기 archived
+decision	순수함수-목록-만들기-전에-목록에서-찾아-재사용	scv/DECISIONS.md	218228	1115	2026-11-01 10:24	[adopted] 순수함수 목록 — 만들기 전에 목록에서 찾아 재사용
+decision	순수함수-목록-만들기-전에-목록에서-찾아-재사용-archived	scv/DECISIONS.md	219343	1393	2026-11-01 12:21	[archived] 순수함수 목록 — 만들기 전에 목록에서 찾아 재사용 archived
+decision	순수함수-사전-위치를-scv-core-로-맥-기본-bash-3-2-차이-고침	scv/DECISIONS.md	220736	1068	2026-11-01 13:10	[lesson] 순수함수 사전 — 위치를 scv/core 로, 맥 기본 bash 3.2 차이 고침
+decision	회귀-시험-같은-시험은-한-번만-여러-개를-동시에	scv/DECISIONS.md	221804	750	2026-11-01 13:30	[adopted] 회귀 시험 — 같은 시험은 한 번만, 여러 개를 동시에
+decision	회귀-시험-같은-시험은-한-번만-여러-개를-동시에-archived	scv/DECISIONS.md	222554	1303	2026-11-01 16:22	[archived] 회귀 시험 — 같은 시험은 한 번만, 여러 개를 동시에 archived
+decision	프로젝트-순수함수-사전-어느-언어든-scv-core-에	scv/DECISIONS.md	223857	918	2026-11-01 13:30	[adopted] 프로젝트 순수함수 사전 — 어느 언어든 scv/core 에
+decision	프로젝트-순수함수-사전-어느-언어든-scv-core-에-archived	scv/DECISIONS.md	224775	1019	2026-11-01 17:48	[archived] 프로젝트 순수함수 사전 — 어느 언어든 scv/core 에 archived

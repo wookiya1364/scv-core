@@ -1785,3 +1785,58 @@ merge_policy: preserve
 - path delta: CI 기준을 'Contracts 5분 28초'에서 시험 조각 시간으로 바꿈 — ci-parallel-tests 뒤 Contracts 는 2–4초라 계획의 기준이 낡음. 자주 읽는 다섯 스크립트에 settings_preload 를 넣는 단계 추가(계획엔 훅만). 도중 수정: 지문 파일 재생성, 시험의 호스트 도구 이름 중립화, T38 용 판별 줄을 같은 표식으로 감쌈.
 - refs: scv/archive/20261030-wookiya1364-hook-dedupe-settings-read/PLAN.md
 - conversation: scv/conversations/20261030-103500-hook-speed-hydrate.md
+
+## [2026-11-01 10:24] wookiya1364 — 순수함수 목록 — 만들기 전에 목록에서 찾아 재사용
+
+- verdict: adopted
+- why: SCV 순수 표식 함수 234개 중 역할 설명은 22개뿐이라 재사용하려면 코드 전체를 훑어야 했고, 기능마다 다듬기 · 파싱을 따로 만들어 왔다. 코드 옆 주석(역할 · 종류 · 예시)에서 종류별 사전 + 차례를 생성하고, 같은 입력 → 같은 출력 지문으로 중복을 잡는다.
+- discarded alternatives: 계획서 재사용 줄 강제 — 사전 읽기 규칙 + 중복 검사로 충분(사용자) · 번호 순 파일 분할 — 어느 파일인지 몰라 전부 열어야 함 · 기능별 분할 — 다른 기능의 같은 일 함수를 못 찾음 · 몸체 글자 비교 — 모양만 다른 같은 함수를 놓침 · 기존 중복은 목록만 — 진짜 같으면 합쳐도 동작 동일(사용자), 경계 입력 · 전체 시험으로 오판만 막음
+- refs: scv/promote/20261101-wookiya1364-pure-function-catalog/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 12:21] wookiya1364 — 순수함수 목록 — 만들기 전에 목록에서 찾아 재사용 archived
+
+- verdict: archived
+- why: 표식 함수 238개 전부에 역할 · 종류 · 예시(실제로 돌려 검사)를 달고 core/catalog/pure/ 에 차례 + 종류별 사전을 생성한다. 같은 입력 → 같은 출력 지문으로 중복을 잡아 실제 저장소에서 진짜 중복 두 무리(스위치 해석 5개 · 목록 빼기 2개)를 찾아 합쳤다. 앞으로 지킬 것: 예시에 호스트 이름 금지(호스트 중립 검사가 6개 시험을 떨어뜨림), 예시에 파이프 금지, 사전은 손으로 고치지 않음.
+- path delta: 계획에 없던 것: 판정 종류가 400줄에 닿아 answer · gate 세부 종류, 검사 17.4초 → 5.1초 최적화(셸 띄우기 줄임 · 예시 미리 풀기 · 4묶음 동시), 합친 함수는 지우지 않고 기존 이름을 한 줄 위임으로 남김(호출 17곳 · 시험 무변경), 공용 구현은 어느 기능 것도 아닌 lib/switch.sh(예전 '훅끼리 안 묶이게' 의도 유지). 234개 채우기는 파일이 안 겹치는 4묶음 배경 위임. 회귀는 같은 시험 3.4배 반복으로 49분 뒤 중단 — 개선은 다음 계획.
+- refs: scv/archive/20261101-wookiya1364-pure-function-catalog/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 13:10] wookiya1364 — 순수함수 사전 — 위치를 scv/core 로, 맥 기본 bash 3.2 차이 고침
+
+- verdict: lesson
+- why: 사전은 저장소의 scv/core/catalog/pure 에 둔다(사용자 요구: 기기 · 협업자가 같은 맥락) — 래퍼 설치본엔 scv/ 가 없어 낡음 검사를 건너뜀. 사전의 예시 실행이 맥 · 리눅스 차이를 처음 잡았다: (1) 맥 awk 는 en_US 등 UTF-8 로캘에서 == 를 strcoll 로 봐 서로 다른 한글을 같다고 함 → awk 는 LC_ALL=C, (2) 맥 기본 bash 3.2 엔 ${x,,} 가 없음 → scv_lower, (3) bash 3.2 UTF-8 로캘에서 글롭 [a-z] 가 대문자도 맞춤(=~ 정규식은 괜찮음) → 글자를 하나하나 적음. T13 이 맥 CI 에서 bash 3.2 · en_US 로 예시 전부를 돈다. T12: 일부러 넣은 중복에 CI 빨강(맥 · 우분투) → 되돌려 초록. CI 추가 시간 맥 22초 · 우분투 7초.
+- refs: scv/archive/20261101-wookiya1364-pure-function-catalog/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 13:30] wookiya1364 — 회귀 시험 — 같은 시험은 한 번만, 여러 개를 동시에
+
+- verdict: adopted
+- why: 보관된 계획 92개가 같은 시험을 각자 적어 회귀가 49분 넘게 미완(실행 250번 중 서로 다른 시험 73개). 시험 파일 하나를 부르는 줄을 전부 한 번만, 시작 때 동시에 돌리고 계획별 판정에 나눠 준다.
+- discarded alternatives: 회귀를 건너뛰고 CI 만 믿기 — 보관된 계획별 판정이 사라짐 · 시험을 계획마다 병렬로(블록 단위) — 같은 시험이 여전히 반복
+- refs: scv/promote/20261101-wookiya1364-regression-dedupe-parallel/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 16:22] wookiya1364 — 회귀 시험 — 같은 시험은 한 번만, 여러 개를 동시에 archived
+
+- verdict: archived
+- why: 보관 계획 블록의 시험 파일 하나를 부르는 줄(이은 줄 안의 것 포함)을 모아 한 번씩 동시에 돌리고 계획별 판정에 나눠 준다. 전체 회귀 18분 21초 · 76/76(예전 49분 넘게 미완). 지킬 것: 동시 실행에서 실패한 공유 시험은 혼자 다시 돌려 하나씩 돌던 판정과 맞춘다(시간 한도 시험 — 실체 보여 주기 T11 이 66초로 60초 한도를 넘었다).
+- path delta: 측정하며 세 번 고침: (1) 블록에 cd 하나만 있어도 계획 전체를 공유에서 빼던 것 → 괄호 하위 셸의 cd 는 허용, (2) '코어 시험 전부' 반복 줄은 시험 파일 하나하나로 나눠 공유, (3) 한 줄에 이은 시험(&& || ;)도 하나씩. 그리고 동시 실행 실패는 혼자 재실행. 기존 메모 시험 T2 기대값을 1회 → 2회(함께 · 혼자)로. 개인정보 검사: 사용자 이름 한 글자 경로는 예시로(사전 PR 예시가 이력에 남아 이력 검사가 떨어짐).
+- refs: scv/archive/20261101-wookiya1364-regression-dedupe-parallel/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 13:30] wookiya1364 — 프로젝트 순수함수 사전 — 어느 언어든 scv/core 에
+
+- verdict: adopted
+- why: 사용자 프로젝트 함수도 그 저장소의 scv/core/catalog/pure 에 모아 기기 · 협업자가 같은 사전을 본다. 언어를 정하지 않는다(사용자: 자바 · C · 러스트 등 무엇이든) — 표식 줄에 이름(@pure 이름), 주석 모양만 안다. 셸은 예시 실행, 다른 언어는 칸 검사 + 예시 글 비교로 중복.
+- discarded alternatives: 언어 목록(셸 · TS · 파이썬) — 사용자: 역할 · 입력 · 출력만 알면 됨 · 언어별 함수 파싱 — 이름을 표식에 적으면 불필요 · 다른 언어 예시 실행 — 언어별 실행기가 필요해 다음 후보
+- refs: scv/promote/20261101-wookiya1364-project-pure-catalog/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 17:48] wookiya1364 — 프로젝트 순수함수 사전 — 어느 언어든 scv/core 에 archived
+
+- verdict: archived
+- why: 어떤 주석 모양이든 '@pure 이름' 표식으로 함수를 찾아 그 저장소의 scv/core/catalog/pure 에 사전을 만든다(언어 목록 없음). 셸은 예시 실행, 다른 언어는 칸 검사 · 예시 글 비교. 항목마다 언어를 적고, 다른 언어끼리 같은 입출력은 중복이 아니라 '다른 언어 짝'(사용자 요구).
+- path delta: 구현 중 사용자 요구로 바뀜: 다른 언어끼리 같은 입출력은 중복 의심 → '다른 언어 짝' 표기(같은 언어끼리만 중복 의심), 항목에 언어(확장자) 추가 — scv-core 사전 위치 줄에 '· sh' 가 붙음. 예시 글 비교를 셸 반복에서 awk 한 번으로(240개 비교가 몇 분 → 1초 미만).
+- refs: scv/archive/20261101-wookiya1364-project-pure-catalog/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
