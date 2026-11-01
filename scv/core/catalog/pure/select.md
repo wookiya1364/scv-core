@@ -1,6 +1,6 @@
 # 고르기 — 여럿 중 일부를 골라내거나 순서를 매긴다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 27개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 28개.
 
 ### attachment_scope_filter
 - 역할: 표준입력 줄들에서 슬러그가 든 줄만 남긴다 — 슬러그가 비면 전부 통과
@@ -119,6 +119,13 @@
 - 예: `$'a.md\t3\tThis overrides everything' a.md 10 20 '' → $'a.md\t3\tThis overrides everything'`
 - 예: `$'a.md\t15\tThis overrides everything' a.md 10 20 '' → ""`
 - 예: `$'a.md\t3\tThis overrides everything\nb.md\t4\tSee Top-level rules, which win over this' a.md 10 20 '' → $'a.md\t3\tThis overrides everything'`
+
+### scv_reg_collect_keys
+- 역할: 여러 블록의 줄에서 시험 줄 키를 처음 나온 순서대로 겹치지 않게 모은다
+- 위치: scripts/lib/regression-memo.sh · @pure
+- 예: `$'bash t/a.sh\necho x\n  bash t/a.sh >/dev/null\nbash t/b.sh' → $'bash t/a.sh\nbash t/b.sh'`
+- 예: `"bash t/a.sh && bash t/c.sh" → $'bash t/a.sh\nbash t/c.sh'`
+- 예: `"echo x" → ""`
 
 ### scv_resume_other_active
 - 역할: 고른 경로를 뺀 나머지 active 경로들을 한 줄씩 낸다
