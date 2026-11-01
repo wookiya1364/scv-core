@@ -146,6 +146,13 @@ flowchart LR
   アクションは計画の図の文書（`FEATURE_ARCHITECTURE.md`）を番号付き画面設計書
   として描きます。大きな図一枚に番号を振り、番号ごとの説明を横に置き、検証
   メッセージの表を添え、`PLAN.md` と `TESTS.md` は原文タブとして付きます。
+- **純粋関数の辞書** — `@pure` または `@deterministic` の印が付いた関数ごとに、
+  役割・種類・例をコードの横に書き、`core/scripts/pure-catalog.sh build` が
+  それを辞書（目次一枚と種類ごとのファイル）にします。`check` は空欄、書いた
+  とおりに動かない例、同じ入力に同じ出力を返す二つの関数、古い辞書を拒否します。
+  work と codegen は新しい純粋関数を書く前に辞書を読み、既存の関数を作り直さず
+  に再利用します。`build --project` はコメントの先頭記号だけを知り、どの
+  プロジェクト・どの言語でも同じことをします（[純粋性の契約](core/contracts/purity.md)）。
 - **SCV 独自のグラフ** — 文書リンク、保管された計画とファイル、決定の参照、一緒に
   変わるファイルを、promote と work が bash と jq だけで自動的に作り直します。
   インストールは不要です（`SCV_GRAPH`）。Graft は任意です。入っていれば計画・
@@ -221,6 +228,13 @@ fail-open するのは、payload が空のときと JSON リーダーが無い�
 宣言できます。理由は必須で、理由のない marker は拒否します。Core 自身の CI は
 provenance ゲートを実行し、vendor ゲートは vendor された Core を持つラッパーの
 リポジトリ向けに同梱されます。
+
+三つ目のゲートはプライバシーを守ります。`core/scripts/check-privacy.sh` は、
+コミットメッセージや追加された行にローカルのホームパス、セッション id や
+セッションリンク、リポジトリの外に置いた秘密リストの語（`SCV_PRIVACY_TERMS`）
+がある PR を拒否します。作成者の名前とメールは `SCV_PRIVACY_EMAILS=on` の
+ときだけ確認します。Core の CI はすべての PR でこれを実行し、
+`tools/privacy-audit.sh` はリポジトリ全体を走査します。
 
 詳細は [Architecture](docs/architecture.md)、
 [Wrapper integration](docs/wrapper-integration.md)、そして
