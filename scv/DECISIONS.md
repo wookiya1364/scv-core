@@ -1808,3 +1808,11 @@ merge_policy: preserve
 - why: 사전은 저장소의 scv/core/catalog/pure 에 둔다(사용자 요구: 기기 · 협업자가 같은 맥락) — 래퍼 설치본엔 scv/ 가 없어 낡음 검사를 건너뜀. 사전의 예시 실행이 맥 · 리눅스 차이를 처음 잡았다: (1) 맥 awk 는 en_US 등 UTF-8 로캘에서 == 를 strcoll 로 봐 서로 다른 한글을 같다고 함 → awk 는 LC_ALL=C, (2) 맥 기본 bash 3.2 엔 ${x,,} 가 없음 → scv_lower, (3) bash 3.2 UTF-8 로캘에서 글롭 [a-z] 가 대문자도 맞춤(=~ 정규식은 괜찮음) → 글자를 하나하나 적음. T13 이 맥 CI 에서 bash 3.2 · en_US 로 예시 전부를 돈다. T12: 일부러 넣은 중복에 CI 빨강(맥 · 우분투) → 되돌려 초록. CI 추가 시간 맥 22초 · 우분투 7초.
 - refs: scv/archive/20261101-wookiya1364-pure-function-catalog/PLAN.md
 - conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 13:30] wookiya1364 — 프로젝트 순수함수 사전 — 어느 언어든 scv/core 에
+
+- verdict: adopted
+- why: 사용자 프로젝트 함수도 그 저장소의 scv/core/catalog/pure 에 모아 기기 · 협업자가 같은 사전을 본다. 언어를 정하지 않는다(사용자: 자바 · C · 러스트 등 무엇이든) — 표식 줄에 이름(@pure 이름), 주석 모양만 안다. 셸은 예시 실행, 다른 언어는 칸 검사 + 예시 글 비교로 중복.
+- discarded alternatives: 언어 목록(셸 · TS · 파이썬) — 사용자: 역할 · 입력 · 출력만 알면 됨 · 언어별 함수 파싱 — 이름을 표식에 적으면 불필요 · 다른 언어 예시 실행 — 언어별 실행기가 필요해 다음 후보
+- refs: scv/promote/20261101-wookiya1364-project-pure-catalog/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
