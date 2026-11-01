@@ -1,6 +1,6 @@
 # 판정 — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 21개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 22개.
 
 ### pc_validate_entries
 - 역할: 항목마다 빠진 칸(역할 · 종류 · 예)과 종류 표에 없는 종류를 위반 줄로 낸다
@@ -113,6 +113,12 @@
 - 예: `1+a@users.noreply.github.com → ""`
 - 예: `noreply@anthropic.com → ""`
 - 예: `me@gmail.com → "" [1]`
+
+### scv_reg_is_core_loop
+- 역할: '코어 시험 전부' 반복 줄(for t in core/tests/test-*.sh …)이면 1 을 낸다 — 시험 파일 하나하나로 나눠 공유할 수 있다
+- 위치: scripts/lib/regression-memo.sh · @pure · sh
+- 예: `'for t in core/tests/test-*.sh; do bash "$t" >/dev/null || fail "T $t"; done' → [0]`
+- 예: `"bash core/tests/test-a.sh" → [1]`
 
 ### scv_show_real_channel
 - 역할: 쓸 수 있는 선택 창과 실행 상태로 질문 통로(choice · text · none)를 정한다

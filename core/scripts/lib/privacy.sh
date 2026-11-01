@@ -27,7 +27,7 @@ scv_privacy_text_rule() {
   local l="${1:-}"
   if printf '%s' "$l" | grep -qE '(^|[^A-Za-z])[A-Z][A-Za-z]*-Session:[[:space:]]|/code/session_[A-Za-z0-9]'; then echo session-line; return; fi
   if printf '%s' "$l" | grep -qE 'session_01[A-Za-z0-9]{10,}'; then echo session-id; return; fi
-  if printf '%s' "$l" | grep -qE '/Users/[A-Za-z0-9._-]+/|/home/[A-Za-z0-9._-]+/|/private/tmp/claude-[0-9]+'; then echo local-path; return; fi
+  if printf '%s' "$l" | grep -qE '/Users/[A-Za-z0-9._-]{2,}/|/home/[A-Za-z0-9._-]{2,}/|/private/tmp/claude-[0-9]+'; then echo local-path; return; fi
   if printf '%s' "$l" | grep -qiE '[A-Za-z0-9._%+-]+@(gmail|googlemail|naver|daum|hanmail|kakao|nate|hotmail|outlook|live|yahoo|icloud|me|proton|protonmail)\.[a-z.]+'; then echo personal-email; return; fi
   echo ''
 }

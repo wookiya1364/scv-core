@@ -1,6 +1,6 @@
 # 꺼내기 — 글 · JSON · 표에서 값이나 필드를 뽑는다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 45개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 47개.
 
 ### pc_extract_entries
 - 역할: 소스 글에서 표식(어떤 주석 모양이든 '@pure 이름', 셸은 이름 없이도) 달린 함수마다 역할 · 종류 · 예시를 뽑아 항목 줄로 낸다
@@ -220,6 +220,20 @@
 - 역할: PLAN.md 프런트매터에서 대화 경로 · supersedes 개수 · 순수함수 절 유무를 한 줄로 뽑는다
 - 위치: scripts/lib/metrics.sh · @pure · sh
 - 예: `$'---\nraw_sources:\n  - scv/conversations/c1.md\n  - docs/x.md\nsupersedes: [a, b]\n---\n## 순수함수 · 파이프라인\n' → $'scv/conversations/c1.md\t2\t1'`
+
+### scv_reg_line_key
+- 역할: 실행 줄이 '시험 파일 하나를 bash 로 부르는 줄'이면 그 명령(키)을 낸다 — 아니면 빈 값
+- 위치: scripts/lib/regression-memo.sh · @pure · sh
+- 예: `"  bash core/tests/test-a.sh >/dev/null || fail a" → "bash core/tests/test-a.sh"`
+- 예: `"bash tests/run.sh --quick" → "bash tests/run.sh --quick"`
+- 예: `"bash core/tests/test-a.sh | tail -1" → ""`
+- 예: `"bash -euo pipefail -c '" → ""`
+
+### scv_reg_split_chain
+- 역할: 한 줄을 &&, ||, ; 로 이은 조각들로 나눠 '조각<US>뒤 구분자' 줄들로 낸다 — 따옴표가 든 줄은 나누지 않는다
+- 위치: scripts/lib/regression-memo.sh · @pure · sh
+- 예: `"bash t/a.sh && bash t/b.sh || exit 1" → $'bash t/a.sh \x1f&&\n bash t/b.sh \x1f||\n exit 1\x1f'`
+- 예: `"echo 'a && b'" → $'echo \'a && b\'\x1f'`
 
 ### scv_show_real_entries
 - 역할: 세션 기록 JSONL(표준입력)에서 사용자 메시지 · 편집 · 실행 · 출력 · 확인 창 · 모델 글을 기록 항목 줄(U E R O X C Z T)로 뽑는다

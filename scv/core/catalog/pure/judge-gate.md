@@ -1,6 +1,6 @@
 # 판정/gate — 훅이 막을지 · 넘길지 · 다시 물을지를 정한다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 18개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 19개.
 
 ### scv_choice_gate
 - 역할: 묻는지 · 도구 이름 · 이미 전달 여부로 ok | block | warn 중 하나를 정한다 (도구가 없으면 늘 ok)
@@ -114,6 +114,14 @@
 - 예: `tok1 "" "" 0 0 → "unregistered"`
 - 예: `tok1 $'tok1\x1fm\x1f3' '' 1 1 → "forbidden"`
 - 예: `"" "" "" 0 0 → "ok"`
+
+### scv_reg_block_memo_ok
+- 역할: 블록이 다른 폴더로 옮겨 가면(cd · pushd) 공유 결과를 쓰면 안 되므로 1, 아니면 0 — 괄호 하위 셸 안의 cd 는 괜찮다
+- 위치: scripts/lib/regression-memo.sh · @pure · sh
+- 예: `$'bash t/a.sh\necho ok' → [0]`
+- 예: `$'cd sub && bash t/a.sh' → [1]`
+- 예: `$'out=$( cd "$X" && bash t/a.sh )\nbash t/b.sh' → [0]`
+- 예: `$'echo abcd' → [0]`
 
 ### scv_template_decide
 - 역할: 도장 · 꾸러미의 지문과 버전을 보고 템플릿을 어떻게 할지 한 단어(skip:backward 등)로 판정한다

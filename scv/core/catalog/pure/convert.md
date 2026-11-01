@@ -1,6 +1,6 @@
 # 변환 — 한 표기를 다른 표기로 바꾼다 — 경로 · 날짜 · 단위 · 인코딩
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 21개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 22개.
 
 ### scv_as_group_of
 - 역할: 파일 경로에서 묶음 이름을 낸다 — 보관된 계획의 네 문서는 폴더 이름 하나로 합친다
@@ -92,6 +92,13 @@
 - 역할: 계획서에 적힌 대화 경로를 SCV_DIR 기준 후보 경로 두 줄(그대로 · archive 아래)로 바꾼다
 - 위치: scripts/lib/metrics.sh · @pure · sh
 - 예: `"scv/conversations/c1.md" → $'conversations/c1.md\nconversations/archive/c1.md'`
+
+### scv_reg_rewrite_line
+- 역할: 시험 줄이면 그 명령을 기록된 종료 코드 '( exit N )' 로 바꾸고 앞 공백 · 꼬리는 남긴다 — 표에 없으면 그대로
+- 위치: scripts/lib/regression-memo.sh · @pure · sh
+- 예: `"  bash t/a.sh >/dev/null || fail a" $'bash t/a.sh\t1' → "  ( exit 1 ) >/dev/null || fail a"`
+- 예: `"bash t/b.sh" $'bash t/a.sh\t0' → "bash t/b.sh"`
+- 예: `"bash t/a.sh && bash t/b.sh" $'bash t/a.sh\t0\nbash t/b.sh\t1' → "( exit 0 ) && ( exit 1 )"`
 
 ### scv_show_real_lines
 - 역할: \x1e 로 이은 글을 줄바꿈으로 나눈 글로 바꾼다
