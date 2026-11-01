@@ -1793,3 +1793,11 @@ merge_policy: preserve
 - discarded alternatives: 계획서 재사용 줄 강제 — 사전 읽기 규칙 + 중복 검사로 충분(사용자) · 번호 순 파일 분할 — 어느 파일인지 몰라 전부 열어야 함 · 기능별 분할 — 다른 기능의 같은 일 함수를 못 찾음 · 몸체 글자 비교 — 모양만 다른 같은 함수를 놓침 · 기존 중복은 목록만 — 진짜 같으면 합쳐도 동작 동일(사용자), 경계 입력 · 전체 시험으로 오판만 막음
 - refs: scv/promote/20261101-wookiya1364-pure-function-catalog/PLAN.md
 - conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 12:21] wookiya1364 — 순수함수 목록 — 만들기 전에 목록에서 찾아 재사용 archived
+
+- verdict: archived
+- why: 표식 함수 238개 전부에 역할 · 종류 · 예시(실제로 돌려 검사)를 달고 core/catalog/pure/ 에 차례 + 종류별 사전을 생성한다. 같은 입력 → 같은 출력 지문으로 중복을 잡아 실제 저장소에서 진짜 중복 두 무리(스위치 해석 5개 · 목록 빼기 2개)를 찾아 합쳤다. 앞으로 지킬 것: 예시에 호스트 이름 금지(호스트 중립 검사가 6개 시험을 떨어뜨림), 예시에 파이프 금지, 사전은 손으로 고치지 않음.
+- path delta: 계획에 없던 것: 판정 종류가 400줄에 닿아 answer · gate 세부 종류, 검사 17.4초 → 5.1초 최적화(셸 띄우기 줄임 · 예시 미리 풀기 · 4묶음 동시), 합친 함수는 지우지 않고 기존 이름을 한 줄 위임으로 남김(호출 17곳 · 시험 무변경), 공용 구현은 어느 기능 것도 아닌 lib/switch.sh(예전 '훅끼리 안 묶이게' 의도 유지). 234개 채우기는 파일이 안 겹치는 4묶음 배경 위임. 회귀는 같은 시험 3.4배 반복으로 49분 뒤 중단 — 개선은 다음 계획.
+- refs: scv/archive/20261101-wookiya1364-pure-function-catalog/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
