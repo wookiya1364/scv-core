@@ -1801,3 +1801,10 @@ merge_policy: preserve
 - path delta: 계획에 없던 것: 판정 종류가 400줄에 닿아 answer · gate 세부 종류, 검사 17.4초 → 5.1초 최적화(셸 띄우기 줄임 · 예시 미리 풀기 · 4묶음 동시), 합친 함수는 지우지 않고 기존 이름을 한 줄 위임으로 남김(호출 17곳 · 시험 무변경), 공용 구현은 어느 기능 것도 아닌 lib/switch.sh(예전 '훅끼리 안 묶이게' 의도 유지). 234개 채우기는 파일이 안 겹치는 4묶음 배경 위임. 회귀는 같은 시험 3.4배 반복으로 49분 뒤 중단 — 개선은 다음 계획.
 - refs: scv/archive/20261101-wookiya1364-pure-function-catalog/PLAN.md
 - conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-01 13:10] wookiya1364 — 순수함수 사전 — 위치를 scv/core 로, 맥 기본 bash 3.2 차이 고침
+
+- verdict: lesson
+- why: 사전은 저장소의 scv/core/catalog/pure 에 둔다(사용자 요구: 기기 · 협업자가 같은 맥락) — 래퍼 설치본엔 scv/ 가 없어 낡음 검사를 건너뜀. 사전의 예시 실행이 맥 · 리눅스 차이를 처음 잡았다: (1) 맥 awk 는 en_US 등 UTF-8 로캘에서 == 를 strcoll 로 봐 서로 다른 한글을 같다고 함 → awk 는 LC_ALL=C, (2) 맥 기본 bash 3.2 엔 ${x,,} 가 없음 → scv_lower, (3) bash 3.2 UTF-8 로캘에서 글롭 [a-z] 가 대문자도 맞춤(=~ 정규식은 괜찮음) → 글자를 하나하나 적음. T13 이 맥 CI 에서 bash 3.2 · en_US 로 예시 전부를 돈다. T12: 일부러 넣은 중복에 CI 빨강(맥 · 우분투) → 되돌려 초록. CI 추가 시간 맥 22초 · 우분투 7초.
+- refs: scv/archive/20261101-wookiya1364-pure-function-catalog/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
