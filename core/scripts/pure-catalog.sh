@@ -4,7 +4,7 @@
 # 계약: core/contracts/purity.md "사전 — 만들기 전에 찾아 재사용한다"
 #
 # 표식(# @pure · # @deterministic)이 붙은 함수는 옆에 역할 · 종류 · 예를 단다. 이 스크립트는
-# 그 주석에서 사전(core/catalog/pure/)을 만들고, 다음을 본다:
+# 그 주석에서 사전(저장소의 scv/core/catalog/pure/)을 만들고, 다음을 본다:
 #   - 빈 칸 · 모르는 종류
 #   - 예시를 실제로 돌려 적힌 출력과 같은지
 #   - 같은 입력에 같은 출력을 내는 함수 짝(중복 의심)
@@ -33,12 +33,15 @@ case "$MODE" in
   *) echo "pure-catalog.sh: unknown mode: $MODE (build | check)" >&2; exit 2 ;;
 esac
 
-ROOT="$CORE_DIR/scripts"; CATALOG="$CORE_DIR/catalog/pure"; BASE="$CORE_DIR"
+# 사전은 저장소의 scv/core/ 아래 — 커밋되는 자리라 기기 · 협업자가 같은 사전을 본다.
+# 래퍼 설치본(코어 사본)에는 scv/ 가 없다: 그때는 사전 낡음 · 크기 검사를 건너뛰고 예시 · 중복만 본다.
+ROOT="$CORE_DIR/scripts"; CATALOG="$( cd "$CORE_DIR/.." && pwd )/scv/core/catalog/pure"; BASE="$CORE_DIR"
+CATALOG_GIVEN=0
 CONTRACT="$CORE_DIR/contracts/purity.md"; LIMIT=400
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --root) ROOT="$2"; shift 2 ;;
-    --catalog) CATALOG="$2"; shift 2 ;;
+    --catalog) CATALOG="$2"; CATALOG_GIVEN=1; shift 2 ;;
     --base) BASE="$2"; shift 2 ;;
     --contract) CONTRACT="$2"; shift 2 ;;
     --limit) LIMIT="$2"; shift 2 ;;
@@ -48,6 +51,9 @@ done
 if [[ -f "$ROOT" ]]; then ROOT="$( cd "$( dirname "$ROOT" )" && pwd )/$( basename "$ROOT" )"; else ROOT="$( cd "$ROOT" && pwd )" || exit 2; fi
 BASE="$( cd "$BASE" && pwd )" || exit 2
 ALLOWED_FILE="$CATALOG/duplicates-allowed.tsv"
+# 사전 자리(저장소의 scv/)가 없으면 설치본이다 — 사전을 쓰지도, 낡음을 따지지도 않는다.
+NO_HOME=0
+[[ $CATALOG_GIVEN -eq 0 && ! -d "$( dirname "$( dirname "$( dirname "$CATALOG" )" )" )" ]] && NO_HOME=1
 
 # ---------------------------------------------------------------- 입구: 읽기
 
@@ -219,6 +225,9 @@ _pc_file_text() { printf '%s\n' "$RENDERED" | LC_ALL=C awk -v f="$1" '/^@@FILE /
 # ---------------------------------------------------------------- 출구: build
 
 if [[ "$MODE" == "build" ]]; then
+  if [[ $NO_HOME -eq 1 ]]; then
+    echo "✖ 사전 자리가 없다: $( dirname "$( dirname "$( dirname "$CATALOG" )" )" ) — 저장소(scv/ 가 있는 곳)에서 만든다" >&2; exit 2
+  fi
   mkdir -p "$CATALOG"
   for old in "$CATALOG"/*.md; do
     [[ -e "$old" ]] || continue
@@ -271,23 +280,25 @@ if [[ -n "$DUPS" ]]; then
   done <<< "$DUPS"
 fi
 
+HOME_NOTE="사전 최신"
+if [[ $NO_HOME -eq 1 ]]; then HOME_NOTE="사전 자리 없음(설치본) — 사전 낡음 · 크기는 건너뜀"; RENDERED=""; fi
 OVER="$(pc_oversize_files "$RENDERED" "$LIMIT")"
 if [[ -n "$OVER" ]]; then
   while IFS=$'\t' read -r f n; do report "✖ 사전 파일이 너무 크다: $f ${n}줄 (한도 $LIMIT) — 그 종류의 함수에 세부 종류를 붙여라"; done <<< "$OVER"
 fi
 
 STALE=""
-while IFS= read -r f; do
+[[ $NO_HOME -eq 1 ]] || while IFS= read -r f; do
   if [[ ! -f "$CATALOG/$f" ]] || [[ "$(cat "$CATALOG/$f")" != "$(_pc_file_text "$f")" ]]; then STALE+=" $f"; fi
 done < <(_pc_files_in_render)
-for old in "$CATALOG"/*.md; do
+[[ $NO_HOME -eq 1 ]] || for old in "$CATALOG"/*.md; do
   [[ -e "$old" ]] || continue
   _pc_files_in_render | grep -qxF "$(basename "$old")" || STALE+=" $(basename "$old")"
 done
 [[ -z "$STALE" ]] || report "✖ 사전이 낡았다:$STALE — 다시 만들기: bash core/scripts/pure-catalog.sh build"
 
 if [[ $FAILS -eq 0 ]]; then
-  echo "OK  catalog: ${COUNT}개 함수 · 예시 전부 맞음 · 중복 의심 0 · 사전 최신"
+  echo "OK  catalog: ${COUNT}개 함수 · 예시 전부 맞음 · 중복 의심 0 · $HOME_NOTE"
   exit 0
 fi
 echo "" >&2

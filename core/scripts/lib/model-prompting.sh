@@ -19,6 +19,8 @@
 _SCV_MP_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
 # shellcheck source=metrics.sh
 source "$_SCV_MP_LIB_DIR/metrics.sh"   # scv_mx_civil_to_minutes — 날짜 산술을 한 곳에서
+# shellcheck source=text.sh
+source "$_SCV_MP_LIB_DIR/text.sh"      # scv_lower — 맥 기본 bash 3.2 에서도 되는 소문자
 
 # @pure
 # 역할: 모델 id 를 앞뒤 공백 없이 소문자로 바꾸고 끝의 "[…]" 표기를 지운다
@@ -26,22 +28,14 @@ source "$_SCV_MP_LIB_DIR/metrics.sh"   # scv_mx_civil_to_minutes — 날짜 산�
 # 예: "  Model-X-4[1m] " → "model-x-4"
 # 예: "X-5" → "x-5"
 # <원시 모델 id> → 정규화 id: 앞뒤 공백 제거 · 소문자 · 끝의 "[…]" 표기(예: 컨텍스트 길이) 제거.
-# bash 3.2 에는 ${v,,} 가 없어 글자 표로 바꾼다. 글자 범위([A-Z])는 쓰지 않는다 — bash 3.2 는 UTF-8
-# 지역 설정에서 [A-Z] 가 소문자까지 맞춰 id 를 망가뜨린다(리뷰가 재현: 소문자가 통째로 빠짐). 대문자 26자를 그대로 적는다.
+# 소문자 바꾸기는 lib/text.sh 의 scv_lower(bash 3.2 에서도 되는 글자 표) 를 쓴다.
 scv_mp_normalize_id() {
-  local s="${1:-}" up="ABCDEFGHIJKLMNOPQRSTUVWXYZ" lo="abcdefghijklmnopqrstuvwxyz" out="" c i head
+  local s="${1:-}"
   s="${s#"${s%%[![:space:]]*}"}"
   s="${s%"${s##*[![:space:]]}"}"
   s="${s%%\[*}"
   s="${s%"${s##*[![:space:]]}"}"
-  for (( i = 0; i < ${#s}; i++ )); do
-    c="${s:i:1}"
-    case "$up" in
-      *"$c"*) head="${up%%"$c"*}"; out+="${lo:${#head}:1}" ;;
-      *) out+="$c" ;;
-    esac
-  done
-  printf '%s' "$out"
+  scv_lower "$s"
 }
 
 # @pure

@@ -65,7 +65,7 @@ esac
 # decisions_slug <제목> — 제목에서 부를 이름을 만든다. 문자열만 다룬다.
 decisions_slug() {
   local t="${1:-}"
-  t="${t,,}"
+  t="$(scv_lower "$t")"   # ${t,,} 는 bash 4 부터 — 맥 기본 bash 3.2 에서 깨졌다
   t="${t//[^a-z0-9가-힣]/-}"
   while [[ "$t" == *--* ]]; do t="${t//--/-}"; done
   t="${t#-}"; t="${t%-}"

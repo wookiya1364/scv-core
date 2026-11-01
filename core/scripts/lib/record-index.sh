@@ -15,6 +15,9 @@
 # 색인 형식: 탭 구분 한 줄에 하나. append-only. 자리는 scv/INDEX.tsv.
 #   <종류>\t<키>\t<파일>\t<오프셋>\t<길이>\t<시각>\t<한 줄 요약>
 
+# shellcheck source=text.sh
+declare -F scv_lower >/dev/null 2>&1 || source "${BASH_SOURCE[0]%/*}/text.sh"
+
 # 알려진 종류. 이 밖의 값은 조용히 무시한다 — 기록 자체는 막지 않는다.
 #
 #   decision  결정 로그(scv/DECISIONS.md)의 엔트리. **세 지점에서 자동으로 붙는다**
@@ -46,7 +49,7 @@ record_kind_normalize() {
   # "decision" 이 되어, 무엇이 기록됐는지 부르는 쪽이 모르게 된다.
   m="${m#"${m%%[![:space:]]*}"}"
   m="${m%"${m##*[![:space:]]}"}"
-  m="${m,,}"          # bash 4+ 소문자 확장 — 외부 도구가 필요 없다
+  m="$(scv_lower "$m")"   # ${m,,} 는 bash 4 부터 — 맥 기본 bash 3.2 에서 깨졌다
   [[ -n "$m" ]] || return 0
   for k in $SCV_RECORD_KINDS; do
     [[ "$k" == "$m" ]] && { printf '%s\n' "$k"; return 0; }

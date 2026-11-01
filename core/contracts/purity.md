@@ -167,7 +167,10 @@ bash core/scripts/pure-catalog.sh build   # 주석에서 사전을 다시 만든
 bash core/scripts/pure-catalog.sh check   # 빈 칸 · 틀린 예시 · 중복 · 낡은 사전을 본다
 ```
 
-사전은 `core/catalog/pure/` 에 있다. `INDEX.md`(차례 — 종류 · 하는 일 · 개수)와
+사전은 저장소의 `scv/core/catalog/pure/` 에 있다 — 계획 · 결정 기록처럼 저장소에 커밋되는 자리라,
+기기가 바뀌어도 · 여럿이 함께 작업해도 같은 사전을 본다(사용자 프로젝트도 같은 자리를 쓴다 — 다음 계획).
+래퍼 설치본(코어 사본)에는 `scv/` 폴더가 없으므로 그곳에서 검사는 사전 낡음 · 크기를 건너뛰고
+예시 · 중복만 본다. `INDEX.md`(차례 — 종류 · 하는 일 · 개수)와
 종류마다 파일 하나(위 표의 `파일` 이름 — 한글 파일 이름은 맥 · 리눅스가 다르게 저장할 수
 있어 영문으로 둔다. 세부 종류는 `extract-json.md` 처럼 붙는다). **손으로 고치지 않는다** — 원본은 코드 옆 주석 하나이고, 사전이
 주석과 어긋나면 검사가 실패한다.
@@ -177,7 +180,7 @@ bash core/scripts/pure-catalog.sh check   # 빈 칸 · 틀린 예시 · 중복 �
 
 ### 새 함수를 쓰기 전에
 
-1. `core/catalog/pure/INDEX.md` 를 읽고 만들 일의 종류를 고른다.
+1. `scv/core/catalog/pure/INDEX.md` 를 읽고 만들 일의 종류를 고른다.
 2. 그 종류 파일 하나만 연다. 역할 줄을 보고 같은 일을 하는 함수가 있으면 그것을 쓴다.
 3. 없을 때만 새로 만든다 — 세 줄을 달고 사전을 다시 만든다.
 
@@ -189,6 +192,6 @@ bash core/scripts/pure-catalog.sh check   # 빈 칸 · 틀린 예시 · 중복 �
 예시까지 넣어 본다. 그것도 전부 같으면 **중복 의심**으로 실패한다.
 
 입력 몇 개가 같다고 완전히 같다는 증명은 아니다. 사람이 보고 다르다고 판정하면
-`core/catalog/pure/duplicates-allowed.tsv` 에 `함수A<탭>함수B<탭>왜 다른가` 를 적는다.
+`scv/core/catalog/pure/duplicates-allowed.tsv` 에 `함수A<탭>함수B<탭>왜 다른가` 를 적는다.
 이유 칸이 빈 줄은 검사가 막는다. 다르다는 걸 보여 주는 입력을 두 함수의 예시에 더하는
 쪽이 더 낫다 — 그러면 예외 없이 통과한다.

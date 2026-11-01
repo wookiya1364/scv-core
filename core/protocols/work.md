@@ -329,7 +329,7 @@ displace:
   rather than inventing a shape.
 - Search the existing codebase first; extend or reuse what is there. Do not add a
   parallel way of doing something that already has one. Before writing a new pure
-  function in SCV's own code, read `core/catalog/pure/INDEX.md` (the pure-function
+  function in SCV's own code, read `scv/core/catalog/pure/INDEX.md` (the pure-function
   catalog's table of contents), pick the kind of work, and open that one kind file —
   reuse a function whose 역할 line fits instead of scanning the codebase. A new
   function gets its 역할 · 종류 · 예 lines and a rebuilt catalog

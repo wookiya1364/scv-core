@@ -17,6 +17,9 @@
 #
 # Usage:  source lib/author.sh; AUTHOR="$(scv_author)"
 
+# shellcheck source=text.sh
+declare -F scv_lower >/dev/null 2>&1 || source "${BASH_SOURCE[0]%/*}/text.sh"
+
 scv_author_raw() {
   local name=""
   if command -v git >/dev/null 2>&1; then
@@ -36,7 +39,7 @@ scv_author_raw() {
 
 scv_author_slug() {
   local in="${1:-}" out="" ch i
-  in="${in,,}"   # lowercase (ASCII; multibyte chars pass through unchanged)
+  in="$(scv_lower "$in")"   # lowercase (ASCII; multibyte chars pass through unchanged) — ${in,,} is bash 4+
   for (( i = 0; i < ${#in}; i++ )); do
     ch="${in:i:1}"
     case "$ch" in

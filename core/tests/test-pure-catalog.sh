@@ -204,10 +204,23 @@ OUT="$(bash "$TOOL" check 2>&1)"; RC=$?
 if [[ $RC -eq 0 ]]; then ok "$(grep '^OK  catalog' <<<"$OUT" | sed 's/^OK  catalog: //')"
 else fail "T9 — 이 저장소 검사 실패:"; printf '%s\n' "$OUT" | tail -25 | sed 's/^/      /'; fi
 
+echo "T13. 맥 기본 bash(3.2)에서도 예시가 전부 맞는다"
+# 맥 사용자 셸은 /bin/bash 3.2 일 수 있다. bash 4 문법(${x,,} 등)은 거기서 조용히 깨진다 —
+# 이 시험이 그것을 처음 찾았다(기록 색인 종류 맞추기 · 결정 이름 · 작성자 이름, 2026-11-01).
+if [[ -x /bin/bash ]] && /bin/bash -c '[[ ${BASH_VERSINFO[0]} -lt 4 ]]'; then
+  B32="$WORK/b32"; mkdir -p "$B32"; ln -sf /bin/bash "$B32/bash"
+  OUT="$(PATH="$B32:$PATH" /bin/bash "$TOOL" check 2>&1)"; RC=$?
+  if [[ $RC -eq 0 ]]; then ok "bash $(/bin/bash -c 'echo $BASH_VERSION') 로 $(grep '^OK  catalog' <<<"$OUT" | sed 's/^OK  catalog: //; s/ ·.*//') 예시 통과"
+  else fail "T13 — bash 3.2 에서 어긋남:"; printf '%s\n' "$OUT" | grep '^✖' | head -10 | sed 's/^/      /'; fi
+else
+  echo "  - 건너뜀: 이 기계에는 bash 3.2 가 없다 (맥 CI 에서 돈다)"
+fi
+
 echo "T11. 구현 규약이 차례부터 읽게 한다"
 for proto in work codegen; do
   f="$CORE/protocols/$proto.md"
-  if grep -q 'core/catalog/pure/INDEX.md' "$f" && [[ -f "$CORE/catalog/pure/INDEX.md" ]]; then ok "$proto 규약에 차례 읽기 단계, 경로가 실제 파일"
+  # 사전은 저장소의 scv/ 아래 — 래퍼 설치본(코어 사본)에는 없으니 그때는 규약 글만 본다.
+  if grep -q 'scv/core/catalog/pure/INDEX.md' "$f" && { [[ ! -d "$CORE/../scv" ]] || [[ -f "$CORE/../scv/core/catalog/pure/INDEX.md" ]]; }; then ok "$proto 규약에 차례 읽기 단계, 경로가 실제 파일"
   else fail "T11 — $proto 규약에 차례 읽기 단계가 없거나 사전이 없다"; fi
 done
 
