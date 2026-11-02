@@ -65,5 +65,11 @@ expect_red "command dropped from the README" "$d" "command missing from the READ
 d="$(fresh_copy)"; awk '/^```mermaid/{n++} n==1&&!done{if(/^```$/){done=1}; next} {print}' "$d/README.ko.md" > "$d/x" && mv "$d/x" "$d/README.ko.md"
 expect_red "language edition lost a diagram" "$d" "diagrams"
 
+d="$(fresh_copy)"; printf '\n| Item | Note |\n|---|---|\n| one | %s |\n' "$(printf 'word %.0s' $(seq 1 14))" >> "$d/README.md"
+expect_red "prose in a table cell" "$d" "table cell too long"
+
+d="$(fresh_copy)"; printf '\n%s\n' "$(printf '이 문단은 휴대폰 한 화면을 넘는다. %.0s' $(seq 1 16))" >> "$d/README.ko.md"
+expect_red "paragraph longer than a phone screen" "$d" "paragraph too long"
+
 (( fail )) && exit 1
-echo "check-readme: baseline green, 8 broken copies red"
+echo "check-readme: baseline green, 10 broken copies red"

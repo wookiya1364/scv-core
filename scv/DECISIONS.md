@@ -1863,4 +1863,19 @@ merge_policy: preserve
 - why: 휴대폰 GitHub 앱이 머메이드를 그리지 않아 그림이 코드로 보이는 것은 그대로 두기로 사용자가 결정(2026-11-02). 이미지 변환 계획 · PR #396 · 래퍼 준비분을 모두 버렸다. README 그림은 머메이드로 유지 — 같은 제안을 다시 하지 않는다.
 - discarded alternatives: SVG 이미지 + .mmd 원본(구현 · 회귀 79/79 까지 했으나 사용자가 취소)
 - refs: https://github.com/wookiya1364/scv-core/pull/396
+
+## [2026-11-02 10:19] wookiya1364 — 글쓰기 8가지 — 읽는 사람이 덜 헤매게, 선택 창은 그대로
+
+- verdict: adopted
+- why: 글쓰기 글 4편에서 추린 8가지(값 있는 통과 기준 · 좁게 묻기 · 3단 요약 · 휴대폰 길이 검사 · 굵게 머리 · 번호와 담당 · 개요 먼저 · 내용 있는 제목)를 규칙 · 검사로. 개요 확인이 다 쓴 뒤 확인을 대신해 선택 창 수 불변.
+- discarded alternatives: 8개 중 일부만(①④⑦) — 사용자가 전부 선택; 계획서 고정 제목 바꾸기 — 도구가 읽는 표식이라 제목 옆 한 줄 요지로 대신
+- refs: scv/promote/20261102-wookiya1364-writing-guidance/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-02 11:04] wookiya1364 — 글쓰기 8가지 — 읽는 사람이 덜 헤매게, 선택 창은 그대로 archived
+
+- verdict: archived
+- why: 글 규칙은 contracts/writing.md 한 곳, 길이 숫자는 lib/writing.sh 한 곳(영 60 · 600자, 한일 40 · 300자). 통과 기준 값 경고는 막지 않는 경고. promote 개요 확인이 곧 폴더 승인이라 묻는 지점 수 그대로. 네 저장소 README(코어 · 두 래퍼 · 모드)가 새 검사를 통과해야 한다 — 래퍼 README 는 동기화 PR 에 함께 실어야 그 CI 가 통과.
+- path delta: '쉬운 말' 절은 지문으로 잠겨 있어 14곳 가리킴을 되돌리고 work Step 8 · report 에서 가리킴; awk 쓰는 판정 3개는 @deterministic; README 손질을 세 저장소 병렬로 맡김; 회귀가 scv-mods README 문단 하나를 잡아 그 저장소도 고침
+- refs: scv/archive/20261102-wookiya1364-writing-guidance/PLAN.md
 - conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
