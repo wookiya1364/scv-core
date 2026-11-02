@@ -1856,3 +1856,19 @@ merge_policy: preserve
 - path delta: 재조사 1차에서 남은 3곳 · 새로 드러난 2곳(recording 자기 우선순위, 매 턴 안내 줄) · 낡은 3곳을 같은 계획에서 더 고침. 첫 문장 검사는 결론 밑 인용 · 표 줄에서 문단을 끝내도록 넓힘(재조사가 찾은 빈틈). 쉬운 말 절 14곳 대신 prompt-refine 한 곳에 예외를 둠(4조).
 - refs: scv/archive/20261101-wookiya1364-instruction-conflicts/PLAN.md
 - conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-02 09:33] wookiya1364 — README 그림을 이미지로 — 휴대폰에서도 보이게
+
+- verdict: adopted
+- why: GitHub 휴대폰 앱은 머메이드를 그리지 않아 README 그림 18개가 코드로 보인다. SVG 이미지로 바꾸고 원본 .mmd 는 파일로 따로 둔다.
+- discarded alternatives: 그대로 두기 — 코어 · codex 는 휴대폰에서 그림 없음; 원본을 README 에 접어 두기 — 휴대폰에서 펼치면 다시 코드
+- refs: scv/promote/20261102-wookiya1364-readme-diagrams-as-images/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-02 10:10] wookiya1364 — README 그림을 이미지로 — 휴대폰에서도 보이게 archived
+
+- verdict: archived
+- why: README 그림은 assets/diagrams 의 SVG + 같은 이름 .mmd 원본으로 둔다. SVG 글자는 htmlLabels 끔(SVG text) — 이미지로만 보이는 곳에서도 글자가 남는다. README 검사는 언어별 그림 경로를 링크 판 비교에서 빼고 그림 수로 맞춘다. 래퍼는 새 검사가 vendored 로 들어가는 동기화 PR 에 README 변경을 함께 실어야 통과한다.
+- path delta: 언어별 그림 경로가 링크 판 비교에 걸려 lang_links_dropped 에 assets/diagrams 를 더했다; 원본 확인은 README 옆 폴더 기준(시험이 사본으로 원본 빠짐을 재현하려고)
+- refs: scv/archive/20261102-wookiya1364-readme-diagrams-as-images/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
