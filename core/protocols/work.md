@@ -42,8 +42,8 @@ Parse the header (`MODE:`, `SCV_DIR:`, `TARGET_SLUG:`, `PLAN_FILE:`, `TESTS_FILE
 Skip this section only when `scv/scv_settings.json` sets `SCV_PLAIN_LANGUAGE=off`
 (absent or any other value = on). The per-turn hook carries the answer shape; its body is
 `contracts/writing.md` 1–4: a **bold topic** line, then bullets with the result first; a prose
-paragraph holds 1–2 sentences at most (`SCV_PLAIN_MAX_SENTENCES`); one example from the
-user's situation. No code values before the user asks — identifiers the user acts on
+paragraph holds 1–2 sentences at most (`SCV_PLAIN_MAX_SENTENCES`).
+No code values before the user asks — identifiers the user acts on
 stay exact, after the plain summary. Bad: a paragraph of paths. Good: **Topic** / - the result.
 This governs everything the user reads.
 
@@ -86,7 +86,8 @@ present (`graft` on PATH + `graft/`), and the helper appends `=== code candidate
 points, not as facts. `absent` / `no-graph` / `off` change nothing. SCV never installs, builds
 or hooks Graft; `action:install-deps --print` shows the optional one-liner. When the header also
 carries a `GRAFT_NOTICE:` line (Graft absent, and the project has files in a language Graft indexes —
-0.55.0), relay that line verbatim as the first line of your output; the wording lives once, in the
+0.55.0), relay that line verbatim as the first line of your output, right under the rewritten-request quote
+(`contracts/writing.md` 4); the wording lives once, in the
 graft library, and this protocol does not restate or extend it.
 
 ### Step 3 — Load PLAN.md (required)
@@ -367,8 +368,8 @@ The wrapper runs the `## How to run` block unchanged (same output, same exit cod
 
 ### Step 8 — Report results to the user
 
-Summarize — shaped per `core/contracts/writing.md` (conclusion first, numbered items, an owner on
-every leftover):
+Summarize — shaped per `core/contracts/writing.md` (bold topic, result first, bullets; numbers only on
+what the user may point back to; an owner on every leftover):
 - Implementation: what changed (files, key decisions).
 - Test results: each scenario pass/fail + overall verdict.
 - Plan's `status:` now `testing` (or back to `in_progress` if failures).
