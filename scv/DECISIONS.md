@@ -1911,3 +1911,19 @@ merge_policy: preserve
 - path delta: as planned
 - refs: scv/archive/20261102-wookiya1364-obsolete-refresh-index/PLAN.md
 - conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-02 18:30] wookiya1364 — 답 모양 — 굵은 주제 + 두괄식 개조식 불릿, 다시 쓴 요청은 맨 위
+
+- verdict: adopted
+- why: 줄글 · 낯선 말 때문에 답을 빨리 이해하지 못함. 굵은 주제 → 첫 불릿 결과 → 개조식 풀이로 바꾸고, 검사가 목록 시작을 위반으로 잡던 것을 뒤집음.
+- discarded alternatives: 평서문 '~다' — 개조식보다 길어짐; 존댓말 유지 — 사용자가 문어체 원함; 규칙만 바꾸기 — 긴 세션에서 줄글로 돌아갈 위험
+- refs: scv/promote/20261102-wookiya1364-answer-bullets/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-02 19:35] wookiya1364 — 답 모양 — 굵은 주제 + 두괄식 개조식 불릿, 다시 쓴 요청은 맨 위 archived
+
+- verdict: archived
+- why: 답은 굵은 주제 → 첫 불릿 결과 → 개조식 풀이, 할 말이 많으면 불릿을 늘림. 다시 쓴 요청 인용 하나가 답 첫 줄이고 '이렇게 이해하고 일함' 줄은 없앰. 검사는 목록 시작을 허용하고 긴 줄글 · 존댓말 불릿 · 맨 위 아닌 인용을 잡음. 앞으로 깨지면 안 되는 것: 한 턴이 여러 메시지여도 마지막 메시지나 첫 메시지 맨 위면 통과.
+- path delta: 종료 훅에 마지막 메시지와 턴 전체 사이 구분 줄을 추가 — 계획은 첫 줄만 보려 했으나 메시지 경계가 사라져 여러 메시지 턴이 막혔음. 사용자 보충으로 '불릿 수 상한 없음' 한 줄 추가.
+- refs: scv/archive/20261102-wookiya1364-answer-bullets/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md

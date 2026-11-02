@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-02T06:57:46Z
+generated_at: 2026-11-02T10:35:08Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -411,6 +411,10 @@ archives:
   - slug: 20261101-wookiya1364-regression-dedupe-parallel
     title: "회귀 시험 — 같은 시험은 한 번만, 여러 개를 동시에"
     kind: refactor
+    status: testing
+  - slug: 20261102-wookiya1364-answer-bullets
+    title: "답 모양 — 굵은 주제 + 두괄식 개조식 불릿, 다시 쓴 요청은 맨 위"
+    kind: feature
     status: testing
   - slug: 20261102-wookiya1364-obsolete-refresh-index
     title: "폐기 표시를 한 곳으로 — 표시하면 보관 목록도 바로"
