@@ -1,6 +1,6 @@
 # 고르기 — 여럿 중 일부를 골라내거나 순서를 매긴다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 29개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 31개.
 
 ### attachment_scope_filter
 - 역할: 표준입력 줄들에서 슬러그가 든 줄만 남긴다 — 슬러그가 비면 전부 통과
@@ -159,6 +159,20 @@
 - 위치: scripts/lib/help-state.sh · @pure · sh
 - 예: `"host text" "turn text" → $'host\x1fhost text'`
 - 예: `"" "" → $'none\x1f'`
+
+### scv_writing_over_limit
+- 역할: 줄들 중 글자 수가 한도를 넘는 줄을 "글자수<탭>줄" 로 고른다
+- 위치: scripts/lib/writing.sh · @pure · sh
+- 예: `$'ab\nabcdefgh' 5 → $'8\tabcdefgh'`
+- 예: `"abc" 3 → ""`
+- 예: `"" 10 → ""`
+
+### scv_writing_vague_criteria
+- 역할: 통과 기준 줄 중 값 · 정확한 문구가 하나도 없는 줄(숫자 · 백틱 · 따옴표가 없음)을 고른다
+- 위치: scripts/lib/writing.sh · @pure · sh
+- 예: `$'잘 동작한다\n종료 코드 0' → "잘 동작한다"`
+- 예: `$'`OK readme` 출력\n"완료" 문구' → ""`
+- 예: `"" → ""`
 
 ### settings_resolve
 - 역할: 환경변수 · 설정 파일 · 프로젝트 · 기본값 중 앞에서부터 처음 값이 있는 것을 고른다
