@@ -95,7 +95,7 @@
 - 예: `"파일은 바꾸지 않고 새 문서만" → ""`
 
 ### scv_mp_stop_gate
-- 역할: 등록 · 보임 · 이미 전달 · 맨 위 한 줄로 종료를 허용할지(ok · block · warn) 정한다
+- 역할: 등록 · 보임 · 이미 전달 · 맨 위 인용으로 종료를 허용할지(ok · block · warn) 정한다
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
 - 예: `1 1 0 1 → "ok"`
 - 예: `0 "" 0 "" → "block"`
