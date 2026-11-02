@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated_at": "2026-11-02T09:31:06Z",
+  "updated_at": "2026-11-02T13:00:51Z",
   "files": { },
   "ref_docs": {
     "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "slugs": ["20260812-wookiya1364-ci-provenance-gate", "20260930-wookiya1364-readme-refresh-core-wrappers"], "ref_commit": "e64e0ae", "consumed_at": "2026-09-30T01:42:19Z", "origin": "scv/raw/20260812-wookiya1364-ci-provenance-gate.md" },
