@@ -1,6 +1,6 @@
 # 고르기 — 여럿 중 일부를 골라내거나 순서를 매긴다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 31개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 32개.
 
 ### attachment_scope_filter
 - 역할: 표준입력 줄들에서 슬러그가 든 줄만 남긴다 — 슬러그가 비면 전부 통과
@@ -153,6 +153,13 @@
 - 위치: scripts/lib/show-real.sh · @pure · sh
 - 예: `$'s1\t2026-10-01T01:00:00Z\tERTq\tfix it\tdone\tAll 5 passed.\t5 passed' 540 "20261001 20261001" "" → $'s1\t2026-10-01T01:00:00Z\tb\t5 passed\tAll 5 passed.'`
 - 예: `$'s1\t2026-10-01T01:00:00Z\tERTq\tfix it\tdone\tAll 5 passed.\t5 passed' 540 "" "" → ""`
+
+### scv_step_active_plan
+- 역할: "계획<TAB>상태" 줄들 중 구현 중(in_progress · testing)인 계획 이름 하나를 고른다 — 여럿이면 마지막 줄(줄은 이름순으로 받는다 — 날짜가 앞이라 가장 최근)
+- 위치: scripts/lib/step-report.sh · @pure · sh
+- 예: `$'20260101-a-x\tplanned\n20260102-a-y\tin_progress' → "20260102-a-y"`
+- 예: `$'20260101-a-x\ttesting\n20260103-a-z\tin_progress' → "20260103-a-z"`
+- 예: `$'20260101-a-x\tplanned' → ""`
 
 ### scv_stop_pick_source
 - 역할: 호스트가 넘긴 답을 먼저, 없으면 원본의 이번 턴 텍스트를 골라 "출처\x1f본문" 으로 낸다 (둘 다 없으면 none)
