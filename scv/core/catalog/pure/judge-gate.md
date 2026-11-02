@@ -1,6 +1,6 @@
 # 판정/gate — 훅이 막을지 · 넘길지 · 다시 물을지를 정한다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 19개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 20개.
 
 ### scv_choice_gate
 - 역할: 묻는지 · 도구 이름 · 이미 전달 여부로 ok | block | warn 중 하나를 정한다 (도구가 없으면 늘 ok)
@@ -75,6 +75,13 @@
 - 예: `1 on 0 → "block"`
 - 예: `1 on 1 → "warn"`
 - 예: `0 on 0 → "ok"`
+
+### scv_mp_principle_show
+- 역할: 원칙 전문을 이번 등록에 다시 실을지(full) 한 줄만 실을지(short) 정한다
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `"" abc → "full"`
+- 예: `abc abc → "short"`
+- 예: `abc "" → "full"`
 
 ### scv_mp_register_problems
 - 역할: 병합 목록과 제출 텍스트를 견줘 빠진 · 잘못된 항목 줄들을 낸다(통과면 빈 값)
