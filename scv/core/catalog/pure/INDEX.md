@@ -6,11 +6,11 @@
 
 | 종류 | 하는 일 | 개수 | 파일 |
 |---|---|---|---|
-| 다듬기 | 글자를 정리한다 — 공백 · 대소문자 · 이스케이프 · 자르기 | 14 | [tidy.md](tidy.md) |
+| 다듬기 | 글자를 정리한다 — 공백 · 대소문자 · 이스케이프 · 자르기 | 13 | [tidy.md](tidy.md) |
 | 꺼내기 | 글 · JSON · 표에서 값이나 필드를 뽑는다 | 50 | [extract.md](extract.md) |
-| 세기 | 개수 · 길이 · 합계를 센다 | 14 | [count.md](count.md) |
+| 세기 | 개수 · 길이 · 합계를 센다 | 15 | [count.md](count.md) |
 | 비교 | 둘을 비교해 순서나 같음을 낸다 — 버전 · 숫자 · 집합 | 1 | [compare.md](compare.md) |
-| 판정/answer | 답 · 메시지 글을 보고 판정한다 — 표가 있나, 묻는 글인가, 확인인가 | 23 | [judge-answer.md](judge-answer.md) |
+| 판정/answer | 답 · 메시지 글을 보고 판정한다 — 표가 있나, 묻는 글인가, 확인인가 | 24 | [judge-answer.md](judge-answer.md) |
 | 판정/gate | 훅이 막을지 · 넘길지 · 다시 물을지를 정한다 | 19 | [judge-gate.md](judge-gate.md) |
 | 판정 | 입력을 보고 예/아니오나 판정 이름 하나를 낸다 | 24 | [judge.md](judge.md) |
 | 고르기 | 여럿 중 일부를 골라내거나 순서를 매긴다 | 32 | [select.md](select.md) |
@@ -18,4 +18,4 @@
 | 변환 | 한 표기를 다른 표기로 바꾼다 — 경로 · 날짜 · 단위 · 인코딩 | 23 | [convert.md](convert.md) |
 | 지문 | 내용에서 짧은 식별값을 만든다 — 해시 · 키 · 이름 | 6 | [fingerprint.md](fingerprint.md) |
 
-전체 259개
+전체 260개

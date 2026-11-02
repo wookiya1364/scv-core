@@ -530,8 +530,8 @@ transcript), the registration check keeps the earlier rule while continuing.
   help decides `GUIDE: load` only when the session's transcript shows no read-mark command for the
   current model after the last compaction boundary — reconnects and resumes no longer re-read the
   guide. Without a transcript the earlier fingerprint rule applies.
-- *Visible in two places.* The answer carries a top line `이렇게 이해하고 일함: …` (or `Understood as: …`)
-  and the full rewrite as a `>` quote right after the conclusion; the Stop hook checks both. For a long final
+- *Visible first.* The answer's first line is the full rewrite as a `>` quote (`> **다시 쓴 요청**: …`,
+  0.76.0+ — before, a top line plus a quote after the conclusion); the Stop hook checks it is there and on top. For a long final
   message it reads the last 64KB for the choice check (a code block cut at the window's start is closed first) and
   the table and fence lines of the whole message (up to 128KB of them) for the principle check.
 - *Sub-sessions stay out of the journal.* A session that never received a person's message writes no journal entry
