@@ -1895,3 +1895,19 @@ merge_policy: preserve
 - path delta: 모드 세션과 정한 대로 사전 형식 고정 시험 · purity.md 단락을 더함; 구현 중 계획 고르기는 이름순 마지막(비교 연산자 없이 — 순수성 검사)
 - refs: scv/archive/20261102-wookiya1364-step-report/PLAN.md
 - conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-02 15:16] wookiya1364 — 폐기 표시를 한 곳으로 — 표시하면 보관 목록도 바로
+
+- verdict: adopted
+- why: work 9c 의 대체 선언 폐기 표시는 보관 목록을 안 새로 만들어 회귀가 폐기된 계획을 계속 돌릴 수 있다. 폐기 표시를 순수함수 + 스크립트 하나로 모아 work · regression 이 함께 부른다.
+- discarded alternatives: work.md 9c 에 목록 새로 만들기 명령 한 줄만 추가 — 손으로 고치는 세 칸이 두 곳에 남아 다시 어긋날 수 있음
+- refs: scv/promote/20261102-wookiya1364-obsolete-refresh-index/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-02 15:57] wookiya1364 — 폐기 표시를 한 곳으로 — 표시하면 보관 목록도 바로 archived
+
+- verdict: archived
+- why: 폐기 표시는 scripts/obsolete-mark.sh 하나 — 앞머리 세 칸만 바꾸고(이미 obsolete 면 그대로) 보관 목록을 바로 새로 만든다. work 9c · regression 이 함께 부른다. 대시보드 단계 보고(0.75.0)를 이 계획 구현으로 실제 확인했고, 대시보드 0.2.18 의 불릿 모양도 사용자가 확인.
+- path delta: as planned
+- refs: scv/archive/20261102-wookiya1364-obsolete-refresh-index/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
