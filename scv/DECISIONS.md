@@ -1857,6 +1857,13 @@ merge_policy: preserve
 - refs: scv/archive/20261101-wookiya1364-instruction-conflicts/PLAN.md
 - conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
 
+## [2026-11-02 10:15] wookiya1364 — README 그림을 이미지로 — 취소
+
+- verdict: not-needed
+- why: 휴대폰 GitHub 앱이 머메이드를 그리지 않아 그림이 코드로 보이는 것은 그대로 두기로 사용자가 결정(2026-11-02). 이미지 변환 계획 · PR #396 · 래퍼 준비분을 모두 버렸다. README 그림은 머메이드로 유지 — 같은 제안을 다시 하지 않는다.
+- discarded alternatives: SVG 이미지 + .mmd 원본(구현 · 회귀 79/79 까지 했으나 사용자가 취소)
+- refs: https://github.com/wookiya1364/scv-core/pull/396
+
 ## [2026-11-02 10:19] wookiya1364 — 글쓰기 8가지 — 읽는 사람이 덜 헤매게, 선택 창은 그대로
 
 - verdict: adopted
