@@ -1,6 +1,6 @@
 # 세기 — 개수 · 길이 · 합계를 센다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 15개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 16개.
 
 ### scv_as_count_terms
 - 역할: 한 줄에 낱말 목록 중 몇 개가 들어 있는지 센다(대소문자 무시)
@@ -37,6 +37,13 @@
 - 역할: 계획별 파일 목록(touches 줄들)에서 함께 바뀐 파일 쌍과 횟수 · 근거 slug 를 "a\x1fb\x1f횟수\x1f근거" 줄들로 센다 (jq 필요)
 - 위치: scripts/lib/graph.sh · @deterministic · sh
 - 예: `$'p1\x1fa b c\np2\x1fa b\n' → $'a\x1fb\x1f2\x1fp1 p2\na\x1fc\x1f1\x1fp1\nb\x1fc\x1f1\x1fp1'`
+
+### scv_lint_hangul_ratio
+- 역할: 글에서 한글 글자가 한글 · 영문 글자 중 몇 퍼센트인지 센다(앞 4000바이트만)
+- 위치: scripts/lib/help-state.sh · @pure · sh
+- 예: `"로그인 버그를 고침" → "100"`
+- 예: `"fixed the login bug" → "0"`
+- 예: `"" → "0"`
 
 ### scv_lint_sentences
 - 역할: 한 덩어리 글의 문장 수를 센다 — 따옴표 · 괄호 안 마침표와 "0.49.1" 같은 숫자는 세지 않는다
