@@ -23,6 +23,7 @@ fresh_copy() {  # → 새 사본 폴더 경로
   local d
   d="$(mktemp -d "$WORK/case.XXXXXX")"
   cp "$ROOT/README.md" "$ROOT/README.ko.md" "$ROOT/README.ja.md" "$d/"
+  mkdir -p "$d/assets" && cp -R "$ROOT/assets/diagrams" "$d/assets/"   # 그림 원본은 README 옆에서 찾는다
   printf '%s\n' "$d"
 }
 append_line() { printf '\n%s\n' "$2" >> "$1"; }                                   # <file> <line>
@@ -62,8 +63,14 @@ expect_red "version number written" "$d" "version numbers present"
 d="$(fresh_copy)"; sed 's/action:channel//g' "$d/README.md" > "$d/x" && mv "$d/x" "$d/README.md"
 expect_red "command dropped from the README" "$d" "command missing from the README: action:channel"
 
-d="$(fresh_copy)"; awk '/^```mermaid/{n++} n==1&&!done{if(/^```$/){done=1}; next} {print}' "$d/README.ko.md" > "$d/x" && mv "$d/x" "$d/README.ko.md"
+d="$(fresh_copy)"; drop_lines "$d/README.ko.md" 'assets/diagrams/loop.ko.svg'
 expect_red "language edition lost a diagram" "$d" "diagrams"
 
+d="$(fresh_copy)"; rm "$d/assets/diagrams/loop.ja.mmd"
+expect_red "diagram source missing" "$d" "diagram source missing: assets/diagrams/loop.ja.mmd"
+
+d="$(fresh_copy)"; for f in README.md README.ko.md README.ja.md; do drop_lines "$d/$f" 'assets/diagrams/structure.'; done
+expect_red "too few diagram images" "$d" "diagram images: 1 < 2"
+
 (( fail )) && exit 1
-echo "check-readme: baseline green, 8 broken copies red"
+echo "check-readme: baseline green, 10 broken copies red"

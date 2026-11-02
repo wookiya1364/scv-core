@@ -1,0 +1,20 @@
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  Core["SCV Core<br>プロトコル · スクリプト · フック · テンプレート"]
+  CC["Claude Code ラッパー<br>(/scv:…)"]
+  CX["Codex ラッパー<br>($scv:…)"]
+  Dev["channel/dev<br>ラッパー develop + Core develop"]
+  Stage["channel/stage<br>ラッパー stage + Core stage"]
+  Prod["prod<br>最新リリース"]
+  Mods["SCV mods マーケット<br>scv-dashboard ペイン"]
+  Proj["あなたのプロジェクト<br>scv/ 計画 · テスト · 記録"]
+  Core -->|"リリース tarball<br>+ SHA-256"| CC
+  Core -->|"リリース tarball<br>+ SHA-256"| CX
+  CC -->|"action:mods"| Mods
+  Dev -.->|"action:channel がインストール版を入れ替える"| CC
+  Stage -.->|"action:channel がインストール版を入れ替える"| CC
+  Prod -.->|"action:channel がインストール版を入れ替える"| CC
+  CC -->|"ローカル実行、実行時の取得なし"| Proj
+  CX -->|"ローカル実行、実行時の取得なし"| Proj
+  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+  class Core key

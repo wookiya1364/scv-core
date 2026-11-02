@@ -25,28 +25,7 @@ Core 릴리스를 고정하고, 검증된 호스트 프로필을 반영한 뒤 �
 
 ## 구조
 
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
-flowchart LR
-  Core["SCV Core<br>규약 · 스크립트 · 훅 · 템플릿"]
-  CC["Claude Code 래퍼<br>(/scv:…)"]
-  CX["Codex 래퍼<br>($scv:…)"]
-  Dev["channel/dev<br>래퍼 develop + Core develop"]
-  Stage["channel/stage<br>래퍼 stage + Core stage"]
-  Prod["prod<br>최신 릴리스"]
-  Mods["SCV 모드 마켓<br>scv-dashboard 칸"]
-  Proj["내 프로젝트<br>scv/ 계획 · 테스트 · 기록"]
-  Core -->|"릴리스 tarball<br>+ SHA-256"| CC
-  Core -->|"릴리스 tarball<br>+ SHA-256"| CX
-  CC -->|"action:mods"| Mods
-  Dev -.->|"action:channel 이 설치본을 바꿔 끼움"| CC
-  Stage -.->|"action:channel 이 설치본을 바꿔 끼움"| CC
-  Prod -.->|"action:channel 이 설치본을 바꿔 끼움"| CC
-  CC -->|"로컬 실행, 런타임 네트워크 요청 없음"| Proj
-  CX -->|"로컬 실행, 런타임 네트워크 요청 없음"| Proj
-  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
-  class Core key
-```
+<img src="assets/diagrams/structure.ko.svg" width="100%" alt="SCV 구조" />
 
 20개 SCV 액션 중 14개는 Core가 소유합니다. 설치 방식, 모델 선택, 플러그인
 바꿔 끼우기는 호스트에 종속되므로 `update`, `set-models`, `mods`,
@@ -87,22 +66,7 @@ flowchart LR
 대화 뒤에서는 루프 하나가 모든 것을 돌립니다. 계획을 보관하면 그 테스트가 회귀
 묶음에 들어가, 이후의 모든 변경이 지금까지의 테스트 전부로 확인됩니다.
 
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
-flowchart LR
-  Talk["대화<br>(그냥 말하기 — 매 턴 help 로)"]
-  Promote["계획 + 테스트<br>action:promote"]
-  Work["구현 + 테스트 실행<br>action:work"]
-  Archive["scv/archive/"]
-  Regression["회귀<br>보관된 테스트 전부"]
-  Talk -->|"계획 준비됨"| Promote
-  Promote --> Work
-  Work -->|"테스트 통과 + 승인"| Archive
-  Archive --> Regression
-  Regression -.->|"다음 변경의 안전망"| Promote
-  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
-  class Promote,Regression key
-```
+<img src="assets/diagrams/loop.ko.svg" width="100%" alt="SCV 루프" />
 
 ### 매 턴
 

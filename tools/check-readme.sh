@@ -91,11 +91,13 @@ metrics.sh'
     mods:root) printf '/scv-dashboard\n/scv-mirror\n/scv-mirror stop\n' ;;
   esac
 }
-diagrams() {  # <profile> <set> → 필수 그림: "mermaid <최소 수>" · "seq <표식>"(그 표식이 든 sequenceDiagram) · "gif <경로>"
+diagrams() {  # <profile> <set> → 필수 그림: "mermaid <최소 수>" · "image <최소 수>"(assets/diagrams 의 SVG) · "seq <표식>"(그 표식이 든 sequenceDiagram) · "gif <경로>"
+  # README 그림은 SVG 이미지다 — GitHub 휴대폰 앱은 머메이드를 그리지 않는다. 원본은 같은 이름의 .mmd,
+  # 다시 뽑기는 tools/render-diagrams.sh.
   case "$1:$2" in
-    core:root) printf 'mermaid 2\n' ;;
-    claude:root) printf 'mermaid 2\ngif assets/scv-demo.gif\ngif assets/the-loop.gif\ngif assets/architecture.gif\n' ;;
-    codex:root) printf 'mermaid 2\n' ;;
+    core:root) printf 'image 2\n' ;;
+    claude:root) printf 'image 2\ngif assets/scv-demo.gif\ngif assets/the-loop.gif\ngif assets/architecture.gif\n' ;;
+    codex:root) printf 'image 2\n' ;;
     mods:root) printf 'mermaid 1\nseq /scv-mirror\ngif assets/mirror.gif\n' ;;
   esac
 }
@@ -115,8 +117,9 @@ links_of() {  # 코드 블록 밖의 상대 링크 · 그림 경로 (조각 · �
     | sed -E 's/^\]\(//; s/\)$//; s/^(src|href)="//; s/"$//; s/^<//; s/>$//; s/[#?].*$//' \
     | grep -vE '^(https?:|mailto:|$)' | sort -u
 }
-lang_links_dropped() { grep -vE '(^|/)README(\.[a-z]{2})?\.md$' || true; }        # 언어 전환 링크는 판마다 다르다
+lang_links_dropped() { grep -vE '(^|/)README(\.[a-z]{2})?\.md$|^assets/diagrams/' || true; }  # 언어 전환 링크 · 언어별 그림은 판마다 다르다(그림 수는 diagrams 가 맞춘다)
 mermaid_count() { grep -cE '^[[:space:]]*```mermaid' || true; }                    # 머메이드 블록 수
+diagram_images_of() { prose_of | { grep -oE 'assets/diagrams/[A-Za-z0-9_.-]+\.svg' || true; } | sort -u; }  # 코드 블록 밖 그림 이미지
 seq_blocks() {  # sequenceDiagram 이 든 머메이드 블록 본문만
   awk '/^[[:space:]]*```mermaid/{m=1; b=""; next} m&&/^[[:space:]]*```/{if(b~/sequenceDiagram/) printf "%s", b; m=0; next} m{b=b $0 "\n"}'
 }
@@ -136,6 +139,7 @@ missing_diagrams() {  # <text> <needs> → 모자란 그림 설명
   while read -r kind arg; do
     case "$kind" in
       mermaid) n="$(printf '%s\n' "$text" | mermaid_count)"; (( n >= arg )) || printf 'mermaid blocks: %s < %s\n' "$n" "$arg" ;;
+      image) n="$(printf '%s\n' "$text" | diagram_images_of | grep -c . || true)"; (( n >= arg )) || printf 'diagram images: %s < %s\n' "$n" "$arg" ;;
       seq) printf '%s\n' "$text" | seq_blocks | grep -qF -- "$arg" || printf 'sequenceDiagram with %s\n' "$arg" ;;
       gif) case "$text" in *"$arg"*) : ;; *) printf 'gif %s\n' "$arg" ;; esac ;;
     esac
@@ -241,7 +245,12 @@ for set in $(profile_sets "$PROFILE"); do
     while IFS= read -r m; do
       [[ -n "$m" ]] && err "$rel: required diagram missing: $m"
     done <<< "$(missing_diagrams "$text" "$needs")"
-    pics="$(printf 'mermaid %s\n' "$(printf '%s\n' "$text" | mermaid_count)"; printf '%s\n' "$text" | gifs_of)"
+    imgs="$(printf '%s\n' "$text" | diagram_images_of)"
+    while IFS= read -r i; do  # 그림 이미지마다 원본(.mmd)이 README 옆에 있어야 다시 뽑을 수 있다
+      [[ -z "$i" ]] && continue
+      [[ -f "$(dirname "$f")/${i%.svg}.mmd" ]] || err "$rel: diagram source missing: ${i%.svg}.mmd (re-render: tools/render-diagrams.sh)"
+    done <<< "$imgs"
+    pics="$(printf 'mermaid %s\nimage %s\n' "$(printf '%s\n' "$text" | mermaid_count)" "$(printf '%s\n' "$imgs" | grep -c . || true)"; printf '%s\n' "$text" | gifs_of)"
     npic=$((npic + $(printf '%s\n' "$needs" | grep -c .)))
     # (4) 버전 번호 · (5) 다른 호스트 문법
     v="$(printf '%s\n' "$text" | versions_of | tr '\n' ' ')"

@@ -1,0 +1,20 @@
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  Core["SCV Core<br>규약 · 스크립트 · 훅 · 템플릿"]
+  CC["Claude Code 래퍼<br>(/scv:…)"]
+  CX["Codex 래퍼<br>($scv:…)"]
+  Dev["channel/dev<br>래퍼 develop + Core develop"]
+  Stage["channel/stage<br>래퍼 stage + Core stage"]
+  Prod["prod<br>최신 릴리스"]
+  Mods["SCV 모드 마켓<br>scv-dashboard 칸"]
+  Proj["내 프로젝트<br>scv/ 계획 · 테스트 · 기록"]
+  Core -->|"릴리스 tarball<br>+ SHA-256"| CC
+  Core -->|"릴리스 tarball<br>+ SHA-256"| CX
+  CC -->|"action:mods"| Mods
+  Dev -.->|"action:channel 이 설치본을 바꿔 끼움"| CC
+  Stage -.->|"action:channel 이 설치본을 바꿔 끼움"| CC
+  Prod -.->|"action:channel 이 설치본을 바꿔 끼움"| CC
+  CC -->|"로컬 실행, 런타임 네트워크 요청 없음"| Proj
+  CX -->|"로컬 실행, 런타임 네트워크 요청 없음"| Proj
+  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+  class Core key

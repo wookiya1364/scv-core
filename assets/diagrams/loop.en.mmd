@@ -1,0 +1,14 @@
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  Talk["Conversation<br>(just talk — every turn goes to help)"]
+  Promote["Plan + tests<br>action:promote"]
+  Work["Implement + run tests<br>action:work"]
+  Archive["scv/archive/"]
+  Regression["Regression<br>every archived test"]
+  Talk -->|"plan ready"| Promote
+  Promote --> Work
+  Work -->|"tests pass + approval"| Archive
+  Archive --> Regression
+  Regression -.->|"safety net for the next change"| Promote
+  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
+  class Promote,Regression key

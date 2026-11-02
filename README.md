@@ -25,28 +25,7 @@ The installable plugins live in:
 
 ## Design
 
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
-flowchart LR
-  Core["SCV Core<br>protocols · scripts · hooks · template"]
-  CC["Claude Code wrapper<br>(/scv:…)"]
-  CX["Codex wrapper<br>($scv:…)"]
-  Dev["channel/dev<br>wrapper develop + Core develop"]
-  Stage["channel/stage<br>wrapper stage + Core stage"]
-  Prod["prod<br>latest release"]
-  Mods["SCV mods marketplace<br>scv-dashboard pane"]
-  Proj["Your project<br>scv/ plans · tests · records"]
-  Core -->|"release tarball<br>+ SHA-256"| CC
-  Core -->|"release tarball<br>+ SHA-256"| CX
-  CC -->|"action:mods"| Mods
-  Dev -.->|"action:channel swaps the installed copy"| CC
-  Stage -.->|"action:channel swaps the installed copy"| CC
-  Prod -.->|"action:channel swaps the installed copy"| CC
-  CC -->|"runs locally, no runtime fetch"| Proj
-  CX -->|"runs locally, no runtime fetch"| Proj
-  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
-  class Core key
-```
+<img src="assets/diagrams/structure.en.svg" width="100%" alt="SCV structure" />
 
 Core owns 14 of the 20 SCV actions. `update`, `set-models`, `mods`,
 `mods-install`, `mods-remove`, and `channel` are deliberately adapter-owned
@@ -88,22 +67,7 @@ Behind the conversation, one loop runs everything. Each plan's tests join the
 regression suite when it is archived, so every later change is checked against
 all of them.
 
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
-flowchart LR
-  Talk["Conversation<br>(just talk — every turn goes to help)"]
-  Promote["Plan + tests<br>action:promote"]
-  Work["Implement + run tests<br>action:work"]
-  Archive["scv/archive/"]
-  Regression["Regression<br>every archived test"]
-  Talk -->|"plan ready"| Promote
-  Promote --> Work
-  Work -->|"tests pass + approval"| Archive
-  Archive --> Regression
-  Regression -.->|"safety net for the next change"| Promote
-  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
-  class Promote,Regression key
-```
+<img src="assets/diagrams/loop.en.svg" width="100%" alt="The SCV loop" />
 
 ### Every turn
 

@@ -25,28 +25,7 @@ DeckUI、アセット、共通回帰テストをこのリポジトリで管理�
 
 ## 構造
 
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
-flowchart LR
-  Core["SCV Core<br>プロトコル · スクリプト · フック · テンプレート"]
-  CC["Claude Code ラッパー<br>(/scv:…)"]
-  CX["Codex ラッパー<br>($scv:…)"]
-  Dev["channel/dev<br>ラッパー develop + Core develop"]
-  Stage["channel/stage<br>ラッパー stage + Core stage"]
-  Prod["prod<br>最新リリース"]
-  Mods["SCV mods マーケット<br>scv-dashboard ペイン"]
-  Proj["あなたのプロジェクト<br>scv/ 計画 · テスト · 記録"]
-  Core -->|"リリース tarball<br>+ SHA-256"| CC
-  Core -->|"リリース tarball<br>+ SHA-256"| CX
-  CC -->|"action:mods"| Mods
-  Dev -.->|"action:channel がインストール版を入れ替える"| CC
-  Stage -.->|"action:channel がインストール版を入れ替える"| CC
-  Prod -.->|"action:channel がインストール版を入れ替える"| CC
-  CC -->|"ローカル実行、実行時の取得なし"| Proj
-  CX -->|"ローカル実行、実行時の取得なし"| Proj
-  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
-  class Core key
-```
+<img src="assets/diagrams/structure.ja.svg" width="100%" alt="SCV の構成" />
 
 20 個の SCV アクションのうち 14 個を Core が所有します。インストール方法、
 モデル選択、プラグインの入れ替えはホスト依存のため、`update`、`set-models`、
@@ -87,22 +66,7 @@ flowchart LR
 会話の裏では一つのループがすべてを回します。計画をアーカイブするとそのテストが
 回帰スイートに入り、以後のすべての変更がこれまでのテスト全部で確かめられます。
 
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
-flowchart LR
-  Talk["会話<br>(話すだけ — 毎ターン help へ)"]
-  Promote["計画 + テスト<br>action:promote"]
-  Work["実装 + テスト実行<br>action:work"]
-  Archive["scv/archive/"]
-  Regression["回帰<br>アーカイブ済みテストすべて"]
-  Talk -->|"計画できた"| Promote
-  Promote --> Work
-  Work -->|"テスト合格 + 承認"| Archive
-  Archive --> Regression
-  Regression -.->|"次の変更の安全網"| Promote
-  classDef key fill:#FFE082,stroke:#F57C00,stroke-width:2px,color:#000
-  class Promote,Regression key
-```
+<img src="assets/diagrams/loop.ja.svg" width="100%" alt="SCV のループ" />
 
 ### 毎ターン
 
