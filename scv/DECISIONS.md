@@ -1879,3 +1879,19 @@ merge_policy: preserve
 - path delta: '쉬운 말' 절은 지문으로 잠겨 있어 14곳 가리킴을 되돌리고 work Step 8 · report 에서 가리킴; awk 쓰는 판정 3개는 @deterministic; README 손질을 세 저장소 병렬로 맡김; 회귀가 scv-mods README 문단 하나를 잡아 그 저장소도 고침
 - refs: scv/archive/20261102-wookiya1364-writing-guidance/PLAN.md
 - conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-02 13:17] wookiya1364 — 단계 보고 — 구현 중 단계가 바뀌면 대시보드에 저절로
+
+- verdict: adopted
+- why: 단계 보고 지시가 코어 · 래퍼 어디에도 없어 대시보드가 0/4 로 멈춰 보였다. 언제 알릴지는 코어(work · codegen · 매 턴 한 줄), 어떤 도구로는 래퍼 호스트 설정 SCV_STEP_TOOL.
+- discarded alternatives: 코어가 대시보드 도구 이름을 직접 — 호스트 중립 검사 예외가 필요; 대시보드가 알아서 추정 — 지금처럼 틀릴 수 있음
+- refs: scv/promote/20261102-wookiya1364-step-report/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-02 13:49] wookiya1364 — 단계 보고 — 구현 중 단계가 바뀌면 대시보드에 저절로 archived
+
+- verdict: archived
+- why: 호스트 설정 SCV_STEP_TOOL 이 있고 promote 에 in_progress · testing 계획이 있을 때만 매 턴 한 줄(275B). 시점 규칙은 work · codegen 'Step progress'. 대시보드 단계 상세(사전 역할 · 새로 만듦/가져다 씀)는 모드가 고치고, 코어는 사전 항목 모양을 시험으로 고정.
+- path delta: 모드 세션과 정한 대로 사전 형식 고정 시험 · purity.md 단락을 더함; 구현 중 계획 고르기는 이름순 마지막(비교 연산자 없이 — 순수성 검사)
+- refs: scv/archive/20261102-wookiya1364-step-report/PLAN.md
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
