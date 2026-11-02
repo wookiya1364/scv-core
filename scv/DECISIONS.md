@@ -1927,3 +1927,19 @@ merge_policy: preserve
 - path delta: 종료 훅에 마지막 메시지와 턴 전체 사이 구분 줄을 추가 — 계획은 첫 줄만 보려 했으나 메시지 경계가 사라져 여러 메시지 턴이 막혔음. 사용자 보충으로 '불릿 수 상한 없음' 한 줄 추가.
 - refs: scv/archive/20261102-wookiya1364-answer-bullets/PLAN.md
 - conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-02 22:00] wookiya1364 — 지시 다이어트 — 이력은 결정 기록으로, 충돌 3 정리, 검사 3 추가
+
+- verdict: adopted
+- why: 지시가 계속 커짐(도움말 30,775 → 33,022, 규약 238K → 315K). 이력 메모 · 거듭 문장을 걷어 내고 충돌 3 · 검사 3을 한 계획에서. 0.76.0 과 동작 · 뜻은 같게(사용자 조건).
+- discarded alternatives: 다이어트 먼저 따로 — 사용자가 한 계획을 고름; 6가지 먼저 — 크기가 더 늘어남
+- refs: scv/promote/20261102-wookiya1364-instruction-diet/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-02 23:27] wookiya1364 — 지시 다이어트 — 매 턴 글 14.8KB → 10.1KB archived
+
+- verdict: archived
+- why: 매 턴 글을 줄임: 원칙 전문은 세션 첫 등록 · 규약 다시 읽기 때만, 쉬운 말 절은 가리키기, 첫 행동 · 실체 보여 주기 안내와 답 모양 절 압축. 충돌 3 정리, 답 언어 · 코어 여유 검사 추가, 맥 훅 속도 상한만 2.0s. 앞으로 지킬 것: 코어 help 합계는 상한-100B 안쪽.
+- path delta: 계획의 '이력 걷어 내기'는 측정해 보니 4.6KB 뿐이라(처음 추정 20KB 는 과대) 매 턴 글 줄이기로 바꿈; 목표 9KB 는 안내를 약하게 해 10.5KB 로 고침(사용자 결정).
+- refs: scv/archive/20261102-wookiya1364-instruction-diet/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md
