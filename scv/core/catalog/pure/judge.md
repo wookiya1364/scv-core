@@ -1,6 +1,6 @@
 # 판정 — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 22개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 24개.
 
 ### pc_validate_entries
 - 역할: 항목마다 빠진 칸(역할 · 종류 · 예)과 종류 표에 없는 종류를 위반 줄로 낸다
@@ -139,6 +139,20 @@
 - 예: `' "OFF" ' → "off"`
 - 예: `"" → "on"`
 - 예: `maybe → "on"`
+
+### scv_writing_limits
+- 역할: README 파일 이름으로 칸 · 문단 길이 한도(글자)를 정한다 — 한글 · 일본어 판은 영어 판의 절반
+- 위치: scripts/lib/writing.sh · @pure · sh
+- 예: `"README.md" → "60 600"`
+- 예: `"README.ko.md" → "40 300"`
+- 예: `"docs/README.ja.md" → "40 300"`
+
+### scv_writing_pick_locale
+- 역할: 쓸 수 있는 UTF-8 지역 설정 이름 하나를 고른다 — 글자 수를 바이트가 아닌 글자로 세려고
+- 위치: scripts/lib/writing.sh · @pure · sh
+- 예: `"C.UTF-8 en_US.UTF-8" "en_US.UTF-8" → "en_US.UTF-8"`
+- 예: `"C.UTF-8" "C.UTF-8" → "C.UTF-8"`
+- 예: `"" "" → "C.UTF-8"`
 
 ### settings_is_secret
 - 역할: 설정 키가 비밀 키 목록(토큰 등)에 있으면 참

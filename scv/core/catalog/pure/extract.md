@@ -1,6 +1,6 @@
 # 꺼내기 — 글 · JSON · 표에서 값이나 필드를 뽑는다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 47개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 50개.
 
 ### pc_extract_entries
 - 역할: 소스 글에서 표식(어떤 주석 모양이든 '@pure 이름', 셸은 이름 없이도) 달린 함수마다 역할 · 종류 · 예시를 뽑아 항목 줄로 낸다
@@ -255,6 +255,27 @@
 - 역할: 턴 스트림에서 마지막 사람 프롬프트 뒤의 어시스턴트 텍스트만 줄바꿈으로 이어 낸다
 - 위치: scripts/lib/help-state.sh · @pure · sh
 - 예: `$'U\nA\x1fold\nU\nA\x1fnew1\x1esub\nA\x1fnew2\n' → $'new1\nsub\nnew2'`
+
+### scv_writing_paragraphs
+- 역할: 마크다운에서 코드 블록 · 제목 · 표 · HTML 밖 문단을 한 줄씩(줄바꿈은 공백으로) 꺼낸다 — 목록 항목은 따로
+- 위치: scripts/lib/writing.sh · @deterministic · sh
+- 예: `$'첫 줄\n둘째 줄\n\n# 제목\n- 항목 하나\n  이어짐' → $'첫 줄 둘째 줄\n- 항목 하나 이어짐'`
+- 예: `$'```\n코드\n```' → ""`
+- 예: `"" → ""`
+
+### scv_writing_pass_criteria
+- 역할: 시험서에서 통과 기준 줄('Pass criterion:' 줄과 '## Pass criteria' 절의 목록)만 꺼낸다
+- 위치: scripts/lib/writing.sh · @deterministic · sh
+- 예: `$'- **Pass criterion**: 잘 된다\n- **Run**: x' → "잘 된다"`
+- 예: `$'## Pass criteria\n\n- 종료 코드 0\n## Next' → "종료 코드 0"`
+- 예: `"" → ""`
+
+### scv_writing_table_cells
+- 역할: 마크다운에서 코드 블록 밖 표 칸을 꺼낸다 — 링크는 글자만, 백틱은 벗기고, 코드만 든 칸 · 구분 줄은 뺀다
+- 위치: scripts/lib/writing.sh · @deterministic · sh
+- 예: `$'| a | `x` |\n|---|---|\n| [링크](u) 글 | b |' → $'a\n링크 글\nb'`
+- 예: `$'```\n| 코드 | 안 |\n```' → ""`
+- 예: `"" → ""`
 
 ### settings_index_json
 - 역할: JSON 객체의 모든 최상위 키를 "키 탭 값" 줄들로 꺼낸다(셸 이름으로 못 쓰는 키는 뺌)
