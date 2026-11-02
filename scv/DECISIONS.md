@@ -1856,3 +1856,11 @@ merge_policy: preserve
 - path delta: 재조사 1차에서 남은 3곳 · 새로 드러난 2곳(recording 자기 우선순위, 매 턴 안내 줄) · 낡은 3곳을 같은 계획에서 더 고침. 첫 문장 검사는 결론 밑 인용 · 표 줄에서 문단을 끝내도록 넓힘(재조사가 찾은 빈틈). 쉬운 말 절 14곳 대신 prompt-refine 한 곳에 예외를 둠(4조).
 - refs: scv/archive/20261101-wookiya1364-instruction-conflicts/PLAN.md
 - conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
+
+## [2026-11-02 10:15] wookiya1364 — README 그림을 이미지로 — 취소
+
+- verdict: not-needed
+- why: 휴대폰 GitHub 앱이 머메이드를 그리지 않아 그림이 코드로 보이는 것은 그대로 두기로 사용자가 결정(2026-11-02). 이미지 변환 계획 · PR #396 · 래퍼 준비분을 모두 버렸다. README 그림은 머메이드로 유지 — 같은 제안을 다시 하지 않는다.
+- discarded alternatives: SVG 이미지 + .mmd 원본(구현 · 회귀 79/79 까지 했으나 사용자가 취소)
+- refs: https://github.com/wookiya1364/scv-core/pull/396
+- conversation: scv/conversations/20261101-003000-pure-function-catalog-reuse.md
