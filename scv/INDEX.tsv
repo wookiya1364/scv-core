@@ -155,3 +155,5 @@ decision	scv-지침-충돌-11곳-정리-archived	scv/DECISIONS.md	226482	1175	20
 decision	readme-그림을-이미지로-취소	scv/DECISIONS.md	227657	591	2026-11-02 10:15	[not-needed] README 그림을 이미지로 — 취소
 decision	글쓰기-8가지-읽는-사람이-덜-헤매게-선택-창은-그대로	scv/DECISIONS.md	228248	782	2026-11-02 10:19	[adopted] 글쓰기 8가지 — 읽는 사람이 덜 헤매게, 선택 창은 그대로
 decision	글쓰기-8가지-읽는-사람이-덜-헤매게-선택-창은-그대로-archived	scv/DECISIONS.md	229030	1016	2026-11-02 11:04	[archived] 글쓰기 8가지 — 읽는 사람이 덜 헤매게, 선택 창은 그대로 archived
+decision	단계-보고-구현-중-단계가-바뀌면-대시보드에-저절로	scv/DECISIONS.md	230046	696	2026-11-02 13:17	[adopted] 단계 보고 — 구현 중 단계가 바뀌면 대시보드에 저절로
+decision	단계-보고-구현-중-단계가-바뀌면-대시보드에-저절로-archived	scv/DECISIONS.md	230742	820	2026-11-02 13:49	[archived] 단계 보고 — 구현 중 단계가 바뀌면 대시보드에 저절로 archived
