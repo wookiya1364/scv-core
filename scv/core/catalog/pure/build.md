@@ -1,6 +1,6 @@
 # 조립 — 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 52개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 53개.
 
 ### env_settings_unset_args
 - 역할: SCV_ENV_LOADED_KEYS 의 키마다 "-u 키" 두 줄을 내 env 명령에 넘길 인자를 만든다(환경변수 필요)
@@ -297,3 +297,10 @@
 - 위치: scripts/lib/show-real.sh · @pure · sh
 - 예: `$'Q\tk1\ts1\tt\tb\tx' yes → $'A\tk1\ts1\tt\tb\tyes'`
 - 예: `$'Q\tk1\ts1\tt\tb\tx' '' → $'A\tk1\ts1\tt\tb\tunjudged'`
+
+### scv_step_line
+- 역할: 단계 보고 도구 이름과 구현 중인 계획 이름으로 매 턴 안내 한 줄을 만든다 — 둘 중 하나라도 비면 아무것도 내지 않는다
+- 위치: scripts/lib/step-report.sh · @pure · sh
+- 예: `"demo_step" "20260102-a-y" → "[SCV 단계] 구현 중: 20260102-a-y — 이 세션에 demo_step 도구가 있으면, 단계를 시작할 때 · 끝낼 때 · 막혔을 때(이유 한 줄) 바로 알려라(plan=20260102-a-y, step=번호, state=doing|done|blocked). 본문: protocols/work.md 'Step progress'"`
+- 예: `"" "20260102-a-y" → ""`
+- 예: `"demo_step" "" → ""`
