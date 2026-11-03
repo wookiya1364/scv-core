@@ -1943,3 +1943,19 @@ merge_policy: preserve
 - path delta: 계획의 '이력 걷어 내기'는 측정해 보니 4.6KB 뿐이라(처음 추정 20KB 는 과대) 매 턴 글 줄이기로 바꿈; 목표 9KB 는 안내를 약하게 해 10.5KB 로 고침(사용자 결정).
 - refs: scv/archive/20261102-wookiya1364-instruction-diet/PLAN.md
 - conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-03 08:59] wookiya1364 — 지시 충돌 12곳 정리 — 0.77.0 전체 재검사
+
+- verdict: adopted
+- why: 0.77.0 전체 재검사로 충돌 12곳 확인(처음 3 + 코어 9) — 기준 문서(writing · choices) 쪽으로 정리, 사용자가 '전부 추천' · '코어 9곳 지금' 선택
+- discarded alternatives: [no-plan] 예외로 출처 검사 통과 — 지금까지 릴리스 · 결정 기록에만 쓴 예외라 버림; 비슷한 충돌 15개까지 한 번에 — 변경이 커져 버림
+- refs: scv/promote/20261103-wookiya1364-instruction-conflicts-077/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-03 10:09] wookiya1364 — 지시 충돌 12곳 정리 — 0.77.0 전체 재검사 archived
+
+- verdict: archived
+- why: 충돌 12곳을 기준 문서(writing · choices) 쪽으로 정리 — '예시 하나' 요구 제거 · 마무리 상자엔 요약만 · 묻지 않아도 되는 다음 단계 2곳. 앞으로 깨지면 안 됨: 매 턴 선택 창 줄 400B 이하와 시험 고정 구절, 코어 시험에 호스트 도구 이름 금지(회귀 1차 34건 실패 원인).
+- path delta: 계획보다 구현이 먼저였음(출처 검사 때문에 뒤에 계획을 씀); 회귀에서 옛 계획 1건이 '예시 하나'를 고정해 supersedes 로 대체하고 시험 6개를 T9 로 계승 — 계획에 없던 단계
+- refs: scv/archive/20261103-wookiya1364-instruction-conflicts-077/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md
