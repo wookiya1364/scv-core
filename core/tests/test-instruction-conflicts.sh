@@ -26,7 +26,7 @@ done
 [[ "$old" == 0 ]] && ok "T2 옛 답 모양 문구 0곳" || bad "T2 옛 답 모양 문구 ${old}곳"
 
 # T3 — 매 턴 선택 창 줄: 마무리 상자는 요약만 · 고정 구절 유지 · 400B 이하
-line="$(bash -c 'source "$1"; scv_choice_line AskUserQuestion' _ "$CORE/scripts/lib/choices.sh")"
+line="$(bash -c 'source "$1"; scv_choice_line PickTool' _ "$CORE/scripts/lib/choices.sh")"
 bytes="$(printf '%s\n' "$line" | wc -c | tr -d ' ')"
 [[ "$line" == *"Summary box: recap only."* && "$line" == *"work done, state it unasked."* && "$bytes" -le 400 ]] \
   && ok "T3 선택 창 줄 ${bytes}B, 마무리 상자 구절" || bad "T3 선택 창 줄 ${bytes}B: $line"
