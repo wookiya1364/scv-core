@@ -1,6 +1,6 @@
 # 판정/answer — 답 · 메시지 글을 보고 판정한다 — 표가 있나, 묻는 글인가, 확인인가
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 25개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 26개.
 
 ### _scv_choice_blank
 - 역할: 줄이 빈 줄(ASCII 공백 · NBSP · 전각 공백뿐)이면 성공(0), 아니면 실패(1)로 알린다
@@ -75,6 +75,12 @@
 - 예: `"통과했습니다." → "1"`
 - 예: `"README 검사 통과함" → "0"`
 - 예: `"이대로 쓸까요?" → "0"`
+
+### scv_lint_lang_turn
+- 역할: 마지막 답과 이번 턴 글 전체에서, 한국어 설정인데 거의 영어인 줄이 몇 개인지 위반 줄로 낸다(중간 보고까지 본다)
+- 위치: scripts/lib/help-state.sh · @pure · sh
+- 예: `"결과임" "Now running the size checks for real, then the hook test." korean → "lang-mismatch-lines=1"`
+- 예: `"결과임" "" korean → ""`
 
 ### scv_lint_lang_verdict
 - 역할: 설정 언어가 한국어인데 답 글에 한글이 거의 없으면 위반 한 줄을 낸다
