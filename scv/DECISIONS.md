@@ -1943,3 +1943,35 @@ merge_policy: preserve
 - path delta: 계획의 '이력 걷어 내기'는 측정해 보니 4.6KB 뿐이라(처음 추정 20KB 는 과대) 매 턴 글 줄이기로 바꿈; 목표 9KB 는 안내를 약하게 해 10.5KB 로 고침(사용자 결정).
 - refs: scv/archive/20261102-wookiya1364-instruction-diet/PLAN.md
 - conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-03 08:59] wookiya1364 — 지시 충돌 12곳 정리 — 0.77.0 전체 재검사
+
+- verdict: adopted
+- why: 0.77.0 전체 재검사로 충돌 12곳 확인(처음 3 + 코어 9) — 기준 문서(writing · choices) 쪽으로 정리, 사용자가 '전부 추천' · '코어 9곳 지금' 선택
+- discarded alternatives: [no-plan] 예외로 출처 검사 통과 — 지금까지 릴리스 · 결정 기록에만 쓴 예외라 버림; 비슷한 충돌 15개까지 한 번에 — 변경이 커져 버림
+- refs: scv/promote/20261103-wookiya1364-instruction-conflicts-077/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-03 10:09] wookiya1364 — 지시 충돌 12곳 정리 — 0.77.0 전체 재검사 archived
+
+- verdict: archived
+- why: 충돌 12곳을 기준 문서(writing · choices) 쪽으로 정리 — '예시 하나' 요구 제거 · 마무리 상자엔 요약만 · 묻지 않아도 되는 다음 단계 2곳. 앞으로 깨지면 안 됨: 매 턴 선택 창 줄 400B 이하와 시험 고정 구절, 코어 시험에 호스트 도구 이름 금지(회귀 1차 34건 실패 원인).
+- path delta: 계획보다 구현이 먼저였음(출처 검사 때문에 뒤에 계획을 씀); 회귀에서 옛 계획 1건이 '예시 하나'를 고정해 supersedes 로 대체하고 시험 6개를 T9 로 계승 — 계획에 없던 단계
+- refs: scv/archive/20261103-wookiya1364-instruction-conflicts-077/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-03 12:15] wookiya1364 — 남은 문제 6개 정리
+
+- verdict: adopted
+- why: 릴리스 전 오늘 찾은 남은 문제를 모두 고친 뒤 한 번에 릴리스(사용자 결정). ① 프로젝트 밖 등록 거절 ② 막은 뒤 고친 부분만 ③ 줄별 언어 검사 ④ 가이드 경로 지금 설치본 ⑤ codex 모델 정책 설정 파일 ⑥ 비슷한 충돌 9곳
+- discarded alternatives: 실제로 겪은 5개만 고치고 ⑥은 다음으로 — 사용자가 전부를 고름; ③을 턴 전체 비율로 판정 — 긴 한국어 답 사이 영어 한두 줄이 묻혀 버림
+- refs: scv/promote/20261103-wookiya1364-remaining-fixes-078/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-03 12:21] wookiya1364 — 남은 문제 6개 정리 archived
+
+- verdict: archived
+- why: ① 등록은 scv/ 없는 곳에서 거절 ② 막을 때 고친 부분만 안내 ③ 언어 검사는 줄마다, 중간 보고 포함 ④ 가이드 경로는 지금 설치본 기준 ⑥ 충돌 9곳 정리(3곳은 충돌 아님 — 회귀 질문 · 팁 안내 · 코드 블록 출력). 깨지면 안 됨: 시험이 쓰는 SCV_JOURNAL_DIR 등록은 그대로.
+- path delta: ③ 을 턴 전체 비율로 먼저 만들었다가 긴 한국어 답에 영어 줄이 묻혀 줄별 판정으로 바꿈; ⑥ 은 배경 에이전트가 문서만 고침
+- refs: scv/archive/20261103-wookiya1364-remaining-fixes-078/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md
