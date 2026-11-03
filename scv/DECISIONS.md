@@ -1959,3 +1959,19 @@ merge_policy: preserve
 - path delta: 계획보다 구현이 먼저였음(출처 검사 때문에 뒤에 계획을 씀); 회귀에서 옛 계획 1건이 '예시 하나'를 고정해 supersedes 로 대체하고 시험 6개를 T9 로 계승 — 계획에 없던 단계
 - refs: scv/archive/20261103-wookiya1364-instruction-conflicts-077/PLAN.md
 - conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-03 12:15] wookiya1364 — 남은 문제 6개 정리
+
+- verdict: adopted
+- why: 릴리스 전 오늘 찾은 남은 문제를 모두 고친 뒤 한 번에 릴리스(사용자 결정). ① 프로젝트 밖 등록 거절 ② 막은 뒤 고친 부분만 ③ 줄별 언어 검사 ④ 가이드 경로 지금 설치본 ⑤ codex 모델 정책 설정 파일 ⑥ 비슷한 충돌 9곳
+- discarded alternatives: 실제로 겪은 5개만 고치고 ⑥은 다음으로 — 사용자가 전부를 고름; ③을 턴 전체 비율로 판정 — 긴 한국어 답 사이 영어 한두 줄이 묻혀 버림
+- refs: scv/promote/20261103-wookiya1364-remaining-fixes-078/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-03 12:21] wookiya1364 — 남은 문제 6개 정리 archived
+
+- verdict: archived
+- why: ① 등록은 scv/ 없는 곳에서 거절 ② 막을 때 고친 부분만 안내 ③ 언어 검사는 줄마다, 중간 보고 포함 ④ 가이드 경로는 지금 설치본 기준 ⑥ 충돌 9곳 정리(3곳은 충돌 아님 — 회귀 질문 · 팁 안내 · 코드 블록 출력). 깨지면 안 됨: 시험이 쓰는 SCV_JOURNAL_DIR 등록은 그대로.
+- path delta: ③ 을 턴 전체 비율로 먼저 만들었다가 긴 한국어 답에 영어 줄이 묻혀 줄별 판정으로 바꿈; ⑥ 은 배경 에이전트가 문서만 고침
+- refs: scv/archive/20261103-wookiya1364-remaining-fixes-078/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md
