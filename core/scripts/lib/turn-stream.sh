@@ -57,3 +57,11 @@ _scv_turn_texts() {  # [원본 끝에서 읽을 줄 수 — 기본 400]
                | ([range(0; $s | length) | select($s[.] == "U")] | last) as $i
                | if $i == null then empty else $s[($i + 1):][] end' 2>/dev/null || true
 }
+
+# 0.79.0+ — 이번 턴을 연 사람 글(마지막 사람 프롬프트의 글). 내부 메시지 · 도구 결과는 빼고, 못 찾으면 빈 값.
+_scv_turn_prompt() {  # [원본 끝에서 읽을 줄 수 — 기본 400]
+  tail -n "${1:-400}" "$TRANSCRIPT" 2>/dev/null | jq -Rr 'fromjson? | select(.type? == "user") | select((.isMeta? != true) and (.sourceToolUseID? == null))
+      | (.message.content) as $c
+      | if ($c|type) == "string" then $c elif ($c|type) == "array" then ([$c[]? | select(.type? == "text") | .text] | join("\n")) else empty end
+      | select(length > 0) | @json' 2>/dev/null | tail -n 1 | jq -r '. // empty' 2>/dev/null | head -c 4000 || true
+}

@@ -54,6 +54,8 @@ _scv_seen_file="$_scv_tdir/.help-lang-seen"
 _scv_seen=""
 [[ -f "$_scv_seen_file" && ! -L "$_scv_seen_file" ]] && _scv_seen="$(head -c 256 "$_scv_seen_file" 2>/dev/null | head -n 1)"
 
+# 사용자가 이 턴에 다른 언어를 요청했거나 다른 언어로 썼으면 교정하지 않는다(SCV.md Top-level rules 7조).
+[[ "$(scv_lang_user_other "$(_scv_turn_prompt 400)")" == 1 ]] && exit 0
 _scv_list="$(_scv_turn_texts 400 | tail -c 65536)"
 [[ -n "$_scv_list" ]] || exit 0
 _scv_new="$(scv_lang_new_text "$_scv_list" "$_scv_seen")"

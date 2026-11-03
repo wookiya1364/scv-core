@@ -86,6 +86,17 @@ sz="$(wc -c < "$TR" | tr -d ' ')"
 t0=$(date +%s); o3="$(lang_hook "$R" "$TR")" || e=1; t1=$(date +%s)
 [[ "$e" == 0 && -z "$o$o2$o3" && $((t1 - t0)) -le 1 ]] && ok "T6 깨진 입력 · 원본 없음 → 조용히 통과, ${sz}B 원본 $((t1 - t0))s" || bad "T6 e=$e [$o$o2$o3] $((t1 - t0))s"
 
+# T8 — 사용자가 다른 언어를 요청하면 강제하지 않는다(Top-level rules 7조): 교정 없음 · 막지 않음 · 언어 경고 없음
+R="$(new_repo t8 korean)"; TR="$WORK/t8.jsonl"; A="$EN1"$'\n'"$EN2"
+{ jl_user "이번 답은 영어로 써 줘"; jl_asst "$EN3" d1; jl_tool; jl_asst "$A" d2; } > "$TR"
+o="$(lang_hook "$R" "$TR")"; o2="$(stop_hook "$R" "$TR" "$A" false)"
+w="$(cat "$R/scv/journal/.help-warn" 2>/dev/null || true)"
+R2="$(new_repo t8b korean)"; TR2="$WORK/t8b.jsonl"
+{ jl_user "Please write the summary in plain English for the team."; jl_asst "$A" d3; } > "$TR2"
+o3="$(stop_hook "$R2" "$TR2" "$A" false)"
+[[ -z "$o" && "$o2" != *"[SCV 언어]"* && "$w" != *"한국어로 써라"* && "$o3" != *"[SCV 언어]"* ]] \
+  && ok "T8 다른 언어 요청 · 다른 언어로 쓴 요청이면 교정 · 막기 · 경고 없음" || bad "T8 [$o] [$o2] [$w] [$o3]"
+
 # 순수 함수 직접 확인
 [[ "$(scv_lang_stop_decide 2 0)" == block && "$(scv_lang_stop_decide 2 1)" == ok && -z "$(scv_lang_rule_line english)" ]] \
   && ok "판정 함수(막기 한 번 · english 무동작)" || bad "판정 함수"

@@ -6,6 +6,7 @@
 #   scv_lang_new_text <글 목록> <지난 id>          → "<마지막 id>\x1f<새 글>" — 지난 검사 뒤에 쓴 글만
 #   scv_lang_fix_note <언어> <줄 수> <mid|final> → 교정 문구 한 줄(언어 이름 포함)
 #   scv_lang_stop_decide <최종 답 줄 수> <이미 전달 0|1> → block | ok
+#   scv_lang_user_other <이번 턴 사용자 글>              → 1(사용자가 다른 언어를 요청하거나 다른 언어로 씀) | 0
 #
 # 판정 자체(다른 언어 줄 세기)는 lib/help-state.sh 의 scv_lint_lang_turn 이 한다 — 여기서 다시 만들지 않는다.
 # 꺾쇠 글자는 쓰지 않는다 — 순수성 검사가 리다이렉션으로 본다.
@@ -13,7 +14,7 @@
 # @pure
 # 역할: 설정 언어로 쓴 언어 규칙 한 줄을 만든다 — 중간 보고까지 그 언어로 쓰라는 줄
 # 종류: 조립
-# 예: korean → "[SCV 언어] 모든 글을 한국어로 쓴다 — 도구 사이 중간 보고 · 계획 · 요약 포함. 코드 · 경로 · 이름만 원문. 다른 언어 문장은 그 자리에서 교정되고, 최종 답은 막힌다."
+# 예: korean → "[SCV 언어] 사용자에게 보이는 글은 모두 한국어로 — 도구 사이 중간 보고 · 요약 포함(파일 · 코드 · 이름은 제 규칙대로). 다른 언어 문장은 그 자리에서 교정되고 최종 답은 막힌다. 사용자가 이 턴에 다른 언어를 요청하면 그 언어."
 # 예: english → ""
 # 예: "" → ""
 # <언어> → 한 줄 | 빈 값. 한국어는 한국어로, 다른 언어 이름은 영어 문장에 그 이름을 넣어 쓴다.
@@ -21,7 +22,7 @@ scv_lang_rule_line() {
   local lang="${1:-}"
   case "$lang" in
     ""|english|en) return 0 ;;
-    korean|ko) printf '%s\n' "[SCV 언어] 모든 글을 한국어로 쓴다 — 도구 사이 중간 보고 · 계획 · 요약 포함. 코드 · 경로 · 이름만 원문. 다른 언어 문장은 그 자리에서 교정되고, 최종 답은 막힌다." ;;
+    korean|ko) printf '%s\n' "[SCV 언어] 사용자에게 보이는 글은 모두 한국어로 — 도구 사이 중간 보고 · 요약 포함(파일 · 코드 · 이름은 제 규칙대로). 다른 언어 문장은 그 자리에서 교정되고 최종 답은 막힌다. 사용자가 이 턴에 다른 언어를 요청하면 그 언어." ;;
     *) printf '%s\n' "[SCV language] Write every message in $lang — including progress notes between tool calls. Code, paths and names stay as they are." ;;
   esac
 }
@@ -86,4 +87,23 @@ scv_lang_stop_decide() {
   local n="${1:-0}" delivered="${2:-0}"
   [[ "$n" =~ ^[0-9]+$ ]] || n=0
   if (( n > 0 )) && [[ "$delivered" != 1 ]]; then printf 'block'; else printf 'ok'; fi
+}
+
+# @pure
+# 역할: 이번 턴 사용자 글이 다른 언어를 요청하거나 다른 언어로 쓰였는지 1 또는 0 으로 판정한다
+# 종류: 판정/gate
+# 예: "영어로 답해 줘" → "1"
+# 예: "Please answer this one in English." → "1"
+# 예: "로그인 버그 고쳐 줘" → "0"
+# 예: "" → "0"
+# <이번 턴 사용자 글> → 1 | 0. 1 이면 강제하지 않는다 — SCV 규칙은 사용자의 명시적 지시에 양보한다(SCV.md Top-level rules 7조).
+# 다른 언어로 쓴 글: 글자 15개 이상에 한글이 20% 미만. 언어 요청: '영어로' · '일본어로' · 'in English' 같은 말. 앞 4000바이트만 본다.
+scv_lang_user_other() {
+  local p="${1:-}" h l
+  p="${p:0:4000}"
+  case "$p" in
+    *영어로*|*일본어로*|*중국어로*|*"in English"*|*"in english"*|*"英語で"*) printf '1'; return 0 ;;
+  esac
+  h="$(LC_ALL=C; printf '%s' "${p//[^$'\xea'-$'\xed']/}")"; l="$(LC_ALL=C; printf '%s' "${p//[^A-Za-z]/}")"
+  if [[ $(( ${#h} + ${#l} )) -ge 15 && $(( ${#h} * 100 / (${#h} + ${#l}) )) -lt 20 ]]; then printf '1'; else printf '0'; fi
 }
