@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-03T03:21:41Z
+generated_at: 2026-11-03T22:16:46Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -436,6 +436,10 @@ archives:
   - slug: 20261103-wookiya1364-instruction-conflicts-077
     title: "지시 충돌 12곳 정리 — 0.77.0 전체 재검사"
     kind: refactor
+    status: testing
+  - slug: 20261103-wookiya1364-lang-enforce-079
+    title: "설정 언어 강제 — 최종 답 막기 · 턴 중간 교정 · 매 턴 언어 줄"
+    kind: feature
     status: testing
   - slug: 20261103-wookiya1364-remaining-fixes-078
     title: "남은 문제 6개 정리 — 등록 위치 · 막힌 뒤 답 · 중간 보고 언어 · 가이드 경로 · codex 모델 정책 · 비슷한 충돌"
