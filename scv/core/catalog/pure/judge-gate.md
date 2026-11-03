@@ -1,6 +1,6 @@
 # 판정/gate — 훅이 막을지 · 넘길지 · 다시 물을지를 정한다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 20개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 22개.
 
 ### scv_choice_gate
 - 역할: 묻는지 · 도구 이름 · 이미 전달 여부로 ok | block | warn 중 하나를 정한다 (도구가 없으면 늘 ok)
@@ -48,6 +48,21 @@
 - 예: `s $'s\x1ft\x1fg1' 0 → "1"`
 - 예: `s $'o\x1ft\x1fg1' 0 → "0"`
 - 예: `s $'s\x1ft\x1fg1' 1 → "0"`
+
+### scv_lang_stop_decide
+- 역할: 최종 답의 다른 언어 줄 수와 이번 턴 전달 여부로 끝내기를 막을지 정한다
+- 위치: scripts/lib/lang-enforce.sh · @pure · sh
+- 예: `3 0 → "block"`
+- 예: `3 1 → "ok"`
+- 예: `0 0 → "ok"`
+
+### scv_lang_user_other
+- 역할: 이번 턴 사용자 글이 다른 언어를 요청하거나 다른 언어로 쓰였는지 1 또는 0 으로 판정한다
+- 위치: scripts/lib/lang-enforce.sh · @pure · sh
+- 예: `"영어로 답해 줘" → "1"`
+- 예: `"Please answer this one in English." → "1"`
+- 예: `"로그인 버그 고쳐 줘" → "0"`
+- 예: `"" → "0"`
 
 ### scv_mp_decision
 - 역할: 색인 행 유무 · 읽음 기록 · 지금 지문 · 모델 id 로 원문을 읽어야 하는지(load · loaded · none) 정한다
