@@ -1,6 +1,6 @@
 # 꺼내기 — 글 · JSON · 표에서 값이나 필드를 뽑는다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 50개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 51개.
 
 ### pc_extract_entries
 - 역할: 소스 글에서 표식(어떤 주석 모양이든 '@pure 이름', 셸은 이름 없이도) 달린 함수마다 역할 · 종류 · 예시를 뽑아 항목 줄로 낸다
@@ -121,6 +121,13 @@
 - 위치: scripts/lib/help-state.sh · @pure · sh
 - 예: `'{"session":"s1","protocol":1,"turn":3,"diag":"ab12","diag_at":"09:30","nonce":"deadbeef"}' → $'s1\x1f1\x1f3\x1fab12\x1f09:30\x1fdeadbeef'`
 - 예: `'garbage' → $'\x1f0\x1f0\x1f\x1f\x1f'`
+
+### scv_lang_new_text
+- 역할: 이번 턴 어시스턴트 글 목록에서 지난 검사 id 뒤에 쓴 글만 잇고, 마지막 id 와 함께 낸다
+- 위치: scripts/lib/lang-enforce.sh · @pure · sh
+- 예: `$'a\x1fold\nb\x1fnew' a → $'b\x1fnew'`
+- 예: `$'a\x1fone\nb\x1ftwo' zz → $'b\x1fone\ntwo'`
+- 예: `"" a → ""`
 
 ### scv_mp_common
 - 역할: 색인에서 모든 모델에 붙는 공통 원문의 파일과 날짜를 꺼낸다

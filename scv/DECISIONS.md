@@ -1975,3 +1975,19 @@ merge_policy: preserve
 - path delta: ③ 을 턴 전체 비율로 먼저 만들었다가 긴 한국어 답에 영어 줄이 묻혀 줄별 판정으로 바꿈; ⑥ 은 배경 에이전트가 문서만 고침
 - refs: scv/archive/20261103-wookiya1364-remaining-fixes-078/PLAN.md
 - conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-03 22:53] wookiya1364 — 설정 언어 강제 — 최종 답 막기 · 턴 중간 교정 · 매 턴 언어 줄
+
+- verdict: adopted
+- why: slay 세션이 SCV_LANG=korean 인데 중간 보고를 영어로 씀(영어 최대 35줄). 언어 검사가 다음 턴 경고뿐이라 강제하지 못함 — 사용자가 강제를 결정
+- discarded alternatives: 매 턴 줄만 추가: 다음 턴 교정이 약해 남음 / 중간 보고도 막기: 이미 화면에 나간 글은 막을 수 없고 답이 두 번 나감
+- refs: scv/promote/20261103-wookiya1364-lang-enforce-079/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-04 07:16] wookiya1364 — 설정 언어 강제 — 최종 답 막기 · 턴 중간 교정 · 매 턴 언어 줄 archived
+
+- verdict: archived
+- why: SCV_LANG=korean 이면 매 턴 언어 줄, 도구 뒤 새 글 교정, 최종 답 한 턴 한 번 막기. 검사 기준 15자 · 링크 제외. 사용자가 다른 언어를 요청하면 강제 안 함(7조). T7 장난감 재현: 영어 4→2줄, 최종 답 영어→한국어 — 실사용(slay) 확인은 남음
+- path delta: 계획에 없던 두 가지: T7 에서 짧은 영어 줄이 빠져 기준을 40→15자로(사용자 선택), 충돌 점검에서 사용자 언어 요청 예외 추가(7조 충돌)
+- refs: scv/archive/20261103-wookiya1364-lang-enforce-079/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md

@@ -241,6 +241,7 @@ an `action:*`) into the committed, author-attributed team journal
 | `core/template/hooks/on-stop.sh` | Claude Code: `Stop` · Codex: the equivalent turn-end / session-end hook | one JSON object with a `transcript_path` field pointing at a JSONL transcript. **v0.51.0+:** if the host also passes `last_assistant_message` (Claude Code does — its docs say the transcript is written asynchronously and may lag), the answer-shape lint reads that field first; without it the template slices the transcript to the current turn (assistant text after the last human prompt entry, retrying briefly) and skips the lint for the turn when nothing has landed yet. Wrappers that can hand over the final message text should. |
 | `core/template/hooks/on-session-start.sh` (v0.47.0+) | Claude Code: `SessionStart` with matcher `compact\|clear\|resume` · Codex: the equivalent context-reset hook, if one exists (none registered today) | one JSON object; an optional `source` string (what reset the context) is quoted in the header; since v0.65.0 an optional `session_id` picks the session whose per-turn state the reset clears |
 | `core/template/hooks/on-choice-answer.sh` (v0.65.0+) | Claude Code: `PostToolUse` with matcher = the profile's `SCV_CHOICE_TOOL` · Codex: none (no choice tool) | one JSON object; `session_id` is read, and a payload carrying `agent_id` (a subagent) is ignored. Prints nothing, never blocks |
+| `core/template/hooks/on-lang-check.sh` (v0.79.0+) | Claude Code: `PostToolUse` with no matcher (every tool) · Codex: none (no post-tool hook) | one JSON object; `transcript_path` and `session_id` are read, and a payload carrying `agent_id` is ignored. When `SCV_LANG` is korean and text written since the last check has lines in another language, prints one `additionalContext` correction line. Never blocks |
 
 Wrapper requirements:
 
@@ -519,6 +520,11 @@ transcript), the registration check keeps the earlier rule while continuing.
   the host's choice tool returns the user's answer (Claude Code: `PostToolUse`, matcher = the
   `SCV_CHOICE_TOOL` name). The next editor write is refused until the model registers again —
   `register --keep` when the scope is unchanged. A host without a choice tool registers nothing.
+- *Language correction (v0.79.0+).* Register `on-lang-check.sh` for the event that fires after every
+  tool call and accepts extra context for the model (Claude Code: `PostToolUse`, no matcher). With
+  `SCV_LANG=korean`, progress text that drifts into another language is corrected inside the turn;
+  the stop hook blocks a final answer that drifted (once per turn). A host without such an event
+  registers nothing — the per-turn language line and the stop-hook check still apply.
 - *Scope check.* A registration whose `scope` cell opens with a whole-turn no-change phrase — `변경 없음 — …`
   (the form the per-turn block asks for), and a short list of equivalents such as `읽기만`, `파일 · 코드는 바꾸지 않는다`,
   `No changes —`, `read-only:`, `変更なし` — refuses project-file writes outside the workflow tree until the model
