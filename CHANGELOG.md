@@ -2,6 +2,16 @@
 
 All notable changes to SCV Core are documented here.
 
+## [0.78.0] - 2026-11-03
+
+### 지시 충돌 12곳 정리 — 0.77.0 전체 재검사
+
+- 옛 답 모양 문구("결론 1~2문장 → 예시 하나")를 안내 문서 틀 · README 3개 언어에서 굵은 주제 → 불릿으로. '예시 하나' 요구를 14개 규약의 쉬운 말 절에서 뺌(글쓰기 규약에 없는 요구).
+- 마무리 상자: 매 턴 선택 창 줄에 `Summary box: recap only.`(396B), `contracts/choices.md` 10항 — 호스트가 글로 물으라 해도 질문은 선택 창.
+- 코어 9곳: GRAFT 안내 줄은 다시 쓴 요청 인용 바로 아래 · 번호 목록은 다시 가리킬 것에만(work 보고 · report) · codegen 질문 추천 표시 · workspace 자유 답은 선택 규칙 · 고정 한국어 문구 · sync 맞춤 검사와 install-deps 재확인은 묻지 않고 실행 · help/full.md 안내 문구.
+- 옛 계획 `20260824-wookiya1364-regression-contract-repair-2` 를 대체(T3 이 '예시 하나'를 고정) — 시험 6개는 새 계획 T9 로 계승.
+- 시험: `test-instruction-conflicts.sh`.
+
 ## [0.77.0] - 2026-11-02
 
 ### 지시 다이어트 — 매 턴 글 14.8KB → 10.1KB
