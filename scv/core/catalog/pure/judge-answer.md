@@ -81,6 +81,9 @@
 - 위치: scripts/lib/help-state.sh · @pure · sh
 - 예: `"결과임" "Now running the size checks for real, then the hook test." korean → "lang-mismatch-lines=1"`
 - 예: `"결과임" "" korean → ""`
+- 예: `"결과임" "Now the implementation." korean → "lang-mismatch-lines=1"`
+- 예: `"결과임" "- npm test 통과함" korean → ""`
+- 예: `"결과임" "- PR을 열었음: [owner/repo-name#420](https://github.com/owner/repo-name/pull/420)" korean → ""`
 
 ### scv_lint_lang_verdict
 - 역할: 설정 언어가 한국어인데 답 글에 한글이 거의 없으면 위반 한 줄을 낸다
