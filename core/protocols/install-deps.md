@@ -57,8 +57,7 @@ Options:
     description:
     "Run `install-deps.sh --install` to actually install the missing system tools.
      - Linux / macOS: sudo password may be prompted for apt / dnf / pacman.
-     - Windows: winget will open its own confirmation dialog per package.
-       and place SKILL.md in the skill directory configured by your wrapper."
+     - Windows: winget will open its own confirmation dialog per package."
 
 [2] "Just print the install commands (I'll run them myself)"
     description:
