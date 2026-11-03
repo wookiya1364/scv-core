@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-02T14:27:57Z
+generated_at: 2026-11-03T03:21:41Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -133,7 +133,8 @@ archives:
   - slug: 20260824-wookiya1364-regression-contract-repair-2
     title: "회귀 계약 보수 2 — 설정 이사 뒤 성립 불가 6건의 내구성 있는 재표현"
     kind: refactor
-    status: done
+    status: obsolete
+    obsoleted_by: 20261103-wookiya1364-instruction-conflicts-077
   - slug: 20260824-wookiya1364-regression-runner-memo
     title: "회귀 러너 — 같은 스위트 호출은 한 번만 (suite-gate memoization)"
     kind: feature
@@ -431,4 +432,12 @@ archives:
   - slug: 20261102-wookiya1364-writing-guidance
     title: "글쓰기 8가지 — 읽는 사람이 덜 헤매게, 선택 창은 그대로"
     kind: feature
+    status: testing
+  - slug: 20261103-wookiya1364-instruction-conflicts-077
+    title: "지시 충돌 12곳 정리 — 0.77.0 전체 재검사"
+    kind: refactor
+    status: testing
+  - slug: 20261103-wookiya1364-remaining-fixes-078
+    title: "남은 문제 6개 정리 — 등록 위치 · 막힌 뒤 답 · 중간 보고 언어 · 가이드 경로 · codex 모델 정책 · 비슷한 충돌"
+    kind: refactor
     status: testing
