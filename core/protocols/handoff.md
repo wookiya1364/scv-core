@@ -62,7 +62,7 @@ Turns are recorded per `core/contracts/recording.md`.
    handoff could not be propagated yet and that local work is unaffected — retry
    when the root is reachable.
 
-4. **Push — ask first, every time.** Show the user one line:
+4. **Push — ask first, every time** (choice tool when the host names one, `contracts/choices.md`):
    *"Push this handoff to the workspace root (`<root>`)? It becomes visible to the
    other repo on their next pull."* Only on explicit yes:
 

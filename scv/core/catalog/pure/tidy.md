@@ -1,6 +1,6 @@
 # 다듬기 — 글자를 정리한다 — 공백 · 대소문자 · 이스케이프 · 자르기
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 13개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 14개.
 
 ### record_kind_normalize
 - 역할: 기록 종류 이름의 앞뒤 공백을 떼고 소문자로 맞춘다 — 모르는 종류는 빈 값
@@ -49,6 +49,12 @@
 - 예: `" AbC-1 " → " abc-1 "`
 - 예: `"한글 OK" → "한글 ok"`
 - 예: `"" → ""`
+
+### scv_mp_guide_rebase
+- 역할: 기록된 가이드 경로 · 표시 명령을 지금 설치본 자리로 바꿔 쓴다
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `$'m\nGUIDE_FILE: /old/1.0/prompting/g.md\nGUIDE_MARK_CMD: bash "/old/1.0/scripts/model-prompting.sh" mark --model "m"' /new/prompting /new/scripts/model-prompting.sh → $'m\nGUIDE_FILE: /new/prompting/g.md\nGUIDE_MARK_CMD: bash "/new/scripts/model-prompting.sh" mark --model "m"'`
+- 예: `$'none' /new/prompting /new/s.sh → "none"`
 
 ### scv_mp_normalize_id
 - 역할: 모델 id 를 앞뒤 공백 없이 소문자로 바꾸고 끝의 "[…]" 표기를 지운다
