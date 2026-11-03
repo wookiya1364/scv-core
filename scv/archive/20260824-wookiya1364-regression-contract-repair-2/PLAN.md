@@ -3,7 +3,9 @@ title: "회귀 계약 보수 2 — 설정 이사 뒤 성립 불가 6건의 내�
 slug: 20260824-wookiya1364-regression-contract-repair-2
 author: "wookiya1364"
 created_at: 2026-08-24
-status: done
+status: obsolete
+obsoleted_at: 2026-11-03
+obsoleted_by: 20261103-wookiya1364-instruction-conflicts-077
 kind: refactor
 lang: korean
 tags: [regression, tests]
@@ -71,3 +73,4 @@ invariants:
 
 - 앞으로 계약을 쓸 때 How-to-run 의 파일 이름은 존재하는 파일이어야 한다 — 0.32.0 두
   계약은 계획 단계의 이름을 그대로 적었다. 보관 직전 TESTS 블록 실행이 그 함정을 잡는다.
+
