@@ -12,6 +12,7 @@ All notable changes to SCV Core are documented here.
 - 턴 글 읽기 함수를 `scripts/lib/turn-stream.sh` 로 옮겨 종료 훅과 새 훅이 함께 씀. 순수부는 `scripts/lib/lang-enforce.sh`.
 - 검사 기준: 글자 15개 이상인 줄(전에는 40개 — 'Now the implementation.' 같은 짧은 중간 보고가 빠졌음), 링크 · 주소는 세지 않음.
 - 사용자가 그 턴에 다른 언어를 요청하거나 다른 언어로 쓰면 강제하지 않음(Top-level rules 7조). 파일 언어(`SCV_PROMOTE_LANG` · `lang:`)는 그대로.
+- 매 턴 글 상한 10,500 → 10,800B(사용자 결정 — 언어 줄 309B, codex 사본 10,695B).
 - 계기: 한국어 설정 세션이 긴 작업 중 중간 보고를 영어로 씀(한 턴 최대 35줄).
 - 시험: `test-lang-enforce.sh`.
 
