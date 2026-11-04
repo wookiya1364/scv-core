@@ -1,6 +1,6 @@
 # 고르기 — 여럿 중 일부를 골라내거나 순서를 매긴다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 32개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 33개.
 
 ### attachment_scope_filter
 - 역할: 표준입력 줄들에서 슬러그가 든 줄만 남긴다 — 슬러그가 비면 전부 통과
@@ -91,6 +91,14 @@
 - 역할: 경고 파일에서 "[SCV 가이드]" 줄과 그 뒤 두 칸 들여 쓴 줄만 남긴다
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
 - 예: `$'[SCV 가이드] a\n  detail\nother' → $'[SCV 가이드] a\n  detail\n'`
+
+### scv_pd_lang
+- 역할: 파일 이름의 확장자로 함수 찾기 규칙(언어)을 고른다 — 모르는 확장자는 빈 값
+- 위치: scripts/lib/pure-declare.sh · @pure · sh
+- 예: `src/a.ts → "js"`
+- 예: `lib/x.sh → "sh"`
+- 예: `app/m.py → "py"`
+- 예: `README.md → ""`
 
 ### scv_pr_base_branch
 - 역할: PR 대상 브랜치를 정한다 — 에픽 > 설정 값 > origin 기본 브랜치 > main 순

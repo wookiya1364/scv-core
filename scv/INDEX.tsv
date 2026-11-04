@@ -171,3 +171,5 @@ decision	설정-언어-강제-최종-답-막기-턴-중간-교정-매-턴-언어
 decision	설정-언어-강제-최종-답-막기-턴-중간-교정-매-턴-언어-줄-archived	scv/DECISIONS.md	239856	811	2026-11-04 07:16	[archived] 설정 언어 강제 — 최종 답 막기 · 턴 중간 교정 · 매 턴 언어 줄 archived
 decision	첫-도구를-help-로-고정	scv/DECISIONS.md	240667	620	2026-11-04 10:14	[adopted] 첫 도구를 help 로 고정
 decision	첫-도구를-help-로-고정-archived	scv/DECISIONS.md	241287	789	2026-11-04 12:49	[archived] 첫 도구를 help 로 고정 archived
+decision	모든-함수에-순수-부수효과-선언	scv/DECISIONS.md	242076	520	2026-11-04 12:50	[adopted] 모든 함수에 순수 · 부수효과 선언
+decision	모든-함수에-순수-부수효과-선언-archived	scv/DECISIONS.md	242596	654	2026-11-04 14:08	[archived] 모든 함수에 순수 · 부수효과 선언 archived

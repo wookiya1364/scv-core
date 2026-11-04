@@ -1,6 +1,6 @@
 # 꺼내기 — 글 · JSON · 표에서 값이나 필드를 뽑는다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 51개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 54개.
 
 ### pc_extract_entries
 - 역할: 소스 글에서 표식(어떤 주석 모양이든 '@pure 이름', 셸은 이름 없이도) 달린 함수마다 역할 · 종류 · 예시를 뽑아 항목 줄로 낸다
@@ -227,6 +227,31 @@
 - 역할: PLAN.md 프런트매터에서 대화 경로 · supersedes 개수 · 순수함수 절 유무를 한 줄로 뽑는다
 - 위치: scripts/lib/metrics.sh · @pure · sh
 - 예: `$'---\nraw_sources:\n  - scv/conversations/c1.md\n  - docs/x.md\nsupersedes: [a, b]\n---\n## 순수함수 · 파이프라인\n' → $'scv/conversations/c1.md\t2\t1'`
+
+### scv_pd_declared
+- 역할: 본문에서 순수 · 부수효과 선언(@pure · @deterministic · @effect)이 붙은 함수 이름들을 낸다
+- 위치: scripts/lib/pure-declare.sh · @pure · sh
+- 예: `sh $'# @pure\n# 역할: x\na() {' → "a"`
+- 예: `js $'/** @effect save\n * 이유: 파일을 쓴다 */\nfunction save() {' → "save"`
+- 예: `py $'# @pure\n\ndef f(x):\n    pass\ndef g(): pass' → "f"`
+- 예: `sh $'a() {' → ""`
+
+### scv_pd_functions
+- 역할: 본문에서 이름 있는 함수 선언의 이름들을 나온 순서대로 낸다
+- 위치: scripts/lib/pure-declare.sh · @pure · sh
+- 예: `sh $'a() {\n  :\n}\nb() { :; }' → $'a\nb'`
+- 예: `py $'def f(x):\n    return x' → "f"`
+- 예: `js "" → ""`
+
+### scv_pd_line_function
+- 역할: 본문 한 줄이 이름 있는 함수 선언이면 그 이름을 낸다(아니면 빈 값)
+- 위치: scripts/lib/pure-declare.sh · @pure · sh
+- 예: `sh "foo_bar() {" → "foo_bar"`
+- 예: `js "export async function loadMap(id) {" → "loadMap"`
+- 예: `js "const pick = (a, b) => a" → "pick"`
+- 예: `py "    def _helper(self, x):" → "_helper"`
+- 예: `go "func (s *S) Run() error {" → "Run"`
+- 예: `js "return fn(x)" → ""`
 
 ### scv_reg_line_key
 - 역할: 실행 줄이 '시험 파일 하나를 bash 로 부르는 줄'이면 그 명령(키)을 낸다 — 아니면 빈 값
