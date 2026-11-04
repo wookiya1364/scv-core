@@ -76,8 +76,8 @@ esac
 exit 0
 STUB
 chmod +x "$TMP/bin/gh"
-# The real block sleeps 10s per turn and waits up to 900s. Replaying that
-# honestly would take fifteen minutes per scenario, so time is stubbed — the
+# The real block sleeps 10s per turn and waits up to 1800s. Replaying that
+# honestly would take thirty minutes per scenario, so time is stubbed — the
 # loop's arithmetic is unchanged, only its cost.
 cat >"$TMP/bin/sleep" <<'STUB'
 #!/usr/bin/env bash
@@ -158,7 +158,7 @@ check "[2] a PR that stays BLOCKED is never merged" STOP \
 check "[3] UNSTABLE with nothing pending still merges" MERGE \
   "{\"mergeStateStatus\":\"UNSTABLE\",\"statusCheckRollup\":[$SKIPPED_PLACEHOLDER,$OK]}"
 
-# [4] A real failure stops the chain immediately — it does not wait out 900s.
+# [4] A real failure stops the chain immediately — it does not wait out 1800s.
 check "[4] a failed check stops the chain" STOP \
   "{\"mergeStateStatus\":\"BLOCKED\",\"statusCheckRollup\":[$BAD,$OK]}"
 
@@ -177,7 +177,7 @@ check "[7] a failed commit status stops the chain" STOP \
 check "[8] no checks configured merges" MERGE \
   '{"mergeStateStatus":"CLEAN","statusCheckRollup":[]}'
 
-# [9] Conflicts and drafts are not worth 900s of waiting.
+# [9] Conflicts and drafts are not worth 1800s of waiting.
 check "[9] a conflicting PR stops immediately" STOP \
   "{\"mergeStateStatus\":\"DIRTY\",\"statusCheckRollup\":[$OK]}"
 
