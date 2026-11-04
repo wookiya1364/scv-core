@@ -275,7 +275,8 @@ fi
 # 0.80.0+ — help 먼저(계획 help-first-gate-080): 도구 앞 검사(가드 gate-any)가 help 전의 도구를 막는다. 도구를 하나도 쓰지 않고
 # 글만 쓴 턴은 앞에서 막을 자리가 없다 — 그 턴만 여기서 한 번 막는다(판정은 model-prompting.sh help-gate 한 곳).
 _scv_r_help=""
-if [[ "$_scv_human" == 1 && -f "$_scv_mp" ]]; then
+# 다른 세션이 보낸 메시지로 열린 턴(_scv_open)은 사람이 쓴 턴이 아니다 — help 를 요구하지 않는다.
+if [[ "$_scv_human" == 1 && "${_scv_open:-0}" != 1 && -f "$_scv_mp" ]]; then
   _scv_d_help="$_scv_active"
   declare -F scv_gates_delivered >/dev/null 2>&1 && _scv_d_help="$(scv_gates_delivered help "$_scv_active" "$_scv_sess" "$_scv_tok" "$_scv_grec")"
   if [[ "$_scv_d_help" != 1 ]]; then
