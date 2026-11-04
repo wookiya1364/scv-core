@@ -1,6 +1,6 @@
 # 조립 — 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 55개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 56개.
 
 ### env_settings_unset_args
 - 역할: SCV_ENV_LOADED_KEYS 의 키마다 "-u 키" 두 줄을 내 env 명령에 넘길 인자를 만든다(환경변수 필요)
@@ -92,10 +92,10 @@
 ### scv_force_routing
 - 역할: 매 턴 맨 앞에 싣는 고정 지시 블록(SCV help 를 먼저 부르라)을 낸다 — 인자 없음
 - 위치: scripts/lib/force-help.sh · @pure · sh
-- 예: `→ $'════ SCV: 이 턴의 첫 행동 ════\n답을 쓰기 전에, 이 메시지 전문을 인자로 SCV help 액션을 지금 호출하라 — 다른 도구 · 조사 · 수정보다 먼저.\n**판단하지 말고 부르라** — 부를 필요는 help 가 판단한다. 부르지 않는 경우는 둘뿐: 이 턴에 **이미 SCV 액션이 실려 있거나**,\n**사람이 쓰지 않은 자동 알림**이거나. 그 외에는 예외가 없다. 부르지 않으면 **이 논의는 어디에도 남지 않는다** — help 가 파일로 남긴다.\n아래 진단은 **상태를 다시 조회하지 않는 데에만** 쓰라 — 호출을 건너뛸 이유가 되지 않는다. 끄기: scv/scv_settings.json SCV_ALWAYS_ON=off.'`
+- 예: `→ $'════ SCV: 이 턴의 첫 행동 ════\n답을 쓰기 전에, 이 메시지 전문을 인자로 SCV help 액션을 지금 호출하라 — 다른 도구 · 조사 · 수정보다 먼저(부르기 전 다른 도구는 거절된다).\n**판단하지 말고 부르라** — 부를 필요는 help 가 판단한다. 부르지 않는 경우는 둘뿐: 이 턴에 **이미 SCV 액션이 실려 있거나**,\n**사람이 쓰지 않은 자동 알림**이거나. 그 외에는 예외가 없다. 부르지 않으면 **이 논의는 어디에도 남지 않는다** — help 가 파일로 남긴다.\n아래 진단은 **상태를 다시 조회하지 않는 데에만** 쓰라 — 호출을 건너뛸 이유가 되지 않는다. 끄기: scv/scv_settings.json SCV_ALWAYS_ON=off.'`
 
 ### scv_gates_reason
-- 역할: 등록 · 원칙 · 선택지 · 언어 이유 중 빈 것을 빼고 한 줄씩 이어 막는 이유를 만든다
+- 역할: 받은 막는 이유들(최대 5개) 중 빈 것을 빼고 한 줄씩 이어 막는 이유를 만든다
 - 위치: scripts/lib/stop-gates.sh · @pure · sh
 - 예: `등록 '' 선택지 → $'등록\n선택지'`
 - 예: `'' '' '' → ""`
@@ -203,6 +203,12 @@
 - 예: `/r /abs → $'/abs\n'`
 - 예: `/r prompting → $'/r/prompting\n/r/../prompting\n/r/../../prompting\n/r/../../../prompting\n'`
 
+### scv_mp_help_reason
+- 역할: help 를 부르기 전 도구를 거절할 때 쓸 이유 한 줄을 만든다(부를 액션 이름 포함)
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `action:help → "[SCV help 먼저] 이 턴은 아직 help 를 부르지 않았다 — 지금 action:help 를 이 턴 메시지 전문을 인자로 불러라. 그 전에는 다른 도구(등록 포함)가 거절된다."`
+- 예: `"" → "[SCV help 먼저] 이 턴은 아직 help 를 부르지 않았다 — 지금 SCV 의 help 를 이 턴 메시지 전문을 인자로 불러라. 그 전에는 다른 도구(등록 포함)가 거절된다."`
+
 ### scv_mp_principle_candidates
 - 역할: 코어 루트로 원칙 파일 후보 경로 두 개를 한 줄씩 낸다
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
@@ -236,7 +242,7 @@
 ### scv_mp_turn_block
 - 역할: 매 턴 훅이 싣는 "1:1 비교 · 등록" 지시 블록을 만든다(스위치 off · 토큰 없음이면 빈 값)
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
-- 예: `on tok1 m-1 "" x.sh → $'[SCV 프롬프트] 이 턴 메시지(짧아도)를 모델 가이드 요구 항목과 1:1 비교 · 등록한 뒤 일하라 — 등록 전 파일 쓰기는 거절, 등록 · 인용 없는 종료는 차단. 선택 창 답 뒤 첫 편집 전에 다시 등록(범위 그대로면 register --keep).\n  항목마다 msg · ctx(출처) · na(이유) · asked(못 찾은 것 중 가장 영향 큰 하나만, 추천 답과 함께) → bash "x.sh" register --model "m-1" (stdin "id | 상태 | 값" 줄들 + "rewrite | - | 다시 쓴 요청"; 파일을 안 바꾸는 턴은 scope 값을 \'변경 없음 — …\' 으로 시작) → 답 맨 위에 \'> **다시 쓴 요청**: …\' 전문 인용(ctx · asked 항목 표시), 그 아래 굵은 주제 + 개조식 불릿(contracts/writing.md), 그것으로 일한다.\n  항목: bash "x.sh" checklist --model "{지금 모델 id}"\n'`
+- 예: `on tok1 m-1 "" x.sh → $'[SCV 프롬프트] help 를 부른 뒤, 이 턴 메시지(짧아도)를 모델 가이드 요구 항목과 1:1 비교 · 등록한 뒤 일하라 — 등록 전 파일 쓰기는 거절, 등록 · 인용 없는 종료는 차단. 선택 창 답 뒤 첫 편집 전에 다시 등록(범위 그대로면 register --keep).\n  항목마다 msg · ctx(출처) · na(이유) · asked(못 찾은 것 중 가장 영향 큰 하나만, 추천 답과 함께) → bash "x.sh" register --model "m-1" (stdin "id | 상태 | 값" 줄들 + "rewrite | - | 다시 쓴 요청"; 파일을 안 바꾸는 턴은 scope 값을 \'변경 없음 — …\' 으로 시작) → 답 맨 위에 \'> **다시 쓴 요청**: …\' 전문 인용(ctx · asked 항목 표시), 그 아래 굵은 주제 + 개조식 불릿(contracts/writing.md), 그것으로 일한다.\n  항목: bash "x.sh" checklist --model "{지금 모델 id}"\n'`
 - 예: `off tok1 → ""`
 
 ### scv_mp_turn_dir

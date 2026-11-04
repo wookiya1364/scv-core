@@ -1991,3 +1991,19 @@ merge_policy: preserve
 - path delta: 계획에 없던 두 가지: T7 에서 짧은 영어 줄이 빠져 기준을 40→15자로(사용자 선택), 충돌 점검에서 사용자 언어 요청 예외 추가(7조 충돌)
 - refs: scv/archive/20261103-wookiya1364-lang-enforce-079/PLAN.md
 - conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-04 10:14] wookiya1364 — 첫 도구를 help 로 고정
+
+- verdict: adopted
+- why: slay 세션이 열 턴 넘게 help 를 건너뜀 — 강제되는 등록이 강제되지 않는 help 를 밀어냄. 사용자: 다시 부르게 하지 말고 애초에 못 건너뛰게
+- discarded alternatives: help 안에 등록 합치기: 바꿀 곳이 많고 등록만 부르는 길을 모두 막아야 함 / 0.39.0 식 종료 시 되돌림: 답을 통째로 다시 써 비쌈
+- refs: scv/promote/20261104-wookiya1364-help-first-gate-080/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-04 12:49] wookiya1364 — 첫 도구를 help 로 고정 archived
+
+- verdict: archived
+- why: 가드 gate-any(Rule H): 사람 턴에서 help(또는 SCV 액션) 전 모든 도구 거절, 도구 없는 턴은 종료 훅 한 번, 매 턴 지시 'help → 등록'. 기존 시험 4개의 가짜 턴을 help 부른 턴으로 바꿈. 짧은 장난감 세션은 원래 4/4 help 를 불러 차이 없음 — 건너뜀은 긴 세션에서만, 강제 건너뛰기 지시로 막힘 확인
+- path delta: 계획에 없던 것: 다른 세션 메시지 턴은 종료 훅 help 검사 제외, 기존 시험 4개 고침, 래퍼 등록 수 시험 3→4
+- refs: scv/archive/20261104-wookiya1364-help-first-gate-080/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md
