@@ -37,7 +37,7 @@ REG='{"tool_name":"Bash","tool_input":{"command":"bash /x/scv/core/scripts/model
 # T1 — help 전 도구 거절(읽기 · 쉘 · 등록 모두), 이유에 help 액션 이름
 R="$(new_repo t1)"; turn "$R" "로그인 고쳐" >/dev/null
 o1="$(gate "$R" gate-any "$READ")"; o2="$(gate "$R" gate-any "$BASH_LS")"; o3="$(gate "$R" gate-any "$REG")"
-denied "$o1" && denied "$o2" && denied "$o3" && [[ "$o1" == *"action:help"* ]] \
+denied "$o1" && denied "$o2" && denied "$o3" && [[ "$o1" == *":help 를 이 턴 메시지"* ]] \
   && ok "T1 help 전 읽기 · 쉘 · 등록 거절, 이유에 help 액션 이름" || bad "T1 [$o1] [$o2] [$o3]"
 
 # T2 — help 를 부르면 통과(스킬 호출 / help.sh 를 부르는 쉘), 그 호출 자체도 통과
