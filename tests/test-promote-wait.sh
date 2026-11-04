@@ -67,6 +67,10 @@ case "$1 $2" in
     echo $((n + 1)) >"$FIXTURE_CURSOR"
     ;;
   "pr update-branch") echo "update-branch" >>"$CALL_LOG" ;;
+  # check-run annotations: the job id → how many "not acquired" messages (the real call
+  # filters with --jq; the stub answers with the filtered count)
+  "api "*) j="${2%/annotations}"; j="${j##*/}"; sed -n "s/^$j //p" "$ANN_FILE" | head -n 1 ;;
+  "run rerun") echo "rerun $3" >>"$CALL_LOG" ;;
   *) : ;;
 esac
 exit 0
@@ -98,7 +102,9 @@ run_case() {
   #
   # Its stdout goes to stderr: the block narrates progress, and that narration
   # would otherwise be indistinguishable from the verdict.
+  printf '222 1\n333 0\n' >"$TMP/ann"
   FIXTURE_FILE="$TMP/fixture.jsonl" FIXTURE_CURSOR="$TMP/cursor" CALL_LOG="$TMP/calls" \
+  ANN_FILE="$TMP/ann" GITHUB_REPOSITORY=o/r \
   bash -c '
     set -uo pipefail
     number=1 head=develop base=stage
@@ -188,6 +194,54 @@ if grep -q update-branch "$TMP/calls"; then
 else
   fail "[11] BEHIND did not trigger update-branch"
 fi
+
+# [12]–[15] A job GitHub never started (0.81.3). The arm64 macOS pool ran dry on
+# 2026-11-04/05 and jobs ended CANCELLED with "The job was not acquired by Runner ...".
+# That is not a test result: re-run it and keep waiting. Anything else still stops.
+NEVER='{"name":"Shard (macos 1/5)","status":"COMPLETED","conclusion":"CANCELLED","detailsUrl":"https://github.com/o/r/actions/runs/111/job/222"}'
+CANCELLED_RAN='{"name":"Shard (macos 2/5)","status":"COMPLETED","conclusion":"CANCELLED","detailsUrl":"https://github.com/o/r/actions/runs/111/job/333"}'
+check "[12] a job no runner picked up is re-run and the wait goes on" MERGE \
+"$(printf '%s\n%s\n' \
+  "{\"mergeStateStatus\":\"BLOCKED\",\"statusCheckRollup\":[$NEVER,$OK]}" \
+  "{\"mergeStateStatus\":\"CLEAN\",\"statusCheckRollup\":[$OK,$OK2]}")"
+if grep -qx 'rerun 111' "$TMP/calls"; then pass "[12b] the run that held it was re-run"; else fail "[12b] no re-run of run 111" "$(cat "$TMP/calls")"; fi
+check "[13] a cancelled job that did start still stops the chain" STOP \
+  "{\"mergeStateStatus\":\"BLOCKED\",\"statusCheckRollup\":[$CANCELLED_RAN,$OK]}"
+check "[14] a never-started job next to a real failure stops — no re-run hides the failure" STOP \
+  "{\"mergeStateStatus\":\"BLOCKED\",\"statusCheckRollup\":[$NEVER,$BAD]}"
+if grep -q rerun "$TMP/calls"; then fail "[14b] re-ran despite a real failure" "$(cat "$TMP/calls")"; else pass "[14b] nothing was re-run"; fi
+check "[15] a pool that never comes back stops after three re-runs" STOP \
+  "{\"mergeStateStatus\":\"BLOCKED\",\"statusCheckRollup\":[$NEVER,$OK]}"
+n="$(grep -c '^rerun ' "$TMP/calls")"
+if [[ "$n" == 3 ]]; then pass "[15b] exactly three re-runs"; else fail "[15b] re-runs: $n"; fi
+
+# [16]–[19] The PR-side twin: .github/workflows/rerun-not-acquired.yml, sliced the same way.
+RW="$ROOT/.github/workflows/rerun-not-acquired.yml"
+awk '/# >>> rerun-never-started/ { f = 1 } /# <<< rerun-never-started/ { f = 0 } f' "$RW" > "$TMP/rerun.sh"
+mkdir -p "$TMP/bin2"
+cat >"$TMP/bin2/gh" <<'STUB'
+#!/usr/bin/env bash
+case "$1 $2" in
+  "api repos/o/r/branches/"*) echo "$TIP" ;;
+  "api repos/o/r/actions/runs/"*) printf '%s\n' $JOBS ;;
+  "api repos/o/r/check-runs/"*) j="${2%/annotations}"; j="${j##*/}"; sed -n "s/^$j //p" "$ANN_FILE" | head -n 1 ;;
+  "run rerun") echo "rerun $3" >>"$CALL_LOG" ;;
+esac
+exit 0
+STUB
+chmod +x "$TMP/bin2/gh"
+rerun_case() {  # rerun_case <attempt> <tip> <failed job ids> → prints what was re-run (or nothing)
+  : >"$TMP/calls"
+  PATH="$TMP/bin2:$PATH" REPO=o/r RUN_ID=111 ATTEMPT="$1" HEAD_SHA=abc HEAD_BRANCH=b TIP="$2" JOBS="$3" \
+    ANN_FILE="$TMP/ann" CALL_LOG="$TMP/calls" bash "$TMP/rerun.sh" >/dev/null 2>&1
+  cat "$TMP/calls"
+}
+printf '222 1\n333 0\n' >"$TMP/ann"
+[[ "$(wc -l <"$TMP/rerun.sh" | tr -d ' ')" -gt 15 ]] && pass "[16a] sliced the live re-run block" || fail "[16a] re-run block missing — markers moved?"
+[[ "$(rerun_case 1 abc "222 333")" == "rerun 111" ]] && pass "[16] a never-started job gets its run re-run" || fail "[16] expected a re-run"
+[[ -z "$(rerun_case 1 abc "333")" ]] && pass "[17] jobs that ran and failed are not re-run" || fail "[17] re-ran a real failure"
+[[ -z "$(rerun_case 4 abc "222")" ]] && pass "[18] no fourth re-run" || fail "[18] re-ran past three"
+[[ -z "$(rerun_case 1 def "222")" ]] && pass "[19] a run a newer commit replaced is left alone" || fail "[19] re-ran a superseded run"
 
 echo
 echo "  passed: $PASS  failed: $FAIL"
