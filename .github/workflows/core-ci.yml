@@ -59,6 +59,16 @@ jobs:
   # macOS shards stop at five: the account runs at most five macOS jobs at once — nine
   # shards measured 400 s because four of them queued behind the first five.
   #
+  # WHICH macOS RUNNER (0.81.3). GitHub's shared arm64 macOS pool (macos-latest) ran out of
+  # capacity on 2026-11-04/05: three runs in a row left every macOS shard "not acquired by
+  # Runner of type hosted even after multiple attempts" and cancelled with zero steps. The
+  # capacity notice names arm64 only, so the shards run on the Intel (x64) pool. What the
+  # macOS lane proves — BSD tools, bash 3.2 at /bin/bash next to brew's bash — is the same
+  # on both. A fallback (arm64 first, Intel when not acquired) was rejected: the cancelled
+  # arm64 job stays on the PR and promote's await-mergeable rightly reads CANCELLED as a
+  # failure. To move back, set the repository variable SCV_MACOS_RUNNER (e.g. macos-latest);
+  # no code change.
+  #
   # The branch ruleset requires "Contracts (ubuntu-latest)" and "Contracts (macos-latest)".
   # Those two names now belong to small result jobs that wait for their shards and
   # report one verdict, so the ruleset does not change.
@@ -125,8 +135,9 @@ jobs:
     # Only a PR that changes code needs macOS: the BSD/GNU and bash 3.2 differences live
     # in code, so a Markdown- or VERSION-only change runs on ubuntu alone (tools/ci-plan.sh).
     if: needs.plan.outputs.full == 'true' && needs.plan.outputs.macos == 'yes'
-    runs-on: macos-latest
-    timeout-minutes: 10
+    runs-on: ${{ vars.SCV_MACOS_RUNNER || 'macos-26-intel' }}
+    # arm64 shards took 280–358 s; the Intel ceiling leaves room until its own times are measured.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -165,6 +176,7 @@ jobs:
           if [[ "$FULL" == "true" ]]; then [[ "$SHARDS" == "success" ]]; else [[ "$SHARDS" == "skipped" ]]; fi
 
   contracts-macos:
+    # The name is what the branch ruleset requires; the shards themselves run on SCV_MACOS_RUNNER.
     name: Contracts (macos-latest)
     needs: [plan, shards-macos]
     if: always()

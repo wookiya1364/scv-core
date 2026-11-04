@@ -2,6 +2,12 @@
 
 All notable changes to SCV Core are documented here.
 
+## [0.81.3] - 2026-11-05
+
+### Fixed
+- 맥 CI가 실행기를 받지 못해 실패하던 문제 — GitHub의 arm64 맥 실행기 용량이 부족해(GitHub 안내) 맥 조각이 세 번 연속 단계 0개로 취소됐다. 맥 조각을 Intel 맥 실행기(`macos-26-intel`)에서 돌린다. 저장소 설정값 `SCV_MACOS_RUNNER` 로 코드 수정 없이 바꿀 수 있다. 필수 확인 이름(`Contracts (macos-latest)`)은 그대로다.
+- 시험 흔들림 — `echo "$값" | grep -q` 가 pipefail 아래에서 Broken pipe 로 실패하던 7개 시험 파일 22줄을 here-string 으로 바꿨다(2MB 글로 옛 꼴 20/20 실패, 새 꼴 0/20).
+
 ## [0.81.2] - 2026-11-04
 
 ### Fixed
