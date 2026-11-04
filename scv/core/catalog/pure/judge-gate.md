@@ -1,6 +1,6 @@
 # 판정/gate — 훅이 막을지 · 넘길지 · 다시 물을지를 정한다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 23개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 24개.
 
 ### scv_choice_gate
 - 역할: 묻는지 · 도구 이름 · 이미 전달 여부로 ok | block | warn 중 하나를 정한다 (도구가 없으면 늘 ok)
@@ -146,6 +146,13 @@
 - 예: `tok1 "" "" 0 0 → "unregistered"`
 - 예: `tok1 $'tok1\x1fm\x1f3' '' 1 1 → "forbidden"`
 - 예: `"" "" "" 0 0 → "ok"`
+
+### scv_pd_write_verdict
+- 역할: 편집 전에는 없던, 편집으로 새로 선언이 빠진 함수 이름들을 낸다(없으면 빈 값 — 통과)
+- 위치: scripts/lib/pure-declare.sh · @pure · sh
+- 예: `"old" $'old\nnew' → "new"`
+- 예: `$'old\nnew' "old" → ""`
+- 예: `"" "" → ""`
 
 ### scv_reg_block_memo_ok
 - 역할: 블록이 다른 폴더로 옮겨 가면(cd · pushd) 공유 결과를 쓰면 안 되므로 1, 아니면 0 — 괄호 하위 셸 안의 cd 는 괜찮다

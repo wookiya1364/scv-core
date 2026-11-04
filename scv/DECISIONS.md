@@ -2007,3 +2007,11 @@ merge_policy: preserve
 - path delta: 계획에 없던 것: 다른 세션 메시지 턴은 종료 훅 help 검사 제외, 기존 시험 4개 고침, 래퍼 등록 수 시험 3→4
 - refs: scv/archive/20261104-wookiya1364-help-first-gate-080/PLAN.md
 - conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-04 12:50] wookiya1364 — 모든 함수에 순수 · 부수효과 선언
+
+- verdict: adopted
+- why: slay 에서 내부용 함수 역할 주석이 빠짐 — 목록 검사가 표식 달린 함수만 봐서 못 잡음. 사용자: 절대 있어서는 안 된다
+- discarded alternatives: 목록 검사만 강화: 작업을 다 한 뒤에야 걸려 다시 고쳐야 함
+- refs: scv/promote/20261104-wookiya1364-pure-declare-081/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md
