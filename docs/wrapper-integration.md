@@ -520,6 +520,10 @@ transcript), the registration check keeps the earlier rule while continuing.
   the host's choice tool returns the user's answer (Claude Code: `PostToolUse`, matcher = the
   `SCV_CHOICE_TOOL` name). The next editor write is refused until the model registers again —
   `register --keep` when the scope is unchanged. A host without a choice tool registers nothing.
+- *Help first (v0.80.0+).* Register `guard.sh` with `SCV_GUARD_MODE=gate-any` on every tool the host can
+  gate (Claude Code: `PreToolUse` with no matcher; Codex: the shell and patch matchers it already gates), and
+  pass `SCV_HELP_FIRST_ALLOW` — a regex of host tool names allowed before help (a plan-list or tool-search tool).
+  Until the person's turn calls help, every other tool is refused (`core/contracts/guard.md` Rule H).
 - *Language correction (v0.79.0+).* Register `on-lang-check.sh` for the event that fires after every
   tool call and accepts extra context for the model (Claude Code: `PostToolUse`, no matcher). With
   `SCV_LANG=korean`, progress text that drifts into another language is corrected inside the turn;
