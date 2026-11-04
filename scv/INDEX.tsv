@@ -173,3 +173,5 @@ decision	첫-도구를-help-로-고정	scv/DECISIONS.md	240667	620	2026-11-04 10
 decision	첫-도구를-help-로-고정-archived	scv/DECISIONS.md	241287	789	2026-11-04 12:49	[archived] 첫 도구를 help 로 고정 archived
 decision	모든-함수에-순수-부수효과-선언	scv/DECISIONS.md	242076	520	2026-11-04 12:50	[adopted] 모든 함수에 순수 · 부수효과 선언
 decision	모든-함수에-순수-부수효과-선언-archived	scv/DECISIONS.md	242596	654	2026-11-04 14:08	[archived] 모든 함수에 순수 · 부수효과 선언 archived
+decision	큰-시험-파일-나누기-릴리스-없이	scv/DECISIONS.md	243250	659	2026-11-04 16:43	[adopted] 큰 시험 파일 나누기(릴리스 없이)
+decision	큰-시험-파일-나누기-archived	scv/DECISIONS.md	243909	525	2026-11-04 17:27	[archived] 큰 시험 파일 나누기 archived

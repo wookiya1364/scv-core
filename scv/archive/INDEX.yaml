@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-04T05:08:43Z
+generated_at: 2026-11-04T08:27:51Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -452,4 +452,8 @@ archives:
   - slug: 20261104-wookiya1364-pure-declare-081
     title: "모든 함수에 순수 · 부수효과 선언 — 빠뜨리면 쓰기 거절 · 목록 검사 기준선"
     kind: feature
+    status: testing
+  - slug: 20261104-wookiya1364-split-big-tests
+    title: "큰 시험 파일 나누기 — CI 가장 느린 조각 줄이기(릴리스 없이)"
+    kind: refactor
     status: testing
