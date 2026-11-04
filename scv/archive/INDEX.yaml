@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-04T03:49:30Z
+generated_at: 2026-11-04T05:08:43Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -447,5 +447,9 @@ archives:
     status: testing
   - slug: 20261104-wookiya1364-help-first-gate-080
     title: "첫 도구를 help 로 고정 — help 전 도구 거절 · 도구 없는 턴 한 번 막기 · 'help → 등록' 한 순서"
+    kind: feature
+    status: testing
+  - slug: 20261104-wookiya1364-pure-declare-081
+    title: "모든 함수에 순수 · 부수효과 선언 — 빠뜨리면 쓰기 거절 · 목록 검사 기준선"
     kind: feature
     status: testing
