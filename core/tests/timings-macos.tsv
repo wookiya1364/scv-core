@@ -1,5 +1,5 @@
-# 시험별 시간(초, macos CI 조각 실측 2026-10-28) — run-focused.sh --shard 가 조각을 고르게 나눌 때 쓴다. 상대 무게라 대략이면 된다.
 # 갱신: CI 조각 작업 표의 'PASS  <초>s  <key>' 줄을 '<key><TAB><초>' 로 옮겨 적는다. 기록 없는 시험은 5초.
+# 시험별 시간(초, macos CI 조각 실측 2026-10-28) — run-focused.sh --shard 가 조각을 고르게 나눌 때 쓴다. 상대 무게라 대략이면 된다.
 core/tests/run-dry.sh	66
 core/tests/test-anchor-intent.sh	22
 core/tests/test-answer-lint-source.sh	24
@@ -8,9 +8,9 @@ core/tests/test-attachments-scope.sh	4
 core/tests/test-autosync.sh	17
 core/tests/test-channel.sh	1
 core/tests/test-check-privacy.sh	3
-core/tests/test-choice-questions-a.sh	43
-core/tests/test-choice-questions-b.sh	123
-core/tests/test-choice-questions-c.sh	33
+core/tests/test-choice-questions-a.sh	23
+core/tests/test-choice-questions-b.sh	60
+core/tests/test-choice-questions-c.sh	116
 core/tests/test-deck-change-map.sh	1
 core/tests/test-deck-doc.sh	1
 core/tests/test-deck-numbered-spec.sh	1
@@ -44,7 +44,9 @@ core/tests/test-model-prompting.sh	111
 core/tests/test-plan-path-links.sh	1
 core/tests/test-pr-base.sh	7
 core/tests/test-pr-notify.sh	9
+core/tests/test-project-pure-catalog.sh	20
 core/tests/test-provenance-gates.sh	2
+core/tests/test-pure-catalog.sh	22
 core/tests/test-purity.sh	5
 core/tests/test-readpath-lifecycle.sh	4
 core/tests/test-record-index.sh	1
@@ -82,5 +84,3 @@ tests/test-profile-and-export.sh	26
 tests/test-promote-wait.sh	19
 tests/test-state-index.sh	15
 tests/test-sync-dry-run.sh	1
-core/tests/test-pure-catalog.sh	22
-core/tests/test-project-pure-catalog.sh	20
