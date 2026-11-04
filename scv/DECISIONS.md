@@ -2023,3 +2023,19 @@ merge_policy: preserve
 - path delta: 계획에 없던 것: 하위 에이전트도 막도록 바꿈('절대'), 선언 없는 이름 고르기는 기존 scv_rc_allowed_out 재사용
 - refs: scv/archive/20261104-wookiya1364-pure-declare-081/PLAN.md
 - conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-04 16:43] wookiya1364 — 큰 시험 파일 나누기(릴리스 없이)
+
+- verdict: adopted
+- why: Linear CI 글 중 우리에게 효과 있는 유일한 항목. 맥 CI 가장 느린 조각 약 300초를 끄는 큰 파일을 나눔 — 원래 이름은 묶음으로 남겨 지난 계획 22개의 명령을 지킴
+- discarded alternatives: 모델 프롬프트 시험 나누기: 뒤 조각이 앞 조각 값을 써서 9곳 모두 실패 · 0.81.0 에 포함: 회귀를 다시 돌려 1시간 넘게 늦어짐
+- refs: scv/promote/20261104-wookiya1364-split-big-tests/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-04 17:27] wookiya1364 — 큰 시험 파일 나누기 archived
+
+- verdict: archived
+- why: 선택지 시험 3조각 · 실체 보여 주기 시험 2조각, 원래 이름은 묶음(# scv-test: aggregate), run-focused · 회귀가 묶음을 건너뜀. 시간 기록표 조각별로
+- path delta: 모델 프롬프트 시험은 나눌 수 없어 보류(앞 조각 값 의존)
+- refs: scv/archive/20261104-wookiya1364-split-big-tests/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md
