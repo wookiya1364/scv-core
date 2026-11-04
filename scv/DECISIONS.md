@@ -2015,3 +2015,11 @@ merge_policy: preserve
 - discarded alternatives: 목록 검사만 강화: 작업을 다 한 뒤에야 걸려 다시 고쳐야 함
 - refs: scv/promote/20261104-wookiya1364-pure-declare-081/PLAN.md
 - conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-04 14:08] wookiya1364 — 모든 함수에 순수 · 부수효과 선언 archived
+
+- verdict: archived
+- why: 모든 이름 있는 함수에 @pure(역할 · 종류 · 예) 또는 @effect(이유) — 가드 Rule D 가 선언 없는 새 함수 쓰기를 거절(하위 에이전트 포함), 목록 검사 기준선(코어 340). slay 실측 90개
+- path delta: 계획에 없던 것: 하위 에이전트도 막도록 바꿈('절대'), 선언 없는 이름 고르기는 기존 scv_rc_allowed_out 재사용
+- refs: scv/archive/20261104-wookiya1364-pure-declare-081/PLAN.md
+- conversation: scv/conversations/20261102-182255-writing-style-bullets.md

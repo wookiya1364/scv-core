@@ -3,7 +3,7 @@ title: 모든 함수에 순수 · 부수효과 선언 — 빠뜨리면 쓰기 �
 slug: 20261104-wookiya1364-pure-declare-081
 author: wookiya1364
 created_at: 2026-11-04
-status: in_progress
+status: testing
 kind: feature
 lang: korean
 tags: [purity, catalog, guard]
