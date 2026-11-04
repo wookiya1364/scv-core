@@ -1,6 +1,6 @@
 # 판정/gate — 훅이 막을지 · 넘길지 · 다시 물을지를 정한다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 22개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 23개.
 
 ### scv_choice_gate
 - 역할: 묻는지 · 도구 이름 · 이미 전달 여부로 ok | block | warn 중 하나를 정한다 (도구가 없으면 늘 ok)
@@ -83,6 +83,16 @@
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
 - 예: `$'M\x1fbash model-prompting.sh mark --model m-1' m-1 → "loaded"`
 - 예: `N m-1 → ""`
+
+### scv_mp_help_needed
+- 역할: 이번 사람 턴에 help 를 아직 부르지 않아 도구를 막아야 하는지 1 또는 0 으로 정한다
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `tok1 "" "" 1 on → "1"`
+- 예: `tok1 tok1 "" 1 on → "0"`
+- 예: `tok1 "" tok1 1 on → "0"`
+- 예: `tok1 "" "" 0 on → "0"`
+- 예: `tok1 "" "" 1 off → "0"`
+- 예: `"" "" "" 1 on → "0"`
 
 ### scv_mp_principle_gate
 - 역할: 문제 표 · 스위치 · 이미 전달 여부로 종료를 허용할지(ok · block · warn) 정한다
