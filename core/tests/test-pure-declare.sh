@@ -58,7 +58,7 @@ o="$(gw "$R" '{"file_path":"src/q.js","content":"function q() {}\n"}' a1)"
 denied "$o" && ok "T4 하위 에이전트가 쓴 선언 없는 함수도 거절" || bad "T4b [$o]"
 
 # T5 — 목록 검사 기준선: 늘면 실패, 줄면 기준선 내림
-R="$(new_repo t5)"; (cd "$R" && git add -A >/dev/null && git commit -qm x)
+R="$(new_repo t5)"; (cd "$R" && git add -A >/dev/null)   # 추적 파일만 보면 된다 — 커밋은 하지 않는다(CI 에는 작성자 정보가 없다)
 B="$WORK/baseline"; echo 1 > "$B"
 c1=0; (cd "$R" && bash "$PD" baseline check --baseline "$B" --project >/dev/null 2>&1) || c1=$?
 printf 'function more() {}\n' > "$R/src/more.js"; (cd "$R" && git add -A >/dev/null)
