@@ -2,6 +2,16 @@
 
 All notable changes to SCV Core are documented here.
 
+## [0.81.0] - 2026-11-04
+
+### 모든 함수에 순수 · 부수효과 선언
+
+- 이름 있는 함수는 모두 `@pure`(역할 · 종류 · 예) 또는 `@effect`(이유 한 줄)를 단다 — 작은 내부 함수 포함.
+- 가드 Rule D: 편집으로 선언 없는 함수가 늘면 그 쓰기를 거절(sh · ts/js · py · go, 하위 에이전트 포함). 끄기 `SCV_PURE_DECLARE=off`.
+- 목록 검사: 선언 없는 함수 수가 기준선(`undeclared-baseline`)보다 늘면 실패, 줄면 `build` 가 기준선을 내림.
+- 계기: 한 세션이 "내부용" 함수의 역할 주석을 건너뛰었고, 목록 검사가 표식 달린 함수만 봐서 잡지 못했음.
+- 시험: `test-pure-declare.sh`.
+
 ## [0.80.0] - 2026-11-04
 
 ### 첫 도구를 help 로 고정

@@ -341,7 +341,7 @@ fi
 # added file); anything it cannot rebuild gets no opinion. SCV_GUARD_RULE_D=off disables this rule alone.
 if [[ "$MODE" == "gate-write" && "${SCV_GUARD_RULE_D:-on}" != "off" ]] && command -v python3 >/dev/null 2>&1; then
   _scv_pd="$_scv_mp_dir/pure-declare.sh"
-  if [[ -f "$_scv_pd" && -z "$(field '.agent_id')" ]]; then
+  if [[ -f "$_scv_pd" ]]; then   # 하위 에이전트가 쓰는 코드도 같다 — 누가 쓰든 함수는 선언을 갖는다
     _scv_pdw="$(mktemp -d "${TMPDIR:-/tmp}/scv-pd.XXXXXX" 2>/dev/null)" || _scv_pdw=""
     if [[ -n "$_scv_pdw" ]]; then
       # Writes "<rel path>\t<before file or ->\t<after file>" per rebuildable target.
