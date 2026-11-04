@@ -59,6 +59,14 @@ jobs:
   # macOS shards stop at five: the account runs at most five macOS jobs at once — nine
   # shards measured 400 s because four of them queued behind the first five.
   #
+  # WHEN NO RUNNER COMES (0.81.3). GitHub's shared arm64 macOS pool ran out of capacity on
+  # 2026-11-04/05: three runs in a row left every macOS shard "not acquired by Runner of type
+  # hosted even after multiple attempts" — cancelled with no runner and no steps. That is not a
+  # test result, so rerun-not-acquired.yml re-runs exactly those jobs (at most three times), and
+  # promote's await-mergeable does the same instead of stopping. Moving the shards to the Intel
+  # pool was measured and rejected: 2.3x slower (shards 280–358 s → 616–844 s) and two
+  # wall-clock tests failed there.
+  #
   # The branch ruleset requires "Contracts (ubuntu-latest)" and "Contracts (macos-latest)".
   # Those two names now belong to small result jobs that wait for their shards and
   # report one verdict, so the ruleset does not change.
