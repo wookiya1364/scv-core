@@ -10,7 +10,7 @@ CORE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROMPT_HOOK="$CORE/template/hooks/on-user-prompt.sh"; STOP_HOOK="$CORE/template/hooks/on-stop.sh"
 LANG_HOOK="$CORE/template/hooks/on-lang-check.sh"
 # shellcheck source=../scripts/lib/help-state.sh
-source "$CORE/scripts/lib/help-state.sh"   # scv_lint_lang_turn — scv_lang_first_other 가 줄마다 맡긴다(0.81.6)
+source "$CORE/scripts/lib/help-state.sh"   # scv_lint_lang_turn — scv_lang_first_other 가 줄마다 맡긴다(0.82.0)
 # shellcheck source=../scripts/lib/lang-enforce.sh
 source "$CORE/scripts/lib/lang-enforce.sh"
 fail=0
@@ -135,7 +135,7 @@ lt=$'\x3c'
    && "$(scv_lang_drop_machine "영어로 답해 줘")" == "영어로 답해 줘" && "$(scv_lang_user_other "$NOTE")" == 0 ]] \
   && ok "T10 기계 글 지우기(알림 통째 · 닫힘 없는 꼬리 · 사람 글 그대로 · 순서 뒤집힌 꼬리표도 끝남)" || bad "T10 지우기"
 
-# T11 — 교정 문구에 걸린 줄을 싣는다(0.81.6): 줄 수만 말하면 모델이 '이미 한국어로 썼다'고 믿고 넘긴다
+# T11 — 교정 문구에 걸린 줄을 싣는다(0.82.0): 줄 수만 말하면 모델이 '이미 한국어로 썼다'고 믿고 넘긴다
 #   실제 세션(2026-11-05)에서 영어 중간 보고를 10번 넘게 잡았지만, 문구가 줄 수만 말해 한 번도 고쳐지지 않았다.
 R="$(new_repo t11 korean)"; TR="$WORK/t11.jsonl"
 { jl_user "만들어 줘"; jl_asst "결과를 봄"$'\n'"$EN1" g1; jl_tool; } > "$TR"

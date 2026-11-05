@@ -4,8 +4,8 @@
 #
 #   scv_lang_rule_line <언어>                    → 매 턴 맨 앞에 실을 언어 규칙 한 줄 | 빈 값(언어 없음 · english)
 #   scv_lang_new_text <글 목록> <지난 id>          → "<마지막 id>\x1f<새 글>" — 지난 검사 뒤에 쓴 글만
-#   scv_lang_fix_note <언어> <줄 수> <mid|final> [<걸린 줄>] → 교정 문구 한 줄(언어 이름 · 걸린 줄 포함, 0.81.6)
-#   scv_lang_first_other <글> <언어>              → 설정 언어가 아닌 첫 줄(앞 60바이트) | 빈 값 (0.81.6)
+#   scv_lang_fix_note <언어> <줄 수> <mid|final> [<걸린 줄>] → 교정 문구 한 줄(언어 이름 · 걸린 줄 포함, 0.82.0)
+#   scv_lang_first_other <글> <언어>              → 설정 언어가 아닌 첫 줄(앞 60바이트) | 빈 값 (0.82.0)
 #   scv_lang_stop_decide <최종 답 줄 수> <이미 전달 0|1> → block | ok
 #   scv_lang_user_other <이번 턴 사용자 글>              → 1(사용자가 다른 언어를 요청하거나 다른 언어로 씀) | 0
 #   scv_lang_drop_machine <글>                    → 기계 글 블록(알림 · 시스템 안내 · 명령 기록)을 뺀 글 (0.81.5)
@@ -68,7 +68,7 @@ scv_lang_new_text() {
 # 예: korean 1 mid "Next I'll run the tests." → "[SCV 언어] 방금 쓴 글 중 1줄이 한국어가 아니다(예: “Next I'll run the tests.”) — 다음 글부터 한국어로 써라(중간 보고 포함)."
 # 예: korean 0 mid → ""
 # <언어> <줄 수> <mid|final> [<걸린 줄>] → 한 줄 | 빈 값(줄 수 0 · 언어 없음).
-# 걸린 줄을 싣는 까닭(0.81.6): 줄 수만 말하면 모델이 '이미 한국어로 썼다'고 믿고 헛경고로 넘긴다 — 2026-11-05 한 세션에서
+# 걸린 줄을 싣는 까닭(0.82.0): 줄 수만 말하면 모델이 '이미 한국어로 썼다'고 믿고 헛경고로 넘긴다 — 2026-11-05 한 세션에서
 # 중간 보고 영어 줄을 10번 넘게 잡았는데 한 번도 고쳐지지 않았다.
 scv_lang_fix_note() {
   local lang="${1:-}" n="${2:-0}" where="${3:-mid}" ex="${4:-}" name eg=""
