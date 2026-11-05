@@ -153,10 +153,11 @@
 - 예: `$'s1\x1f1\x1f3\x1fab12\x1f09:30\x1fdeadbeef' → '{"session":"s1","protocol":1,"turn":3,"diag":"ab12","diag_at":"09:30","nonce":"deadbeef"}'`
 
 ### scv_lang_fix_note
-- 역할: 다른 언어 줄 수와 자리(중간 · 최종)를 받아 언어 이름을 넣은 교정 문구를 만든다
+- 역할: 다른 언어 줄 수와 자리(중간 · 최종), 걸린 줄 하나를 받아 언어 이름을 넣은 교정 문구를 만든다
 - 위치: scripts/lib/lang-enforce.sh · @pure · sh
 - 예: `korean 3 mid → "[SCV 언어] 방금 쓴 글 중 3줄이 한국어가 아니다 — 다음 글부터 한국어로 써라(중간 보고 포함)."`
 - 예: `korean 2 final → "[SCV 언어] 최종 답 중 2줄이 한국어가 아니다 — 그 줄만 한국어로 고쳐 다시 써라."`
+- 예: `korean 1 mid "Next I'll run the tests." → "[SCV 언어] 방금 쓴 글 중 1줄이 한국어가 아니다(예: “Next I'll run the tests.”) — 다음 글부터 한국어로 써라(중간 보고 포함)."`
 - 예: `korean 0 mid → ""`
 
 ### scv_lang_rule_line

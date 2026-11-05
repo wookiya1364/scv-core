@@ -7,7 +7,7 @@
 | 종류 | 하는 일 | 개수 | 파일 |
 |---|---|---|---|
 | 다듬기 | 글자를 정리한다 — 공백 · 대소문자 · 이스케이프 · 자르기 | 15 | [tidy.md](tidy.md) |
-| 꺼내기 | 글 · JSON · 표에서 값이나 필드를 뽑는다 | 54 | [extract.md](extract.md) |
+| 꺼내기 | 글 · JSON · 표에서 값이나 필드를 뽑는다 | 55 | [extract.md](extract.md) |
 | 세기 | 개수 · 길이 · 합계를 센다 | 16 | [count.md](count.md) |
 | 비교 | 둘을 비교해 순서나 같음을 낸다 — 버전 · 숫자 · 집합 | 1 | [compare.md](compare.md) |
 | 판정/answer | 답 · 메시지 글을 보고 판정한다 — 표가 있나, 묻는 글인가, 확인인가 | 26 | [judge-answer.md](judge-answer.md) |
@@ -18,4 +18,4 @@
 | 변환 | 한 표기를 다른 표기로 바꾼다 — 경로 · 날짜 · 단위 · 인코딩 | 23 | [convert.md](convert.md) |
 | 지문 | 내용에서 짧은 식별값을 만든다 — 해시 · 키 · 이름 | 6 | [fingerprint.md](fingerprint.md) |
 
-전체 278개
+전체 279개

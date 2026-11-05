@@ -269,7 +269,8 @@ if [[ -n "$_scv_lastmsg" && "${_scv_lint:-on}" == on && -f "$_scv_langlib" ]] &&
     [[ "$(scv_lang_user_other "${_scv_opener:-$(_scv_turn_prompt_wide)}")" == 1 ]] && _scv_ln=0
     _scv_d_lang="$_scv_active"
     declare -F scv_gates_delivered >/dev/null 2>&1 && _scv_d_lang="$(scv_gates_delivered lang "$_scv_active" "$_scv_sess" "$_scv_tok" "$_scv_grec")"
-    [[ "$(scv_lang_stop_decide "${_scv_ln:-0}" "$_scv_d_lang")" == block ]] && _scv_r_lang="$(scv_lang_fix_note "$_scv_lg" "$_scv_ln" final)"
+    [[ "$(scv_lang_stop_decide "${_scv_ln:-0}" "$_scv_d_lang")" == block ]] \
+      && _scv_r_lang="$(scv_lang_fix_note "$_scv_lg" "$_scv_ln" final "$(scv_lang_first_other "$_scv_win_end" "$_scv_lg")")"
   fi
 fi
 # 0.80.0+ — help 먼저(계획 help-first-gate-080): 도구 앞 검사(가드 gate-any)가 help 전의 도구를 막는다. 도구를 하나도 쓰지 않고
