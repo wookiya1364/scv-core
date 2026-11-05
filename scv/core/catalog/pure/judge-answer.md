@@ -1,6 +1,6 @@
 # 판정/answer — 답 · 메시지 글을 보고 판정한다 — 표가 있나, 묻는 글인가, 확인인가
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 26개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 27개.
 
 ### _scv_choice_blank
 - 역할: 줄이 빈 줄(ASCII 공백 · NBSP · 전각 공백뿐)이면 성공(0), 아니면 실패(1)로 알린다
@@ -60,6 +60,13 @@
 - 예: `abc abc 1 yes → "ok"`
 - 예: `"" abc 1 yes → "missing"`
 - 예: `abc abc 0 yes → "skip"`
+
+### scv_finish_check
+- 역할: 찾은 칸 · 근거 목록 · 실패를 못 본 시험으로 끝 보고의 문제(빠진 줄 · 이유 없는 없음 · 근거 없는 확인 · 안 밝힌 시험)를 낸다
+- 위치: scripts/lib/finish-report.sh · @pure · sh
+- 예: `"" $'read\x1fa.sh\x1fok\x1fa.sh' "" full → $'missing\x1fverified\nmissing\x1funverified\nmissing\x1fdecided'`
+- 예: `$'scope\x1f기록만 함' $'scv\x1fhelp\x1fok\x1fhelp' "" short → ""`
+- 예: `$'verified\x1f언어 시험 실행 → 14개 통과\nunverified\x1f없음\ndecided\x1f이름' $'read\x1fa.sh\x1fok\x1fa.sh' "" full → $'noreason\x1funverified\nunbacked\x1fpass'`
 
 ### scv_is_rewrite_quote
 - 역할: 한 줄이 다시 쓴 요청 인용 줄(> **다시 쓴 요청**: · > **Rewritten request**: · > **書き直した依頼**:)인지 1|0 으로 정한다

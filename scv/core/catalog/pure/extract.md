@@ -1,6 +1,6 @@
 # 꺼내기 — 글 · JSON · 표에서 값이나 필드를 뽑는다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 55개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 58개.
 
 ### pc_extract_entries
 - 역할: 소스 글에서 표식(어떤 주석 모양이든 '@pure 이름', 셸은 이름 없이도) 달린 함수마다 역할 · 종류 · 예시를 뽑아 항목 줄로 낸다
@@ -72,6 +72,20 @@
 - 역할: 기록 항목 줄들에서 사람 턴마다 마지막 등록 하나(goal · depth · finish)를 뽑는다
 - 위치: scripts/lib/dreams.sh · @pure · sh
 - 예: `s1 $'U\t2026-10-01T01:00:00Z\thi\thi\nG\t2026-10-01T01:01:00Z\tmsg\tctx\tasked'    → $'s1\t1\t2026-10-01T01:01:00Z\tmsg\tctx\tasked'`
+
+### scv_evidence_test_first
+- 역할: 근거 목록에서 시험 파일을 바꾼 뒤 실패하는 시험 실행을 한 번도 보지 못한 시험 파일 이름을 꺼낸다
+- 위치: scripts/lib/finish-report.sh · @pure · sh
+- 예: `$'edit\x1ftest-a.sh\x1fok\x1fcore/tests/test-a.sh\ntest\x1f시험\x1fok\x1fbash core/tests/test-a.sh' → "test-a.sh"`
+- 예: `$'edit\x1ftest-a.sh\x1fok\x1fcore/tests/test-a.sh\ntest\x1f시험\x1ffail\x1fbash core/tests/test-a.sh' → ""`
+- 예: `"" → ""`
+
+### scv_finish_scan
+- 역할: 끝 답에서 확인 범위 줄(확인한 것 · 확인 못 한 것 · 제가 대신 정한 것 · 확인 범위 한 줄)을 찾아 칸과 내용으로 꺼낸다
+- 위치: scripts/lib/finish-report.sh · @pure · sh
+- 예: `$'**결과**\n- 확인한 것: 시험 실행 → 3개 통과\n- 확인 못 한 것: 없음 — 바꾼 갈래 모두 돌림\n- 제가 대신 정한 것: 이름' korean → $'verified\x1f시험 실행 → 3개 통과\nunverified\x1f없음 — 바꾼 갈래 모두 돌림\ndecided\x1f이름'`
+- 예: `$'- Verification scope: records only' english → $'scope\x1frecords only'`
+- 예: `"**이 답의 확인 범위**" korean → ""`
 
 ### scv_graft_ask_summary
 - 역할: ask JSON 에서 점수 높은 후보 n 개를 "경로:줄 US 이름" 줄로 낸다
@@ -289,6 +303,13 @@
 - 역할: 기록 항목 줄들을 사람 턴 줄들(시각 · 사건 글자 · 메시지 · 끝 글 · 보인 출력 줄)로 나눈다
 - 위치: scripts/lib/show-real.sh · @pure · sh
 - 예: `s1 $'U\t2026-10-01T01:00:00Z\tfix it\tfix it\nE\nR\nX\t5 passed\nT\tdone\tAll 5 passed.' "" "" "" → $'s1\t2026-10-01T01:00:00Z\tERTq\tfix it\tdone\tAll 5 passed.\t5 passed'`
+
+### scv_turn_group
+- 역할: 원본 줄들에서 마지막 사람 글 뒤의 이번 턴 사건(도구 호출과 그 결과 · 알림 끝 코드)을 꺼낸다 — 알림 · 안내로 열린 턴은 앞 사람 턴에 묶는다
+- 위치: scripts/lib/finish-report.sh · @deterministic · sh
+- 예: `$'{"type":"user","message":{"content":"고쳐 줘"}}\n{"type":"assistant","message":{"content":[{"type":"tool_use","id":"a","name":"X","input":{"command":"ls","description":"목록 보기"}}]}}\n{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"a","content":"ok"}]}}' → $'T\x1frun\x1f목록 보기\x1fls\x1f0\x1f0\x1f'`
+- 예: `"" → ""`
+- 예: `"not json" → ""`
 
 ### scv_turn_slice
 - 역할: 턴 스트림에서 마지막 사람 프롬프트 뒤의 어시스턴트 텍스트만 줄바꿈으로 이어 낸다
