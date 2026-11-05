@@ -2039,3 +2039,19 @@ merge_policy: preserve
 - path delta: 모델 프롬프트 시험은 나눌 수 없어 보류(앞 조각 값 의존)
 - refs: scv/archive/20261104-wookiya1364-split-big-tests/PLAN.md
 - conversation: scv/conversations/20261102-182255-writing-style-bullets.md
+
+## [2026-11-05 15:47] wookiya1364 — 끝 보고 세 줄 + 근거 목록 — 비판적 사고 첫 판
+
+- verdict: adopted
+- why: 에이전트가 끝난 것처럼 포장하는 것을 사람이 알아채게: 도구 쓴 모든 턴의 끝 보고에 확인한 것 · 확인 못 한 것 · 대신 정한 것, 기계가 만든 근거 목록과 대조, 바꾼 시험의 실패 먼저 판정. 실제 기록 시험판에서 실패 못 본 턴 4/9 · 1/2 확인. 실험으로 넣고 성공 · 중단 기준을 미리 정함.
+- discarded alternatives: 세 줄만(근거 목록 없이) — 모델이 '확인한 것'을 지어내도 못 거름 / 근거 목록만 먼저 — 대신 정한 것 · 확인 못 한 것이 빠짐 / 안내만(막지 않음) — 이번 세션 언어 안내가 10번 넘게 무시됨 / 일한 턴만 — 사용자가 모든 도구 턴을 고름, 짧은 턴은 한 줄로 절충 / 사람의 예상 한 줄 · 확인 문제 · 반박 검토 — 다음 판
+- refs: scv/promote/20261105-wookiya1364-finish-report-evidence/PLAN.md
+- conversation: scv/conversations/20261105-145838-critical-thinking-checks.md
+
+## [2026-11-05 16:30] wookiya1364 — 끝 보고 세 줄 + 근거 목록 — 비판적 사고 첫 판 archived
+
+- verdict: archived
+- why: 도구를 쓴 턴의 끝 보고에 확인한 것 · 확인 못 한 것 · 대신 정한 것을 싣고, 종료 훅이 도구 기록으로 만든 근거 목록과 대조해 한 턴에 한 번 막음. 바꾼 시험의 실패 먼저는 파일 단위로 판정. 실제 기록에서 이 세션 10턴 중 4턴이 시험 실패를 못 봄. 지킬 것: 다른 검사의 시험은 SCV_FINISH_REPORT=off 로 격리, 매 턴 글 예산(10800B) 안, bash 3.2 에서 괄호 식 [:...] 금지. 실험 판정은 릴리스 뒤 긴 세션 3개.
+- path delta: 도구 종류를 호스트 프로필 대신 입력 모양으로 가림(래퍼 바꿈 불필요) · 실패 먼저를 턴 단위가 아닌 파일 단위로(교정 문구가 파일을 짚으므로, slay 턴 5에서 시험판보다 정확) · 묶어 막기 시험은 언어 검사로 · 다른 모양 원본은 조용히 꺼짐 · 병렬 시험이 드러낸 bash 3.2 쌍점 · 매 턴 예산 초과 · 다른 시험 격리를 고침
+- refs: scv/archive/20261105-wookiya1364-finish-report-evidence/PLAN.md
+- conversation: scv/conversations/20261105-145838-critical-thinking-checks.md

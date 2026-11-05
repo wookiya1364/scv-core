@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-04T08:27:51Z
+generated_at: 2026-11-05T07:30:50Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -456,4 +456,8 @@ archives:
   - slug: 20261104-wookiya1364-split-big-tests
     title: "큰 시험 파일 나누기 — CI 가장 느린 조각 줄이기(릴리스 없이)"
     kind: refactor
+    status: testing
+  - slug: 20261105-wookiya1364-finish-report-evidence
+    title: "끝 보고 세 줄 + 근거 목록 — 비판적 사고 첫 판"
+    kind: feature
     status: testing
