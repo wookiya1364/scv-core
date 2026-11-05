@@ -111,7 +111,7 @@ o2="$(lang_hook "$R2" "$TR2")"; o3="$(stop_hook "$R2" "$TR2" "$EN2"$'\n'"$EN3" f
 # T10 — 기계 글은 사용자 글이 아니다(0.81.5): 작업 완료 알림 · 세션 넘김 안내(영어)로 열린 턴도 교정하고, 진짜 요청은 존중
 #   실제 세션(2026-11-05)에서 이 두 꼴의 영어 중간 보고가 교정 없이 지나갔다 — 알림 · 안내가 '사용자가 영어로 씀'으로 잡혔다.
 NOTE=$'<task-notification>\n<task-id>bkf91hq66</task-id>\n<status>completed</status>\n<summary>Background command "Run unit tests, typecheck, and related E2E in the background" completed (exit code 0)</summary>\n</task-notification>'
-HAND=$'<system-reminder>\n## You are a session started from another session\n\nYour first message is the task another Claude Code session gave you. Do exactly that; list unrelated problems as follow-ups instead of fixing them.\n</system-reminder>\n\n잡몹 배수 마무리: 1. 아직 답을 못 받은 결정을 다시 묻기 2. 시험 기준 고치기'
+HAND=$'<system-reminder>\n## You are a session started from another session\n\nYour first message is the task another session gave you. Do exactly that; list unrelated problems as follow-ups instead of fixing them.\n</system-reminder>\n\n잡몹 배수 마무리: 1. 아직 답을 못 받은 결정을 다시 묻기 2. 시험 기준 고치기'
 R="$(new_repo t10 korean)"; TR="$WORK/t10.jsonl"
 { jl_user "만들어 줘"; jl_tool; jl_user "$NOTE"; jl_asst "$EN1" n1; jl_tool; } > "$TR"
 o="$(lang_hook "$R" "$TR")"; c="$(jq -r '.hookSpecificOutput.additionalContext // empty' <<<"$o" 2>/dev/null)"
