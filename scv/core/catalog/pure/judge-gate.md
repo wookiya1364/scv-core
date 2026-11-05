@@ -1,6 +1,6 @@
 # 판정/gate — 훅이 막을지 · 넘길지 · 다시 물을지를 정한다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 24개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 25개.
 
 ### scv_choice_gate
 - 역할: 묻는지 · 도구 이름 · 이미 전달 여부로 ok | block | warn 중 하나를 정한다 (도구가 없으면 늘 ok)
@@ -34,6 +34,13 @@
 - 위치: scripts/lib/help-state.sh · @pure · sh
 - 예: `missing "" on on → $'1\x1f[SCV 규약 지문] 직전 턴 기록에 이 세션의 규약 지문이 없다 — 규약이 컨텍스트에서 빠진 것으로 보고 이번 턴에 다시 싣는다.'`
 - 예: `ok "" on on → $'0\x1f'`
+
+### scv_finish_needed
+- 역할: 근거 목록으로 이번 턴 끝 보고에 무엇이 필요한지 판정한다 — 없음 · 한 줄 · 세 줄
+- 위치: scripts/lib/finish-report.sh · @pure · sh
+- 예: `"" → "none"`
+- 예: `$'scv\x1fhelp\x1fok\x1fhelp\nask\x1fask\x1fok\x1f' → "short"`
+- 예: `$'scv\x1fhelp\x1fok\x1fhelp\nread\x1fa.sh\x1fok\x1fa.sh' → "full"`
 
 ### scv_gates_delivered
 - 역할: 이 검사가 이 세션 · 이 턴에 이미 전달됐는지 1 또는 0 으로 판정한다(깨진 기록은 1)

@@ -1,6 +1,6 @@
 # 변환 — 한 표기를 다른 표기로 바꾼다 — 경로 · 날짜 · 단위 · 인코딩
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 23개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 24개.
 
 ### scv_as_group_of
 - 역할: 파일 경로에서 묶음 이름을 낸다 — 보관된 계획의 네 문서는 폴더 이름 하나로 합친다
@@ -31,6 +31,13 @@
 - 역할: «  » 로 적은 짧은 HTML 조각을 꺾쇠 태그로 바꾼다
 - 위치: scripts/lib/dreams.sh · @pure · sh
 - 예: `"«b»hi«/b»" → '<b>hi</b>'`
+
+### scv_evidence_build
+- 역할: 사건 줄들을 근거 목록으로 바꾼다 — 실행을 시험 · SCV 기록 · 실행으로 가르고, 실패는 끝 코드 · 출력 표시 · 뒤 실행 알림으로 정한다
+- 위치: scripts/lib/finish-report.sh · @pure · sh
+- 예: `$'T\x1frun\x1f시험 실행\x1fbash tests/test-a.sh | tail\x1f0\x1f1\x1f\x1f' → $'test\x1f시험 실행\x1ffail\x1fbash tests/test-a.sh | tail'`
+- 예: `$'T\x1frun\x1f읽기\x1fgrep -n x tests/test-a.sh\x1f0\x1f0\x1f\x1f' → $'run\x1f읽기\x1fok\x1fgrep -n x tests/test-a.sh'`
+- 예: `"" → ""`
 
 ### scv_graph_normpath
 - 역할: 경로의 "./" 와 "a/../" 를 접고 겹친 슬래시를 하나로 줄인다 (앞의 "/" 는 유지하지 않는다)
