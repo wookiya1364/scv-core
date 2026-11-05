@@ -1,6 +1,6 @@
 # 조립 — 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 56개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 59개.
 
 ### env_settings_unset_args
 - 역할: SCV_ENV_LOADED_KEYS 의 키마다 "-u 키" 두 줄을 내 env 명령에 넘길 인자를 만든다(환경변수 필요)
@@ -83,6 +83,27 @@
 - 예: `09:30 3 ok $'lead-missing\n' 1 → "09:30 turn=3 echo=ok lint=1 reload=1"`
 - 예: `09:30 3 ok "" 0 host → "09:30 turn=3 echo=ok lint=0 reload=0 src=host"`
 
+### scv_evidence_render
+- 역할: 근거 목록을 사람이 읽을 기록용 불릿 줄들로 만든다
+- 위치: scripts/lib/finish-report.sh · @pure · sh
+- 예: `$'test\x1f언어 시험 실행\x1ffail\x1fbash t.sh' korean → "- 시험 · 실패 · 언어 시험 실행"`
+- 예: `$'read\x1fa.md\x1fok\x1fdocs/a.md' english → "- read · ok · a.md"`
+- 예: `"" korean → ""`
+
+### scv_finish_note
+- 역할: 끝 보고 문제 줄들을 설정 언어로 된 교정 문구 한 줄로 만든다
+- 위치: scripts/lib/finish-report.sh · @pure · sh
+- 예: `$'missing\x1funverified\nmissing\x1fdecided' korean → "[SCV 확인 범위] 끝 보고에 고칠 것 — 빠진 줄: 확인 못 한 것 · 제가 대신 정한 것. 고친 줄만 끝에 덧붙여라(본문: contracts/finish-report.md)."`
+- 예: `$'undisclosed\x1ftest-a.sh' korean → "[SCV 확인 범위] 끝 보고에 고칠 것 — 고치기 전 실패를 못 본 시험('확인 못 한 것'에 적어라): test-a.sh. 고친 줄만 끝에 덧붙여라(본문: contracts/finish-report.md)."`
+- 예: `"" korean → ""`
+
+### scv_finish_rule_line
+- 역할: 매 턴 맨 앞에 실을 확인 범위 안내 한 줄을 설정 언어로 만든다
+- 위치: scripts/lib/finish-report.sh · @pure · sh
+- 예: `korean → "[SCV 확인 범위] 도구를 쓴 턴은 끝 보고 끝에 '확인한 것 · 확인 못 한 것 · 제가 대신 정한 것'(기록 · 질문만 쓴 턴은 '확인 범위:' 한 줄). '없음'엔 이유, 실패를 못 본 시험은 '확인 못 한 것'에. 본문: contracts/finish-report.md"`
+- 예: `english → "[SCV verification scope] A turn that used tools ends its final report with Verified · Not verified · Decided for you (only SCV records or questions: one 'Verification scope:' line). 'none' needs a reason; a test never seen failing goes under Not verified. Body: contracts/finish-report.md"`
+- 예: `"" → "[SCV verification scope] A turn that used tools ends its final report with Verified · Not verified · Decided for you (only SCV records or questions: one 'Verification scope:' line). 'none' needs a reason; a test never seen failing goes under Not verified. Body: contracts/finish-report.md"`
+
 ### scv_force_banner
 - 역할: 준비가 켜져 있으면(on) 화면 표시줄 한 줄을 내고, 아니면 빈 값
 - 위치: scripts/lib/force-help.sh · @pure · sh
@@ -153,10 +174,11 @@
 - 예: `$'s1\x1f1\x1f3\x1fab12\x1f09:30\x1fdeadbeef' → '{"session":"s1","protocol":1,"turn":3,"diag":"ab12","diag_at":"09:30","nonce":"deadbeef"}'`
 
 ### scv_lang_fix_note
-- 역할: 다른 언어 줄 수와 자리(중간 · 최종)를 받아 언어 이름을 넣은 교정 문구를 만든다
+- 역할: 다른 언어 줄 수와 자리(중간 · 최종), 걸린 줄 하나를 받아 언어 이름을 넣은 교정 문구를 만든다
 - 위치: scripts/lib/lang-enforce.sh · @pure · sh
 - 예: `korean 3 mid → "[SCV 언어] 방금 쓴 글 중 3줄이 한국어가 아니다 — 다음 글부터 한국어로 써라(중간 보고 포함)."`
 - 예: `korean 2 final → "[SCV 언어] 최종 답 중 2줄이 한국어가 아니다 — 그 줄만 한국어로 고쳐 다시 써라."`
+- 예: `korean 1 mid "Next I'll run the tests." → "[SCV 언어] 방금 쓴 글 중 1줄이 한국어가 아니다(예: “Next I'll run the tests.”) — 다음 글부터 한국어로 써라(중간 보고 포함)."`
 - 예: `korean 0 mid → ""`
 
 ### scv_lang_rule_line
