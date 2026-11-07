@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+export SCV_STOP_MODE=block   # 0.83.0+ — 이 시험은 막힘(block)을 본다. 기본(notice)은 test-stop-notice.sh
 # test-model-prompting.sh — 모델별 프롬프팅: help 가 "지금 모델의 가이드 원문을 읽어야 하나" 를 모델 이름을
 # 모른 채(래퍼 색인 데이터만 보고) 결정적으로 정하는지, 규약이 다시 쓰기·되묻기 단계를 빠짐없이 싣는지,
 # 멈춤 훅이 답한 모델을 저널에 남기는지 본다.
