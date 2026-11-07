@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-05T07:30:50Z
+generated_at: 2026-11-07T14:30:24Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -461,3 +461,7 @@ archives:
     title: "끝 보고 세 줄 + 근거 목록 — 비판적 사고 첫 판"
     kind: feature
     status: testing
+  - slug: 20261107-wookiya1364-stop-notice-guide-excerpt
+    title: "가이드 발췌본 + 종료 검사 다음 턴 안내"
+    kind: feature
+    status: planned
