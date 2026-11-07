@@ -1,6 +1,6 @@
 # 판정 — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 24개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 26개.
 
 ### pc_validate_entries
 - 역할: 항목마다 빠진 칸(역할 · 종류 · 예)과 종류 표에 없는 종류를 위반 줄로 낸다
@@ -68,6 +68,12 @@
 - 예: `$'s1\x1f1\x1f3' on → "PROTOCOL: loaded"`
 - 예: `$'s1\x1f1\x1f3' off → "PROTOCOL: load"`
 
+### scv_mp_read_name
+- 역할: 가이드 원문 이름과 그 발췌본이 있는지로, help 가 읽게 할 파일 이름을 고른다
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `best-practices.md 1 → "excerpt-best-practices.md"`
+- 예: `best-practices.md 0 → "best-practices.md"`
+
 ### scv_mp_safe_name
 - 역할: 색인 폴더 안의 평범한 파일 이름이면 그대로, 경로 · 점 시작 · ".." 이면 빈 값을 낸다
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
@@ -132,6 +138,13 @@
 - 위치: scripts/lib/show-real.sh · @pure · sh
 - 예: `2026 02 30 → '0'`
 - 예: `2028 02 29 → '1'`
+
+### scv_stop_mode
+- 역할: 설정 값으로 종료 검사가 어긋난 답을 어떻게 다룰지(막기 · 다음 턴 안내) 정한다
+- 위치: scripts/lib/stop-gates.sh · @pure · sh
+- 예: `"" → "notice"`
+- 예: `block → "block"`
+- 예: `"Block " → "block"`
 
 ### scv_switch
 - 역할: 설정 값을 on|off 로 정한다 — off 만 끄고(대소문자 · 공백 · 따옴표 무관) 비었거나 다른 값은 on
