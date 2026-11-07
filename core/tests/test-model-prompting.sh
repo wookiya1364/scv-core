@@ -1238,6 +1238,28 @@ done
 if [[ $c -eq 8 ]]; then ok "OK [T43] 8/8 harm line per channel, one place"; else fail "[T43] $c/8"; fi
 
 echo
+echo "T44. 발췌본(v0.83.0) — 원문 옆에 excerpt-<원문> 이 있으면 그것을 읽게 한다"
+c=0
+r1="$(bash -c 'source "'"$LIB"'"; scv_mp_read_name best-practices.md 1')"
+r2="$(bash -c 'source "'"$LIB"'"; scv_mp_read_name best-practices.md 0')"
+r3="$(bash -c 'source "'"$LIB"'"; scv_mp_read_name "" 1')"
+[[ "$r1" == "excerpt-best-practices.md" && "$r2" == "best-practices.md" && -z "$r3" ]] && c=$((c + 1)) || echo "      (a) read_name: [$r1] [$r2] [$r3]"
+# (b) 공통 원문의 발췌본만 있을 때: 공통은 발췌본, 모델 원문은 그대로
+cp -R "$FIX/guides" "$WORK/exg"; printf 'excerpt\n' > "$WORK/exg/excerpt-common.md"
+{ cat "$FIX/profile.env"; printf 'SCV_PROMPTING_GUIDES=%s\n' "$WORK/exg"; } > "$WORK/profile-ex.env"
+R="$(new_repo t44)"
+o="$(cd "$R" && SCV_HOST_PROFILE="$WORK/profile-ex.env" SCV_TODAY=2026-09-27 bash "$HELP" --with-context --model vendor-model-a 2>/dev/null)"
+grep -qx "GUIDE_FILE: $WORK/exg/model-a.md" <<<"$o" && grep -qx "GUIDE_FILE: $WORK/exg/excerpt-common.md" <<<"$o" \
+  && ! grep -qx "GUIDE_FILE: $WORK/exg/common.md" <<<"$o" && c=$((c + 1)) || echo "      (b) $(grep GUIDE_FILE <<<"$o" | tr '\n' ' ')"
+# (c) 발췌본이 링크면 무시하고 원문을 읽게 한다
+cp -R "$FIX/guides" "$WORK/exl"; ln -s "$WORK/exl/common.md" "$WORK/exl/excerpt-common.md"
+{ cat "$FIX/profile.env"; printf 'SCV_PROMPTING_GUIDES=%s\n' "$WORK/exl"; } > "$WORK/profile-exl.env"
+R="$(new_repo t44l)"
+o="$(cd "$R" && SCV_HOST_PROFILE="$WORK/profile-exl.env" SCV_TODAY=2026-09-27 bash "$HELP" --with-context --model vendor-model-a 2>/dev/null)"
+grep -qx "GUIDE_FILE: $WORK/exl/common.md" <<<"$o" && c=$((c + 1)) || echo "      (c) $(grep GUIDE_FILE <<<"$o" | tr '\n' ' ')"
+if [[ $c -eq 3 ]]; then ok "OK [T44] 3/3 excerpt read when present"; else fail "[T44] $c/3"; fi
+
+echo
 echo "T7. 순수성 계약"
 if bash "$CORE/scripts/check-purity.sh" "$LIB" "$CORE/scripts/lib/metrics.sh" >/dev/null 2>&1; then ok "OK [T7] check-purity"; else fail "[T7] purity"; bash "$CORE/scripts/check-purity.sh" "$LIB" 2>&1 | sed 's/^/      /'; fi
 
