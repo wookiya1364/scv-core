@@ -86,6 +86,7 @@
 - 예: `$'**결과**\n- 확인한 것: 시험 실행 → 3개 통과\n- 확인 못 한 것: 없음 — 바꾼 갈래 모두 돌림\n- 제가 대신 정한 것: 이름' korean → $'verified\x1f시험 실행 → 3개 통과\nunverified\x1f없음 — 바꾼 갈래 모두 돌림\ndecided\x1f이름'`
 - 예: `$'- Verification scope: records only' english → $'scope\x1frecords only'`
 - 예: `"**이 답의 확인 범위**" korean → ""`
+- 예: `$'**확인한 것**\n- 시험 실행 → 통과\n- 화면 확인\n\n**확인 못 한 것**\n- 폰' korean → $'verified\x1f시험 실행 → 통과 / 화면 확인\nunverified\x1f폰'`
 
 ### scv_graft_ask_summary
 - 역할: ask JSON 에서 점수 높은 후보 n 개를 "경로:줄 US 이름" 줄로 낸다
