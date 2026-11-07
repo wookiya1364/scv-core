@@ -2055,3 +2055,18 @@ merge_policy: preserve
 - path delta: 도구 종류를 호스트 프로필 대신 입력 모양으로 가림(래퍼 바꿈 불필요) · 실패 먼저를 턴 단위가 아닌 파일 단위로(교정 문구가 파일을 짚으므로, slay 턴 5에서 시험판보다 정확) · 묶어 막기 시험은 언어 검사로 · 다른 모양 원본은 조용히 꺼짐 · 병렬 시험이 드러낸 bash 3.2 쌍점 · 매 턴 예산 초과 · 다른 시험 격리를 고침
 - refs: scv/archive/20261105-wookiya1364-finish-report-evidence/PLAN.md
 - conversation: scv/conversations/20261105-145838-critical-thinking-checks.md
+
+## [2026-11-07 23:27] wookiya1364 — 가이드 발췌본 + 종료 검사 다음 턴 안내
+
+- verdict: adopted
+- why: 실제 기록: 가이드 다시 읽기의 70%가 공통 원문, 종료 막힘 186턴 중 78턴이 같은 답 반복을 낳음. 발췌본을 읽게 하고 막는 대신 다음 턴 안내로 넘김.
+- discarded alternatives: 오탐만 고치고 턴당 한 번만 막기 — 진짜 어긋남에서는 여전히 한 번 반복이 보여서 버림; Concise 출력 스타일 — 답 길이만 줄고 SCV 형식과 부딪혀 버림
+- refs: scv/promote/20261107-wookiya1364-stop-notice-guide-excerpt/PLAN.md
+- conversation: scv/conversations/20261107-224242-concise-output-style.md
+
+## [2026-11-07 23:30] wookiya1364 — 보관: 가이드 발췌본 + 종료 검사 다음 턴 안내
+
+- verdict: archived
+- why: TESTS 세 시험 통과(test-stop-notice 6 · test-model-prompting 45 · test-finish-report 실패 0), PR #464 에 포함
+- path delta: 계획대로 — 구현이 먼저 끝나고 계획을 기록함
+- refs: scv/archive/20261107-wookiya1364-stop-notice-guide-excerpt/PLAN.md
