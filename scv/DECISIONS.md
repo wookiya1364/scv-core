@@ -2085,3 +2085,11 @@ merge_policy: preserve
 - why: test-rewrite-ste 6/6 통과, 관련 시험 15개 통과(model-prompting · instruction-conflicts · template-digest · help-budget 외)
 - path delta: 계획에서 하나 바뀜 — 목록을 등록 출력이 아니라 가이드 안내 끝에 실음. 등록은 다시 쓴 뒤에 돌아서, 그 턴의 첫 다시 쓰기에 목록이 늦게 닿기 때문임
 - refs: scv/archive/20261108-wookiya1364-rewrite-ste-list/PLAN.md
+
+## [2026-11-08 13:26] wookiya1364 — 발표 자료 그림 자리 제안 (답 그림 규칙은 버림)
+
+- verdict: adopted
+- why: 발표 자료의 "그림이 하나도 없음" 경고는 어디에 그릴지를 짚지 못했음. 단계 3개 이상이거나 문단 화살표 3개 이상인 구역을 최대 3곳 제안하게 함. 사용자가 고른 자리에만, 그 구역 내용만으로 흐름도를 넣음
+- discarded alternatives: 답에 그림을 넣는 매 턴 규칙 — 실제 요청 20개를 가린 채 비교했더니 그림이 든 답 7개가 2승 4패 1무였고, 직선 순서를 다시 그린 그림이 "본문 반복"으로 감점돼 버림; 표 · 코드 속 화살표까지 세기 — 이미 정리된 파이프라인 표를 잘못 잡아 버림
+- refs: core/tests/test-deck-picture-spots.sh, CHANGELOG 0.85.0
+- conversation: scv/conversations/20261108-080440-read-karpathy-subtitle.md
