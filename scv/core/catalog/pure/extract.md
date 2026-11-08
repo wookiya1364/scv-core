@@ -192,6 +192,7 @@
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
 - 예: `$'<!-- principle:english -->\nEN text\n<!-- principle:korean -->\nKO text' korean → "KO text"`
 - 예: `$'<!-- principle:english -->\nEN text' korean → ""`
+- 예: `$'<!-- ste:korean -->\nKO list' korean ste → "KO list"`
 
 ### scv_mp_principle_section
 - 역할: 원칙 파일 본문에서 언어에 맞는 구역을 꺼낸다(없으면 english 구역)

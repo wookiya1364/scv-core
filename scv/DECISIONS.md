@@ -2070,3 +2070,18 @@ merge_policy: preserve
 - why: TESTS 세 시험 통과(test-stop-notice 6 · test-model-prompting 45 · test-finish-report 실패 0), PR #464 에 포함
 - path delta: 계획대로 — 구현이 먼저 끝나고 계획을 기록함
 - refs: scv/archive/20261107-wookiya1364-stop-notice-guide-excerpt/PLAN.md
+
+## [2026-11-08 10:02] wookiya1364 — 다시 쓴 요청에 한국어판 STE 목록 적용 + 규칙 충돌 문구 2건
+
+- verdict: adopted
+- why: 다시 쓰기 규칙에 방향만 있고 목록이 없었음. 목록 3판으로 실제 요청 20개를 가린 채 비교한 결과, 다시 쓴 요청은 15승 3패, 길이는 157자/269자, 그 글을 받은 답은 10승 8패였음. 규칙 점검에서 SCV와 앱 규칙이 부딪힌 2곳의 문구도 실제 동작에 맞춤.
+- discarded alternatives: 목록 2판 — 질문이 명령으로 바뀌고 한 가지로 읽힘이 4.10에서 3.75로 떨어져 버림; 영어 STE로 다시 쓰기 — 사용자가 확인하는 글이 영어가 되어 버림; 매 턴 규칙 늘리기 — 짧은 프롬프트 실험에서 규칙을 더해 나아진 근거가 없어 버림(최소 규칙 12승, SCV 규칙 7승)
+- refs: scv/archive/20261108-wookiya1364-rewrite-ste-list/PLAN.md
+- conversation: scv/conversations/20261108-080440-read-karpathy-subtitle.md
+
+## [2026-11-08 10:02] wookiya1364 — 보관: 다시 쓴 요청에 한국어판 STE 목록 적용 + 규칙 충돌 문구 2건
+
+- verdict: archived
+- why: test-rewrite-ste 6/6 통과, 관련 시험 15개 통과(model-prompting · instruction-conflicts · template-digest · help-budget 외)
+- path delta: 계획에서 하나 바뀜 — 목록을 등록 출력이 아니라 가이드 안내 끝에 실음. 등록은 다시 쓴 뒤에 돌아서, 그 턴의 첫 다시 쓰기에 목록이 늦게 닿기 때문임
+- refs: scv/archive/20261108-wookiya1364-rewrite-ste-list/PLAN.md
