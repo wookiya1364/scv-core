@@ -235,6 +235,7 @@
 - 역할: 코어 루트로 원칙 파일 후보 경로 두 개를 한 줄씩 낸다
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
 - 예: `/core → $'/core/contracts/rewrite-principle.md\n/core/vendor/scv-core/core/contracts/rewrite-principle.md\n'`
+- 예: `/core rewrite-ste.md → $'/core/contracts/rewrite-ste.md\n/core/vendor/scv-core/core/contracts/rewrite-ste.md\n'`
 - 예: `"" → ""`
 
 ### scv_mp_principle_reason
