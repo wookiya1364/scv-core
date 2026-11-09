@@ -1,6 +1,6 @@
 # 판정/gate — 훅이 막을지 · 넘길지 · 다시 물을지를 정한다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 25개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 26개.
 
 ### scv_choice_gate
 - 역할: 묻는지 · 도구 이름 · 이미 전달 여부로 ok | block | warn 중 하나를 정한다 (도구가 없으면 늘 ok)
@@ -168,6 +168,19 @@
 - 예: `$'cd sub && bash t/a.sh' → [1]`
 - 예: `$'out=$( cd "$X" && bash t/a.sh )\nbash t/b.sh' → [0]`
 - 예: `$'echo abcd' → [0]`
+
+### scv_tc_judge
+- 역할: 턴 끝 판정 — 바뀐 파일 · 영수증 · 새 구조 줄 · 요청 번호 줄 · 예외 · 진행 중 계획 수 · 막힌 횟수 · 단계 보고 필요/횟수 · 되돌아갈 계획으로 통과 여부를 정한다
+- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 예: `0 0 0 0 no 1 0 no 0 "" → "pass"`
+- 예: `2 1 1 1 no 1 0 no 0 "" → "pass"`
+- 예: `2 0 1 1 no 1 0 no 0 "" → "block in-plan"`
+- 예: `2 1 0 0 no 0 0 no 0 "" → "block no-plan"`
+- 예: `2 1 0 0 yes 0 0 no 0 "" → "pass"`
+- 예: `2 0 0 0 no 1 2 no 0 "" → "pass-unrecorded"`
+- 예: `2 1 1 1 no 1 0 yes 0 "" → "block step"`
+- 예: `2 1 1 1 no 1 0 yes 1 "" → "pass"`
+- 예: `2 1 1 1 no 1 0 no 0 "b" → "block return"`
 
 ### scv_template_decide
 - 역할: 도장 · 꾸러미의 지문과 버전을 보고 템플릿을 어떻게 할지 한 단어(skip:backward 등)로 판정한다

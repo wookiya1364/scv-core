@@ -1,6 +1,6 @@
 # 고르기 — 여럿 중 일부를 골라내거나 순서를 매긴다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 33개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 34개.
 
 ### attachment_scope_filter
 - 역할: 표준입력 줄들에서 슬러그가 든 줄만 남긴다 — 슬러그가 비면 전부 통과
@@ -174,6 +174,13 @@
 - 위치: scripts/lib/help-state.sh · @pure · sh
 - 예: `"host text" "turn text" → $'host\x1fhost text'`
 - 예: `"" "" → $'none\x1f'`
+
+### scv_tc_filter
+- 역할: 바뀐 경로 목록에서 SCV 기록 폴더 · graft 그래프와 호스트가 알려 준 설정 경로(: 로 이은 글롭)를 뺀다 — 계획 · 저널 · 대화는 '일'이 아니다
+- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 예: `$'scv/promote/a/PLAN.md\nsrc/a.ts\nhost/settings.json\nREADME.md' "host/settings.json" → $'src/a.ts\nREADME.md'`
+- 예: `$'graft/x.md\n.scv-pr-artifacts/a.png\nconf/a.toml' "conf/*" → ""`
+- 예: `"" "" → ""`
 
 ### scv_writing_over_limit
 - 역할: 줄들 중 글자 수가 한도를 넘는 줄을 "글자수<탭>줄" 로 고른다
