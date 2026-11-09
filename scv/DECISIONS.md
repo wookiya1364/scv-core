@@ -2139,3 +2139,17 @@ merge_policy: preserve
 - why: 턴 끝 검사는 이제 바뀐 파일 중 이 세션이 쓴 파일(쓰기 도구에 적힌 파일 + 셸 명령 앞뒤 차이)만 센다. 읽기 도구는 세지 않는다. 셸 앞 사진에는 이미 찍은 저장소(작업 공간)도 넣어야 경로가 안 보이는 셸 쓰기를 놓치지 않는다는 것을 구현 중 알았다.
 - path delta: 셸 앞 사진을 이 프로젝트 · cd 대상만이 아니라 이미 찍은 저장소 전부로 넓힘 — 기존 시험 T9(경로 안 보이는 작업 공간 쓰기)가 그것을 요구함
 - refs: scv/archive/20261109-wookiya1364-turn-check-own-files/PLAN.md
+
+## [2026-11-10 01:02] wookiya1364 — 진행 기록이 진행 중 단계를 '끝'으로 남기지 않게
+
+- verdict: adopted
+- why: slay 8단계가 측정 시작인데 완료로 보임 — 기본 상태 · 안내문이 늘 끝, 단계 끼우기 뒤 진행 줄 번호 안 밀림. 기본 doing + 번호 밀기로 core 안에서 끝냄
+- discarded alternatives: 기본값만 고치기 — 번호 밀림이 다시 생김; --state 필수 — 옛 호출이 깨짐; 패널이 단계 글로 맞추기 — 패널 릴리스까지 커짐
+- refs: scv/promote/20261110-wookiya1364-progress-state-renumber/PLAN.md
+
+## [2026-11-10 01:14] wookiya1364 — 진행 기록이 진행 중 단계를 '끝'으로 남기지 않게 archived
+
+- verdict: archived
+- why: progress 기본 상태를 doing 으로, 막힘 안내문은 끝났을 때만 --state done, append 로 단계를 끼우면 변경 이력 진행 줄 번호도 민다(scv_plan_shift_progress). 앞으로 깨지면 안 될 것: --state done 은 그대로 '끝', 진행 줄이 아닌 이력 줄은 번호를 바꾸지 않음
+- path delta: 계획대로. 덧붙임: work 규약의 progress 안내 한 줄도 같은 뜻으로 고침
+- refs: scv/archive/20261110-wookiya1364-progress-state-renumber/PLAN.md
