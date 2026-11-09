@@ -2093,3 +2093,19 @@ merge_policy: preserve
 - discarded alternatives: 답에 그림을 넣는 매 턴 규칙 — 실제 요청 20개를 가린 채 비교했더니 그림이 든 답 7개가 2승 4패 1무였고, 직선 순서를 다시 그린 그림이 "본문 반복"으로 감점돼 버림; 표 · 코드 속 화살표까지 세기 — 이미 정리된 파이프라인 표를 잘못 잡아 버림
 - refs: core/tests/test-deck-picture-spots.sh, CHANGELOG 0.85.0
 - conversation: scv/conversations/20261108-080440-read-karpathy-subtitle.md
+
+## [2026-11-09 10:54] wookiya1364 — 계획 밖 요구 — 기존 계획에 넣거나, 보류 후 돌아오기
+
+- verdict: adopted
+- why: 같은 목표면 기존 계획에 넣고, 다른 목표면 A 보류 → 새 계획 B(return_to) → B 보관 직후 A 복귀. 계획 파일 하나로 멈춤·이유·복귀가 보여 모바일에서도 알 수 있음.
+- discarded alternatives: 항상 기존 계획에 넣기 — 다른 목표까지 섞여 계획이 비대해짐; 새 계획만 만들기(연결 없음) — 원래 계획에 멈춘 이유가 남지 않음; 대시보드 표시 제외 — 사용자가 포함을 택함
+- refs: scv/promote/20261109-wookiya1364-plan-pause-and-return/PLAN.md
+- conversation: scv/conversations/20261109-104617-fold-offplan-into-plan.md
+
+## [2026-11-09 11:28] wookiya1364 — 계획 밖 요구 — 기존 계획에 넣거나, 보류 후 돌아오기 archived
+
+- verdict: archived
+- why: plan-link.sh(append · pause · resume · check-before/after)와 상태 값 paused 를 넣었다. 판단은 모델, 기록 · 충돌 대조는 스크립트. 앞뒤 충돌이 있으면 아무것도 바꾸지 않고 종료 코드 3 — 이 '묻기 전엔 안 바꿈'은 앞으로 깨지면 안 된다. 이력은 사용자 요청으로 두괄식 · 개조식 · 사건마다 줄바꿈.
+- path delta: 이력 문구를 처음 실행 결과를 본 사용자 요청으로 '날짜 · 종류 · …' 한 줄에서 굵은 머리줄 + 하위 항목으로 바꿈. 패널 문구는 '끝나면 ○○으로 돌아감' 대신 '끝나면 돌아갈 계획: ○○'(받침에 따른 조사 오류 피함). 글쓰기 시험의 work 묻는 지점 기대값 10 → 11(충돌 때만 묻는 지점 추가).
+- refs: scv/archive/20261109-wookiya1364-plan-pause-and-return/PLAN.md
+- conversation: scv/conversations/20261109-104617-fold-offplan-into-plan.md
