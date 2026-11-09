@@ -1,6 +1,6 @@
 # 꺼내기 — 글 · JSON · 표에서 값이나 필드를 뽑는다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 58개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 62개.
 
 ### pc_extract_entries
 - 역할: 소스 글에서 표식(어떤 주석 모양이든 '@pure 이름', 셸은 이름 없이도) 달린 함수마다 역할 · 종류 · 예시를 뽑아 항목 줄로 낸다
@@ -28,6 +28,12 @@
 - 예: `'"0.9" "1.0" → [1]' → $'"0.9" "1.0"\t\'\'\t1\t0'`
 - 예: `'<<< "x" → "1" [2]' → $'<<< "x"\t"1"\t2\t0'`
 - 예: `'"a|b" x | head → "a"' → $'"a|b" x | head\t"a"\t0\t1'`
+
+### plan_title
+- 역할: 계획 글의 제목(title 칸)을 낸다 — 없으면 대신 받은 이름(폴더 이름)
+- 위치: scripts/plan-link.sh · @pure · sh
+- 예: `$'---\ntitle: 로그 정리\n---' "b" → "로그 정리"`
+- 예: `"# b" "b" → "b"`
 
 ### record_index_fields
 - 역할: 색인 레코드 한 줄을 표시 · 키 · 파일 · 오프셋 · 길이 · 시각 · 요약 일곱 줄로 푼다
@@ -275,6 +281,27 @@
 - 예: `py "    def _helper(self, x):" → "_helper"`
 - 예: `go "func (s *S) Run() error {" → "Run"`
 - 예: `js "return fn(x)" → ""`
+
+### scv_plan_fm_get
+- 역할: PLAN.md 글의 앞머리에서 한 칸의 값을 꺼낸다 — 칸이 없거나 앞머리가 없으면 빈 값
+- 위치: scripts/lib/plan-link.sh · @pure · sh
+- 예: `$'---\nstatus: paused\npaused_by: b\n---\n# a' "paused_by" → "b"`
+- 예: `$'---\nstatus: paused\n---' "return_to" → ""`
+- 예: `"# a" "status" → ""`
+
+### scv_plan_goal_items
+- 역할: `## Goals / Non-Goals` 절에서 Goals 또는 Non-Goals 아래 항목들을 한 줄씩 꺼낸다
+- 위치: scripts/lib/plan-link.sh · @pure · sh
+- 예: `$'## Goals / Non-Goals\n\n- **Goals**\n  - 가\n- **Non-Goals**\n  - 나\n  - 다\n\n## X' "Non-Goals" → $'나\n다'`
+- 예: `$'## Goals / Non-Goals\n- **Goals**\n  - 가' "Goals" → "가"`
+- 예: `"# a" "Goals" → ""`
+
+### scv_plan_steps
+- 역할: PLAN.md 글의 Suggested path(옛 계획은 Steps) 단계를 "번호<탭>표시<탭>글" 줄로 꺼낸다 — 표시는 done · doing · blocked · 빈 값
+- 위치: scripts/lib/plan-link.sh · @pure · sh
+- 예: `$'## Suggested path\n\n1. [x] 준비 — a\n2. 만들기 — `b`\n\n## Links' → $'1\tdone\t준비 — a\n2\t\t만들기 — `b`'`
+- 예: `$'## Steps\n1. 🔄 하기' → $'1\tdoing\t하기'`
+- 예: `"# a" → ""`
 
 ### scv_reg_line_key
 - 역할: 실행 줄이 '시험 파일 하나를 bash 로 부르는 줄'이면 그 명령(키)을 낸다 — 아니면 빈 값
