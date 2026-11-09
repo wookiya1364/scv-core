@@ -1,6 +1,6 @@
 # 조립 — 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 59개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 61개.
 
 ### env_settings_unset_args
 - 역할: SCV_ENV_LOADED_KEYS 의 키마다 "-u 키" 두 줄을 내 env 명령에 넘길 인자를 만든다(환경변수 필요)
@@ -295,6 +295,20 @@
 - 역할: 지표 이름과 지표 줄들을 (지표, slug, 값) TSV 행들로 만든다
 - 위치: scripts/lib/metrics.sh · @pure · sh
 - 예: `lead $'a\t5\nb\tnone\n' → $'lead\ta\t5\nlead\tb\tnone'`
+
+### scv_plan_history_add
+- 역할: PLAN.md 글의 `## 변경 이력` 절 끝에 사건 하나를 붙인다 — 첫 줄은 "- " 항목, 나머지 줄은 "  - " 하위 항목, 사건 사이는 빈 줄. 절이 없으면 `## Links` 앞(없으면 글 끝)에 새로 만든다
+- 위치: scripts/lib/plan-link.sh · @pure · sh
+- 예: `$'# a\n\n## 변경 이력\n\n- 1\n\n## Links\n' $'2\n이유: x' → $'# a\n\n## 변경 이력\n\n- 1\n\n- 2\n  - 이유: x\n\n## Links\n'`
+- 예: `$'# a\n\n## Links\n' "1" → $'# a\n\n## 변경 이력\n\n- 1\n\n## Links\n'`
+- 예: `"# a" "1" → $'# a\n\n## 변경 이력\n\n- 1'`
+
+### scv_plan_redo_step
+- 역할: 끝난 단계 n 의 요건이 바뀌었을 때 맨 끝에 붙일 "다시 하기" 단계 글을 만든다 — 원래 단계의 " — " 뒤 꼬리는 그대로 둔다
+- 위치: scripts/lib/plan-link.sh · @pure · sh
+- 예: `$'## Suggested path\n1. [x] 검사 추가 — `checkA`\n2. b' 1 → $'다시 하기: 검사 추가 — `checkA`'`
+- 예: `$'## Suggested path\n1. [x] 준비' 1 → "다시 하기: 준비 — 1단계를 바뀐 요건으로 다시 함"`
+- 예: `$'## Suggested path\n1. a' 3 → ""`
 
 ### scv_resume_header
 - 역할: 컨텍스트가 비워진 이유 한 줄 머리말을 만든다 — source 값이 있으면 그대로 보여 주고 없으면 일반 문구
