@@ -1,6 +1,6 @@
 # 판정 — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 26개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 29개.
 
 ### pc_validate_entries
 - 역할: 항목마다 빠진 칸(역할 · 종류 · 예)과 종류 표에 없는 종류를 위반 줄로 낸다
@@ -112,6 +112,27 @@
 - 역할: 색인의 slug 마다 후속 계획이 있으면 1, 없으면 0 을 낸다 (obsoleted_by 대상 또는 supersedes 보유)
 - 위치: scripts/lib/metrics.sh · @pure · sh
 - 예: `$'a\tx\tb\nb\tx\t\n' "" → $'a\t0\nb\t1'`
+
+### scv_plan_conflict_after
+- 역할: 뒤쪽 충돌 검사 — B 가 바꾼 파일 경로가 A 의 끝나지 않은 단계 글에 나오면 "겹침 · A n단계 · 파일" 줄을 낸다
+- 위치: scripts/lib/plan-link.sh · @pure · sh
+- 예: `$'## Suggested path\n1. [x] core/a.sh 고침\n2. core/a.sh 와 core/b.sh 손봄' $'core/a.sh\ncore/c.sh' → "겹침 · A 2단계 · core/a.sh"`
+- 예: `$'## Suggested path\n1. 문서 고침' "core/a.sh" → ""`
+- 예: `$'## Suggested path\n1. a' "" → ""`
+
+### scv_plan_conflict_before
+- 역할: 앞쪽 충돌 검사 — B 의 Goals 항목이 A 의 Non-Goals(충돌) 또는 A 의 남은 단계(겹침)와 글자로 겹치는 것을 한 줄씩 낸다
+- 위치: scripts/lib/plan-link.sh · @pure · sh
+- 예: `$'## Goals / Non-Goals\n- **Non-Goals**\n  - 결제 한도 변경 안 함' $'## Goals / Non-Goals\n- **Goals**\n  - 결제 한도 변경' → "충돌 · A 가 하지 않기로 함: 결제 한도 변경 안 함 ↔ B 목표: 결제 한도 변경"`
+- 예: `$'## Suggested path\n1. [x] 준비\n2. 화면 만들기 — `x`' $'## Goals / Non-Goals\n- **Goals**\n  - 화면 만들기' → $'겹침 · A 2단계: 화면 만들기 — `x` ↔ B 목표: 화면 만들기'`
+- 예: `$'## Goals / Non-Goals\n- **Non-Goals**\n  - 가' $'## Goals / Non-Goals\n- **Goals**\n  - 나' → ""`
+
+### scv_plan_fm_has
+- 역할: PLAN.md 글의 앞머리에 그 칸이 있으면 "1" 을 낸다 — 값이 비어 있어도 칸이 있으면 "1"
+- 위치: scripts/lib/plan-link.sh · @pure · sh
+- 예: `$'---\nstatus: paused\nresume_at:\n---' "resume_at" → "1"`
+- 예: `$'---\nstatus: paused\n---' "resume_at" → ""`
+- 예: `"# a" "status" → ""`
 
 ### scv_privacy_email_ok
 - 역할: 공개해도 되는 메일 주소(GitHub noreply · 봇)면 참

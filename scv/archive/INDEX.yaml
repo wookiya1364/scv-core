@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-08T01:02:15Z
+generated_at: 2026-11-09T02:28:56Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -469,3 +469,7 @@ archives:
     title: "다시 쓴 요청에 한국어판 STE 목록 적용 + 규칙 충돌 문구 2건"
     kind: feature
     status: planned
+  - slug: 20261109-wookiya1364-plan-pause-and-return
+    title: "계획 밖 요구 — 기존 계획에 넣거나, 보류 후 돌아오기"
+    kind: feature
+    status: testing

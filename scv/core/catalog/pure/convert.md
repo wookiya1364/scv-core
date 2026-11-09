@@ -1,6 +1,6 @@
 # 변환 — 한 표기를 다른 표기로 바꾼다 — 경로 · 날짜 · 단위 · 인코딩
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 25개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 31개.
 
 ### scv_as_group_of
 - 역할: 파일 경로에서 묶음 이름을 낸다 — 보관된 계획의 네 문서는 폴더 이름 하나로 합친다
@@ -106,6 +106,45 @@
 - 예: `$'---\ntitle: a\nstatus: done\n---\n# a' "2026-11-02" "new-x" → $'---\ntitle: a\nstatus: obsolete\nobsoleted_at: 2026-11-02\nobsoleted_by: new-x\n---\n# a'`
 - 예: `$'---\nstatus: obsolete\nobsoleted_at: 2026-10-01\n---' "2026-11-02" "new-x" → $'---\nstatus: obsolete\nobsoleted_at: 2026-10-01\n---'`
 - 예: `"" "2026-11-02" "new-x" → ""`
+
+### scv_plan_fm_drop
+- 역할: PLAN.md 글의 앞머리에서 한 칸의 줄을 지운다 — 칸이 없으면 글을 그대로 돌려준다
+- 위치: scripts/lib/plan-link.sh · @pure · sh
+- 예: `$'---\nstatus: paused\npaused_by: b\n---\n# a' "paused_by" → $'---\nstatus: paused\n---\n# a'`
+- 예: `$'---\nstatus: paused\n---' "paused_by" → $'---\nstatus: paused\n---'`
+- 예: `"# a" "status" → "# a"`
+
+### scv_plan_fm_set
+- 역할: PLAN.md 글의 앞머리에서 한 칸을 바꾼다 — 칸이 없으면 앞머리 끝(닫는 --- 바로 앞)에 새로 둔다
+- 위치: scripts/lib/plan-link.sh · @pure · sh
+- 예: `$'---\nstatus: planned\n---\n# a' "status" "paused" → $'---\nstatus: paused\n---\n# a'`
+- 예: `$'---\nstatus: paused\n---\n# a' "paused_by" "b" → $'---\nstatus: paused\npaused_by: b\n---\n# a'`
+- 예: `"# a" "status" "paused" → "# a"`
+
+### scv_plan_insert_step
+- 역할: Suggested path 의 after 번 단계 뒤에 새 단계를 끼우고 뒤 단계 번호를 하나씩 민다 — after 가 마지막 번호 이상이면 맨 끝, 0 이면 맨 앞
+- 위치: scripts/lib/plan-link.sh · @pure · sh
+- 예: `$'## Suggested path\n\n1. [x] a\n2. b\n\n## Links' 1 "c" → $'## Suggested path\n\n1. [x] a\n2. c\n3. b\n\n## Links'`
+- 예: `$'## Suggested path\n1. a' 5 "c" → $'## Suggested path\n1. a\n2. c'`
+- 예: `$'## Suggested path\n1. a' 0 "c" → $'## Suggested path\n1. c\n2. a'`
+
+### scv_plan_link_return
+- 역할: 새 계획 B 에 끝나면 돌아갈 계획 A 를 적는다 — return_to 칸과 변경 이력 "연결" 사건 하나(돌아갈 계획 제목 · 이유)
+- 위치: scripts/lib/plan-link.sh · @pure · sh
+- 예: `$'---\nstatus: planned\n---\n# b' "a" "결제 화면" "2026-11-09" "다른 목표" → $'---\nstatus: planned\nreturn_to: a\n---\n# b\n\n## 변경 이력\n\n- **2026-11-09 연결** — 끝나면 돌아갈 계획: 결제 화면\n  - 이유: 다른 목표'`
+- 예: `"# b" "a" "a" "2026-11-09" "x" → $'# b\n\n## 변경 이력\n\n- **2026-11-09 연결** — 끝나면 돌아갈 계획: a\n  - 이유: x'`
+
+### scv_plan_mark_pause
+- 역할: 계획 A 를 보류로 바꾼다 — status: paused · paused_by · resume_at 칸과 변경 이력 "보류" 사건 하나(먼저 할 계획 제목 · 다시 시작 단계 · 이유)
+- 위치: scripts/lib/plan-link.sh · @pure · sh
+- 예: `$'---\nstatus: in_progress\n---\n# a' "b" "로그 정리" 2 "2026-11-09" "다른 목표" → $'---\nstatus: paused\npaused_by: b\nresume_at: 2\n---\n# a\n\n## 변경 이력\n\n- **2026-11-09 보류** — 먼저 할 계획: 로그 정리\n  - 다시 시작: 2단계부터\n  - 이유: 다른 목표'`
+- 예: `"# a" "b" "b" 1 "2026-11-09" "x" → $'# a\n\n## 변경 이력\n\n- **2026-11-09 보류** — 먼저 할 계획: b\n  - 다시 시작: 1단계부터\n  - 이유: x'`
+
+### scv_plan_mark_resume
+- 역할: 보류였던 계획 A 를 진행 중으로 되돌린다 — paused_by · resume_at 칸을 지우고 변경 이력 "재개" 사건 하나(끝난 계획 제목 · 다시 시작 단계)
+- 위치: scripts/lib/plan-link.sh · @pure · sh
+- 예: `$'---\nstatus: paused\npaused_by: b\nresume_at: 2\n---\n# a' "로그 정리" "2026-11-10" → $'---\nstatus: in_progress\n---\n# a\n\n## 변경 이력\n\n- **2026-11-10 재개** — 끝난 계획: 로그 정리\n  - 다시 시작: 2단계부터'`
+- 예: `$'---\nstatus: paused\n---\n# a' "b" "2026-11-10" → $'---\nstatus: in_progress\n---\n# a\n\n## 변경 이력\n\n- **2026-11-10 재개** — 끝난 계획: b\n  - 다시 시작: 1단계부터'`
 
 ### scv_reg_rewrite_line
 - 역할: 시험 줄이면 그 명령을 기록된 종료 코드 '( exit N )' 로 바꾸고 앞 공백 · 꼬리는 남긴다 — 표에 없으면 그대로
