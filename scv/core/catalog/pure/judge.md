@@ -1,6 +1,6 @@
 # 판정 — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 33개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 34개.
 
 ### pc_validate_entries
 - 역할: 항목마다 빠진 칸(역할 · 종류 · 예)과 종류 표에 없는 종류를 위반 줄로 낸다
@@ -202,6 +202,13 @@
 - 예: `$'{"enabledPlugins": {"scv-dashboard@scv-mods": true}}' '"scv-dashboard@scv-mods": true' → "yes"`
 - 예: `$'{"enabledPlugins": {"scv-dashboard@scv-mods": false}}' '"scv-dashboard@scv-mods": true' → "no"`
 - 예: `"x" "" → "no"`
+
+### scv_tc_tool_kind
+- 역할: 도구 입력에 어떤 칸이 있는지로 이 도구가 파일을 쓰는지 가른다 — 명령 글이 있으면 shell, 경로와 쓸 내용이 있으면 write, 그 밖(읽기 · 찾기)은 read
+- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 예: `"ls" "" "" → "shell"`
+- 예: `"" "/a/b.ts" "yes" → "write"`
+- 예: `"" "/a/b.ts" "" → "read"`
 
 ### scv_writing_limits
 - 역할: README 파일 이름으로 칸 · 문단 길이 한도(글자)를 정한다 — 한글 · 일본어 판은 영어 판의 절반

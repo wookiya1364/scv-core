@@ -2125,3 +2125,17 @@ merge_policy: preserve
 - path delta: 영수증을 도구 뒤가 아니라 도구 앞에서 남김(실패하면 계획 줄이 안 생겨 어차피 막힘 — codex 에 도구 뒤 훅이 없어도 같게, 래퍼 코드 변경 없음). 호스트 설정 폴더 제외는 core 에 이름을 박지 않고 SCV_GUARD_EXEMPT 로. 선택 답 시간 기준 1초→2초(부하 때 1.03초). 사용자 검증 요구로 9~12단계를 plan-link append 로 덧붙임(대시보드 보고 강제 · 진행 줄 상태 · Non-Goals 겹침 · 되돌아오기) — append 동작 보존 조건은 사용자 결정으로 예외. 구현 중 대시보드 보고를 0번 해 1단계에 멈춰 보였던 일이 이 덧붙임의 계기.
 - refs: scv/archive/20261109-wookiya1364-turn-plan-check/PLAN.md
 - conversation: scv/conversations/20261109-132446-block-work-without-plan.md
+
+## [2026-11-09 21:31] wookiya1364 — 턴 끝 계획 검사는 이 세션이 고친 파일만 셈
+
+- verdict: adopted
+- why: 읽기 경로 · 셸 폴더 이동까지 '건드림'으로 쳐서 다른 세션이 같은 폴더에서 고친 파일로 막혔다(slay stage-sim.mts 로 2번, 2026-11-09 실측). 편집 도구는 적힌 파일, 셸은 명령 앞뒤 비교로 이 세션이 쓴 파일만 센다.
+- discarded alternatives: 읽기만 빼기 — 한 줄 고친 폴더에서 남의 변경이 여전히 섞임 · 폴더 전체 세기 유지 — 같은 폴더 동시 세션에서 계속 잘못 막힘 · 도구 뒤 훅으로 셸 비교 — 래퍼 변경이 필요하고 codex 에 없음
+- refs: scv/promote/20261109-wookiya1364-turn-check-own-files/PLAN.md
+
+## [2026-11-09 21:56] wookiya1364 — 턴 끝 계획 검사는 이 세션이 고친 파일만 셈 archived
+
+- verdict: archived
+- why: 턴 끝 검사는 이제 바뀐 파일 중 이 세션이 쓴 파일(쓰기 도구에 적힌 파일 + 셸 명령 앞뒤 차이)만 센다. 읽기 도구는 세지 않는다. 셸 앞 사진에는 이미 찍은 저장소(작업 공간)도 넣어야 경로가 안 보이는 셸 쓰기를 놓치지 않는다는 것을 구현 중 알았다.
+- path delta: 셸 앞 사진을 이 프로젝트 · cd 대상만이 아니라 이미 찍은 저장소 전부로 넓힘 — 기존 시험 T9(경로 안 보이는 작업 공간 쓰기)가 그것을 요구함
+- refs: scv/archive/20261109-wookiya1364-turn-check-own-files/PLAN.md
