@@ -1,6 +1,6 @@
 # 조립 — 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 61개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 65개.
 
 ### env_settings_unset_args
 - 역할: SCV_ENV_LOADED_KEYS 의 키마다 "-u 키" 두 줄을 내 env 명령에 넘길 인자를 만든다(환경변수 필요)
@@ -361,3 +361,29 @@
 - 예: `"demo_step" "20260102-a-y" → "[SCV 단계] 구현 중: 20260102-a-y — 이 세션에 demo_step 도구가 있으면, 단계를 시작할 때 · 끝낼 때 · 막혔을 때(이유 한 줄) 바로 알려라(plan=20260102-a-y, step=번호, state=doing|done|blocked). 본문: protocols/work.md 'Step progress'"`
 - 예: `"" "20260102-a-y" → ""`
 - 예: `"demo_step" "" → ""`
+
+### scv_tc_block_msg
+- 역할: 막을 때 모델에게 줄 말을 만든다 — 무엇이 빠졌는지와 할 일 한 줄(명령 꼴 그대로)
+- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 예: `"in-plan" "a" 3 "/p/plan-link.sh" → $'[SCV 계획 기록] 이번 턴에 파일 3개가 바뀌었는데 계획 기록이 없다 — 계획 안 일이면: bash /p/plan-link.sh progress a --step 번호 --state done --note "한 일"\n계획 밖 일이면: bash /p/plan-link.sh append a --after 번호 --step "단계" --why "이유"'`
+- 예: `"no-plan" "" 1 "/p/plan-link.sh" → $'[SCV 계획 기록] 이번 턴에 파일 1개가 바뀌었는데 진행 중 계획이 없다 — 계획을 만들어라(promote). 릴리스 · 동기화만 예외: bash /p/plan-link.sh exempt --kind release --why "이유"'`
+- 예: `"step" "tool_x" 2 "/p/plan-link.sh" → "[SCV 단계 보고] 대시보드가 켜져 있다 — 이번 턴에 한 단계를 tool_x 로 알려라(시작 · 끝 · 막힘)."`
+- 예: `"return" "b" 2 "/p/plan-link.sh" → "[SCV 되돌아가기] 계획 b 가 끝났는데 그것 때문에 보류한 계획이 아직 보류다 — bash /p/plan-link.sh resume b"`
+
+### scv_tc_choice_entry
+- 역할: 선택 답 한 개를 계획 변경 이력 항목으로 만든다 — 답이 머리, 질문이 아래(각 120자)
+- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 예: `"2026-11-09" "10:24" "어떻게 할까요?" "추천대로" → $'**2026-11-09 10:24 선택** — 답: 추천대로\n질문: 어떻게 할까요?'`
+- 예: `"2026-11-09" "10:24" $'두\n줄' "a" → $'**2026-11-09 10:24 선택** — 답: a\n질문: 두 줄'`
+
+### scv_tc_exempt_entry
+- 역할: 예외 기록 한 줄(이력 항목)을 만든다 — 종류 · 이유 + 요청 꼬리
+- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 예: `"2026-11-09" "release" "래퍼 0.86.0" "요청: x (요청 ab12cd34)" → $'**2026-11-09 예외** — release: 래퍼 0.86.0\n요청: x (요청 ab12cd34)'`
+
+### scv_tc_progress_entry
+- 역할: 계획 안 일의 진행 한 줄(이력 항목)을 만든다 — 머리 줄(단계 · 시작/끝/막힘) + 요청 꼬리. 대시보드가 이 줄로 단계 상태를 센다
+- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 예: `"2026-11-09" 6 done "2인 적 배수" "요청: x (요청 ab12cd34)" → $'**2026-11-09 진행** — 6단계 끝: 2인 적 배수\n요청: x (요청 ab12cd34)'`
+- 예: `"2026-11-09" 1 doing "준비" "" → "**2026-11-09 진행** — 1단계 시작: 준비"`
+- 예: `"2026-11-09" 2 blocked "키 없음" "" → "**2026-11-09 진행** — 2단계 막힘: 키 없음"`
