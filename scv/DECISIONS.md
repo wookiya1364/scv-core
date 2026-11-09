@@ -2109,3 +2109,19 @@ merge_policy: preserve
 - path delta: 이력 문구를 처음 실행 결과를 본 사용자 요청으로 '날짜 · 종류 · …' 한 줄에서 굵은 머리줄 + 하위 항목으로 바꿈. 패널 문구는 '끝나면 ○○으로 돌아감' 대신 '끝나면 돌아갈 계획: ○○'(받침에 따른 조사 오류 피함). 글쓰기 시험의 work 묻는 지점 기대값 10 → 11(충돌 때만 묻는 지점 추가).
 - refs: scv/archive/20261109-wookiya1364-plan-pause-and-return/PLAN.md
 - conversation: scv/conversations/20261109-104617-fold-offplan-into-plan.md
+
+## [2026-11-09 14:01] wookiya1364 — 고친 턴은 계획 기록이 있어야 끝남 · 선택 답은 계획에 바로 · 대시보드에 이력
+
+- verdict: adopted
+- why: 실측: 파일 목록 검사 4개는 slay 계획 밖 11턴 중 0턴(셸 쓰기 1102 대 도구 102). 턴 끝 사진 차이 + 성공한 plan-link 영수증 + 요청 번호 줄은 slay 11/11 · 강의 41/41 · 공고 6/6, 턴당 0.2초 안쪽. 선택 답 17개 중 즉시 반영 5개 → 훅이 바로 기록.
+- discarded alternatives: 파일 목록 4검사(계획 열 때 · 계획 밖 파일 · 고치기 전 실패 · 보관 대조) — slay 0/11; 낱말 겹침으로 엉터리 기록 막기 — 진짜 기록 2/5 잘못 막음; 알리기만 하며 재기 — 사용자가 실측으로 대신 결정
+- refs: scv/promote/20261109-wookiya1364-turn-plan-check/PLAN.md
+- conversation: scv/conversations/20261109-132446-block-work-without-plan.md
+
+## [2026-11-09 14:55] wookiya1364 — 고친 턴은 계획 기록이 있어야 끝남 · 선택 답은 계획에 바로 · 대시보드에 이력 archived
+
+- verdict: archived
+- why: 파일을 바꾼 턴은 성공한 plan-link 기록(요청 번호 · 원문 붙음)이 있어야 끝나고, 대시보드가 켜져 있으면 단계 보고 도구 호출도 있어야 끝난다. append · progress 는 Non-Goals 와 겹치면 멈추고, 보류시킨 계획이 끝났는데 안 돌아오면 막는다. 선택 답은 훅이 변경 이력에 바로 적고, 대시보드는 진행 줄로 단계를 채운다. 실측: slay 11/11 · 강의 41/41 · 공고 6/6, 턴당 0.2초 안쪽. 앞으로 깨지면 안 되는 것: 사용자 원문은 가리개를 거친 뒤에만 저장, 호스트 이름은 core 에 두지 않음(SCV_GUARD_EXEMPT · 호스트 프로필로).
+- path delta: 영수증을 도구 뒤가 아니라 도구 앞에서 남김(실패하면 계획 줄이 안 생겨 어차피 막힘 — codex 에 도구 뒤 훅이 없어도 같게, 래퍼 코드 변경 없음). 호스트 설정 폴더 제외는 core 에 이름을 박지 않고 SCV_GUARD_EXEMPT 로. 선택 답 시간 기준 1초→2초(부하 때 1.03초). 사용자 검증 요구로 9~12단계를 plan-link append 로 덧붙임(대시보드 보고 강제 · 진행 줄 상태 · Non-Goals 겹침 · 되돌아오기) — append 동작 보존 조건은 사용자 결정으로 예외. 구현 중 대시보드 보고를 0번 해 1단계에 멈춰 보였던 일이 이 덧붙임의 계기.
+- refs: scv/archive/20261109-wookiya1364-turn-plan-check/PLAN.md
+- conversation: scv/conversations/20261109-132446-block-work-without-plan.md

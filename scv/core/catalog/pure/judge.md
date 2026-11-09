@@ -1,6 +1,6 @@
 # 판정 — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 29개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 33개.
 
 ### pc_validate_entries
 - 역할: 항목마다 빠진 칸(역할 · 종류 · 예)과 종류 표에 없는 종류를 위반 줄로 낸다
@@ -173,6 +173,35 @@
 - 예: `' "OFF" ' → "off"`
 - 예: `"" → "on"`
 - 예: `maybe → "on"`
+
+### scv_tc_exempt_ok
+- 역할: 계획 없이 해도 되는 정한 예외 종류인지 가린다 — 릴리스 · 동기화만
+- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 예: `"release" → "yes"`
+- 예: `"sync" → "yes"`
+- 예: `"misc" → "no"`
+
+### scv_tc_nongoal_hits
+- 역할: 덧붙이거나 진행으로 적으려는 글이 계획의 '하지 않음'(Non-Goals) 항목과 낱말로 겹치면 한 줄씩 낸다 — 겹치면 사용자에게 물을 일
+- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 예: `$'## Goals / Non-Goals\n- **Goals**\n  - 결제 버튼\n- **Non-Goals**\n  - 환불 기능' "환불 버튼 추가" → "충돌 · 하지 않기로 함: 환불 기능 ↔ 적으려는 글: 환불 버튼 추가"`
+- 예: `$'## Goals / Non-Goals\n- **Non-Goals**\n  - 환불 기능' "결제 버튼 색" → ""`
+- 예: `"# a" "x" → ""`
+
+### scv_tc_receipt
+- 역할: 도구가 돌린 명령 글이 계획 기록 명령(plan-link 의 기록 다섯 가지)인지 가려 영수증 한 줄을 낸다 — 이름만 적은 명령은 빈 값
+- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 예: `"bash /p/core/scripts/plan-link.sh progress a --step 1 --note x" → "plan-link progress"`
+- 예: `$'cd /w && SCV_TODAY=2026-11-09 bash "/p/plan-link.sh" append a --after 1' → "plan-link append"`
+- 예: `"echo plan-link.sh append; printf x" → ""`
+- 예: `"bash plan-link.sh append a" → ""`
+
+### scv_tc_step_on
+- 역할: 호스트 설정 글에 대시보드(단계 보고 도구를 주는 모드)가 켜졌다는 표시가 있는지 가린다
+- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 예: `$'{"enabledPlugins": {"scv-dashboard@scv-mods": true}}' '"scv-dashboard@scv-mods": true' → "yes"`
+- 예: `$'{"enabledPlugins": {"scv-dashboard@scv-mods": false}}' '"scv-dashboard@scv-mods": true' → "no"`
+- 예: `"x" "" → "no"`
 
 ### scv_writing_limits
 - 역할: README 파일 이름으로 칸 · 문단 길이 한도(글자)를 정한다 — 한글 · 일본어 판은 영어 판의 절반
