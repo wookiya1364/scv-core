@@ -116,10 +116,11 @@
 - 예: `abc "" → "full"`
 
 ### scv_mp_register_problems
-- 역할: 병합 목록과 제출 텍스트를 견줘 빠진 · 잘못된 항목 줄들을 낸다(통과면 빈 값)
+- 역할: 제출 텍스트에 다시 쓴 요청과 범위가 있는지 보고 빠진 줄들을 낸다(통과면 빈 값)
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
-- 예: `$'a\tA' $'a\tmsg\tv\nrewrite\t-\tr' → ""`
-- 예: `$'a\tA' '' → $'missing a\nmissing rewrite\n'`
+- 예: `$'scope\tmsg\tv\nrewrite\t-\tr' → ""`
+- 예: `$'a\tmsg\tv\nscope\t-\tv\nrewrite\t-\tr' → ""`
+- 예: `'' → $'missing scope\nmissing rewrite\n'`
 
 ### scv_mp_rewrite_recorded
 - 역할: 대화 블록에 "다시 쓴 요청" 단락이 있는지 1|0 으로 정한다

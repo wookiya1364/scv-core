@@ -1,6 +1,6 @@
 # 조립 — 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 65개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 63개.
 
 ### env_settings_unset_args
 - 역할: SCV_ENV_LOADED_KEYS 의 키마다 "-u 키" 두 줄을 내 env 명령에 넘길 인자를 만든다(환경변수 필요)
@@ -188,12 +188,6 @@
 - 예: `english → ""`
 - 예: `"" → ""`
 
-### scv_mp_checklist_merge
-- 역할: 공통 목록과 모델 목록을 "id\tlabel" 줄로 합친다(같은 id 는 모델 쪽 label 이 이긴다)
-- 위치: scripts/lib/model-prompting.sh · @pure · sh
-- 예: `$'a\tA\nb\tB' $'b\tB2\nc\tC' → $'a\tA\nb\tB2\nc\tC\n'`
-- 예: `$'# c\nBad\tX' '' → ""`
-
 ### scv_mp_first_turn_lines
 - 역할: 새 컨텍스트 첫 턴에 실을 가이드 안내 블록을 만든다(싣지 않으면 빈 값)
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
@@ -243,12 +237,6 @@
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
 - 예: `→ "[SCV 원칙] 답에 문제 표나 '생길 수 있는 문제' 칸을 넣었다 — 문제는 보여 주지 말고 해결책 안에서 막아 다시 써라: '단위 | 해결책 | 추천' 세 칸, 방법마다 그 방법이 부를 문제를 막는 길을 담고, 정할 것은 선택지로 묻고, 남는 한계는 추천 칸 이유에 한 줄(contracts/rewrite-principle.md)."`
 
-### scv_mp_rewrite_tagged
-- 역할: 다시 쓴 요청 뒤에 표식을 붙인 REWRITE 줄 값을 만든다(off · 표식 없음이면 요청 그대로)
-- 위치: scripts/lib/model-prompting.sh · @pure · sh
-- 예: `"요청" on "[P]" → "요청 [P]"`
-- 예: `"요청" off "[P]" → "요청"`
-
 ### scv_mp_speaker_label
 - 역할: 대화 기록의 모델 id 로 저널 화자 이름("assistant · id")을 만든다
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
@@ -263,9 +251,9 @@
 - 예: `1 0 0 tok1 x.sh m s1 → "이번 턴에 등록한 다시 쓴 요청을 답에 보이지 않았다 — 답 맨 위에 '> **다시 쓴 요청**: …'(REWRITE 줄 그대로)을 인용으로 보여라."`
 
 ### scv_mp_turn_block
-- 역할: 매 턴 훅이 싣는 "1:1 비교 · 등록" 지시 블록을 만든다(스위치 off · 토큰 없음이면 빈 값)
+- 역할: 매 턴 훅이 싣는 "가이드대로 다시 쓰기 · 등록" 지시 블록을 만든다(스위치 off · 토큰 없음이면 빈 값)
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
-- 예: `on tok1 m-1 "" x.sh → $'[SCV 프롬프트] help 를 부른 뒤, 이 턴 메시지(짧아도)를 모델 가이드 요구 항목과 1:1 비교 · 등록한 뒤 일하라 — 등록 전 파일 쓰기는 거절, 등록 · 인용 없는 종료는 차단. 선택 창 답 뒤 첫 편집 전에 다시 등록(범위 그대로면 register --keep).\n  항목마다 msg · ctx(출처) · na(이유) · asked(못 찾은 것 중 가장 영향 큰 하나만, 추천 답과 함께) → bash "x.sh" register --model "m-1" (stdin "id | 상태 | 값" 줄들 + "rewrite | - | 다시 쓴 요청"; 파일을 안 바꾸는 턴은 scope 값을 \'변경 없음 — …\' 으로 시작) → 답 맨 위에 \'> **다시 쓴 요청**: …\' 전문 인용(ctx · asked 항목 표시), 그 아래 굵은 주제 + 개조식 불릿(contracts/writing.md), 그것으로 일한다.\n  항목: bash "x.sh" checklist --model "{지금 모델 id}"\n'`
+- 예: `on tok1 m-1 x.sh → $'[SCV 프롬프트] help 를 부른 뒤, 이 턴 메시지(짧아도)를 이 모델의 프롬프팅 가이드대로 다시 써 등록한 뒤 일하라 — 등록 전 파일 쓰기는 거절, 등록 · 인용 없는 종료는 차단. 선택 창 답 뒤 첫 편집 전에 다시 등록(범위 그대로면 register --keep).\n  요청에 없는 요구는 보태지 않는다. 빠진 것은 대화 · 저장소에서 채우고 출처를 밝힌다 → bash "x.sh" register --model "m-1" (stdin 두 줄: "scope | - | 이 턴에 바꿀 대상" + "rewrite | - | 다시 쓴 요청"; 파일을 안 바꾸는 턴은 scope 값을 \'변경 없음 — …\' 으로 시작) → 답 맨 위에 \'> **다시 쓴 요청**: …\' 전문 인용, 그 아래 굵은 주제 + 개조식 불릿(contracts/writing.md), 그것으로 일한다.\n'`
 - 예: `off tok1 → ""`
 
 ### scv_mp_turn_dir
