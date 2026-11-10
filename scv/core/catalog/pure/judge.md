@@ -1,6 +1,6 @@
 # 판정 — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 34개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 35개.
 
 ### pc_validate_entries
 - 역할: 항목마다 빠진 칸(역할 · 종류 · 예)과 종류 표에 없는 종류를 위반 줄로 낸다
@@ -67,6 +67,12 @@
 - 위치: scripts/lib/help-state.sh · @pure · sh
 - 예: `$'s1\x1f1\x1f3' on → "PROTOCOL: loaded"`
 - 예: `$'s1\x1f1\x1f3' off → "PROTOCOL: load"`
+
+### scv_mp_has_guides
+- 역할: 색인에 가이드 행(모델 행이나 공통 행)이 하나라도 있는지 1|0 으로 정한다
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `$'# c\n@holder\tX\n*\tcommon\tc.md\tu\t2026-01-01' → "1"`
+- 예: `$'# c\n@holder\tX' → "0"`
 
 ### scv_mp_read_name
 - 역할: 가이드 원문 이름과 그 발췌본이 있는지로, help 가 읽게 할 파일 이름을 고른다
