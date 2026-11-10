@@ -3,7 +3,7 @@ export SCV_STOP_MODE=block   # 이 시험은 막힘(block)을 본다
 # test-rewrite-guide-only.sh — 다시 쓰기는 가이드만(0.88.0): 요구 항목 표 · 낱말 규칙이 빠졌는지, 그러면서도 등록 · 답 맨 위
 # 인용 · 쓰기 문 · 종료 훅 · SCV 원칙의 내용이 그대로 도는지 본다.
 #
-# 계획: scv/promote/20261110-wookiya1364-rewrite-by-guide-only/TESTS.md (T1~T14 — 래퍼 쪽 T15~T19 는 래퍼 저장소의 시험)
+# 계획: scv/archive/20261110-wookiya1364-rewrite-by-guide-only/TESTS.md (T1~T14 — 래퍼 쪽 T15~T19 는 래퍼 저장소의 시험)
 # 픽스처는 중립 id 만 쓴다 — 코어 payload 에 제공자·모델 이름을 넣지 않는다(tests/test-host-neutral.sh).
 #
 # Run: bash core/tests/test-rewrite-guide-only.sh
