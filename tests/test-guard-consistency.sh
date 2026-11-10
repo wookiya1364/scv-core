@@ -62,12 +62,14 @@ PHRASES='by hand|hand-write|hand-author|write .{0,20}yourself|수동 작성|손�
 # line, not a line number: shortening a protocol above the excused line used to
 # orphan the excuse (0.56.0 shipped one such stale anchor). [3] fails when the
 # phrase vanishes, matches more than one line, or its line no longer trips PHRASES.
-mapfile -t ANCHORS < <(block exceptions | grep -E '^[^ ]+:"' || true)
+# Read with a loop, not `mapfile` — that builtin arrived in bash 4 and macOS still ships 3.2.
+ANCHORS=()
+while IFS= read -r _a; do [[ -n "$_a" ]] && ANCHORS+=("$_a"); done < <(block exceptions | grep -E '^[^ ]+:"' || true)
 anchor_file()   { local a="$1"; printf '%s' "${a%%:\"*}"; }
 anchor_phrase() { local a="$1"; a="${a#*:\"}"; printf '%s' "${a%%\" —*}"; }
 anchor_matches() {  # anchor_matches <relpath> <line text>
   local rel="$1" text="$2" a
-  for a in "${ANCHORS[@]}"; do
+  for a in ${ANCHORS[@]+"${ANCHORS[@]}"}; do
     [[ "$(anchor_file "$a")" == "$rel" && "$text" == *"$(anchor_phrase "$a")"* ]] && return 0
   done
   return 1
@@ -99,7 +101,7 @@ sweep() {
 # stale_anchors <root> → one stale anchor per line on stdout.
 stale_anchors() {
   local root="$1" a rel phrase loc n
-  for a in "${ANCHORS[@]}"; do
+  for a in ${ANCHORS[@]+"${ANCHORS[@]}"}; do
     rel="$(anchor_file "$a")"; phrase="$(anchor_phrase "$a")"; loc="$rel:\"$phrase\""
     [[ -f "$root/$rel" ]] || { printf '%s (file gone)\n' "$loc"; continue; }
     n="$(grep -cF -- "$phrase" "$root/$rel" || true)"

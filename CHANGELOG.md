@@ -2,6 +2,12 @@
 
 All notable changes to SCV Core are documented here.
 
+## [0.88.3] - 2026-11-11
+
+### Fixed
+- 맥 기본 bash(3.2)에서 SCV 그래프가 죽던 것: 계획이 가리키는 파일이 하나도 없을 때 `lib/graph.sh` 가 빈 배열을 펼치다 "unbound variable" 로 끝났다(bash 4 이상에서는 괜찮았다). 빈 값으로 펼치게 고쳤다.
+- bash 3.2 에서 실패하던 시험 셋을 고쳤다. `core/tests/test-graph.sh` 는 위 고침으로, `tests/test-guard-consistency.sh` 는 bash 4 전용 `mapfile` 을 읽기 반복으로, `tests/test-promote-wait.sh` 는 명령 치환 안에 적은 JSON 이 bash 3.2 에서 중괄호 펼치기로 깨지던 것을 변수로 먼저 만들어 고쳤다. 시험이 보는 내용과 통과 수(52 · 7 · 25)는 그대로다. 계획 `20261111-wookiya1364-bash32-tests-three`.
+
 ## [0.88.2] - 2026-11-11
 
 ### Fixed
