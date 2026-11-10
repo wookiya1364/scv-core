@@ -174,6 +174,28 @@ r=$'medium\t-\tq\ts'
 [[ "$(scv_mp_effort_word High)" == high && -z "$(scv_mp_effort_word banana)" && "$(scv_mp_effort_word ' XHIGH ')" == xhigh ]] && c=$((c + 1))
 [[ $c == 6 ]] && ok "OK [T16] 6/6" || fail "[T16] $c/6"
 
+echo "T17. 프로필 도구 — 검사가 새 키를 받고, 프로필 만들기가 옮긴다 (0.89.1 — 0.89.0 래퍼 릴리스가 여기서 막혔다)"
+VH="$CORE/../tools/validate-host-profile.sh"; MZ="$CORE/../tools/materialize-profile.sh"; FXE="$CORE/../tests/fixtures/codex.env"
+if [[ -f "$VH" && -f "$MZ" && -f "$FXE" ]]; then
+  { grep -v '^SCV_EFFORT_LOG_KEY' "$FXE"; printf 'SCV_EFFORT_LOG_KEY=turnEffort\n'; } > "$WORK/pe1.env"
+  { grep -v '^SCV_EFFORT_LOG_KEY' "$FXE"; printf 'SCV_EFFORT_LOG_KEY=turn effort"\n'; } > "$WORK/pe2.env"
+  a=0; bash "$VH" --profile "$WORK/pe1.env" >/dev/null 2>&1 || a=$?
+  b=0; bash "$VH" --profile "$WORK/pe2.env" >/dev/null 2>&1 || b=$?
+  mkdir -p "$WORK/mcore"; cp -R "$CORE/." "$WORK/mcore/"
+  d=0; bash "$MZ" --root "$WORK/mcore" --profile "$WORK/pe1.env" >/dev/null 2>&1 || d=$?
+  [[ $a == 0 && $b != 0 && $d == 0 ]] && grep -qx 'SCV_EFFORT_LOG_KEY=turnEffort' "$WORK/mcore/host-profile.env" \
+    && ok "OK [T17] validator accepts it, rejects a bad name, materialize carries it" || fail "[T17] validate=$a bad=$b materialize=$d"
+  # 다시 안 놓치게: 읽는 쪽(lib/host-profile.sh)이 아는 키는 검사도 받고 프로필 만들기도 옮겨야 한다
+  miss=""
+  for k in $(sed -n 's/^    \(SCV_[A-Z_]*\)) .*/\1/p' "$CORE/scripts/lib/host-profile.sh"); do
+    grep -q "$k" "$VH" || miss="$miss validate:$k"
+    grep -q "$k" "$MZ" || miss="$miss materialize:$k"
+  done
+  [[ -z "$miss" ]] && ok "OK [T17b] every key the reader knows is known to both tools" || fail "[T17b] missing:$miss"
+else
+  ok "OK [T17] (skip) profile tools not in this layout"; ok "OK [T17b] (skip)"
+fi
+
 echo
 echo "── $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
