@@ -122,6 +122,10 @@ check() {  # check <name> <expected> <fixture>
   fi
 }
 
+# Two-state fixtures are built as plain variables and joined with a newline. Written inline inside
+# "$( printf … )", bash 3.2 (the macOS default) brace-expands the JSON — {"a":1,"b":2} splits at the
+# comma — so the block read broken JSON, called the state unknown-but-not-blocked, and merged.
+NL=$'\n'
 SKIPPED_PLACEHOLDER='{"name":"Contract (${{ matrix.os }})","status":"COMPLETED","conclusion":"SKIPPED"}'
 OK='{"name":"check-branch-flow","status":"COMPLETED","conclusion":"SUCCESS"}'
 OK2='{"name":"Contract (ubuntu-latest)","status":"COMPLETED","conclusion":"SUCCESS"}'
@@ -136,16 +140,14 @@ BAD='{"name":"Contract (ubuntu-latest)","status":"COMPLETED","conclusion":"FAILU
 # sees that and reports MERGE; a block that waits sees the failure and stops. An
 # "it eventually merges" fixture cannot tell the two apart — both end in MERGE —
 # which is why the assertion is the negative one.
-check "[1] a lone skipped matrix placeholder does not count as a finished CI run" STOP \
-"$(printf '%s\n%s\n' \
-  "{\"mergeStateStatus\":\"BLOCKED\",\"statusCheckRollup\":[$SKIPPED_PLACEHOLDER]}" \
-  "{\"mergeStateStatus\":\"BLOCKED\",\"statusCheckRollup\":[$SKIPPED_PLACEHOLDER,$BAD]}")"
+L1="{\"mergeStateStatus\":\"BLOCKED\",\"statusCheckRollup\":[$SKIPPED_PLACEHOLDER]}"
+L2="{\"mergeStateStatus\":\"BLOCKED\",\"statusCheckRollup\":[$SKIPPED_PLACEHOLDER,$BAD]}"
+check "[1] a lone skipped matrix placeholder does not count as a finished CI run" STOP "$L1$NL$L2"
 
 # [1b] The same opening, resolving green: the promotion must still go through.
-check "[1b] once the real checks arrive and pass, it merges" MERGE \
-"$(printf '%s\n%s\n' \
-  "{\"mergeStateStatus\":\"BLOCKED\",\"statusCheckRollup\":[$SKIPPED_PLACEHOLDER]}" \
-  "{\"mergeStateStatus\":\"CLEAN\",\"statusCheckRollup\":[$SKIPPED_PLACEHOLDER,$OK,$OK2]}")"
+L1="{\"mergeStateStatus\":\"BLOCKED\",\"statusCheckRollup\":[$SKIPPED_PLACEHOLDER]}"
+L2="{\"mergeStateStatus\":\"CLEAN\",\"statusCheckRollup\":[$SKIPPED_PLACEHOLDER,$OK,$OK2]}"
+check "[1b] once the real checks arrive and pass, it merges" MERGE "$L1$NL$L2"
 
 # [2] The same opening state that never resolves. It must give up and leave the
 # PR open, not merge.
@@ -186,9 +188,9 @@ check "[10] UNKNOWN is not treated as ready" STOP \
   "{\"mergeStateStatus\":\"UNKNOWN\",\"statusCheckRollup\":[$OK]}"
 
 # [11] BEHIND asks for an update and then proceeds.
-run_case "$(printf '%s\n%s\n' \
-  "{\"mergeStateStatus\":\"BEHIND\",\"statusCheckRollup\":[$OK]}" \
-  "{\"mergeStateStatus\":\"CLEAN\",\"statusCheckRollup\":[$OK]}")" >/dev/null
+L1="{\"mergeStateStatus\":\"BEHIND\",\"statusCheckRollup\":[$OK]}"
+L2="{\"mergeStateStatus\":\"CLEAN\",\"statusCheckRollup\":[$OK]}"
+run_case "$L1$NL$L2" >/dev/null
 if grep -q update-branch "$TMP/calls"; then
   pass "[11] a BEHIND head is brought up to date rather than waited out"
 else
@@ -200,10 +202,9 @@ fi
 # That is not a test result: re-run it and keep waiting. Anything else still stops.
 NEVER='{"name":"Shard (macos 1/5)","status":"COMPLETED","conclusion":"CANCELLED","detailsUrl":"https://github.com/o/r/actions/runs/111/job/222"}'
 CANCELLED_RAN='{"name":"Shard (macos 2/5)","status":"COMPLETED","conclusion":"CANCELLED","detailsUrl":"https://github.com/o/r/actions/runs/111/job/333"}'
-check "[12] a job no runner picked up is re-run and the wait goes on" MERGE \
-"$(printf '%s\n%s\n' \
-  "{\"mergeStateStatus\":\"BLOCKED\",\"statusCheckRollup\":[$NEVER,$OK]}" \
-  "{\"mergeStateStatus\":\"CLEAN\",\"statusCheckRollup\":[$OK,$OK2]}")"
+L1="{\"mergeStateStatus\":\"BLOCKED\",\"statusCheckRollup\":[$NEVER,$OK]}"
+L2="{\"mergeStateStatus\":\"CLEAN\",\"statusCheckRollup\":[$OK,$OK2]}"
+check "[12] a job no runner picked up is re-run and the wait goes on" MERGE "$L1$NL$L2"
 if grep -qx 'rerun 111' "$TMP/calls"; then pass "[12b] the run that held it was re-run"; else fail "[12b] no re-run of run 111" "$(cat "$TMP/calls")"; fi
 check "[13] a cancelled job that did start still stops the chain" STOP \
   "{\"mergeStateStatus\":\"BLOCKED\",\"statusCheckRollup\":[$CANCELLED_RAN,$OK]}"

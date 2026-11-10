@@ -193,3 +193,5 @@ decision	잘못된-거절-셋-고치기-기록-폴더가-연결돼-있을-때와
 decision	bash-3-2-에서-실패하는-시험-셋-고치기	scv/DECISIONS.md	260451	496	2026-11-11 00:04	[adopted] bash 3.2 에서 실패하는 시험 셋 고치기
 decision	권장-effort-요청-모델의-권장-값과-다르면-한-번-묻는다	scv/DECISIONS.md	260947	656	2026-11-11 00:04	[adopted] 권장 effort 요청 — 모델의 권장 값과 다르면 한 번 묻는다
 decision	잘못된-거절-셋-고치기-기록-폴더가-연결돼-있을-때와-낱말-하나-겹침	scv/DECISIONS.md	261603	940	2026-11-11 00:32	[archived] 잘못된 거절 셋 고치기 — 기록 폴더가 연결돼 있을 때와 낱말 하나 겹침
+decision	bash-3-2-에서-실패하는-시험-셋-고치기	scv/DECISIONS.md	262543	614	2026-11-11 01:19	[archived] bash 3.2 에서 실패하는 시험 셋 고치기
+decision	권장-effort-요청-모델의-권장-값과-다르면-한-번-묻는다	scv/DECISIONS.md	263157	924	2026-11-11 01:59	[archived] 권장 effort 요청 — 모델의 권장 값과 다르면 한 번 묻는다

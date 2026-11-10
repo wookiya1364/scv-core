@@ -1,6 +1,6 @@
 # 조립 — 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 63개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 64개.
 
 ### env_settings_unset_args
 - 역할: SCV_ENV_LOADED_KEYS 의 키마다 "-u 키" 두 줄을 내 env 명령에 넘길 인자를 만든다(환경변수 필요)
@@ -187,6 +187,12 @@
 - 예: `korean → "[SCV 언어] 사용자에게 보이는 글은 모두 한국어로 — 도구 사이 중간 보고 · 요약 포함(파일 · 코드 · 이름은 제 규칙대로). 다른 언어로 쓴 최종 답은 막힌다. 사용자가 이 턴에 다른 언어를 요청하면 그 언어."`
 - 예: `english → ""`
 - 예: `"" → ""`
+
+### scv_mp_effort_block
+- 역할: effort 를 한 번 물으라는 안내 줄을 만든다(판정이 ask 가 아니면 빈 값) — 바꾸는 것은 사용자
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `same m high $'medium\t-\tq\ts' choice → ""`
+- 예: `ask m high "" choice → ""`
 
 ### scv_mp_first_turn_lines
 - 역할: 새 컨텍스트 첫 턴에 실을 가이드 안내 블록을 만든다(싣지 않으면 빈 값)
