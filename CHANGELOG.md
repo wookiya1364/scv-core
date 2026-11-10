@@ -2,6 +2,19 @@
 
 All notable changes to SCV Core are documented here.
 
+## [0.89.0] - 2026-11-11
+
+### Added
+- 권장 effort 요청: 래퍼가 가이드 폴더에 모델별 권장 effort 표(`EFFORT.tsv` — 모델 id · 권장 값 · 조건 · 공식 가이드의 문장 · 출처 파일)를 싣고 이 세션의 effort 가 지금 모델의 권장 값과 다르면, 매 턴 훅이 `[SCV effort]` 줄을 한 번 싣는다 — 지금 값 · 권장 값 · 근거 문장 · 조건과 함께 "선택 창으로 한 번 물어라". 바꾸는 것은 사용자이고, SCV 도 모델도 값을 바꾸지 않는다. 같은 조건(모델 · 지금 값 · 권장 값)은 그 프로젝트에서 한 번만 묻고(새 세션도 다시 묻지 않는다), 조건이 달라지면 한 번 더 묻는다.
+- 지금 값은 호스트의 세션 기록에서 읽는다: 호스트 프로필의 새 선택 키 `SCV_EFFORT_LOG_KEY` 가 이름 붙인 키의 마지막 값. 지난 턴의 값이라 세션의 첫 턴에는 묻지 않는다. 호스트가 값을 주지 않으면 도움말이 받은 값(`help.sh --effort <값>`)을 쓰고, 그것도 없으면 묻지 않는다. 값을 모르거나 · 표가 없거나 · 표에 없는 모델이거나 · 사람이 없는 실행이면 조용하다.
+- 설정 `SCV_EFFORT_RECOMMEND`(on 기본 | off). 표가 없는 호스트에서는 동작이 그대로다.
+- 새 순수 함수 `scv_mp_effort_word` · `scv_mp_effort_row` · `scv_mp_effort_from_log` · `scv_mp_effort_verdict` · `scv_mp_effort_block`. 계획 `20261111-wookiya1364-recommended-effort-ask`.
+## [0.88.3] - 2026-11-11
+
+### Fixed
+- 맥 기본 bash(3.2)에서 SCV 그래프가 죽던 것: 계획이 가리키는 파일이 하나도 없을 때 `lib/graph.sh` 가 빈 배열을 펼치다 "unbound variable" 로 끝났다(bash 4 이상에서는 괜찮았다). 빈 값으로 펼치게 고쳤다.
+- bash 3.2 에서 실패하던 시험 셋을 고쳤다. `core/tests/test-graph.sh` 는 위 고침으로, `tests/test-guard-consistency.sh` 는 bash 4 전용 `mapfile` 을 읽기 반복으로, `tests/test-promote-wait.sh` 는 명령 치환 안에 적은 JSON 이 bash 3.2 에서 중괄호 펼치기로 깨지던 것을 변수로 먼저 만들어 고쳤다. 시험이 보는 내용과 통과 수(52 · 7 · 25)는 그대로다. 계획 `20261111-wookiya1364-bash32-tests-three`.
+
 ## [0.88.2] - 2026-11-11
 
 ### Fixed
