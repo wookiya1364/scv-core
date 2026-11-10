@@ -1,6 +1,6 @@
 # 꺼내기 — 글 · JSON · 표에서 값이나 필드를 뽑는다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 62개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 61개.
 
 ### pc_extract_entries
 - 역할: 소스 글에서 표식(어떤 주석 모양이든 '@pure 이름', 셸은 이름 없이도) 달린 함수마다 역할 · 종류 · 예시를 뽑아 항목 줄로 낸다
@@ -205,12 +205,6 @@
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
 - 예: `$'<!-- principle:english -->\nEN text\n<!-- principle:korean -->\nKO text' ko → "KO text"`
 - 예: `$'<!-- principle:english -->\nEN text' ja → "EN text"`
-
-### scv_mp_principle_tag
-- 역할: 구역 첫 줄 "tag: " 뒤의 표식을 꺼낸다
-- 위치: scripts/lib/model-prompting.sh · @pure · sh
-- 예: `$'tag: [P]\nbody' → "[P]"`
-- 예: `body → ""`
 
 ### scv_mp_read_parse
 - 역할: 읽음 기록 한 줄을 "지문 모델id" 두 칸으로 나눠 다듬는다(깨졌으면 빈 칸)

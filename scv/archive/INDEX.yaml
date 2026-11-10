@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-09T16:14:58Z
+generated_at: 2026-11-10T14:35:21Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -483,5 +483,9 @@ archives:
     status: done
   - slug: 20261110-wookiya1364-progress-state-renumber
     title: "진행 기록이 진행 중 단계를 '끝'으로 남기지 않게"
+    kind: feature
+    status: testing
+  - slug: 20261110-wookiya1364-rewrite-by-guide-only
+    title: "다시 쓰기는 가이드만 — 항목 표 · 낱말 규칙을 없애고 가이드 셋을 넣는다"
     kind: feature
     status: testing

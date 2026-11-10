@@ -487,15 +487,14 @@ reset (resume · compaction · clear) keeps the guide warning block while droppi
 the prompt hook also tells the model, on the first turn of a new context, to read the guides help last
 resolved (`scv/journal/.help-guide-last`) before answering — hook input carries no model id.
 
-**Requirement checklists (v0.62.0+).** Put `checklist-<key>.tsv` beside the guides — one per index key,
-including the `*` row's key (the common list every model gets). Each line is
-`<id>\t<label>\t<quote>`: a lowercase-kebab id, a short imperative label saying what a request must state,
-and a quote copied **verbatim** from that guide (check it mechanically, e.g. `grep -F`). With the common list
-present, every user message — however short — is compared 1:1 with the answering model's list (common +
-model, same id: the model's label wins) and registered (`model-prompting.sh register`, each item `msg`,
-`ctx`, `na` or `asked`); the guard refuses editor-style writes before the turn's registration, and the Stop
+**Registration (v0.62.0+; requirement checklists removed in 0.88.0).** When the guides folder has an
+`INDEX.tsv` with at least one guide row, every user message — however short — is rewritten by the answering
+model's guide and registered (`model-prompting.sh register`: one `scope` line saying what the turn changes
+and one `rewrite` line); the guard refuses editor-style writes before the turn's registration, and the Stop
 hook blocks the stop once (`{"decision":"block"}`) when the turn is unregistered or its rewrite is not
-quoted. Without checklist files neither the write refusal nor this registration check runs.
+quoted. A model with no index row reads the common (`*`) guide alone. `checklist-<key>.tsv` files are no
+longer read — delete them; an older submission that still carries item lines is accepted and those lines
+are ignored. Without an index neither the write refusal nor this registration check runs.
 The guides folder is searched from the Core root up to three levels, so one profile value serves both the
 projected scripts and the vendored hooks.
 
