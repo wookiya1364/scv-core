@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Architecture — bash 3.2 에서 실패하는 시험 셋 고치기</title>
+<style>
+/* Dark only — the light token set and its toggle were removed:
+   FE 프로젝트의 다크-기본+라이트-오버라이드 관례와 동일한 모양(속성 하나만 바뀌면
+   전체가 재테마된다). head 맨 앞 인라인 스크립트가 pre-paint 로 저장된 선택을 적용해
+   깜빡임(FOUC)이 없다. */
+/* Dark only. Ported from the owner's DesignSystem .dark block (shadcn oklch ->
+   sRGB, every neutral at chroma 0). The blue-cast greys this replaces
+   (#171922 / #1d2029 / #2c3040 / #9096a8) were the single loudest reason the
+   two decks read as different systems.
+
+   Contrast figures are WCAG 2.x, measured against the surface named. */
+:root{
+  /* surfaces */
+  --bg:#0a0a0a;                  /* the one ground */
+  --panel:#171717;               /* cards, aside, code */
+  --surface-2:#121212;           /* zebra rows, quiet fills */
+  --surface-3:#151515;           /* table head, code block */
+
+  /* text */
+  --fg:#fafafa;                  /* 18.97:1 on --bg */
+  --fg-body:#e2e2e2;             /* 15.28:1 on --bg  · body copy */
+  --fg-soft:#d6d6d6;             /* 13.62:1 on --bg  · text inside a tinted card */
+  --muted-foreground:#a1a1a1;    /*  7.66:1 on --bg  · 6.94:1 on --panel */
+
+  /* lines — alpha so ONE value composites correctly over bg and panel alike */
+  --border:rgba(255,255,255,.10);
+  --border-strong:#707070;       /* load-bearing rules. Measured where it actually
+                                    sits, not on --bg: 3.62:1 on --panel (node
+                                    fill), 3.69:1 on --surface-3 (figure ground),
+                                    5.87:1 on --bg. #4d4d4d cleared 3:1 against
+                                    --bg alone and failed at 2.12:1 on a node. */
+  --ring:#737373;                /*  4.18:1 on --bg */
+
+  /* brand — the owner's rose, kept for a public product on their say-so.
+     TWO values, because one cannot do both jobs: oklch(.455 .188 13.697)
+     = #a50036 measures 2.50:1 as text on --bg and is unreadable. The text
+     value is the same hue lifted in lightness only. */
+  --primary:#a50036;             /* fill · white on it 7.58:1 */
+  --primary-text:#fc7184;        /* text · 7.39:1 on --bg · 6.69:1 on --panel */
+  --on-primary:#fafafa;          /* 7.58:1 on the --primary plate */
+
+  /* status */
+  --good:#4bd39a;                /*  9.53:1 on --bg */
+  --warn:#e3b153;                /*  9.18:1 on --bg */
+  --danger:#f4837f;              /*  7.22:1 on --bg */
+  --on-warn:#241a06;             /*  8.72:1 on the --warn plate */
+}
+*{box-sizing:border-box}
+/* One scroll region, and only one. The app shell owns the scrolling; the document
+   behind it must never scroll too. Without this the page picks up a second scrollbar
+   whenever the shell ends up a few pixels taller than the viewport (100svh vs 100%
+   rounding is enough), and the reader gets two bars with no way to tell which one the
+   wheel will move. Print restores normal flow below. */
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+html{scroll-behavior:smooth}
+body{margin:0;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:var(--fg);background:var(--bg)}
+/* Controls do not inherit the document font — a UA default applies unless asked.
+   Six controls below set font-size alone or an invalid `font:` shorthand, and
+   all of them rendered in 13.333px/400/Arial. This one line is what makes the
+   per-control rules that follow actually reach the element. */
+button,input,select,textarea{font:inherit;color:inherit}
+/* 문서 = 스크롤되는 본문(좌) + 상시 원문 마크다운 패널(우, sticky) — 이게 scv:deck 의
+   정체성이다: 렌더링과 원문이 늘 같은 화면에 나란히 있어야 서로 어긋나지 않았다는 게
+   보장된다. 인쇄 시에는 패널을 접고 본문 뒤에 원문을 부록으로 붙인다(.print-source). */
+/* Three rows over the viewport: header, content, footer. The header and the
+   footer are chrome and must not scroll away with the text — before this they
+   lived inside .wrap and pushed 268px of nav in front of the first sentence. */
+.shell{display:grid;grid-template-rows:auto 1fr auto;height:100svh;overflow:hidden}
+.shell-mid{display:flex;min-height:0;overflow:hidden}
+/* A container so a figure can measure the READING area and break out of the
+   840px text column. 100vw would count the source panel too and push the
+   diagram under it. */
+.scroll-main{flex:1;min-width:0;overflow-y:auto;container-type:inline-size}
+.wrap{--doc-pad:clamp(20px,5vw,56px);max-width:840px;margin:0 auto;min-height:100%;padding:0 var(--doc-pad) 96px}
+header.doc{display:flex;align-items:center;gap:16px;min-width:0;background:var(--bg);border-bottom:1px solid var(--border);padding:11px 20px}
+header.doc h1{font-size:15px;font-weight:600;margin:0;flex-shrink:0;max-width:34ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)}
+.header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.panel-toggle{flex-shrink:0;font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:7px 11px;cursor:pointer}
+.panel-toggle:hover{background:var(--border);color:var(--fg)}
+.panel-toggle .kbd{opacity:.55;margin-left:4px}
+.source-panel{position:relative;width:min(440px,38vw);flex-shrink:0;border-left:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column}
+.source-panel.closed{display:none}
+.panel-resize-handle{position:absolute;left:0;top:0;bottom:0;width:7px;margin-left:-4px;cursor:col-resize;z-index:6}
+.panel-resize-handle:hover{background:rgba(127,137,160,.25)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-title{font-size:12px;color:var(--muted-foreground);font-weight:700;letter-spacing:.02em}
+.panel-close{border:none;background:none;color:var(--muted-foreground);cursor:pointer;font-size:14px;padding:2px 7px;border-radius:5px;line-height:1.4}
+.panel-close:hover{background:var(--border);color:var(--fg)}
+.panel-tabs{display:flex;gap:2px;padding:9px 12px 0;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.panel-tab{font-weight:600;font-size:12px;line-height:1;color:var(--muted-foreground);padding:7px 10px;border:none;background:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.panel-tab.active{color:var(--fg);border-bottom-color:var(--primary)}
+.panel-body{flex:1;overflow-y:auto;padding:14px}
+.panel-body .src-doc{display:none;margin:0}
+.panel-body .src-doc.active{display:block}
+.print-source{display:none}
+/* 목차(nav.toc) 는 인쇄본 전용(펼친 전체 문서엔 목차가 자연스럽다). 화면에서는
+   deck-nav(아래) 가 같은 역할을 대신한다 — 페이지 번호 pill + 클릭 이동. */
+@media screen{nav.toc{display:none}}
+nav.toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:26px 0}
+nav.toc h3{margin:0 0 8px;font-size:12px;letter-spacing:.04em;color:var(--muted-foreground);text-transform:uppercase}
+nav.toc ol{margin:0;padding-left:20px;columns:2;gap:24px}
+nav.toc a{color:var(--fg);text-decoration:none}
+nav.toc a:hover{color:var(--primary);text-decoration:underline}
+section{padding:22px 0;border-top:1px solid var(--border)}
+section:first-of-type{border-top:none}
+/* 페이지 넘김(화면 전용) — 한 번에 한 섹션만. 인쇄 시엔 전부 펼쳐서 보여준다. */
+@media screen{.slide-page{display:none}.slide-page.active{display:block}}
+/* One scrolling row, never wrapped. The reference sets flex-wrap AND
+   overflow-x-auto together; flex-wrap wins, and fed 19 labels its own header
+   grows to three rows. nowrap is the one place this deliberately differs. */
+.deck-nav{display:flex;flex-wrap:nowrap;gap:4px;margin:0;flex:1;min-width:0;overflow-x:auto;scrollbar-width:thin}
+.deck-nav::-webkit-scrollbar{height:6px}
+.deck-nav::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.deck-nav-item{font-weight:400;font-size:12px;line-height:16px;color:var(--muted-foreground);background:none;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;white-space:nowrap}
+.deck-nav-item:hover{color:var(--fg)}
+.deck-nav-item.active{background:var(--primary-text);color:var(--bg);font-weight:500}
+.deck-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0;padding:11px 20px;border-top:1px solid var(--border);background:var(--bg)}
+.deck-arrow{font-weight:600;font-size:13px;line-height:1;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;cursor:pointer}
+.deck-arrow:disabled{opacity:.35;cursor:default}
+.deck-arrow:not(:disabled):hover{background:var(--panel)}
+.deck-dots{display:flex;align-items:center;gap:6px}
+.deck-dot{width:8px;height:8px;border-radius:999px;background:var(--border);border:none;cursor:pointer;padding:0}
+.deck-dot.active{background:var(--primary);width:20px;border-radius:5px}
+.deck-counter{font-size:12px;color:var(--muted-foreground);min-width:52px;text-align:center}
+mark.src-hl{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--fg);border-left:2px solid var(--warn);border-radius:0;padding:0 2px}
+h2{font-size:32px;line-height:1.15;letter-spacing:-.02em;margin:.1em 0 .5em;font-weight:700;color:var(--fg)}
+h4{margin:1.1em 0 .35em;font-size:17px;font-weight:600;color:var(--fg)}
+.subhead{font-size:20px;font-weight:600;margin:1.4em 0 .4em;color:var(--fg)}
+.kicker{font-size:14px;font-weight:600;letter-spacing:.02em;color:var(--primary-text);margin-bottom:6px}
+.sub{font-size:18px;line-height:1.55;color:var(--muted-foreground);margin:-.1em 0 1.3em;max-width:62ch}
+p{margin:.65em 0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul{margin:.6em 0;padding-left:0;list-style:none}
+ol{margin:.6em 0;padding-left:22px}
+li{margin:0;font-size:15px;line-height:1.625;color:var(--fg-body)}
+ul>li{position:relative;padding-left:18px;margin:8px 0}
+ul>li::before{content:"";position:absolute;left:0;top:.62em;width:6px;height:6px;border-radius:50%;background:color-mix(in srgb,var(--primary-text) 70%,transparent)}
+ol>li{margin:8px 0}
+.tw{overflow-x:auto;margin:.8em 0}
+table{border-collapse:collapse;width:100%;font-size:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+th,td{border:none;border-bottom:1px solid var(--border);padding:10px 14px;text-align:left;vertical-align:top;color:var(--fg-body)}
+tbody tr:last-child td{border-bottom:none}
+thead th{background:var(--surface-3);font-weight:600;font-size:12px;letter-spacing:.02em;color:var(--muted-foreground)}
+table.kv th{background:none;width:30%;white-space:nowrap;font-weight:500;color:var(--muted-foreground)}
+.kpi{display:flex;flex-wrap:wrap;gap:12px;margin:.8em 0}
+.kpi-card{flex:1 1 160px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--panel)}
+.kpi-label{font-size:13px;color:var(--muted-foreground);margin-bottom:6px}
+.kpi-nums{display:flex;align-items:center;gap:8px;font-weight:700}
+.kpi-nums .base{color:var(--muted-foreground)}
+.kpi-nums .arrow{color:var(--primary)}
+.kpi-nums .target{color:var(--good)}
+.goals{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:.8em 0}
+.goal-col{border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+.goal-col.g{border-left:4px solid var(--good)}
+.goal-col.ng{border-left:4px solid var(--danger)}
+pre.code{background:var(--surface-3);color:var(--fg-body);border-radius:10px;padding:14px 16px;overflow-x:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;margin:.8em 0}
+/* mermaid 는 항상 라이트 카드에 그린다(테마 무관, pre.code 가 항상 다크인 것과 대칭) —
+   mermaid 렌더 테마를 다크로 다시 그리려면 이미 SVG 로 처리된 노드를 되돌려야 해서
+   토글마다 재처리가 필요해진다. 대신 다이어그램 카드 자체를 고정 라이트로 둬서
+   토글과 무관하게 항상 선명하게 읽힌다. */
+/* A figure, not a paragraph. The SVG now carries its natural width, so the
+   frame scrolls instead of shrinking it — a 1437px graph squeezed into an
+   840px column rendered its 16px labels at 7.7px, which was the single worst
+   readability defect in the deck. */
+/* Full bleed: the figure uses the whole reading area, not the 840px measure the
+   prose wants. A 1388px graph inside an 840px column left ~215px of dead gutter
+   on each side AND a scrollbar — the worst of both. */
+pre.mermaid{background:var(--surface-3);border:1px solid var(--border-strong);border-radius:10px;padding:14px;margin:1.1em 0;overflow-x:auto;text-align:left}
+@supports (width:100cqw){
+  pre.mermaid{
+    /* A 16px gutter, not the prose gutter. Text wants a comfortable measure; a
+       figure wants the glass. With the source panel open — which is the deck's
+       whole point and stays open — every pixel of the reading area counts. */
+    --bleed:calc(100cqw - 32px);
+    width:var(--bleed);
+    max-width:var(--bleed);
+    margin-inline:calc((100% - var(--bleed)) / 2);
+  }
+}
+/* Fit the frame when there is room; below 900px stop shrinking and scroll
+   instead. Scaling all the way down is what made 16px labels render at 7.7px,
+   and a scrollbar is better than text nobody can read. */
+pre.mermaid svg{max-width:100%;min-width:900px;height:auto}
+/* The diagram lives in a <pre>, whose UA default is white-space:pre, and that
+   inherits into every label. Mermaid sizes an edge label's box for TWO wrapped
+   lines (200x48.75) and the text then refused to wrap, so anything past 200px
+   was clipped mid-word — "BASE_REF, HEAD_REF, PR_TITLE" measured 230px of text
+   in a 200px box. Labels are prose, not preformatted text. */
+pre.mermaid foreignObject,pre.mermaid foreignObject *{white-space:normal}
+/* On a narrow window there is nothing to floor — let it fit rather than force
+   a scrollbar the reader cannot escape. */
+@media (max-width:900px){pre.mermaid svg{min-width:0}}
+pre.mermaid.mermaid-fallback{text-align:left;white-space:pre;overflow-x:auto;background:#0f1320;color:#e6e9f0;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:30px 16px 14px;position:relative}
+pre.mermaid.mermaid-fallback::before{content:"\29c9 \b2e4\c774\c5b4\adf8\b7a8 \c6d0\bcf8 (\c624\d504\b77c\c778 \b610\b294 CDN \bbf8\b85c\b4dc)";position:absolute;top:8px;left:16px;font:600 11px/1 -apple-system,sans-serif;color:var(--muted-foreground)}
+/* A tinted card, not a left rule — the reference's Callout. color-mix keeps one
+   hue per tone instead of a second hand-picked hex for the fill. */
+.callout{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:1em 0;background:var(--panel)}
+.callout-title{font-weight:600;font-size:16px;margin-bottom:4px;color:var(--fg)}
+.callout p,.callout li{font-size:14px;color:var(--fg-soft)}
+.callout.info{border-color:color-mix(in srgb,var(--primary-text) 30%,transparent);background:color-mix(in srgb,var(--primary-text) 10%,var(--bg))}
+.callout.good{border-color:color-mix(in srgb,var(--good) 30%,transparent);background:color-mix(in srgb,var(--good) 10%,var(--bg))}
+.callout.warn{border-color:color-mix(in srgb,var(--warn) 30%,transparent);background:color-mix(in srgb,var(--warn) 10%,var(--bg))}
+.callout.danger{border-color:color-mix(in srgb,var(--danger) 30%,transparent);background:color-mix(in srgb,var(--danger) 10%,var(--bg))}
+.callout.next{border-style:dashed;border-color:var(--border-strong);background:var(--surface-2)}
+.lint h2{color:var(--warn)}
+.lint-count{display:inline-block;background:var(--warn);color:var(--on-warn);border-radius:999px;font-size:12px;padding:1px 9px;vertical-align:middle}
+/* 화면목업(와이어프레임) 킷 — scv 자체 기본 스킨(2순위 폴백): DesignSystem 의 실제
+   다크 팔레트를 distill(무채색 표면 + 단일 로즈 악센트 + border-only depth + pill
+   배지, 글라스 없음 — DesignSystem 본체엔 글라스가 없다). 문서 자체의 라이트/다크
+   토글과는 독립적으로 항상 이 다크 스킨을 쓴다(--wf-* 로 스코프해 문서 테마 변수와
+   충돌하지 않음) — mermaid 카드를 항상 라이트로 고정하는 것과 같은 이유(재처리 없이
+   항상 또렷하게). 프로젝트 실제 토큰(1순위) 자동감지는 아직 없음 — 후속 작업.
+   버튼은 항상 disabled(정적 예시 그림이라 실제 인터랙션 없음). */
+.wf-screen{
+  margin:1em 0;
+  --wf-bg:#0a0a0b; --wf-fg:#fafafa; --wf-card:#1c1c1e; --wf-border:rgba(255,255,255,.1);
+  --wf-muted:#232326; --wf-muted-fg:#9a9a9f;
+  --wf-primary:#a53257; --wf-primary-fg:#fdf1f3;
+  --wf-success:#34d399; --wf-success-bg:rgba(16,185,129,.15); --wf-success-border:rgba(16,185,129,.4);
+  --wf-danger:#ef6b6b; --wf-danger-bg:rgba(239,107,107,.14);
+  --wf-info:#60a5fa; --wf-info-bg:rgba(96,165,250,.15);
+  --wf-warn:#e0ab48; --wf-warn-bg:rgba(224,171,72,.15);
+  --wf-radius:10px; --wf-radius-pill:999px;
+}
+/* 번호식 화면설계서 — the picture keeps the stage, the prose stands beside it.
+   Sidebar sits right of the picture on a wide screen and DROPS BELOW under 900px,
+   because squeezing the drawing to fit a column is exactly the regression that made
+   an earlier deck's diagram render at 0.483 scale (16px type → 7.7px). */
+.wf-speclayout{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,360px);gap:16px;align-items:start;margin:1em 0}
+.wf-speclayout > .wf-screen{margin:0;min-width:0}
+/* A spec sheet is a FIGURE, not prose: the 840px reading measure that suits paragraphs
+   starves the drawing and crams the detail list against it. Take the full glass, same
+   as a standalone diagram does — the picture gets the room, the detail panel sits at
+   the right edge. */
+@supports (width:100cqw){
+  .wf-speclayout{
+    --bleed:calc(100cqw - 32px);
+    width:var(--bleed);
+    max-width:var(--bleed);
+    margin-inline:calc((100% - var(--bleed)) / 2);
+  }
+}
+/* A diagram needs more room than a wireframe; with the bleed a full-size flowchart
+   fits beside the panel on a wide screen. Below that it stacks rather than shrink —
+   squeezing an 800px flowchart into a narrow column renders 16px labels at ~8px, the
+   regression that made an earlier deck unreadable. */
+@media (max-width:1200px){
+  .wf-speclayout-diagram{grid-template-columns:minmax(0,1fr)}
+  .wf-speclayout-diagram > .wf-spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:start}
+}
+/* Undo the full-bleed above: that rule widens a STANDALONE diagram to the reading
+   glass, which inside a spec frame just bursts the frame (the picture then gets
+   cropped by wf-frame's overflow:hidden). In here the frame is the glass. */
+/* Keep the diagram card's own surface. Making it transparent put mermaid's
+   light-assuming palette (#eaeaea fills, #666 text) straight onto the dark frame, and a
+   sequence diagram's message text became unreadable — the deck draws diagrams on their
+   own card for exactly this reason (see the note above pre.mermaid). */
+.wf-screen pre.mermaid{margin:0;margin-inline:0;width:auto;max-width:100%;padding:10px;overflow-x:auto}
+.wf-screen pre.mermaid svg{min-width:0;max-width:100%;height:auto}
+@media (max-width:900px){.wf-speclayout,.wf-speclayout-diagram{grid-template-columns:minmax(0,1fr)}}
+@media print{.wf-speclayout,.wf-speclayout-diagram{grid-template-columns:minmax(0,1fr);break-inside:avoid}}
+/* Grid, not flex-wrap: in a narrow column the name TRUNCATES instead of shoving
+   PAGE CODE onto its own half-empty row (the identity strip must read as one line). */
+.wf-pagebar{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:stretch;margin-bottom:8px;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;font-size:12.5px}
+.wf-pagebar-key{padding:6px 10px;background:var(--surface-3);color:var(--muted-foreground);font-weight:700;font-size:11px;letter-spacing:.04em;white-space:nowrap;display:flex;align-items:center}
+.wf-pagebar-name{min-width:0;padding:6px 10px;background:var(--surface-2);color:var(--foreground);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center}
+.wf-pagebar-code{padding:6px 10px;background:var(--surface-2);color:var(--foreground);font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;display:flex;align-items:center}
+.wf-marked{display:flex;align-items:flex-start;gap:8px}
+.wf-marked + .wf-marked{margin-top:2px}
+.wf-marked-body{flex:1;min-width:0}
+.wf-marker{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;margin-top:3px;padding:0 5px;border-radius:999px;font:700 11.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.wf-marker-fn{background:var(--wf-primary,#a53257);color:var(--wf-primary-fg,#fdf1f3)}
+.wf-marker-action{background:var(--wf-info,#60a5fa);color:#0a0a0b}
+.wf-spec{display:flex;flex-direction:column;gap:12px;min-width:0}
+.wf-spec-group{border:1px solid var(--border-strong);border-radius:10px;background:var(--surface-2);overflow:hidden}
+.wf-spec-title{padding:7px 12px;background:var(--surface-3);border-bottom:1px solid var(--border-strong);font-weight:700;font-size:12.5px;letter-spacing:.02em}
+.wf-spec-item{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;border-top:1px solid var(--border)}
+.wf-spec-item:first-of-type{border-top:0}
+.wf-spec-badge{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);font:700 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.wf-spec-item-act .wf-spec-badge{background:var(--wf-info,#60a5fa);color:#0a0a0b;border-color:transparent}
+.wf-spec-body{flex:1;min-width:0;font-size:12.5px;line-height:1.6}
+.wf-spec-name{font-weight:600;margin-bottom:2px}
+.wf-spec-notes{margin:0;padding-left:1.1em;color:var(--muted-foreground)}
+.wf-spec-notes li{margin:1px 0}
+.wf-spec-state{margin-left:4px;padding:1px 6px;border-radius:999px;border:1px solid var(--border-strong);font:700 10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+.wf-spec-state-added{background:#FFE082;border-color:#F57C00;color:#000}
+.wf-spec-state-changed{background:#90CAF9;border-color:#1565C0;color:#000}
+.wf-spec-state-removed{background:transparent;border-color:#EF9A9A;color:#EF9A9A;border-style:dashed}
+.wf-spec-state-reused{background:var(--surface-3);border-color:var(--border-strong);color:var(--muted-foreground)}
+.wf-spec-step{margin-left:6px;padding:1px 6px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);color:var(--muted-foreground);font:600 10.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+.wf-sub-title{margin:12px 0 6px;font-weight:700;font-size:12.5px;letter-spacing:.02em}
+/* "Called from" sits ABOVE the picture, so the first thing a backend reader learns is
+   which screen and which element reaches this endpoint. */
+.wf-screen > .wf-validations:first-of-type{margin-bottom:2px}
+.wf-diagram-label{margin:8px 0 2px;font-size:11.5px;color:var(--muted-foreground)}
+.wf-diagram-label:first-child{margin-top:0}
+/* Validation table — one row per rule, the numbers it touches in the first column so a
+   rule shared by several markers is traceable instead of scattered through prose. */
+.wf-validations{margin-top:2px}
+.wf-vtable{width:100%;border-collapse:collapse;font-size:12px;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;table-layout:auto}
+.wf-vtable th{padding:6px 9px;background:var(--surface-3);border-bottom:1px solid var(--border-strong);text-align:left;font-weight:700;white-space:nowrap}
+.wf-vtable td{padding:6px 9px;border-top:1px solid var(--border);vertical-align:top;line-height:1.55}
+.wf-vt-marker{width:1%;white-space:nowrap;font:700 11px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted-foreground)}
+/* State variants — a strip under the frame, never a third column: a third column would
+   squeeze the picture, which is the one thing this format exists to protect. */
+.wf-states-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.wf-state{min-width:0}
+.wf-state-label{display:flex;align-items:center;gap:5px;margin-bottom:4px;font-size:11.5px;color:var(--muted-foreground)}
+.wf-state-marker{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border-strong);font:700 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--foreground)}
+.wf-state-frame{border:1px solid var(--wf-border,var(--border-strong));border-radius:8px;background:var(--wf-bg,var(--surface-2));padding:9px 10px}
+.wf-chrome{display:flex;align-items:center;gap:7px;padding:9px 12px;border-bottom:1px solid var(--wf-border);background:var(--wf-card)}
+.wf-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;opacity:.7}
+.wf-dot-r{background:#fb2c36}.wf-dot-y{background:#fe9a00}.wf-dot-g{background:#00bc7d}
+.wf-url{margin-left:6px;padding:2px 8px;border-radius:5px;background:var(--wf-muted);color:var(--wf-muted-fg,var(--muted-foreground));font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wf-frame{border:1px solid var(--wf-border);border-radius:calc(var(--wf-radius) + 4px);background:var(--wf-bg);color:var(--wf-fg);overflow:hidden}
+.wf-nav{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--wf-border);background:var(--wf-bg);flex-wrap:wrap}
+.wf-nav-item{font-size:13px;color:var(--wf-muted-fg);padding:12px 11px;border-bottom:2px solid transparent}
+.wf-nav-item.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-primary)}
+.wf-body{padding:20px}
+.wf-header{margin-bottom:0}
+.wf-header-title{font-size:16px;font-weight:600;color:var(--wf-fg)}
+.wf-header-sub{font-size:12.5px;color:var(--wf-muted-fg);margin-top:3px}
+.wf-toolbar{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+.wf-tabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid var(--wf-border)}
+.wf-tab{font-size:12.5px;color:var(--wf-muted-fg);padding:7px 11px;border-bottom:2px solid transparent}
+.wf-tab.active{color:var(--wf-fg);font-weight:600;border-bottom-color:var(--wf-muted-fg)}
+.wf-btn{font-weight:500;font-size:12.5px;line-height:1;padding:8px 13px;border-radius:8px;border:1px solid transparent;background:var(--wf-muted);color:var(--wf-fg);cursor:default}
+.wf-btn-primary{background:var(--wf-primary);color:var(--wf-primary-fg)}
+.wf-btn-danger{background:var(--wf-danger-bg);color:var(--wf-danger)}
+.wf-input{display:inline-flex;align-items:center;font-size:12.5px;color:var(--wf-muted-fg);padding:8px 12px;border:1px solid var(--wf-border);border-radius:8px;background:var(--wf-card);min-width:120px}
+.wf-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.wf-table th,.wf-table td{border-bottom:1px solid var(--wf-border);padding:9px 10px;text-align:left}
+.wf-table th{color:var(--wf-muted-fg);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.02em}
+.wf-badge{display:inline-flex;align-items:center;height:20px;border-radius:var(--wf-radius-pill);padding:0 9px;font-size:10.5px;font-weight:500;border:1px solid transparent}
+.wf-badge-muted{background:var(--wf-muted);color:var(--wf-muted-fg);border-color:var(--wf-border)}
+.wf-badge-info{background:var(--wf-info-bg);color:var(--wf-info);border-color:rgba(96,165,250,.35)}
+.wf-badge-good{background:var(--wf-success-bg);color:var(--wf-success);border-color:var(--wf-success-border)}
+.wf-badge-warn{background:var(--wf-warn-bg);color:var(--wf-warn);border-color:rgba(224,171,72,.35)}
+.wf-badge-danger{background:var(--wf-danger-bg);color:var(--wf-danger);border-color:rgba(239,107,107,.35)}
+.wf-card{border-radius:var(--wf-radius);border:1px solid var(--wf-border);padding:14px 16px;margin-bottom:10px;background:var(--wf-card)}
+.wf-card-title{font-size:13px;font-weight:600;color:var(--wf-fg);margin-bottom:8px}
+.wf-list{list-style:none;margin:0;padding:0}
+.wf-list li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--wf-border);font-size:12.5px;color:var(--wf-fg)}
+.wf-list li:last-child{border-bottom:none}
+.wf-form{display:flex;flex-direction:column;gap:8px}
+.wf-field{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--wf-muted-fg)}
+.wf-text{font-size:12.5px;color:var(--wf-fg);margin:.3em 0}
+@media (max-width:900px){.source-panel{width:min(360px,44vw)}}
+@media (max-width:640px){.goals{grid-template-columns:1fr}nav.toc ol{columns:1}.shell{flex-direction:column;height:auto;overflow:visible}.scroll-main{overflow:visible}.source-panel{width:100%;height:60vh}}
+/* Paper is the one place the light values live. This is not a second theme the
+   reader can choose — @media print is unreachable on screen, persists nothing,
+   and shows no control. The screen deck stays dark only.
+   It has to redeclare the TOKENS, not just body: the old block set
+   background:#fff on body while every surface below it kept painting from
+   --bg, so the PDF was 20 pages of dark slabs on a white sheet. */
+@media print{
+  /* The single-scroll-region clamp is a SCREEN concern — on paper the document must
+     flow normally, or everything past the first page is clipped away. */
+  html,body{height:auto;overflow:visible}
+  :root{
+    --bg:#ffffff; --panel:#f6f7f8; --surface-2:#fafafa; --surface-3:#f4f4f5;
+    --fg:#111418;                /* 17.74:1 on white */
+    --fg-body:#1c1f24;           /* 15.42:1 */
+    --fg-soft:#33373d;           /* 10.87:1 */
+    --muted-foreground:#565d6b;  /*  6.45:1 */
+    --border:rgba(0,0,0,.14); --border-strong:#8a8f98; --ring:#8a8f98;
+    --primary:#a50036;           /* the brand fill survives; white on it 7.58:1 */
+    --primary-text:#8f0030;      /*  8.75:1 on white — the light form of the rose */
+    --on-primary:#ffffff;
+    --good:#0f7a4d;              /*  5.24:1 */
+    --warn:#8a6100;              /*  5.40:1 */
+    --danger:#b32d1f;            /*  6.18:1 */
+    --on-warn:#fdf6e6;
+    --wf-bg:#ffffff; --wf-fg:#111418; --wf-card:#f6f6f7;
+    --wf-border:rgba(0,0,0,.16); --wf-muted:#f0f0f1; --wf-muted-fg:#565d6b;
+  }
+  @page{size:A4;margin:14mm 12mm}
+  body{background:#fff;display:block;height:auto}
+  .shell{display:block;height:auto;overflow:visible}
+  .shell-mid{display:block;overflow:visible}
+  .scroll-main{overflow:visible;height:auto}
+  .wrap{box-shadow:none;max-width:none;padding:0}
+  header.doc{position:static;border-bottom:1px solid var(--border);padding:0 0 8px}
+  .panel-toggle,.source-panel,.deck-nav,.deck-footer{display:none}
+  nav.toc{display:block;break-inside:avoid}
+  /* break-inside:avoid on a 3000px section dumps most of a page. Keep headings
+     with what follows and protect only the things that must not split. */
+  h2,h3,h4,.subhead{break-after:avoid}
+  figure,table,pre.code,.callout,.wf-screen{break-inside:avoid}
+  /* Paper cannot scroll, so a wide graph gets its own landscape sheet. */
+  @page dg{size:A4 landscape;margin:12mm}
+  pre.mermaid{page:dg;overflow:visible;break-inside:avoid;max-height:180mm}
+  pre.mermaid svg{max-width:100%;height:auto}
+  .print-source{display:block;break-before:page}
+  .print-source h3{margin-top:1.6em;font-size:14px}
+}
+</style>
+<style id="scv-mermaid-contrast">
+/* Diagram palette. static-mermaid.mjs strips the id-scoped rules, the
+   !important flags and the inline colour attributes first, so plain specificity
+   is enough here — before that, an author rule at (1,3,1) with !important still
+   lost to style="fill:#FFE082 !important" on a classDef node. */
+pre.mermaid .flowchart-link,pre.mermaid .edgePath .path,pre.mermaid path.flowchart-link{stroke:var(--fg-body);stroke-width:1.6px;fill:none}
+pre.mermaid .marker,pre.mermaid marker path,pre.mermaid .arrowMarkerPath{fill:var(--fg-body);stroke:var(--fg-body)}
+pre.mermaid .node rect,pre.mermaid .node circle,pre.mermaid .node polygon,pre.mermaid .node path{fill:var(--panel);stroke:var(--border-strong);stroke-width:1.2px}
+pre.mermaid .nodeLabel,pre.mermaid .nodeLabel p,pre.mermaid .label,pre.mermaid text{fill:var(--fg);color:var(--fg)}
+pre.mermaid .edgeLabel,pre.mermaid .edgeLabel p{background-color:var(--surface-3);color:var(--fg-body)}
+pre.mermaid .edgeLabel rect,pre.mermaid .labelBkg{fill:var(--surface-3);opacity:1}
+pre.mermaid .cluster rect{fill:var(--surface-2);stroke:var(--border-strong)}
+pre.mermaid .cluster text,pre.mermaid .cluster .nodeLabel{fill:var(--muted-foreground);color:var(--muted-foreground)}
+/* The two semantic highlights the protocol sanctions. Any other per-node colour
+   is stripped, so these are the only ones that survive — deck.md says so. */
+pre.mermaid .node.new rect,pre.mermaid g.new rect{fill:#5a4415;stroke:var(--warn);stroke-width:1.8px}
+pre.mermaid .node.new .nodeLabel,pre.mermaid g.new .nodeLabel{fill:#f6e8c8;color:#f6e8c8}
+pre.mermaid .node.changed rect,pre.mermaid g.changed rect{fill:#16324f;stroke:#6fb4f2;stroke-width:1.8px}
+pre.mermaid .node.changed .nodeLabel,pre.mermaid g.changed .nodeLabel{fill:#d9ecff;color:#d9ecff}
+/* SEQUENCE diagrams — a backend spec draws the ORDER of a request, and mermaid's own
+   palette for this type assumes a light page (#eaeaea boxes, #333 text). Normalization
+   demotes mermaid's id-scoped rules to .scv-mmd (0,2,0), so these "pre.mermaid svg .x"
+   selectors (0,2,2) win without !important. Without them the message text renders dark
+   grey on the dark card and the whole diagram is unreadable — the same contrast failure
+   the deck redesign fixed for flowcharts, one diagram type later. */
+pre.mermaid svg .actor,pre.mermaid svg rect.actor{fill:var(--panel);stroke:var(--border-strong);stroke-width:1.2px}
+pre.mermaid svg text.actor,pre.mermaid svg text.actor tspan,pre.mermaid svg .actor > tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .actor-line{stroke:var(--border-strong);stroke-width:1px}
+pre.mermaid svg .messageText,pre.mermaid svg text.messageText{fill:var(--fg);stroke:none}
+pre.mermaid svg .messageLine0,pre.mermaid svg .messageLine1{stroke:var(--fg-body);stroke-width:1.5px}
+pre.mermaid svg .labelBox{fill:var(--surface-2);stroke:var(--border-strong)}
+/* sectionTitle is the else-branch label of an alt block — miss it and half the
+   branches in a failure flow stay unreadable while the other half look fine. */
+pre.mermaid svg .labelText,pre.mermaid svg .labelText tspan,pre.mermaid svg .loopText,pre.mermaid svg .loopText tspan,pre.mermaid svg .sectionTitle,pre.mermaid svg .sectionTitle tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .loopLine{stroke:var(--border-strong)}
+pre.mermaid svg .note{fill:var(--surface-2);stroke:var(--border-strong)}
+pre.mermaid svg .noteText,pre.mermaid svg .noteText tspan{fill:var(--fg);stroke:none}
+pre.mermaid svg .sequenceNumber{fill:var(--bg)}
+pre.mermaid svg .activation0,pre.mermaid svg .activation1,pre.mermaid svg .activation2{fill:var(--surface-3);stroke:var(--border-strong)}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="doc"><h1>Architecture — bash 3.2 에서 실패하는 시험 셋 고치기</h1><nav class="deck-nav"><button class="deck-nav-item active" data-idx="0" onclick="scvGoto(0)">1. Architecture — bas</button><button class="deck-nav-item" data-idx="1" onclick="scvGoto(1)">2. 1. Component data </button><button class="deck-nav-item" data-idx="2" onclick="scvGoto(2)">3. 2. Position in who</button><button class="deck-nav-item" data-idx="3" onclick="scvGoto(3)">4. 3. Screen mockups</button><button class="deck-nav-item" data-idx="4" onclick="scvGoto(4)">5. 변경 지도</button><button class="deck-nav-item" data-idx="5" onclick="scvGoto(5)">6. 품질 리포트</button></nav><div class="header-actions"><button class="panel-toggle" onclick="scvTogglePanel()" title="원문 패널 토글 (S)">기획서 원문 <span class="kbd">S</span></button></div></header>
+<div class="shell-mid">
+<div class="scroll-main">
+<div class="wrap">
+<nav class="toc"><h3>목차</h3><ol><li><a href="#s-0-architecture--bash-32-에서-실패하는-시험-셋-고치기">Architecture — bash 3.2 에서 실패하는 시험 셋 고치기</a></li><li><a href="#s-1-1-component-data-flow">1. Component data flow</a></li><li><a href="#s-2-2-position-in-whole-architecture">2. Position in whole architecture</a></li><li><a href="#s-3-3-screen-mockups">3. Screen mockups</a></li><li><a href="#s-4-변경-지도">변경 지도</a></li></ol></nav>
+<section id="s-0-architecture--bash-32-에서-실패하는-시험-셋-고치기" class="slide-page active" data-idx="0"><h2>Architecture — bash 3.2 에서 실패하는 시험 셋 고치기</h2><div class="callout info"><div class="callout-title">참고</div><div>두 그림으로 본 이 계획. 구현 전에 읽고 고칠 것 — 그림은 모델이 그렸다.</div></div></section>
+<section id="s-1-1-component-data-flow" class="slide-page" data-idx="1"><div class="kicker">Architecture — bash 3.2 에서 실패하는 시험 셋 고치기</div><h2>1. Component data flow</h2><pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="1673.234375" height="303.5" class="scv-mmd" id="scv-mmd-f144995db4" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 1673.234375 303.5" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker id="scv-mmd-f144995db4_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-f144995db4_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-f144995db4_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-f144995db4_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-f144995db4_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-f144995db4_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-f144995db4_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-f144995db4_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-f144995db4_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-f144995db4_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-f144995db4_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-f144995db4_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M173.516,151.75L187.911,151.75C202.307,151.75,231.099,151.75,259.224,151.75C287.349,151.75,314.807,151.75,328.536,151.75L342.266,151.75" id="scv-mmd-f144995db4-L_Bash32_Run_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Bash32_Run_0" data-points="W3sieCI6MTczLjUxNTYyNSwieSI6MTUxLjc1fSx7IngiOjI1OS44OTA2MjUsInkiOjE1MS43NX0seyJ4IjozNDYuMjY1NjI1LCJ5IjoxNTEuNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M536.063,151.75L549.146,151.75C562.229,151.75,588.396,151.75,613.896,151.75C639.396,151.75,664.229,151.75,676.646,151.75L689.063,151.75" id="scv-mmd-f144995db4-L_Run_Locate_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Run_Locate_0" data-points="W3sieCI6NTM2LjA2MjUsInkiOjE1MS43NX0seyJ4Ijo2MTQuNTYyNSwieSI6MTUxLjc1fSx7IngiOjY5My4wNjI1LCJ5IjoxNTEuNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M843.359,151.75L859.806,151.75C876.253,151.75,909.146,151.75,941.372,151.75C973.599,151.75,1005.159,151.75,1020.939,151.75L1036.719,151.75" id="scv-mmd-f144995db4-L_Locate_Rewrite_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Locate_Rewrite_0" data-points="W3sieCI6ODQzLjM1OTM3NSwieSI6MTUxLjc1fSx7IngiOjk0Mi4wMzkwNjI1LCJ5IjoxNTEuNzV9LHsieCI6MTA0MC43MTg3NSwieSI6MTUxLjc1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1169.682,124.563L1192.974,109.667C1216.265,94.771,1262.847,64.979,1304.286,50.083C1345.724,35.188,1382.018,35.188,1400.165,35.188L1418.313,35.188" id="scv-mmd-f144995db4-L_Rewrite_TG_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Rewrite_TG_0" data-points="W3sieCI6MTE2OS42ODI0MTAzNTUyMjc4LCJ5IjoxMjQuNTYyNX0seyJ4IjoxMzA5LjQyOTY4NzUsInkiOjM1LjE4NzV9LHsieCI6MTQyMi4zMTI1LCJ5IjozNS4xODc1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1213.625,151.75L1229.592,151.75C1245.56,151.75,1277.495,151.75,1308.763,151.75C1340.031,151.75,1370.633,151.75,1385.934,151.75L1401.234,151.75" id="scv-mmd-f144995db4-L_Rewrite_TGC_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Rewrite_TGC_0" data-points="W3sieCI6MTIxMy42MjUsInkiOjE1MS43NX0seyJ4IjoxMzA5LjQyOTY4NzUsInkiOjE1MS43NX0seyJ4IjoxNDA1LjIzNDM3NSwieSI6MTUxLjc1fV0=" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M1169.682,178.938L1192.974,193.833C1216.265,208.729,1262.847,238.521,1302.817,253.417C1342.786,268.313,1376.143,268.313,1392.822,268.313L1409.5,268.313" id="scv-mmd-f144995db4-L_Rewrite_TPW_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_Rewrite_TPW_0" data-points="W3sieCI6MTE2OS42ODI0MTAzNTUyMjc4LCJ5IjoxNzguOTM3NX0seyJ4IjoxMzA5LjQyOTY4NzUsInkiOjI2OC4zMTI1fSx7IngiOjE0MTMuNSwieSI6MjY4LjMxMjV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(259.890625, 151.75)"><g class="label" data-id="L_Bash32_Run_0" transform="translate(-61.375, -12.1875)"><foreignObject width="122.75" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>/bin/bash 시험 파일</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(614.5625, 151.75)"><g class="label" data-id="L_Run_Locate_0" transform="translate(-53.5, -12.1875)"><foreignObject width="107" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>실패한 줄 · 메시지</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(942.0390625, 151.75)"><g class="label" data-id="L_Locate_Rewrite_0" transform="translate(-73.6796875, -12.1875)"><foreignObject width="147.359375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>원인 줄 (시험 | 스크립트)</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1309.4296875, 35.1875)"><g class="label" data-id="L_Rewrite_TG_0" transform="translate(-21.4609375, -12.1875)"><foreignObject width="42.921875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>고친 줄</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1309.4296875, 151.75)"><g class="label" data-id="L_Rewrite_TGC_0" transform="translate(-70.8046875, -12.1875)"><foreignObject width="141.609375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>mapfile → while read</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(1309.4296875, 268.3125)"><g class="label" data-id="L_Rewrite_TPW_0" transform="translate(-21.4609375, -12.1875)"><foreignObject width="42.921875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"><p>고친 줄</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-f144995db4-flowchart-Bash32-0" data-look="classic" transform="translate(90.7578125, 151.75)"><rect class="basic label-container"  x="-82.7578125" y="-27.1875" width="165.515625" height="54.375"></rect><g class="label"  transform="translate(-52.7578125, -12.1875)"><rect></rect><foreignObject width="105.515625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>맥 기본 bash 3.2</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-f144995db4-flowchart-Run-1" data-look="classic" transform="translate(441.1640625, 151.75)"><rect class="basic label-container"  x="-94.8984375" y="-27.1875" width="189.796875" height="54.375"></rect><g class="label"  transform="translate(-64.8984375, -12.1875)"><rect></rect><foreignObject width="129.796875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>run_under_bash32</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-f144995db4-flowchart-Locate-3" data-look="classic" transform="translate(768.2109375, 151.75)"><rect class="basic label-container"  x="-75.1484375" y="-27.1875" width="150.296875" height="54.375"></rect><g class="label"  transform="translate(-45.1484375, -12.1875)"><rect></rect><foreignObject width="90.296875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>locate_cause</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-f144995db4-flowchart-Rewrite-5" data-look="classic" transform="translate(1127.171875, 151.75)"><rect class="basic label-container"  x="-86.453125" y="-27.1875" width="172.90625" height="54.375"></rect><g class="label"  transform="translate(-56.453125, -12.1875)"><rect></rect><foreignObject width="112.90625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>portable_rewrite</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-f144995db4-flowchart-TG-7" data-look="classic" transform="translate(1535.234375, 35.1875)"><rect class="basic label-container"  x="-112.921875" y="-27.1875" width="225.84375" height="54.375"></rect><g class="label"  transform="translate(-82.921875, -12.1875)"><rect></rect><foreignObject width="165.84375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>core/tests/test-graph.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-f144995db4-flowchart-TGC-9" data-look="classic" transform="translate(1535.234375, 151.75)"><rect class="basic label-container"  x="-130" y="-39.375" width="260" height="78.75"></rect><g class="label"  transform="translate(-100, -24.375)"><rect></rect><foreignObject width="200" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>tests/test-guard-consistency.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-f144995db4-flowchart-TPW-11" data-look="classic" transform="translate(1535.234375, 268.3125)"><rect class="basic label-container"  x="-121.734375" y="-27.1875" width="243.46875" height="54.375"></rect><g class="label"  transform="translate(-91.734375, -12.1875)"><rect></rect><foreignObject width="183.46875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>tests/test-promote-wait.sh</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-f144995db4-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-f144995db4-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-f144995db4-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre></section>
+<section id="s-2-2-position-in-whole-architecture" class="slide-page" data-idx="2"><div class="kicker">Architecture — bash 3.2 에서 실패하는 시험 셋 고치기</div><h2>2. Position in whole architecture</h2><div class="callout info"><div class="callout-title">참고</div><div>Source: scv graph (built 2026-11-11)</div></div>
+<pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="1006.3125" height="429.125" class="scv-mmd" id="scv-mmd-2cad0fa5c3" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 1006.3125 429.125" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker id="scv-mmd-2cad0fa5c3_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-2cad0fa5c3_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-2cad0fa5c3_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-2cad0fa5c3_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-2cad0fa5c3_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-2cad0fa5c3_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-2cad0fa5c3_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-2cad0fa5c3_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-2cad0fa5c3_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-2cad0fa5c3_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-2cad0fa5c3_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-2cad0fa5c3_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"><g class="cluster" id="scv-mmd-2cad0fa5c3-.github/workflows" data-look="classic"><rect  x="123.296875" y="8" width="602.3125" height="104.375"></rect><g class="cluster-label" transform="translate(363.9921875, 8)"><foreignObject width="120.921875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>.github/workflows</p></span></div></foreignObject></g></g><g class="cluster" id="scv-mmd-2cad0fa5c3-core/scripts" data-look="classic"><rect  x="610.421875" y="316.75" width="190.375" height="104.375"></rect><g class="cluster-label" transform="translate(665.078125, 316.75)"><foreignObject width="81.0625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>core/scripts</p></span></div></foreignObject></g></g><g class="cluster" id="scv-mmd-2cad0fa5c3-tests" data-look="classic"><rect  x="8" y="162.375" width="566.046875" height="104.375"></rect><g class="cluster-label" transform="translate(274.1875, 162.375)"><foreignObject width="33.671875" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>tests</p></span></div></foreignObject></g></g><g class="cluster" id="scv-mmd-2cad0fa5c3-core/tests" data-look="classic"><rect  x="594.046875" y="162.375" width="404.265625" height="104.375"></rect><g class="cluster-label" transform="translate(761.984375, 162.375)"><foreignObject width="68.390625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5"><span class="nodeLabel"><p>core/tests</p></span></div></foreignObject></g></g></g><g class="edgePaths"><path d="M705.609,241.75L705.609,245.917C705.609,250.083,705.609,258.417,705.609,266.75C705.609,275.083,705.609,283.417,705.609,291.75C705.609,300.083,705.609,308.417,705.609,316.083C705.609,323.75,705.609,330.75,705.609,334.25L705.609,337.75" id="scv-mmd-2cad0fa5c3-L_TG_GR_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_TG_GR_0" data-points="W3sieCI6NzA1LjYwOTM3NSwieSI6MjQxLjc1fSx7IngiOjcwNS42MDkzNzUsInkiOjI2Ni43NX0seyJ4Ijo3MDUuNjA5Mzc1LCJ5IjoyOTEuNzV9LHsieCI6NzA1LjYwOTM3NSwieSI6MzE2Ljc1fSx7IngiOjcwNS42MDkzNzUsInkiOjM0MS43NX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M507.5,73.982L540.518,80.381C573.536,86.78,639.573,99.577,672.591,110.143C705.609,120.708,705.609,129.042,705.609,137.375C705.609,145.708,705.609,154.042,705.609,161.708C705.609,169.375,705.609,176.375,705.609,179.875L705.609,183.375" id="scv-mmd-2cad0fa5c3-L_CI_TG_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_CI_TG_0" data-points="W3sieCI6NTA3LjUsInkiOjczLjk4MTkzMzA0MTI4MzQ3fSx7IngiOjcwNS42MDkzNzUsInkiOjExMi4zNzV9LHsieCI6NzA1LjYwOTM3NSwieSI6MTM3LjM3NX0seyJ4Ijo3MDUuNjA5Mzc1LCJ5IjoxNjIuMzc1fSx7IngiOjcwNS42MDkzNzUsInkiOjE4Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M365.141,73.793L331.5,80.224C297.859,86.654,230.578,99.514,196.938,110.111C163.297,120.708,163.297,129.042,163.297,137.375C163.297,145.708,163.297,154.042,163.297,161.708C163.297,169.375,163.297,176.375,163.297,179.875L163.297,183.375" id="scv-mmd-2cad0fa5c3-L_CI_TGC_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_CI_TGC_0" data-points="W3sieCI6MzY1LjE0MDYyNSwieSI6NzMuNzkzMjU0Nzg1ODE4NTN9LHsieCI6MTYzLjI5Njg3NSwieSI6MTEyLjM3NX0seyJ4IjoxNjMuMjk2ODc1LCJ5IjoxMzcuMzc1fSx7IngiOjE2My4yOTY4NzUsInkiOjE2Mi4zNzV9LHsieCI6MTYzLjI5Njg3NSwieSI6MTg3LjM3NX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M436.32,87.375L436.32,91.542C436.32,95.708,436.32,104.042,436.32,112.375C436.32,120.708,436.32,129.042,436.32,137.375C436.32,145.708,436.32,154.042,436.32,161.708C436.32,169.375,436.32,176.375,436.32,179.875L436.32,183.375" id="scv-mmd-2cad0fa5c3-L_CI_TPW_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_CI_TPW_0" data-points="W3sieCI6NDM2LjMyMDMxMjUsInkiOjg3LjM3NX0seyJ4Ijo0MzYuMzIwMzEyNSwieSI6MTEyLjM3NX0seyJ4Ijo0MzYuMzIwMzEyNSwieSI6MTM3LjM3NX0seyJ4Ijo0MzYuMzIwMzEyNSwieSI6MTYyLjM3NX0seyJ4Ijo0MzYuMzIwMzEyNSwieSI6MTg3LjM3NX1d" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_TG_GR_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_CI_TG_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_CI_TGC_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_CI_TPW_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-2cad0fa5c3-flowchart-TG-0" data-look="classic" transform="translate(705.609375, 214.5625)"><rect class="basic label-container"  x="-76.5625" y="-27.1875" width="153.125" height="54.375"></rect><g class="label"  transform="translate(-46.5625, -12.1875)"><rect></rect><foreignObject width="93.125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>test-graph.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-2cad0fa5c3-flowchart-RD-1" data-look="classic" transform="translate(897.7421875, 214.5625)"><rect class="basic label-container"  x="-65.5703125" y="-27.1875" width="131.140625" height="54.375"></rect><g class="label"  transform="translate(-35.5703125, -12.1875)"><rect></rect><foreignObject width="71.140625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>run-dry.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-2cad0fa5c3-flowchart-TGC-2" data-look="classic" transform="translate(163.296875, 214.5625)"><rect class="basic label-container"  x="-120.296875" y="-27.1875" width="240.59375" height="54.375"></rect><g class="label"  transform="translate(-90.296875, -12.1875)"><rect></rect><foreignObject width="180.59375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>test-guard-consistency.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-2cad0fa5c3-flowchart-TPW-3" data-look="classic" transform="translate(436.3203125, 214.5625)"><rect class="basic label-container"  x="-102.7265625" y="-27.1875" width="205.453125" height="54.375"></rect><g class="label"  transform="translate(-72.7265625, -12.1875)"><rect></rect><foreignObject width="145.453125" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>test-promote-wait.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-2cad0fa5c3-flowchart-GR-4" data-look="classic" transform="translate(705.609375, 368.9375)"><rect class="basic label-container"  x="-60.1875" y="-27.1875" width="120.375" height="54.375"></rect><g class="label"  transform="translate(-30.1875, -12.1875)"><rect></rect><foreignObject width="60.375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>graph.sh</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-2cad0fa5c3-flowchart-CI-5" data-look="classic" transform="translate(436.3203125, 60.1875)"><rect class="basic label-container"  x="-71.1796875" y="-27.1875" width="142.359375" height="54.375"></rect><g class="label"  transform="translate(-41.1796875, -12.1875)"><rect></rect><foreignObject width="82.359375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>CI 맥 · 리눅스</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-2cad0fa5c3-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-2cad0fa5c3-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-2cad0fa5c3-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre></section>
+<section id="s-3-3-screen-mockups" class="slide-page" data-idx="3"><div class="kicker">Architecture — bash 3.2 에서 실패하는 시험 셋 고치기</div><h2>3. Screen mockups</h2><h3 class="subhead">시험 셋</h3>
+<div class="wf-speclayout wf-speclayout-diagram"><div class="wf-screen"><div class="wf-frame"><div class="wf-chrome"><span class="wf-dot wf-dot-r"></span><span class="wf-dot wf-dot-y"></span><span class="wf-dot wf-dot-g"></span><span class="wf-url">bash 3.2 시험 셋</span></div><div class="wf-body"><div class="wf-diagram-label">순서</div><pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="863.75" height="70.375" class="scv-mmd" id="scv-mmd-161fa435c4" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 863.75 70.375" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker id="scv-mmd-161fa435c4_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-161fa435c4_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-161fa435c4_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-161fa435c4_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-161fa435c4_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-161fa435c4_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-161fa435c4_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-161fa435c4_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-161fa435c4_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-161fa435c4_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-161fa435c4_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-161fa435c4_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M191.141,35.188L195.307,35.188C199.474,35.188,207.807,35.188,215.474,35.188C223.141,35.188,230.141,35.188,233.641,35.188L237.141,35.188" id="scv-mmd-161fa435c4-L_A_B_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_A_B_0" data-points="W3sieCI6MTkxLjE0MDYyNSwieSI6MzUuMTg3NX0seyJ4IjoyMTYuMTQwNjI1LCJ5IjozNS4xODc1fSx7IngiOjI0MS4xNDA2MjUsInkiOjM1LjE4NzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M374.656,35.188L378.823,35.188C382.99,35.188,391.323,35.188,398.99,35.188C406.656,35.188,413.656,35.188,417.156,35.188L420.656,35.188" id="scv-mmd-161fa435c4-L_B_C_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_B_C_0" data-points="W3sieCI6Mzc0LjY1NjI1LCJ5IjozNS4xODc1fSx7IngiOjM5OS42NTYyNSwieSI6MzUuMTg3NX0seyJ4Ijo0MjQuNjU2MjUsInkiOjM1LjE4NzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M601.094,35.188L605.26,35.188C609.427,35.188,617.76,35.188,625.427,35.188C633.094,35.188,640.094,35.188,643.594,35.188L647.094,35.188" id="scv-mmd-161fa435c4-L_C_D_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_C_D_0" data-points="W3sieCI6NjAxLjA5Mzc1LCJ5IjozNS4xODc1fSx7IngiOjYyNi4wOTM3NSwieSI6MzUuMTg3NX0seyJ4Ijo2NTEuMDkzNzUsInkiOjM1LjE4NzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_A_B_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_B_C_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_C_D_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-161fa435c4-flowchart-A-0" data-look="classic" transform="translate(99.5703125, 35.1875)"><rect class="basic label-container"  x="-91.5703125" y="-27.1875" width="183.140625" height="54.375"></rect><g class="label"  transform="translate(-61.5703125, -12.1875)"><rect></rect><foreignObject width="123.140625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>① bash 3.2 로 돌림</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-161fa435c4-flowchart-B-1" data-look="classic" transform="translate(307.8984375, 35.1875)"><rect class="basic label-container"  x="-66.7578125" y="-27.1875" width="133.515625" height="54.375"></rect><g class="label"  transform="translate(-36.7578125, -12.1875)"><rect></rect><foreignObject width="73.515625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>② 원인 가름</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-161fa435c4-flowchart-C-3" data-look="classic" transform="translate(512.875, 35.1875)"><rect class="basic label-container"  x="-88.21875" y="-27.1875" width="176.4375" height="54.375"></rect><g class="label"  transform="translate(-58.21875, -12.1875)"><rect></rect><foreignObject width="116.4375" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>③ 같은 뜻으로 고침</p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-161fa435c4-flowchart-D-5" data-look="classic" transform="translate(753.421875, 35.1875)"><rect class="basic label-container"  x="-102.328125" y="-27.1875" width="204.65625" height="54.375"></rect><g class="label"  transform="translate(-72.328125, -12.1875)"><rect></rect><foreignObject width="144.65625" height="24.375"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>④ 두 bash 로 다시 돌림</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-161fa435c4-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-161fa435c4-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-161fa435c4-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre></div></div><div class="wf-validations"><div class="wf-sub-title">통과 기준</div><table class="wf-vtable"><thead><tr><th>번호</th><th>조건</th><th>결과</th></tr></thead><tbody><tr><td class="wf-vt-marker">1, 4</td><td>세 시험 · bash 3.2</td><td>종료 코드 0</td></tr><tr><td class="wf-vt-marker">4</td><td>세 시험 · bash 5</td><td>종료 코드 0</td></tr><tr><td class="wf-vt-marker">4</td><td>통과 줄 수</td><td>고치기 전보다 줄지 않음 · 건너뜀 0건</td></tr></tbody></table></div></div><div class="wf-spec"><div class="wf-spec-group wf-spec-functions"><div class="wf-spec-title">기능 설명 (Function Description)</div><div class="wf-spec-item wf-spec-item-fn"><span class="wf-spec-badge">1</span><div class="wf-spec-body"><div class="wf-spec-name">bash 3.2 로 돌림<span class="wf-spec-step">run_under_bash32</span></div><ul class="wf-spec-notes"><li>시험 셋의 실패한 줄과 메시지를 모음</li></ul></div></div><div class="wf-spec-item wf-spec-item-fn"><span class="wf-spec-badge">2</span><div class="wf-spec-body"><div class="wf-spec-name">원인 가름<span class="wf-spec-step">locate_cause</span></div><ul class="wf-spec-notes"><li>시험 파일 탓인지 스크립트 탓인지</li></ul></div></div><div class="wf-spec-item wf-spec-item-fn"><span class="wf-spec-badge">3</span><div class="wf-spec-body"><div class="wf-spec-name">같은 뜻으로 고침<span class="wf-spec-step">portable_rewrite</span></div><ul class="wf-spec-notes"><li>확인된 하나: mapfile 을 while read 로</li></ul></div></div><div class="wf-spec-item wf-spec-item-fn"><span class="wf-spec-badge">4</span><div class="wf-spec-body"><div class="wf-spec-name">두 bash 로 다시 돌림</div><ul class="wf-spec-notes"><li>통과 수가 고치기 전 bash 5 결과보다 줄지 않아야 함</li></ul></div></div></div></div></div></section>
+<section id="s-4-변경-지도" class="slide-page" data-idx="4"><div class="kicker">Architecture — bash 3.2 에서 실패하는 시험 셋 고치기</div><h2>변경 지도</h2><pre class="mermaid" data-processed="true" data-scv-static-mermaid="true"><svg width="664.578125" height="94.75" class="scv-mmd" id="scv-mmd-8bd9521357" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" viewBox="0 0 664.578125 94.75" role="graphics-document document" aria-roledescription="flowchart-v2"><style>.scv-mmd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}.scv-mmd .edge-animation-slow{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}.scv-mmd .edge-animation-fast{stroke-dasharray:9,5;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}.scv-mmd .error-icon{fill:hsl(220.5882352941, 100%, 98.3333333333%);}.scv-mmd .error-text{fill:rgb(8.5000000002, 5.7500000001, 0);stroke:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .edge-thickness-normal{stroke-width:1px;}.scv-mmd .edge-thickness-thick{stroke-width:3.5px;}.scv-mmd .edge-pattern-solid{stroke-dasharray:0;}.scv-mmd .edge-thickness-invisible{stroke-width:0;fill:none;}.scv-mmd .edge-pattern-dashed{stroke-dasharray:3;}.scv-mmd .edge-pattern-dotted{stroke-dasharray:2;}.scv-mmd .marker{fill:#0b0b0b;stroke:#0b0b0b;}.scv-mmd .marker.cross{stroke:#0b0b0b;}.scv-mmd svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:16px;}.scv-mmd p{margin:0;}.scv-mmd .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:#333;}.scv-mmd .cluster-label text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster-label span p{background-color:transparent;}.scv-mmd .label text,.scv-mmd span{fill:#333;color:#333;}.scv-mmd .node rect,.scv-mmd .node circle,.scv-mmd .node ellipse,.scv-mmd .node polygon,.scv-mmd .node path{fill:#fff4dd;stroke:hsl(40.5882352941, 60%, 83.3333333333%);stroke-width:1px;}.scv-mmd .rough-node .label text,.scv-mmd .node .label text,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-anchor:middle;}.scv-mmd .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}.scv-mmd .rough-node .label,.scv-mmd .node .label,.scv-mmd .image-shape .label,.scv-mmd .icon-shape .label{text-align:center;}.scv-mmd .node.clickable{cursor:pointer;}.scv-mmd .root .anchor path{fill:#0b0b0b;stroke-width:0;stroke:#0b0b0b;}.scv-mmd .arrowheadPath{fill:#0b0b0b;}.scv-mmd .edgePaths .path{stroke:#0b0b0b;stroke-width:1px;}.scv-mmd .flowchart-link{stroke:#0b0b0b;fill:none;}.scv-mmd .edgeLabel{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .edgeLabel p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .edgeLabel rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .labelBkg{background-color:rgba(243.9999999999, 220.9999999998, 255, 0.5);}.scv-mmd .cluster rect{fill:hsl(220.5882352941, 100%, 98.3333333333%);stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:1px;}.scv-mmd .cluster text{fill:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .cluster span{color:rgb(8.5000000002, 5.7500000001, 0);}.scv-mmd .node .collapsed-indicator{fill:hsl(220.5882352941, 60%, 88.3333333333%);stroke:none;opacity:0.6;}.scv-mmd .node .collapsed-separator{stroke:hsl(220.5882352941, 60%, 88.3333333333%);stroke-width:0.75px;}.scv-mmd div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;font-size:12px;background:hsl(220.5882352941, 100%, 98.3333333333%);border:1px solid hsl(220.5882352941, 60%, 88.3333333333%);border-radius:2px;pointer-events:none;z-index:100;}.scv-mmd .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}.scv-mmd rect.text{fill:none;stroke-width:0;}.scv-mmd .icon-shape,.scv-mmd .image-shape{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);text-align:center;}.scv-mmd .icon-shape p,.scv-mmd .image-shape p{background-color:hsl(-79.4117647059, 100%, 93.3333333333%);padding:2px;}.scv-mmd .icon-shape .label rect,.scv-mmd .image-shape .label rect{opacity:0.5;background-color:hsl(-79.4117647059, 100%, 93.3333333333%);fill:hsl(-79.4117647059, 100%, 93.3333333333%);}.scv-mmd .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}.scv-mmd .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}.scv-mmd .node .neo-node{stroke:hsl(40.5882352941, 60%, 83.3333333333%);}.scv-mmd [data-look="neo"].node rect,.scv-mmd [data-look="neo"].cluster rect,.scv-mmd [data-look="neo"].node polygon{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].swimlane.cluster rect{filter:none;}.scv-mmd [data-look="neo"].node path{stroke:url(.scv-mmd-gradient);stroke-width:1px;}.scv-mmd [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node .neo-line path{stroke:hsl(40.5882352941, 60%, 83.3333333333%);filter:none;}.scv-mmd [data-look="neo"].node circle{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].node circle .state-start{fill:#000000;}.scv-mmd [data-look="neo"].icon-shape .icon{fill:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd [data-look="neo"].icon-shape .icon-neo path{stroke:url(.scv-mmd-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}.scv-mmd :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}.scv-mmd .added&gt;*{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .added span{fill:rgb(255, 224, 130);stroke:rgb(245, 124, 0);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .added tspan{fill:rgb(0, 0, 0);}.scv-mmd .changed&gt;*{fill:rgb(144, 202, 249);stroke:rgb(21, 101, 192);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .changed span{fill:rgb(144, 202, 249);stroke:rgb(21, 101, 192);stroke-width:2px;color:rgb(0, 0, 0);}.scv-mmd .changed tspan{fill:rgb(0, 0, 0);}.scv-mmd .removed&gt;*{fill:rgb(45, 45, 45);stroke:rgb(239, 154, 154);stroke-width:2px;stroke-dasharray:4,3;color:rgb(239, 154, 154);}.scv-mmd .removed span{fill:rgb(45, 45, 45);stroke:rgb(239, 154, 154);stroke-width:2px;stroke-dasharray:4,3;color:rgb(239, 154, 154);}.scv-mmd .removed tspan{fill:rgb(239, 154, 154);}</style><g><marker id="scv-mmd-8bd9521357_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-8bd9521357_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-8bd9521357_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-8bd9521357_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></polygon></marker><marker id="scv-mmd-8bd9521357_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-8bd9521357_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-8bd9521357_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-8bd9521357_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0"></circle></marker><marker id="scv-mmd-8bd9521357_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-8bd9521357_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0"></path></marker><marker id="scv-mmd-8bd9521357_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5"></path></marker><marker id="scv-mmd-8bd9521357_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M211.969,47.375L216.135,47.375C220.302,47.375,228.635,47.375,236.302,47.375C243.969,47.375,250.969,47.375,254.469,47.375L257.969,47.375" id="scv-mmd-8bd9521357-L_S1_S2_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S1_S2_0" data-points="W3sieCI6MjExLjk2ODc1LCJ5Ijo0Ny4zNzV9LHsieCI6MjM2Ljk2ODc1LCJ5Ijo0Ny4zNzV9LHsieCI6MjYxLjk2ODc1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path><path d="M433.672,47.375L437.839,47.375C442.005,47.375,450.339,47.375,458.005,47.375C465.672,47.375,472.672,47.375,476.172,47.375L479.672,47.375" id="scv-mmd-8bd9521357-L_S2_S3_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link"  data-edge="true" data-et="edge" data-id="L_S2_S3_0" data-points="W3sieCI6NDMzLjY3MTg3NSwieSI6NDcuMzc1fSx7IngiOjQ1OC42NzE4NzUsInkiOjQ3LjM3NX0seyJ4Ijo0ODMuNjcxODc1LCJ5Ijo0Ny4zNzV9XQ==" data-look="classic" marker-end="url(.scv-mmd_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_S1_S2_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_S2_S3_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" ><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="scv-mmd-8bd9521357-flowchart-S1-0" data-look="classic" transform="translate(109.984375, 47.375)"><rect class="basic label-container"  x="-101.984375" y="-39.375" width="203.96875" height="78.75"></rect><g class="label"  transform="translate(-71.984375, -24.375)"><rect></rect><foreignObject width="143.96875" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>run_under_bash32<br><small>시험 파일 → 실패 줄 · 메시지</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-8bd9521357-flowchart-S2-1" data-look="classic" transform="translate(347.8203125, 47.375)"><rect class="basic label-container"  x="-85.8515625" y="-39.375" width="171.703125" height="78.75"></rect><g class="label"  transform="translate(-55.8515625, -24.375)"><rect></rect><foreignObject width="111.703125" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>locate_cause<br><small>실패 메시지 → 원인 줄</small></p></span></div></foreignObject></g></g><g class="node default" id="scv-mmd-8bd9521357-flowchart-S3-2" data-look="classic" transform="translate(570.125, 47.375)"><rect class="basic label-container"  x="-86.453125" y="-39.375" width="172.90625" height="78.75"></rect><g class="label"  transform="translate(-56.453125, -24.375)"><rect></rect><foreignObject width="112.90625" height="48.75"><div xmlns="http://www.w3.org/1999/xhtml" ><span class="nodeLabel"><p>portable_rewrite<br><small>원인 줄 → 고친 줄</small></p></span></div></foreignObject></g></g></g></g></g><defs><filter id="scv-mmd-8bd9521357-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="scv-mmd-8bd9521357-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="scv-mmd-8bd9521357-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(40.5882352941, 60%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(-79.4117647059, 60%, 83.3333333333%)" stop-opacity="1"></stop></linearGradient></svg></pre>
+<div class="tw"><table><thead><tr><th>상태</th><th>단계</th><th>받는 값 → 돌려주는 값</th><th>코드 대조</th><th>화면</th></tr></thead><tbody><tr><td>미지정</td><td>run_under_bash32</td><td>시험 파일 → 실패 줄 · 메시지</td><td>근거없음</td><td>1. bash 3.2 로 돌림</td></tr><tr><td>미지정</td><td>locate_cause</td><td>실패 메시지 → 원인 줄</td><td>근거없음</td><td>2. 원인 가름</td></tr><tr><td>미지정</td><td>portable_rewrite</td><td>원인 줄 → 고친 줄</td><td>근거없음</td><td>3. 같은 뜻으로 고침</td></tr></tbody></table></div></section>
+<section id="__lint" class="lint slide-page" data-idx="5"><h2>품질 리포트 <span class="lint-count">2</span></h2>
+     <p class="sub">원문에 없는 내용은 채우지 않음 — 전문 기획서가 보통 갖추는데 이 문서엔 빠진 항목입니다.</p>
+     <div class="callout warn"><div>성공지표(Metrics) 섹션이 없습니다 — baseline→target 지표를 권장합니다.</div></div><div class="callout warn"><div>예외처리(Edge cases) 섹션이 없습니다.</div></div></section>
+<section class="print-source"><h2>기획서 원문</h2><h3>PLAN.md</h3><pre class="code"><code>---
+title: bash 3.2 에서 실패하는 시험 셋 고치기
+slug: 20261111-wookiya1364-bash32-tests-three
+author: wookiya1364
+created_at: 2026-11-11
+status: planned
+kind: feature
+lang: korean
+tags: [tests, bash32, mac]
+scope:
+  - core/tests/test-graph.sh
+  - tests/test-guard-consistency.sh
+  - tests/test-promote-wait.sh
+raw_sources:
+  - scv/raw/20261110-remaining-work-three-plans.md
+refs: []
+invariants:
+  - "세 시험이 보는 내용(검사 항목 수와 기대값)은 줄지 않는다"
+  - "bash 5 에서의 결과는 그대로다"
+---
+
+# bash 3.2 에서 실패하는 시험 셋 고치기
+
+## Summary
+
+맥 기본 bash(3.2)로 돌리면 시험 셋이 실패한다. develop 에서도 같다(2026-11-10 확인).
+맥과 리눅스 둘 다에서 돌아야 한다는 규칙에 어긋나므로, 세 시험이 bash 3.2 에서도 통과하게 고친다.
+
+## Goals / Non-Goals
+
+- **Goals**
+  - `core/tests/test-graph.sh` · `tests/test-guard-consistency.sh` · `tests/test-promote-wait.sh` 가 bash 3.2 에서 통과
+  - 시험이 가리키는 스크립트 자체가 bash 3.2 에서 틀리게 돌면 그 스크립트도 고침
+- **Non-Goals**
+  - 세 시험이 보는 내용 바꾸기
+  - 다른 시험 손보기
+  - bash 4 전용 문법을 찾는 새 검사 만들기
+
+## Approach Overview
+
+- 원인이 확인된 것은 하나다: `tests/test-guard-consistency.sh:65` 의 `mapfile`(bash 4 부터 있음). `while read` 로 바꾼다.
+- 나머지 둘의 원인은 모른다. 1단계에서 bash 3.2 로 돌려 실패한 줄을 찾는다.
+- 원인이 시험 파일에 있으면 시험만, 스크립트에 있으면 스크립트를 고친다. 스크립트를 고치면 그 스크립트의 다른 시험도 두 bash 로 다시 돌린다.
+- 고친 것이 시험 파일뿐이면 버전을 올리지 않고 다음 릴리스에 함께 나간다. 스크립트를 고치면 CHANGELOG 에 적는다.
+
+## 순수함수 · 파이프라인 (Pure functions &amp; pipeline)
+
+이 계획은 새 함수를 만들지 않는다. 하는 일의 차례만 적는다.
+
+```
+flow(
+  run_under_bash32,   // 시험 파일 → 실패한 줄과 메시지        (부수효과: 시험 실행)
+  locate_cause,       // 실패 메시지 → 원인 줄 (시험 | 스크립트)
+  portable_rewrite,   // 원인 줄 → bash 3.2 에서도 도는 같은 뜻의 줄
+)
+```
+
+| # | 단계 | 하는 일 | 받는 값 → 돌려주는 값 | 순수/부수효과 |
+|---|---|---|---|---|
+| 1 | `run_under_bash32` | 시험을 bash 3.2 로 돌려 실패한 곳을 얻는다 | 시험 파일 → 실패 줄 · 메시지 | 부수효과 (입구) |
+| 2 | `locate_cause` | 실패가 시험 탓인지 스크립트 탓인지 가른다 | 실패 메시지 → 원인 줄 | 순수 |
+| 3 | `portable_rewrite` | 같은 뜻을 bash 3.2 문법으로 다시 쓴다 | 원인 줄 → 고친 줄 | 순수 |
+
+- 부수효과 위치: 1(시험 실행)뿐.
+- 재사용: 다른 시험에 이미 있는 `while IFS= read -r` 읽기 모양을 그대로 쓴다.
+
+## Guardrails
+
+- 기대값을 느슨하게 하거나 검사를 건너뛰게 해서 통과시키지 않는다(`bash 버전이 낮으면 건너뜀` 금지).
+- bash 5 에서의 통과 수가 줄면 안 된다.
+- 고치는 파일은 원인이 있는 파일뿐이다.
+
+## Exit criteria
+
+- TESTS.md 의 시나리오 7개 통과
+- 세 시험 각각 `/bin/bash`(3.2)와 bash 5 에서 종료 코드 0
+- CI 맥 · 리눅스 통과
+
+## Suggested path
+
+1. 세 시험을 bash 3.2 로 돌려 실패한 줄과 메시지를 모음 — `run_under_bash32`
+2. 실패마다 원인이 시험인지 스크립트인지 가름 — `locate_cause`
+3. 원인 줄을 bash 3.2 에서도 도는 모양으로 고침 — `portable_rewrite`
+4. 세 시험을 두 bash 로 다시 돌리고 통과 수를 고치기 전 bash 5 결과와 견줌 — 검사 수가 줄지 않았는지 본다
+5. 전체 시험을 두 bash 로 돌림 — 새로 실패한 것이 없는지 본다
+
+## Related Documents
+
+- [`TESTS.md`](./TESTS.md)
+- [`FEATURE_ARCHITECTURE.md`](./FEATURE_ARCHITECTURE.md)
+
+## Risks / Open Questions
+
+- 원인 둘은 아직 모른다. 스크립트 쪽 문제면 범위가 그 스크립트로 넓어진다 — 넓어지면 변경 이력에 적는다.
+- 원인이 bash 가 아니라 맥의 다른 도구(BSD sed · date 따위)일 수 있다. 그래도 고칠 대상은 같다.
+
+## Links
+
+- Raw originals: (listed in frontmatter)
+- Related PRs:</code></pre><h3>FEATURE_ARCHITECTURE.md</h3><pre class="code"><code>---
+title: bash 3.2 에서 실패하는 시험 셋 고치기
+slug: 20261111-wookiya1364-bash32-tests-three
+created_at: 2026-11-11
+status: planned
+---
+
+# Architecture — bash 3.2 에서 실패하는 시험 셋 고치기
+
+&gt; 두 그림으로 본 이 계획. **구현 전에 읽고 고칠 것** — 그림은 모델이 그렸다.
+
+## 1. Component data flow
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  Bash32[맥 기본 bash 3.2] --&gt;|"/bin/bash 시험 파일"| Run[run_under_bash32]
+  Run --&gt;|"실패한 줄 · 메시지"| Locate[locate_cause]
+  Locate --&gt;|"원인 줄 (시험 | 스크립트)"| Rewrite[portable_rewrite]
+  Rewrite --&gt;|"고친 줄"| TG[core/tests/test-graph.sh]
+  Rewrite --&gt;|"mapfile → while read"| TGC[tests/test-guard-consistency.sh]
+  Rewrite --&gt;|"고친 줄"| TPW[tests/test-promote-wait.sh]
+```
+
+## 2. Position in whole architecture
+
+&gt; Source: scv graph (built 2026-11-11)
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart TB
+  subgraph "core/tests"
+    TG[test-graph.sh]
+    RD[run-dry.sh]
+  end
+  subgraph "tests"
+    TGC[test-guard-consistency.sh]
+    TPW[test-promote-wait.sh]
+  end
+  subgraph "core/scripts"
+    GR[graph.sh]
+  end
+  subgraph ".github/workflows"
+    CI[CI 맥 · 리눅스]
+  end
+  TG --&gt; GR
+  CI --&gt; TG
+  CI --&gt; TGC
+  CI --&gt; TPW
+```
+
+## 3. Screen mockups
+
+### 시험 셋
+
+```screen
+{
+  "title": "bash 3.2 시험 셋",
+  "diagram": [
+    { "label": "순서", "code": "flowchart LR\n  A[\"① bash 3.2 로 돌림\"] --&gt; B[\"② 원인 가름\"]\n  B --&gt; C[\"③ 같은 뜻으로 고침\"]\n  C --&gt; D[\"④ 두 bash 로 다시 돌림\"]" }
+  ],
+  "functions": [
+    { "marker": "1", "title": "bash 3.2 로 돌림", "step": "run_under_bash32", "notes": ["시험 셋의 실패한 줄과 메시지를 모음"] },
+    { "marker": "2", "title": "원인 가름", "step": "locate_cause", "notes": ["시험 파일 탓인지 스크립트 탓인지"] },
+    { "marker": "3", "title": "같은 뜻으로 고침", "step": "portable_rewrite", "notes": ["확인된 하나: mapfile 을 while read 로"] },
+    { "marker": "4", "title": "두 bash 로 다시 돌림", "notes": ["통과 수가 고치기 전 bash 5 결과보다 줄지 않아야 함"] }
+  ],
+  "validations": { "title": "통과 기준",
+    "columns": ["번호", "조건", "결과"],
+    "rows": [
+      ["1, 4", "세 시험 · bash 3.2", "종료 코드 0"],
+      ["4", "세 시험 · bash 5", "종료 코드 0"],
+      ["4", "통과 줄 수", "고치기 전보다 줄지 않음 · 건너뜀 0건"]
+    ] }
+}
+```</code></pre><h3>TESTS.md</h3><pre class="code"><code># Test Plan — bash 3.2 에서 실패하는 시험 셋 고치기
+
+## Overview
+
+세 시험이 맥 기본 bash(3.2)와 bash 5 양쪽에서 통과하는지, 그리고 고치면서 검사 수가 줄지 않았는지를 본다.
+
+## Test scenarios
+
+### T1. test-graph — bash 3.2
+
+- **Setup**: 없음.
+- **Run**: `/bin/bash core/tests/test-graph.sh` (맥 기본 3.2).
+- **Expected**: 모든 검사 통과.
+- **Pass criterion**: 종료 코드 0. (고치기 전에는 0 이 아님)
+
+### T2. test-guard-consistency — bash 3.2
+
+- **Setup**: 없음.
+- **Run**: `/bin/bash tests/test-guard-consistency.sh`.
+- **Expected**: 모든 검사 통과.
+- **Pass criterion**: 종료 코드 0, 파일에 `mapfile` · `readarray` 0건.
+
+### T3. test-promote-wait — bash 3.2
+
+- **Setup**: 없음.
+- **Run**: `/bin/bash tests/test-promote-wait.sh`.
+- **Expected**: 모든 검사 통과.
+- **Pass criterion**: 종료 코드 0.
+
+### T4. 세 시험 — bash 5
+
+- **Setup**: 없음.
+- **Run**: bash 5 로 세 시험.
+- **Expected**: 고치기 전과 같이 통과.
+- **Pass criterion**: 셋 다 종료 코드 0.
+
+### T5. 검사 수가 줄지 않음
+
+- **Setup**: 고치기 전 bash 5 로 세 시험의 통과 줄 수를 적어 둠.
+- **Run**: 고친 뒤 bash 3.2 · bash 5 로 세 시험의 통과 줄 수를 셈.
+- **Expected**: 고친 뒤의 수 ≥ 고치기 전의 수.
+- **Pass criterion**: 세 시험 모두 조건이 참. 건너뜀 줄 0건.
+
+### T6. 스크립트를 고친 경우 — 그 스크립트의 다른 시험
+
+- **Setup**: 2단계에서 스크립트가 원인으로 나온 경우에만.
+- **Run**: 그 스크립트를 부르는 시험을 두 bash 로.
+- **Expected**: 통과.
+- **Pass criterion**: 종료 코드 0. (스크립트를 고치지 않았으면 "해당 없음"으로 적음)
+
+### T7. 전체 시험
+
+- **Setup**: 없음.
+- **Run**: 전체 시험을 4개씩 나눠 두 bash 로.
+- **Expected**: 이 변경 때문에 새로 실패한 시험 0개. bash 3.2 의 기존 실패 셋은 이제 통과.
+- **Pass criterion**: bash 3.2 실패 목록에 세 시험이 없음.
+
+## How to run
+
+```bash
+/bin/bash core/tests/test-graph.sh &amp;&amp; /bin/bash tests/test-guard-consistency.sh &amp;&amp; /bin/bash tests/test-promote-wait.sh
+```
+
+## Pass criteria
+
+- T1–T7 통과(T6 은 해당할 때만).
+- PR 검사(맥 · 리눅스) 통과.
+
+## Related Documents
+
+- [`PLAN.md`](./PLAN.md)</code></pre></section>
+</div>
+</div>
+<aside class="source-panel" id="scvSourcePanel">
+      <div class="panel-resize-handle" id="scvResizeHandle" title="드래그해서 크기 조절"></div>
+      <div class="panel-head"><span class="panel-title">기획서 원문</span><button class="panel-close" onclick="scvTogglePanel()" title="숨기기 (S)">✕</button></div>
+      <div class="panel-tabs"><button class="panel-tab" data-idx="0" onclick="scvSelectSource(0)">PLAN.md</button><button class="panel-tab active" data-idx="1" onclick="scvSelectSource(1)">FEATURE_ARCHITECTURE.md</button><button class="panel-tab" data-idx="2" onclick="scvSelectSource(2)">TESTS.md</button></div>
+      <div class="panel-body"><pre class="code src-doc" data-idx="0"><code>---
+title: bash 3.2 에서 실패하는 시험 셋 고치기
+slug: 20261111-wookiya1364-bash32-tests-three
+author: wookiya1364
+created_at: 2026-11-11
+status: planned
+kind: feature
+lang: korean
+tags: [tests, bash32, mac]
+scope:
+  - core/tests/test-graph.sh
+  - tests/test-guard-consistency.sh
+  - tests/test-promote-wait.sh
+raw_sources:
+  - scv/raw/20261110-remaining-work-three-plans.md
+refs: []
+invariants:
+  - "세 시험이 보는 내용(검사 항목 수와 기대값)은 줄지 않는다"
+  - "bash 5 에서의 결과는 그대로다"
+---
+
+# bash 3.2 에서 실패하는 시험 셋 고치기
+
+## Summary
+
+맥 기본 bash(3.2)로 돌리면 시험 셋이 실패한다. develop 에서도 같다(2026-11-10 확인).
+맥과 리눅스 둘 다에서 돌아야 한다는 규칙에 어긋나므로, 세 시험이 bash 3.2 에서도 통과하게 고친다.
+
+## Goals / Non-Goals
+
+- **Goals**
+  - `core/tests/test-graph.sh` · `tests/test-guard-consistency.sh` · `tests/test-promote-wait.sh` 가 bash 3.2 에서 통과
+  - 시험이 가리키는 스크립트 자체가 bash 3.2 에서 틀리게 돌면 그 스크립트도 고침
+- **Non-Goals**
+  - 세 시험이 보는 내용 바꾸기
+  - 다른 시험 손보기
+  - bash 4 전용 문법을 찾는 새 검사 만들기
+
+## Approach Overview
+
+- 원인이 확인된 것은 하나다: `tests/test-guard-consistency.sh:65` 의 `mapfile`(bash 4 부터 있음). `while read` 로 바꾼다.
+- 나머지 둘의 원인은 모른다. 1단계에서 bash 3.2 로 돌려 실패한 줄을 찾는다.
+- 원인이 시험 파일에 있으면 시험만, 스크립트에 있으면 스크립트를 고친다. 스크립트를 고치면 그 스크립트의 다른 시험도 두 bash 로 다시 돌린다.
+- 고친 것이 시험 파일뿐이면 버전을 올리지 않고 다음 릴리스에 함께 나간다. 스크립트를 고치면 CHANGELOG 에 적는다.
+
+## 순수함수 · 파이프라인 (Pure functions &amp; pipeline)
+
+이 계획은 새 함수를 만들지 않는다. 하는 일의 차례만 적는다.
+
+```
+flow(
+  run_under_bash32,   // 시험 파일 → 실패한 줄과 메시지        (부수효과: 시험 실행)
+  locate_cause,       // 실패 메시지 → 원인 줄 (시험 | 스크립트)
+  portable_rewrite,   // 원인 줄 → bash 3.2 에서도 도는 같은 뜻의 줄
+)
+```
+
+| # | 단계 | 하는 일 | 받는 값 → 돌려주는 값 | 순수/부수효과 |
+|---|---|---|---|---|
+| 1 | `run_under_bash32` | 시험을 bash 3.2 로 돌려 실패한 곳을 얻는다 | 시험 파일 → 실패 줄 · 메시지 | 부수효과 (입구) |
+| 2 | `locate_cause` | 실패가 시험 탓인지 스크립트 탓인지 가른다 | 실패 메시지 → 원인 줄 | 순수 |
+| 3 | `portable_rewrite` | 같은 뜻을 bash 3.2 문법으로 다시 쓴다 | 원인 줄 → 고친 줄 | 순수 |
+
+- 부수효과 위치: 1(시험 실행)뿐.
+- 재사용: 다른 시험에 이미 있는 `while IFS= read -r` 읽기 모양을 그대로 쓴다.
+
+## Guardrails
+
+- 기대값을 느슨하게 하거나 검사를 건너뛰게 해서 통과시키지 않는다(`bash 버전이 낮으면 건너뜀` 금지).
+- bash 5 에서의 통과 수가 줄면 안 된다.
+- 고치는 파일은 원인이 있는 파일뿐이다.
+
+## Exit criteria
+
+- TESTS.md 의 시나리오 7개 통과
+- 세 시험 각각 `/bin/bash`(3.2)와 bash 5 에서 종료 코드 0
+- CI 맥 · 리눅스 통과
+
+## Suggested path
+
+1. 세 시험을 bash 3.2 로 돌려 실패한 줄과 메시지를 모음 — `run_under_bash32`
+2. 실패마다 원인이 시험인지 스크립트인지 가름 — `locate_cause`
+3. 원인 줄을 bash 3.2 에서도 도는 모양으로 고침 — `portable_rewrite`
+4. 세 시험을 두 bash 로 다시 돌리고 통과 수를 고치기 전 bash 5 결과와 견줌 — 검사 수가 줄지 않았는지 본다
+5. 전체 시험을 두 bash 로 돌림 — 새로 실패한 것이 없는지 본다
+
+## Related Documents
+
+- [`TESTS.md`](./TESTS.md)
+- [`FEATURE_ARCHITECTURE.md`](./FEATURE_ARCHITECTURE.md)
+
+## Risks / Open Questions
+
+- 원인 둘은 아직 모른다. 스크립트 쪽 문제면 범위가 그 스크립트로 넓어진다 — 넓어지면 변경 이력에 적는다.
+- 원인이 bash 가 아니라 맥의 다른 도구(BSD sed · date 따위)일 수 있다. 그래도 고칠 대상은 같다.
+
+## Links
+
+- Raw originals: (listed in frontmatter)
+- Related PRs:</code></pre><pre class="code src-doc active" data-idx="1"><code>---
+title: bash 3.2 에서 실패하는 시험 셋 고치기
+slug: 20261111-wookiya1364-bash32-tests-three
+created_at: 2026-11-11
+status: planned
+---
+
+<mark class="src-hl"># Architecture — bash 3.2 에서 실패하는 시험 셋 고치기
+
+&gt; 두 그림으로 본 이 계획. **구현 전에 읽고 고칠 것** — 그림은 모델이 그렸다.
+</mark>
+## 1. Component data flow
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart LR
+  Bash32[맥 기본 bash 3.2] --&gt;|"/bin/bash 시험 파일"| Run[run_under_bash32]
+  Run --&gt;|"실패한 줄 · 메시지"| Locate[locate_cause]
+  Locate --&gt;|"원인 줄 (시험 | 스크립트)"| Rewrite[portable_rewrite]
+  Rewrite --&gt;|"고친 줄"| TG[core/tests/test-graph.sh]
+  Rewrite --&gt;|"mapfile → while read"| TGC[tests/test-guard-consistency.sh]
+  Rewrite --&gt;|"고친 줄"| TPW[tests/test-promote-wait.sh]
+```
+
+## 2. Position in whole architecture
+
+&gt; Source: scv graph (built 2026-11-11)
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#9096a8','lineColor':'#e7e9f0','secondaryColor':'#2d2d2d','tertiaryColor':'#1e1e1e','background':'#171922','edgeLabelBackground':'#171922'}}}%%
+flowchart TB
+  subgraph "core/tests"
+    TG[test-graph.sh]
+    RD[run-dry.sh]
+  end
+  subgraph "tests"
+    TGC[test-guard-consistency.sh]
+    TPW[test-promote-wait.sh]
+  end
+  subgraph "core/scripts"
+    GR[graph.sh]
+  end
+  subgraph ".github/workflows"
+    CI[CI 맥 · 리눅스]
+  end
+  TG --&gt; GR
+  CI --&gt; TG
+  CI --&gt; TGC
+  CI --&gt; TPW
+```
+
+## 3. Screen mockups
+
+### 시험 셋
+
+```screen
+{
+  "title": "bash 3.2 시험 셋",
+  "diagram": [
+    { "label": "순서", "code": "flowchart LR\n  A[\"① bash 3.2 로 돌림\"] --&gt; B[\"② 원인 가름\"]\n  B --&gt; C[\"③ 같은 뜻으로 고침\"]\n  C --&gt; D[\"④ 두 bash 로 다시 돌림\"]" }
+  ],
+  "functions": [
+    { "marker": "1", "title": "bash 3.2 로 돌림", "step": "run_under_bash32", "notes": ["시험 셋의 실패한 줄과 메시지를 모음"] },
+    { "marker": "2", "title": "원인 가름", "step": "locate_cause", "notes": ["시험 파일 탓인지 스크립트 탓인지"] },
+    { "marker": "3", "title": "같은 뜻으로 고침", "step": "portable_rewrite", "notes": ["확인된 하나: mapfile 을 while read 로"] },
+    { "marker": "4", "title": "두 bash 로 다시 돌림", "notes": ["통과 수가 고치기 전 bash 5 결과보다 줄지 않아야 함"] }
+  ],
+  "validations": { "title": "통과 기준",
+    "columns": ["번호", "조건", "결과"],
+    "rows": [
+      ["1, 4", "세 시험 · bash 3.2", "종료 코드 0"],
+      ["4", "세 시험 · bash 5", "종료 코드 0"],
+      ["4", "통과 줄 수", "고치기 전보다 줄지 않음 · 건너뜀 0건"]
+    ] }
+}
+```</code></pre><pre class="code src-doc" data-idx="2"><code># Test Plan — bash 3.2 에서 실패하는 시험 셋 고치기
+
+## Overview
+
+세 시험이 맥 기본 bash(3.2)와 bash 5 양쪽에서 통과하는지, 그리고 고치면서 검사 수가 줄지 않았는지를 본다.
+
+## Test scenarios
+
+### T1. test-graph — bash 3.2
+
+- **Setup**: 없음.
+- **Run**: `/bin/bash core/tests/test-graph.sh` (맥 기본 3.2).
+- **Expected**: 모든 검사 통과.
+- **Pass criterion**: 종료 코드 0. (고치기 전에는 0 이 아님)
+
+### T2. test-guard-consistency — bash 3.2
+
+- **Setup**: 없음.
+- **Run**: `/bin/bash tests/test-guard-consistency.sh`.
+- **Expected**: 모든 검사 통과.
+- **Pass criterion**: 종료 코드 0, 파일에 `mapfile` · `readarray` 0건.
+
+### T3. test-promote-wait — bash 3.2
+
+- **Setup**: 없음.
+- **Run**: `/bin/bash tests/test-promote-wait.sh`.
+- **Expected**: 모든 검사 통과.
+- **Pass criterion**: 종료 코드 0.
+
+### T4. 세 시험 — bash 5
+
+- **Setup**: 없음.
+- **Run**: bash 5 로 세 시험.
+- **Expected**: 고치기 전과 같이 통과.
+- **Pass criterion**: 셋 다 종료 코드 0.
+
+### T5. 검사 수가 줄지 않음
+
+- **Setup**: 고치기 전 bash 5 로 세 시험의 통과 줄 수를 적어 둠.
+- **Run**: 고친 뒤 bash 3.2 · bash 5 로 세 시험의 통과 줄 수를 셈.
+- **Expected**: 고친 뒤의 수 ≥ 고치기 전의 수.
+- **Pass criterion**: 세 시험 모두 조건이 참. 건너뜀 줄 0건.
+
+### T6. 스크립트를 고친 경우 — 그 스크립트의 다른 시험
+
+- **Setup**: 2단계에서 스크립트가 원인으로 나온 경우에만.
+- **Run**: 그 스크립트를 부르는 시험을 두 bash 로.
+- **Expected**: 통과.
+- **Pass criterion**: 종료 코드 0. (스크립트를 고치지 않았으면 "해당 없음"으로 적음)
+
+### T7. 전체 시험
+
+- **Setup**: 없음.
+- **Run**: 전체 시험을 4개씩 나눠 두 bash 로.
+- **Expected**: 이 변경 때문에 새로 실패한 시험 0개. bash 3.2 의 기존 실패 셋은 이제 통과.
+- **Pass criterion**: bash 3.2 실패 목록에 세 시험이 없음.
+
+## How to run
+
+```bash
+/bin/bash core/tests/test-graph.sh &amp;&amp; /bin/bash tests/test-guard-consistency.sh &amp;&amp; /bin/bash tests/test-promote-wait.sh
+```
+
+## Pass criteria
+
+- T1–T7 통과(T6 은 해당할 때만).
+- PR 검사(맥 · 리눅스) 통과.
+
+## Related Documents
+
+- [`PLAN.md`](./PLAN.md)</code></pre></div>
+    </aside>
+</div>
+<div class="deck-footer">
+      <button class="deck-arrow" id="scvPrev" disabled="" onclick="scvGoto(scvIdx()-1)">‹ 이전</button>
+      <div class="deck-dots"><button class="deck-dot active" data-idx="0" onclick="scvGoto(0)" aria-label="1"></button><button class="deck-dot" data-idx="1" onclick="scvGoto(1)" aria-label="2"></button><button class="deck-dot" data-idx="2" onclick="scvGoto(2)" aria-label="3"></button><button class="deck-dot" data-idx="3" onclick="scvGoto(3)" aria-label="4"></button><button class="deck-dot" data-idx="4" onclick="scvGoto(4)" aria-label="5"></button><button class="deck-dot" data-idx="5" onclick="scvGoto(5)" aria-label="6"></button></div>
+      <span class="deck-counter" id="scvCounter">1 / 6</span>
+      <button class="deck-arrow" id="scvNext" onclick="scvGoto(scvIdx()+1)">다음 ›</button>
+    </div>
+</div>
+
+<script>
+  var SCV_ANCHORS = ["Architecture — bash 3.2 에서 실패하는 시험 셋 고치기","1. Component data flow","2. Position in whole architecture","3. Screen mockups","변경 지도",null];
+  var scvPageIdx = 0;
+  function scvIdx(){ return scvPageIdx; }
+  function scvEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function scvHighlight(anchor){
+    var docs = document.querySelectorAll('.src-doc');
+    docs.forEach(function(el){
+      var code = el.querySelector('code');
+      if(code) code.innerHTML = scvEsc(code.textContent);
+    });
+    if(!anchor) return;
+    for (var i=0;i<docs.length;i++){
+      var code = docs[i].querySelector('code');
+      if(!code) continue;
+      var raw = code.textContent;
+      var lines = raw.split('\n');
+      var start=-1, end=lines.length;
+      for (var j=0;j<lines.length;j++){
+        var m = lines[j].match(/^#{1,6}\s+(.*)$/);
+        if (m && m[1].trim() === String(anchor).trim()) { start = j; break; }
+      }
+      if (start < 0) continue;
+      for (var k=start+1;k<lines.length;k++){ if (/^#{1,6}\s+/.test(lines[k])) { end = k; break; } }
+      var before = lines.slice(0,start).join('\n'), hl = lines.slice(start,end).join('\n'), after = lines.slice(end).join('\n');
+      code.innerHTML = scvEsc(before) + (before ? '\n' : '') + '<mark class="src-hl">' + scvEsc(hl) + '</mark>' + (after ? '\n' + scvEsc(after) : '');
+      if (typeof scvSelectSource === 'function') scvSelectSource(i);
+      var markEl = docs[i].querySelector('mark.src-hl');
+      if (markEl && markEl.scrollIntoView) markEl.scrollIntoView({ block: 'center' });
+      return;
+    }
+  }
+  function scvGoto(n){
+    var total = 6;
+    n = Math.max(0, Math.min(total - 1, n));
+    scvPageIdx = n;
+    document.querySelectorAll('.slide-page').forEach(function(p){ p.classList.toggle('active', p.dataset.idx === String(n)); });
+    document.querySelectorAll('.deck-nav-item').forEach(function(el){
+      var on = el.dataset.idx === String(n);
+      el.classList.toggle('active', on);
+      // The nav is one scrolling row now, so the active pill can sit past the
+      // right edge. Scroll the STRIP, not the page — scrollIntoView on the
+      // element would also scroll .scroll-main and lose the reader's place.
+      if (on && el.parentElement) {
+        var strip = el.parentElement;
+        var left = el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2;
+        strip.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+      }
+    });
+    document.querySelectorAll('.deck-dot').forEach(function(el){ el.classList.toggle('active', el.dataset.idx === String(n)); });
+    if (typeof window.scvRunMermaid === 'function') { try { window.scvRunMermaid(); } catch (e) {} }
+    var prevBtn = document.getElementById('scvPrev'), nextBtn = document.getElementById('scvNext'), counter = document.getElementById('scvCounter');
+    if (prevBtn) prevBtn.disabled = (n === 0);
+    if (nextBtn) nextBtn.disabled = (n === total - 1);
+    if (counter) counter.textContent = (n + 1) + ' / ' + total;
+    scvHighlight(SCV_ANCHORS[n]);
+    var main = document.querySelector('.scroll-main');
+    if (main) main.scrollTop = 0;
+  }
+  function scvTogglePanel(){ var p=document.getElementById('scvSourcePanel'); if(p) p.classList.toggle('closed'); }
+  function scvSelectSource(i){
+    document.querySelectorAll('.panel-tab').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+    document.querySelectorAll('.src-doc').forEach(function(el){ el.classList.toggle('active', String(i)===el.dataset.idx); });
+  }
+  (function(){
+    // 패널 좌측 경계 드래그 리사이즈 — 원본 SourcePanel 과 같은 산식(최소 320px,
+    // 본문에 최소 420px 남김).
+    var handle = document.getElementById('scvResizeHandle');
+    var panel = document.getElementById('scvSourcePanel');
+    if (!handle || !panel) return;
+    var MOBILE_BP = 640;
+    handle.addEventListener('mousedown', function(e){
+      e.preventDefault();
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+      function onMove(ev){
+        // 버튼을 놓친 채(창 밖 등) mouseup 을 못 받은 경우 — 버튼이 눌려있지 않으면 즉시 정리.
+        if (ev.buttons === 0) { onUp(); return; }
+        var raw = window.innerWidth - ev.clientX;
+        var max = Math.max(320, window.innerWidth - 420);
+        panel.style.width = Math.min(max, Math.max(320, raw)) + 'px';
+      }
+      function onUp(){
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        window.removeEventListener('blur', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('blur', onUp);
+    });
+    // 인라인 width 는 스타일시트의 반응형 브레이크포인트(640px 모바일 전체폭·900px 좁은폭)
+    // 보다 항상 우선한다 — 창 크기가 바뀔 때마다 다시 맞춰줘야 브레이크포인트가 살아난다.
+    window.addEventListener('resize', function(){
+      if (!panel.style.width) return;
+      if (window.innerWidth <= MOBILE_BP) { panel.style.width = ''; return; }
+      var max = Math.max(320, window.innerWidth - 420);
+      if (parseFloat(panel.style.width) > max) panel.style.width = max + 'px';
+    });
+  })();
+  document.addEventListener('keydown', function(e){
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') scvGoto(scvIdx() + 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') scvGoto(scvIdx() - 1);
+    else if (e.key === 'Home') scvGoto(0);
+    else if (e.key === 'End') scvGoto(6 - 1);
+    else if (e.key === 's' || e.key === 'S') scvTogglePanel();
+  });
+  scvGoto(0);
+</script>
+
+
+
+<div class="mermaidTooltip" style="opacity: 0; position: absolute; text-align: center; max-width: 200px; padding: 2px; font-size: 12px; background: rgb(255, 255, 222); border: 1px solid rgb(51, 51, 51); border-radius: 2px; pointer-events: none; z-index: 100;"></div></body></html>
