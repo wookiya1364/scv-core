@@ -63,7 +63,7 @@ ended() {  # <저장소> <답 글> [<프로필>] — 턴 끝 판정에 그 턴�
   (cd "$1" && printf '%s' "$2" | SCV_HOST_PROFILE="${3:-$P}" bash "$MP" stop --session s1 >/dev/null 2>&1) || true
 }
 Q_HM='이 세션의 effort 는 high 인데 권장은 medium 입니다. medium 로 바꿀까요, high 그대로 둘까요?'
-NOQ='파일은 한 줄입니다.' 
+NOQ='파일은 한 줄입니다.'
 
 echo "T3. 다르면 요청 1번 — 지금 값 · 권장 값 · 근거 문장이 실린다"
 R="$(new_repo t3)"; seen "$R" vendor-model-a; T="$(log "$R" high)"
