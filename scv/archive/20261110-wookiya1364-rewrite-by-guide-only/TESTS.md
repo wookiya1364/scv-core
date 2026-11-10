@@ -117,8 +117,8 @@
 
 - **Setup**: 인터넷이 되는 곳.
 - **Run**: `bash prompting/check.sh --online`.
-- **Expected**: 본문이 원본과 바이트 단위로 같다.
-- **Pass criterion**: 종료 코드 0, `differs` 0건.
+- **Expected**: 새 사본 셋(fable-5-2 · sonnet-5-5 · haiku-5-5)의 본문이 원본과 바이트 단위로 같다.
+- **Pass criterion**: 출력에 새 사본 셋의 `differs` 줄이 0건. 기존 사본 7개는 가져온 날(2026-09-27) 뒤로 원본이 바뀌어 `differs` 가 나올 수 있다 — 이 계획은 기존 사본을 다시 받지 않으므로 그 줄은 세지 않는다(2026-11-10 실행에서 7개 모두 나옴).
 
 ### T17. 세 모델 이름으로 각자의 가이드가 나온다
 
