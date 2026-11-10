@@ -188,10 +188,11 @@
 - 예: `"misc" → "no"`
 
 ### scv_tc_nongoal_hits
-- 역할: 덧붙이거나 진행으로 적으려는 글이 계획의 '하지 않음'(Non-Goals) 항목과 낱말로 겹치면 한 줄씩 낸다 — 겹치면 사용자에게 물을 일
+- 역할: 덧붙이거나 진행으로 적으려는 글에 계획의 '하지 않음'(Non-Goals) 항목 낱말의 절반 이상이 들어 있으면 한 줄씩 낸다 — 겹치면 사용자에게 물을 일
 - 위치: scripts/lib/turn-check.sh · @pure · sh
 - 예: `$'## Goals / Non-Goals\n- **Goals**\n  - 결제 버튼\n- **Non-Goals**\n  - 환불 기능' "환불 버튼 추가" → "충돌 · 하지 않기로 함: 환불 기능 ↔ 적으려는 글: 환불 버튼 추가"`
 - 예: `$'## Goals / Non-Goals\n- **Non-Goals**\n  - 환불 기능' "결제 버튼 색" → ""`
+- 예: `$'## Goals / Non-Goals\n- **Non-Goals**\n  - 답 모양 같은 output 규칙의 내용을 바꾸는 일' "시험 파일을 새 모양에 맞춤" → ""`
 - 예: `"# a" "x" → ""`
 
 ### scv_tc_receipt
