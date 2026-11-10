@@ -1,6 +1,6 @@
 # 판정 — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 35개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 37개.
 
 ### pc_validate_entries
 - 역할: 항목마다 빠진 칸(역할 · 종류 · 예)과 종류 표에 없는 종류를 위반 줄로 낸다
@@ -67,6 +67,23 @@
 - 위치: scripts/lib/help-state.sh · @pure · sh
 - 예: `$'s1\x1f1\x1f3' on → "PROTOCOL: loaded"`
 - 예: `$'s1\x1f1\x1f3' off → "PROTOCOL: load"`
+
+### scv_mp_effort_verdict
+- 역할: effort 를 물을지 정한다 — off(꺼짐) · unknown(값이나 표를 모름) · same(권장과 같음) · asked(이 조건으로 이미 물음) · ask
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `on high $'medium\t-\tq\ts' "" m → "ask"`
+- 예: `on high $'medium\t-\tq\ts' "m|high|medium" m → "asked"`
+- 예: `on medium $'medium\t-\tq\ts' "" m → "same"`
+- 예: `on "" $'medium\t-\tq\ts' "" m → "unknown"`
+- 예: `on high "" "" m → "unknown"`
+- 예: `off high $'medium\t-\tq\ts' "" m → "off"`
+
+### scv_mp_effort_word
+- 역할: effort 값 낱말이 맞는지 가려, 맞으면 소문자로 낸다(아니면 빈 값)
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `"High" → "high"`
+- 예: `"banana" → ""`
+- 예: `"" → ""`
 
 ### scv_mp_has_guides
 - 역할: 색인에 가이드 행(모델 행이나 공통 행)이 하나라도 있는지 1|0 으로 정한다

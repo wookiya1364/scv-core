@@ -1,6 +1,6 @@
 # 고르기 — 여럿 중 일부를 골라내거나 순서를 매긴다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 35개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 37개.
 
 ### attachment_scope_filter
 - 역할: 표준입력 줄들에서 슬러그가 든 줄만 남긴다 — 슬러그가 비면 전부 통과
@@ -86,6 +86,21 @@
 - 역할: 그래프 JSON 에서 연결(차수)이 많은 노드 id 를 상위 n 개(기본 10) 한 줄씩 낸다 (동률은 id 순, jq 필요)
 - 위치: scripts/lib/graph.sh · @deterministic · sh
 - 예: `'{"nodes":[{"id":"a"},{"id":"b"},{"id":"c"}],"links":[{"source":"a","target":"b"},{"source":"a","target":"c"}]}' 2 → $'a\nb'`
+
+### scv_mp_effort_from_log
+- 역할: 세션 기록에서 뽑은 줄들("키":"값" 꼴)에서 마지막 값을 꺼내 effort 낱말이면 낸다(없으면 빈 값)
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `$'"k":"low"\n"k":"high"' "k" → "high"`
+- 예: `'"k":"banana"' "k" → ""`
+- 예: `'"a":"low"' "k" → ""`
+- 예: `'"k":"low"' "" → ""`
+
+### scv_mp_effort_row
+- 역할: 권장 effort 표에서 이 모델의 줄을 골라 "권장<TAB>조건<TAB>근거<TAB>출처" 로 낸다(줄이 없거나 값 낱말이 틀리면 빈 값)
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `$'# c\nm-a\thigh\t-\tStart at high.\ta.md' "m-a" → $'high\t-\tStart at high.\ta.md'`
+- 예: `$'m-a\thigh\t-\tStart at high.\ta.md' "m-b" → ""`
+- 예: `$'m-a\tfast\t-\tx\ta.md' "m-a" → ""`
 
 ### scv_mp_warn_keep
 - 역할: 경고 파일에서 "[SCV 가이드]" 줄과 그 뒤 두 칸 들여 쓴 줄만 남긴다
