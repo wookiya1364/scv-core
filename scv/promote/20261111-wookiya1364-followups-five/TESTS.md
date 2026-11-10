@@ -1,0 +1,135 @@
+# Test Plan — 남은 일 다섯 마무리
+
+## Overview
+
+단계 다섯이 각각 고친 것과, 그러면서 지켜야 할 것(연결 거절 · 한 번만 묻기 · 진짜 느려짐 잡기)을 본다.
+T1–T9 · T16 은 임시 폴더의 자동 시험, T10 · T11 은 측정, T12–T15 는 실제 코덱스 세션과 래퍼 검사다.
+
+## Test scenarios
+
+### T1. 저널 뿌리가 연결 — 쓴다
+
+- **Setup**: 임시 저장소의 `scv/journal` 이 다른 폴더를 가리키는 연결.
+- **Run**: `journal-append.sh --speaker user "한 줄"`.
+- **Expected**: 연결이 가리키는 폴더에 오늘 날짜 저널 파일이 생기고 그 줄이 있다.
+- **Pass criterion**: 종료 코드 0, 파일에 `한 줄` 1번. (고치기 전에는 종료 코드 1)
+
+### T2. 저널 파일 자체가 연결 — 거절
+
+- **Setup**: 오늘 날짜 저널 파일이 밖의 파일을 가리키는 연결.
+- **Run**: `journal-append.sh --speaker user "x"`.
+- **Expected**: 거절, 밖의 파일은 안 바뀜.
+- **Pass criterion**: 종료 코드 1, 밖의 파일 크기 그대로.
+
+### T3. 보통 저널 폴더 — 그대로
+
+- **Setup**: 연결 없는 임시 저장소.
+- **Run**: 저널 관련 기존 시험.
+- **Expected**: 고치기 전과 같은 통과 수.
+- **Pass criterion**: 종료 코드 0.
+
+### T4. 가림은 그대로
+
+- **Setup**: 연결된 저널 뿌리.
+- **Run**: `journal-append.sh --speaker user "token=abc123"`.
+- **Expected**: 파일에는 `[REDACTED]` 로 적힌다.
+- **Pass criterion**: 파일에 `abc123` 0번.
+
+### T5. 물은 턴 — 다시 싣지 않는다
+
+- **Setup**: effort 가 권장과 다른 세션. 첫 턴에 줄이 실리고, 그 턴의 답에 effort 질문이 있다.
+- **Run**: 턴 끝 판정 → 다음 턴의 매 턴 안내.
+- **Expected**: 다음 턴에 줄이 없다.
+- **Pass criterion**: 요청 줄 수 1 · 0.
+
+### T6. 안 물은 턴 — 다음 턴에 다시 싣는다
+
+- **Setup**: 같은 조건. 줄이 실린 턴의 답에 effort 질문이 없다.
+- **Run**: 턴 끝 판정 → 다음 턴의 매 턴 안내.
+- **Expected**: 다음 턴에 줄이 다시 실린다.
+- **Pass criterion**: 요청 줄 수 1 · 1.
+
+### T7. 세 번에서 멈춘다
+
+- **Setup**: 답에 질문이 계속 없다.
+- **Run**: 턴 다섯 번.
+- **Expected**: 줄이 세 번 실리고 그 뒤 두 번은 없다.
+- **Pass criterion**: 요청 줄 수 1 · 1 · 1 · 0 · 0.
+
+### T8. 질문이 있었는지 가리기
+
+- **Setup**: 없음(순수 함수).
+- **Run**: `scv_mp_effort_asked_in` 에 넷: 선택 창 질문 글에 effort 가 있음 / 답 글에 effort 와 권장 값이 함께 있음 / 답 글에 effort 만 있고 권장 값이 없음 / 둘 다 없음.
+- **Expected**: 1 · 1 · 0 · 0.
+- **Pass criterion**: 네 출력이 `1` `1` `0` `0`.
+
+### T9. 권장 값으로 돌아가면 처음부터
+
+- **Setup**: 두 번 실린 뒤 사용자가 값을 권장으로 바꿨다가 다시 벗어남.
+- **Run**: 매 턴 안내.
+- **Expected**: 다시 벗어난 뒤 줄이 실린다(횟수는 0부터).
+- **Pass criterion**: 요청 줄 수 1 · 1 · 0(같음) · 1.
+
+### T10. 흔들림 측정 — 벽시계 대 CPU 시간
+
+- **Setup**: CPU 코어 수만큼 바쁜 작업을 띄운 상태와 한가한 상태.
+- **Run**: 두 속도 시험이 재는 구간을 각각 다섯 번씩, 벽시계와 CPU 시간으로.
+- **Expected**: 붐빌 때 벽시계 값은 크게 늘고 CPU 시간은 덜 는다.
+- **Pass criterion**: (붐빌 때 중앙값 ÷ 한가할 때 중앙값)이 CPU 시간 쪽이 벽시계 쪽보다 작다. 아니면 7은 바꾸지 않고 측정값을 보고한다.
+
+### T11. 속도 시험 둘 — 붐벼도 통과, 진짜 느려지면 실패
+
+- **Setup**: T10 을 통과해 CPU 시간으로 바꾼 뒤.
+- **Run**: 붐비는 상태에서 두 시험. 그리고 큰 기록을 매 턴 처음부터 읽게 일부러 망가뜨린 사본으로 `test-rewrite-stays-current` T7.
+- **Expected**: 붐비는 상태에서 둘 다 통과. 망가뜨린 사본은 실패.
+- **Pass criterion**: 통과 2 · 실패 1.
+
+### T12. 코덱스 실제 세션 — 안내가 실린다
+
+- **Setup**: 설치된 코덱스 플러그인을 0.89.1-codex.1 로 올림. SCV 를 들인 임시 프로젝트.
+- **Run**: 사람 없이 한 턴(`codex exec`), 이어서 한 턴 더.
+- **Expected**: 세션 기록에 SCV 매 턴 안내가 있고 낱말 규칙 줄(STE)이 없다.
+- **Pass criterion**: 기록에서 안내 글 1번 이상, `STE:` 0번.
+
+### T13. 코덱스 실제 세션 — 가이드 · 등록 · 인용
+
+- **Setup**: T12 의 세션.
+- **Run**: 세션 기록과 임시 프로젝트의 턴 상태 폴더를 본다.
+- **Expected**: 그 모델의 가이드를 읽었다는 표시, 두 줄 등록, 답 맨 위의 다시 쓴 요청 인용.
+- **Pass criterion**: 셋 다 기록에 있음. 없는 것은 "없음"으로 적고 실패로 본다.
+
+### T14. 코덱스 기록에서 effort 를 읽을 수 있나
+
+- **Setup**: effort(생각의 세기)를 서로 다른 두 값으로 연 코덱스 세션 둘의 기록.
+- **Run**: 기록에서 그 값을 담은 키를 찾는다.
+- **Expected**: 두 세션의 값이 연 값과 같다.
+- **Pass criterion**: 2/2 일치하면 6 을 진행, 아니면 6 은 "넣지 않음".
+
+### T15. 코덱스 권장 표 (넣기로 정해졌을 때만)
+
+- **Setup**: 코덱스 래퍼의 `EFFORT.tsv` 와 표 검사.
+- **Run**: 래퍼의 가이드 검사와 가이드 시험.
+- **Expected**: 모든 줄의 근거 문장이 가이드 사본에 글자 그대로 있고, 다르면 한 번 싣는다.
+- **Pass criterion**: 검사 종료 코드 0, 값 · 문장을 틀리게 바꾼 사본에서는 1.
+
+### T16. 전체 시험
+
+- **Setup**: 없음.
+- **Run**: 전체 시험을 4개씩 나눠 bash 3.2 · bash 5 로.
+- **Expected**: 이 변경 때문에 새로 실패한 시험 0개.
+- **Pass criterion**: 두 bash 모두 실패 0개.
+
+## How to run
+
+```bash
+bash core/tests/test-followups-five.sh && bash core/tests/test-effort-ask.sh && bash core/tests/test-rewrite-stays-current.sh && bash core/tests/test-finish-report.sh
+```
+
+## Pass criteria
+
+- T1–T16 통과. T10 이 통과하지 못하면 7 은 바꾸지 않고, T14 가 통과하지 못하면 6 은 넣지 않는다 — 둘 다 그대로 보고한다.
+- 단계마다 커밋 하나.
+
+## Related Documents
+
+- [`PLAN.md`](./PLAN.md)
