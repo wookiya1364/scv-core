@@ -2153,3 +2153,10 @@ merge_policy: preserve
 - why: progress 기본 상태를 doing 으로, 막힘 안내문은 끝났을 때만 --state done, append 로 단계를 끼우면 변경 이력 진행 줄 번호도 민다(scv_plan_shift_progress). 앞으로 깨지면 안 될 것: --state done 은 그대로 '끝', 진행 줄이 아닌 이력 줄은 번호를 바꾸지 않음
 - path delta: 계획대로. 덧붙임: work 규약의 progress 안내 한 줄도 같은 뜻으로 고침
 - refs: scv/archive/20261110-wookiya1364-progress-state-renumber/PLAN.md
+
+## [2026-11-10 21:56] wookiya1364 — 다시 쓰기는 가이드만 — 항목 표 · 낱말 규칙을 없애고 가이드 셋을 넣는다
+
+- verdict: adopted
+- why: 실제 요청 60개로 잰 결과 항목 표가 있든 없든 계획이 사용자 뜻과 맞는 정도가 같았음(0.79 대 0.79 · 0.85 대 0.83 · 0.86 대 0.86). 결과가 같으므로 'input 에는 가이드만, SCV 는 output 만 강제' 원칙과 매 턴의 수고로 골랐음.
+- discarded alternatives: 항목 표 유지(결과가 같은데 SCV 가 고른 표에 기댐) · 공통 항목 8개만 남김(리눅스 세션의 결정 — 표 전체를 없애는 쪽으로 바꿈) · 시작 전 확인 절차로 옮기기(측정에서 필요했던 질문을 더 못 올림) · 공통 가이드 전문 읽히기(발췌보다 나은 점 없음) · 원문 그대로 + 앞 대화 사실(2차에서 따로 재지 않음) · 다시 쓰기 없애기(측정으로 가릴 수 없음) · 새 방법 5~9(방법 1 · 2 를 넘지 못함)
+- refs: scv/promote/20261110-wookiya1364-rewrite-by-guide-only/PLAN.md

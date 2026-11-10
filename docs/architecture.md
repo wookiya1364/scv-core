@@ -144,8 +144,8 @@ sequenceDiagram
   participant M as Model
   Note over H: session start · after compaction or /clear<br>on-session-start.sh — resume recap (SCV_RESUME_RECAP)
   U->>H: message
-  H->>M: on-user-prompt.sh — route to help (SCV_ALWAYS_ON)<br>diagnosis · plain language · choices · show the real thing<br>model checklist (SCV_MODEL_PROMPTING) · dreams line
-  M->>H: register the turn against the model checklist
+  H->>M: on-user-prompt.sh — route to help (SCV_ALWAYS_ON)<br>diagnosis · plain language · choices · show the real thing<br>model guide rewrite (SCV_MODEL_PROMPTING) · dreams line
+  M->>H: register the rewritten request and the turn's scope
   M->>H: tool call
   H-->>M: guard.sh — refuse writes before registration<br>or outside the workflow without an SCV action
   M->>H: final answer
@@ -157,9 +157,8 @@ sequenceDiagram
 - **Routing and diagnosis** — free conversation goes to the help action, with a
   short project diagnosis so the model starts from the real state
   (`SCV_ALWAYS_ON`).
-- **Per-model prompting** — the request is compared item by item with the
-  model's requirement checklist (quoted verbatim from its official guide) and
-  registered; the answer opens with one "understood as" line and quotes the
+- **Per-model prompting** — the request is rewritten by the model's official
+  guide (nothing else decides how) and registered with the turn's scope; the answer opens with one "understood as" line and quotes the
   rewritten request (`SCV_MODEL_PROMPTING`).
 - **Show the real thing** — when a turn changes the deliverable, the first time
   it runs the model runs the smallest real thing, shows the actual output, and
