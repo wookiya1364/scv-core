@@ -498,6 +498,16 @@ are ignored. Without an index neither the write refusal nor this registration ch
 The guides folder is searched from the Core root up to three levels, so one profile value serves both the
 projected scripts and the vendored hooks.
 
+**Recommended effort (0.89.0+, optional).** Ship `EFFORT.tsv` beside `INDEX.tsv` to have SCV ask once when the
+session's effort differs from what the model's official guide recommends. One row per model, tab-separated:
+`<model id>`, `<recommended: low|medium|high|xhigh|max>`, `<condition or ->`, `<the guide's sentence, verbatim>`,
+`<source file>`; `#` lines are comments. Name the transcript key that holds a turn's effort in the host profile
+(`SCV_EFFORT_LOG_KEY`). The prompt hook then carries one `[SCV effort]` line — current value, recommended value,
+the quoted sentence, the condition — telling the model to ask through the choice tool; the user changes the
+value, never SCV or the model. The same condition (model · current · recommended) is asked once per project — a new
+session does not ask it again; a changed condition is asked again. Nothing is asked when the value is unknown (a session's first turn, no key),
+the model has no row, the run is unattended, or `SCV_EFFORT_RECOMMEND=off`. Without the file nothing changes.
+
 **One block per check per turn (v0.64.2+).** The Stop hook's checks — the registration check above, the
 principle check and the choice check — share one rule, written once in `core/contracts/choices.md` rule 7. What
 a wrapper needs to know: the hook applies that rule to continuing stops only when the Stop input carries
