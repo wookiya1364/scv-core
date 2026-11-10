@@ -2,6 +2,11 @@
 
 All notable changes to SCV Core are documented here.
 
+## [0.89.1] - 2026-11-11
+
+### Fixed
+- 호스트 프로필 도구가 0.89.0 의 새 선택 키 `SCV_EFFORT_LOG_KEY` 를 몰라, 래퍼가 그 키를 프로필에 적으면 프로필 검사(`tools/validate-host-profile.sh`)가 "unknown key" 로 거절했다 — 0.89.0 으로는 래퍼가 권장 effort 요청을 켤 수 없었다. 검사가 키를 받고(JSON 키 이름 하나), 프로필 만들기(`tools/materialize-profile.sh`)가 옮긴다. 읽는 쪽이 아는 키를 두 도구도 아는지 보는 시험을 더했다(0.87.0 에서도 같은 일로 래퍼 릴리스가 막혔었다).
+
 ## [0.89.0] - 2026-11-11
 
 ### Added
