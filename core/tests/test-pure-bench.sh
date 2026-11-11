@@ -238,7 +238,9 @@ eq "S14 a new function within limits → new"     $'new\t-'                  "$(
 eq "S14 judged unmeasured stays unmeasured"     $'unmeasured\t-'           "$(v $'f\tok\tunmeasured\t3.000\t9.000\t0\t0\t2.4\t2.4\t-\t-')"
 eq "S14 not reached in time"                    $'not-reached\t-'          "$(v $'f\tnot-reached\t-\t-\t-\t-\t-\t-\t-\t-\t-')"
 pb_accept_covers "time=1.35" "time=1.40"; eq "S14 accepted, about the same → covered" 0 "$?"
-pb_accept_covers "time=1.35" "time=1.80"; eq "S14 accepted, now much worse → asked again" 1 "$?"
+pb_accept_covers "time=1.35" "time=1.80"; eq "S14 accepted, somewhat higher on a busy computer → still covered" 0 "$?"
+pb_accept_covers "time=1.35" "time=3.00"; eq "S14 accepted, now more than twice as bad → asked again" 1 "$?"
+pb_accept_covers "mem=1.9:37.0" "mem=1.9:50.0"; eq "S14 accepted memory, 1.35 times more → asked again" 1 "$?"
 pb_accept_covers "time=1.35" "time=1.30 calls=1:2"; eq "S14 accepted, a new kind of excess → asked again" 1 "$?"
 pb_accept_covers "calls=1:100 mem=1.9:37.0" "calls=1:100"; eq "S14 accepted calls, same count → covered" 0 "$?"
 pb_accept_covers "calls=1:100" "calls=1:101"; eq "S14 accepted calls, one more → asked again" 1 "$?"
@@ -385,6 +387,29 @@ fi
 grep -q '"\[재는 검사\]"\* \]\] || bash "\$SCRIPT_DIR/pure-bench.sh" accept' "$CORE/scripts/turn-check.sh" && ok "OK [S18] only that question starts the acceptance step (other answers cost nothing)" || fail "[S18] every choice answer starts the command"
 grep -q 'pure-bench.sh" accept --question' "$CORE/scripts/turn-check.sh" && ok "OK [S18] a choice answer reaches the acceptance record" || fail "[S18] no accept call"
 grep -q 'SCV_PURE_BENCH' "$CORE/scripts/lib/settings.sh" && ok "OK [S18] the switch is a known setting" || fail "[S18] setting key missing"
+
+echo "S19. 기준 목록 — 늘면 실패, 줄면 내림 (TESTS T12)"
+BL="$TMP/scale-baseline"
+SCV_PB_GPU_TOOL=none "$BASH" "$PB" bench --catalog "$B/cat" --base "$B" --only t_once --only t_rev --baseline "$BL" >/dev/null; st=$?
+eq "S19 the first run makes the list (nothing over 8 here)" "0 0" "$st $(grep -c . "$BL")"
+printf 't_once\nt_gone_now\n' > "$BL"
+SCV_PB_GPU_TOOL=none "$BASH" "$PB" bench --catalog "$B/cat" --base "$B" --only t_once --only t_rev --baseline "$BL" >/dev/null; st=$?
+eq "S19 names that are no longer over the limit leave the list" "0 0" "$st $(grep -c . "$BL")"
+eq "S19 a new name is told and not added" $'a\n@@new c' "$(pb_baseline_next $'a\nb' $'a\nc')"
+
+echo "S20. 너무 오래 걸리는 함수 — 끊고 그렇게 적는다"
+cat >> "$B/lib/t.sh" <<'LIB'
+t_long() { local n; n="$(printf '%s\n' "$1" | grep -c .)"; if [[ $n -gt 60 ]]; then sleep 30; fi; printf '%s' "$n"; }
+LIB
+printf '\n### t_long\n- 역할: 줄이 많으면 오래 걸린다\n- 위치: lib/t.sh · @deterministic · sh\n- 예: `$\x27a\\nb\x27 → "2"`\n' >> "$B/cat/a.md"
+t0=$SECONDS
+SCV_PB_CALL_LIMIT=3 SCV_PB_GPU_TOOL=none "$BASH" "$PB" bench --catalog "$B/cat" --base "$B" --only t_long --tsv "$TMP/long.tsv" --baseline "$TMP/long.base" > "$TMP/long.md"
+el=$(( SECONDS - t0 ))
+[[ $el -lt 25 ]] && ok "OK [S20] one slow function does not hold the whole run (${el}s, not 30+)" || fail "[S20] took ${el}s"
+eq "S20 the row says it was cut at 4x" "too-slow" "$(cut -f9 "$TMP/long.tsv")"
+grep -q '4배 입력에서 너무 오래 걸려 끊음 · 배수 한도(8배) 넘음' "$TMP/long.md" && ok "OK [S20] and it counts as over the limit, in plain words" || fail "[S20] $(grep '^| t_long' "$TMP/long.md")"
+eq "S20 it is on the list of functions that are dangerous with bigger input" "t_long" "$(cat "$TMP/long.base")"
+[[ -z "$(ps -Ao command | grep -v grep | grep 'sleep 30' | head -1)" ]] || echo "  - note [S20] 끊긴 함수가 띄운 기다림이 잠깐 남아 있음(30초 뒤 사라짐)"
 
 echo
 echo "── $PASS passed, $FAIL failed"

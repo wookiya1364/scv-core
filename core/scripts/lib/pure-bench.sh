@@ -361,6 +361,9 @@ pb_render() {
     note=""
     case "$st" in
       load-failed) bad=$((bad + 1)); why_load=$((why_load + 1)); note="불러오지 못함" ;;
+      too-slow)
+        if [[ "$ms1" == "-" ]]; then bad=$((bad + 1)); why_meas=$((why_meas + 1)); note="너무 오래 걸려 끊음"
+        else ok=$((ok + 1)); over=$((over + 1)); note="4배 입력에서 너무 오래 걸려 끊음 · 배수 한도(${PB_SCALE_LIMIT}배) 넘음"; fi ;;
       not-shell)   bad=$((bad + 1)); why_lang=$((why_lang + 1)); note="셸 함수 아님" ;;
       *)
         if [[ "$nm" == unmeasured ]]; then bad=$((bad + 1)); why_meas=$((why_meas + 1)); note="재지 못함"
@@ -492,10 +495,11 @@ pb_compare() {
 }
 
 # @pure
-# 역할: 사용자가 받아들인 이유들과 지금의 이유들을 견줘, 지금 것이 모두 받아들인 범위 안이면 참 — 시간 · 메모리 · 배수는 받아들인 값의 1.2배까지, 부른 횟수는 받아들인 수까지
+# 역할: 사용자가 받아들인 이유들과 지금의 이유들을 견줘, 지금 것이 모두 받아들인 범위 안이면 참 — 시간 · 배수는 받아들인 값의 2배까지, 메모리는 1.2배까지, 부른 횟수는 받아들인 수까지
 # 종류: 판정
 # 예: "time=1.35" "time=1.40" → ""
-# 예: "time=1.35" "time=1.80" → "" [1]
+# 예: "time=1.35" "time=3.00" → "" [1]
+# 예: "mem=1.9:37.0" "mem=1.9:50.0" → "" [1]
 # 예: "time=1.35" "time=1.30 calls=1:2" → "" [1]
 # 예: "calls=1:100 mem=1.9:37.0" "calls=1:100" → ""
 pb_accept_covers() {
@@ -507,8 +511,11 @@ pb_accept_covers() {
     if [[ "$kind" == calls ]]; then
       [[ "$val" =~ ^[0-9]+$ && "$was" =~ ^[0-9]+$ && $val -le $was ]] || return 1
     else
+      # 시간 비율은 붐비는 컴퓨터에서 크게 흔들린다(다른 프로그램을 많이 부르는 함수는 같은 코드가 54배 ~ 96배로 재졌다) —
+      # 받아들인 값의 2배까지는 같은 변경으로 본다. 메모리는 흔들림이 작아 1.2배까지.
       x="$(pb_to_milli "$was")" && y="$(pb_to_milli "$val")" || return 1
-      (( lim = x * 120 )); [[ $(( y * 100 )) -le $lim ]] || return 1
+      if [[ "$kind" == mem ]]; then (( lim = x * 120 )); else (( lim = x * 200 )); fi
+      [[ $(( y * 100 )) -le $lim ]] || return 1
     fi
   done
   return 0

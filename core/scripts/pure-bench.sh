@@ -18,13 +18,17 @@
 #   pure-bench.sh fn [--catalog DIR] [--base DIR] [--only NAME]… [--scale 1|4]
 #       사전의 함수를 그 예시(1배 또는 4배 입력)로 재서 줄마다:
 #       "함수<탭>배<탭>되풀이<탭>회당 ms<탭>벽시계 초<탭>메모리 MB<탭>GPU 사용률<탭>GPU 메모리<탭>부른 횟수<탭>상태<탭>판정 잣대".
-#       상태: ok · not-scalable(늘려 재지 못함) · load-failed(함수를 불러오지 못함) · not-shell(셸 함수가 아님).
+#       상태: ok · not-scalable(늘려 재지 못함) · load-failed(함수를 불러오지 못함) · not-shell(셸 함수가 아님) ·
+#       too-slow(한 번 재는 데 SCV_PB_CALL_LIMIT 초 — 기본 60 — 를 넘겨 끊음).
 #
 #   pure-bench.sh composed [--catalog DIR] [--base DIR]
 #       엮은 함수(다른 사전 함수를 2개 이상 부르는 사전 함수)를 "함수<탭>부르는 함수들" 줄로 낸다.
-#   pure-bench.sh bench [--catalog DIR] [--base DIR] [--only NAME]… [--composed] [--tsv FILE]
+#   pure-bench.sh bench [--catalog DIR] [--base DIR] [--only NAME]… [--composed] [--tsv FILE] [--baseline FILE]
 #       함수를 1배 · 4배 입력으로 재서 표를 낸다(비고 · 끝의 셈 포함). --composed 는 엮은 함수와 그것이 부르는 함수만
 #       재고, 엮은 함수의 표(묶음 전체의 값 · 부품 값의 합)를 덧붙인다. --tsv 는 표의 줄을 파일에도 쓴다.
+#       --baseline 은 '입력 4배에 8배를 넘는 함수' 목록 파일: 없으면 지금 값으로 만들고, 있으면 줄어든 이름은 내리고
+#       새로 넘은 이름이 있으면 알리고 Exit 1 (목록에 넣지 않는다 — 고치거나, 받아들일지 사용자가 정한다).
+#       값은 셸에 따라 다르므로 목록 파일은 셸 큰 버전마다 따로 둔다(예: scale-baseline.bash3).
 #
 #   pure-bench.sh compare (--before DIR | --before-ref REF) [--catalog DIR] [--base DIR] [--only NAME]…
 #                         [--pairs N] [--full] [--budget SEC] [--accepted FILE] [--pending FILE]
@@ -72,15 +76,18 @@ read_catalog() {
   return 0
 }
 
-PB_TMP="$(mktemp -d "${TMPDIR:-/tmp}/scv-pure-bench.XXXXXX")" || exit 2
+# 함수를 부르는 새 셸(_drive)은 부모의 임시 폴더를 물려받는다 — 재는 일마다 폴더와 가짜 명령 묶음을 새로 만들지 않게.
+if [[ "${1:-}" == _drive && -n "${PB_PARENT_TMP:-}" && -d "${PB_PARENT_TMP:-}" ]]; then PB_TMP="$PB_PARENT_TMP"; PB_OWN_TMP=0
+else PB_TMP="$(mktemp -d "${TMPDIR:-/tmp}/scv-pure-bench.XXXXXX")" || exit 2; PB_OWN_TMP=1; export PB_PARENT_TMP="$PB_TMP"; fi
 PB_SAMPLER=""
 # @effect pb_cleanup
 # 이유: 끝날 때 GPU 표본기를 끄고 임시 폴더를 지운다 — 남은 과정이 컴퓨터를 붐비게 하지 않게
 pb_cleanup() {
   [[ -z "$PB_SAMPLER" ]] || { kill "$PB_SAMPLER" 2>/dev/null; wait "$PB_SAMPLER" 2>/dev/null; }
-  rm -rf "$PB_TMP"
+  [[ "$PB_OWN_TMP" != 1 ]] || rm -rf "$PB_TMP"
 }
 trap pb_cleanup EXIT
+trap 'exit 143' TERM INT      # 끊겨도 치우고 끝낸다
 
 # @effect pb_gpu_tool
 # 이유: 이 컴퓨터에서 GPU 를 읽을 도구를 찾는다(환경 값이 있으면 그것) — ioreg | nvidia | none
@@ -210,6 +217,15 @@ pb_drive() {
     *) eval "$(LC_ALL=C awk -v fn="$fn" '$0 ~ "^"fn"\\(\\)[[:space:]]*\\{" {on=1} on {print} on && /^\}$/ {exit}' "$base/$rel")" ;;
   esac
   declare -F "$fn" >/dev/null || exit 3
+  # 지킴이: 재는 일이 한도(기본 60초)를 넘기면 표시를 남기고 이 과정을 끊는다 — 한 함수가 전체 재기를 붙잡지 않게.
+  # 이 과정은 신호를 받으면 바로 끝나야 한다(잡아 두면 부르던 명령이 끝날 때까지 기다린다). 지킴이는 기다림을
+  # 자식으로 두고 wait 하므로, 일이 먼저 끝나 지킴이를 끌 때 기다림도 함께 끝난다(남는 과정 없음).
+  trap - TERM INT
+  ( trap 'kill "$nap" 2>/dev/null; exit 0' TERM
+    sleep "${SCV_PB_CALL_LIMIT:-60}" & nap=$!
+    wait "$nap" && { : > "$out.slow"; kill -TERM "$$" 2>/dev/null; } ) >/dev/null 2>&1 &
+  local guard=$!
+  trap 'kill "$guard" 2>/dev/null; pb_cleanup' EXIT
   if [[ "$args" == *"<<<"* ]]; then pb_call() { eval "$fn $args"; }; else pb_call() { eval "$fn $args" </dev/null; }; fi
   if [[ -n "$answer" ]]; then     # 답만 낸다 — 앞뒤의 답이 같은지 보려는 실행
     pb_call > "$answer" 2>/dev/null; echo "[$?]" >> "$answer"
@@ -230,9 +246,12 @@ pb_drive() {
 # @effect pb_measure_fn
 # 이유: 사전의 함수 하나를 한 배(1 또는 4)의 입력으로 재서 한 줄을 낸다 — 되풀이 수를 맞추고, 시간 · 메모리 · GPU · 부른 횟수를 모은다
 pb_measure_fn() {
-  local tool="$1" base="$2" name="$3" rel="$4" args="$5" scale="$6" reps=5 try cpu="" m ms r2 wall tcpu rss gutil gmem grise out="$PB_TMP/drive"
+  local tool="$1" base="$2" name="$3" rel="$4" args="$5" scale="$6" reps=1 try cpu="" m ms r2 wall tcpu rss gutil gmem grise out="$PB_TMP/drive"
+  # 한 번부터 잰다 — 한 번에 몇 초가 걸리는 함수를 여러 번 부르지 않게. 짧으면 되풀이 수를 늘려 다시 잰다.
   for try in 1 2 3; do
+    rm -f "$out.slow"
     m="$(run_measured "$tool" "$BASH" "$0" _drive "$base" "$rel" "$name" "$args" "$reps" "$out")"
+    if [[ -e "$out.slow" ]]; then rm -f "$out.slow" "$out.a" "$out.b"; printf '%s\t%s\t-\t-\t-\t-\t-\t-\t-\ttoo-slow\t-\n' "$name" "$scale"; return; fi
     [[ -s "$out.b" ]] || { printf '%s\t%s\t-\t-\t-\t-\t-\t-\t-\tload-failed\t-\n' "$name" "$scale"; return; }
     cpu="$(LC_ALL=C awk -v a="$(pb_times_secs "$(cat "$out.a")")" -v b="$(pb_times_secs "$(cat "$out.b")")" 'BEGIN { printf "%.3f", b - a }')"
     r2="$(pb_reps_next "$cpu" "$reps")"; rm -f "$out.a" "$out.b"
@@ -355,7 +374,7 @@ pb_gate() {
 
 CMD="${1:-}"; [[ $# -gt 0 ]] && shift
 if [[ "$CMD" == _drive ]]; then pb_drive "$@"; fi
-CATALOG="$( cd "$CORE_DIR/.." && pwd )/scv/core/catalog/pure"; BASE="$CORE_DIR"; ONLY=""; SCALE=1; COUNT=1; COMPOSED=0; TSV=""; BEFORE=""; BEFORE_REF=""; PAIRS=""; FULL=0; BUDGET=0; ACCEPTED=""; PENDING=""; TDIR=""; Q=""; A=""
+CATALOG="$( cd "$CORE_DIR/.." && pwd )/scv/core/catalog/pure"; BASE="$CORE_DIR"; ONLY=""; SCALE=1; COUNT=1; COMPOSED=0; TSV=""; BEFORE=""; BEFORE_REF=""; PAIRS=""; FULL=0; BUDGET=0; ACCEPTED=""; PENDING=""; TDIR=""; Q=""; A=""; BASELINE=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --catalog)  CATALOG="${2:-}"; shift 2 ;;
@@ -375,6 +394,7 @@ while [[ $# -gt 0 ]]; do
     --question)   Q="${2:-}"; shift 2 ;;
     --answer)     A="${2:-}"; shift 2 ;;
     --tsv)      TSV="${2:-}"; shift 2 ;;
+    --baseline) BASELINE="${2:-}"; shift 2 ;;
     --) shift; break ;;
     *) echo "pure-bench: 모르는 인자: $1" >&2; exit 2 ;;
   esac
@@ -526,6 +546,24 @@ case "$CMD" in
     ROWS="${ROWS%$'\n'}"
     [[ -z "$TSV" ]] || printf '%s\n' "$ROWS" > "$TSV"
     pb_render "$ROWS" "bash $BASH_VERSION · LC_ALL=${LC_ALL:-} · GPU 도구 $TOOL"; echo
-    if [[ $COMPOSED -eq 1 ]]; then echo; pb_render_composed "$CALLS" "$ROWS"; echo; fi ;;
+    if [[ $COMPOSED -eq 1 ]]; then echo; pb_render_composed "$CALLS" "$ROWS"; echo; fi
+    if [[ -n "$BASELINE" ]]; then
+      OVER=""
+      while IFS=$'\t' read -r n _ ms1 _ ratio _ _ _ st _; do
+        if [[ "$st" == too-slow && "$ms1" != "-" ]]; then OVER+="$n"$'\n'      # 1배는 쟀고 4배 입력에서 끊겼다
+        elif r="$(pb_to_milli "$ratio")" && [[ $r -gt $(( PB_SCALE_LIMIT * 1000 )) ]]; then OVER+="$n"$'\n'; fi
+      done <<< "$ROWS"
+      OVER="$(printf '%s' "$OVER" | LC_ALL=C sort)"
+      if [[ ! -f "$BASELINE" ]]; then
+        printf '%s\n' "$OVER" | sed '/^$/d' > "$BASELINE"
+        echo; echo "기준 목록을 새로 만듦: $(grep -c . "$BASELINE")개 ($BASELINE)"
+      else
+        NEXT="$(pb_baseline_next "$(cat "$BASELINE")" "$OVER")"
+        NEWN="$(sed -n 's/^@@new //p' <<< "$NEXT")"
+        printf '%s\n' "$NEXT" | sed '/^@@new /d; /^$/d' > "$BASELINE"
+        echo; echo "기준 목록: $(grep -c . "$BASELINE")개"
+        if [[ -n "$NEWN" ]]; then echo "새로 한도(${PB_SCALE_LIMIT}배)를 넘은 함수: $(tr '\n' ' ' <<< "$NEWN")"; exit 1; fi
+      fi
+    fi ;;
   *) echo "Usage: pure-bench.sh targets|env|run|fn|composed|bench|compare|turn-end|plan-end|accept … (파일 머리말 참고)" >&2; exit 2 ;;
 esac

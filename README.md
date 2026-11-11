@@ -170,6 +170,10 @@ read. Every key and its default:
   evidence, again from the code before archiving, and `deck` warns about a
   missing table or an answer without evidence
   ([the composition contract](core/contracts/composition.md)).
+- **Measuring pure functions** — `core/scripts/pure-bench.sh` measures a
+  function (or one shell command) for time, memory, GPU and programs called,
+  and how time grows at 4x input. A changed function that got slower than the
+  code before the work stops the turn, and you decide with the real numbers.
 - **SCV's own graph** — docs links, archived plans → files, decision
   references, and files that change together, rebuilt automatically by
   promote and work with bash and jq, no install (`SCV_GRAPH`). Graft is

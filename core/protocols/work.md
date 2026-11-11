@@ -475,6 +475,22 @@ written, say which row and why in one line. A plan written before 0.90.0 has no 
 nothing, say so in one line. Step 0's archive short-circuit skips this — that work was done
 outside this conversation.
 
+**Then the pure-function check, in full (0.91.0+).** Run it once before asking or archiving:
+
+```bash
+bash ${SCV_CORE_ROOT}/scripts/pure-bench.sh plan-end
+```
+
+It compares every catalogued pure function this work changed — and the composed functions that
+call them — with the code from before this work began: six alternating pairs, 4x input, memory,
+programs called (`core/contracts/composition.md`). Exit 0: one line in your report ("잰 함수 N ·
+한도 넘음 0"). Exit 1: a function went over a limit. Fix the cause and run it again, or — when the
+change is right as it is — ask the user through the choice tool, one question per function,
+starting with `[재는 검사] <function> —` and carrying the real before/after numbers in everyday
+words (never the bare terms); first option (recommended) `고침`, second `이대로 둠`. On `이대로 둠`
+the answer is recorded as accepted and the check passes on the next run. A project without a
+pure-function catalog, or with `SCV_PURE_BENCH=off`, measures nothing — say so in one line.
+
 Only if tests fully passed in Step 7 (and Step 9a passed or was skipped):
 
 | User posture | Action |
