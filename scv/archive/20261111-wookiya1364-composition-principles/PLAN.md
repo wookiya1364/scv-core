@@ -3,7 +3,7 @@ title: 합성 설계 원칙을 SCV 계약에 넣기 — 원칙 · 언어별 표 
 slug: 20261111-wookiya1364-composition-principles
 author: wookiya1364
 created_at: 2026-11-11
-status: testing
+status: done
 kind: feature
 lang: korean
 tags: [purity, composition, contracts, deck]
