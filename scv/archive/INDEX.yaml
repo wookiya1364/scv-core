@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-11T16:34:16Z
+generated_at: 2026-11-11T22:53:01Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -515,5 +515,9 @@ archives:
     status: done
   - slug: 20261112-wookiya1364-bench-gate-gaps
     title: "검사의 빈틈 셋 고치기 — 보관한 턴 · 끊긴 값 · 긴 마지막 확인"
+    kind: feature
+    status: done
+  - slug: 20261112-wookiya1364-pipe-arrange
+    title: "엮음 고르기 명령 — 단계마다 한 번만 재서 더 빠른 순서를 계산한다"
     kind: feature
     status: done
