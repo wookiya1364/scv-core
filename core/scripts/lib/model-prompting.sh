@@ -879,17 +879,7 @@ scv_mp_register_value() {
 # 말하면('except', 'other than', '말고', '외에', '빼고', '제외', '以外') 막지 않는다. 변경 없는 턴의 범위는 '변경 없음 — …' 으로
 # 시작한다(매 턴 블록). 앞의 '범위:' · 'scope:' 이름표와 꾸밈 글자(* _ `)는 건너뛴다. 영어는 대소문자를 가리지 않는다.
 scv_mp_scope_forbid() {
-  local v="${1:-}" p low="" head rest up="ABCDEFGHIJKLMNOPQRSTUVWXYZ" lo="abcdefghijklmnopqrstuvwxyz" c i max=0
-  local -a ps=("변경 없음" "변경없음" "읽기 전용" "읽기만 한다" "읽기만" "보고만 한다" "보고만" "조회만 한다" "조회만" \
-           "제안만 한다" "제안만" "설명만 한다" "설명만" \
-           "아무것도 바꾸지 않는다" "아무것도 바꾸지 않음" "아무것도 바꾸지 않습니다" \
-           "파일 · 코드는 바꾸지 않는다" "파일 · 코드는 바꾸지 않음" "파일·코드는 바꾸지 않는다" "파일 · 코드를 바꾸지 않는다" \
-           "파일과 코드는 바꾸지 않는다" "파일은 바꾸지 않는다" "파일은 바꾸지 않음" "파일을 바꾸지 않는다" \
-           "파일은 수정하지 않는다" "파일을 수정하지 않는다" \
-           "no changes" "no file changes" "no edits" "make no changes" "change nothing" "read-only" "report only" "suggest only" \
-           "do not change any file" "do not change any files" "don't change any file" "don't change any files" \
-           "do not modify any file" "do not modify any files" "don't modify any file" "don't modify any files" \
-           "変更なし" "読み取り専用" "報告のみ" "提案のみ" "読むだけ" "ファイルは変更しない" "何も変更しない")
+  local v="${1:-}" p low="" rest up="ABCDEFGHIJKLMNOPQRSTUVWXYZ" lo="abcdefghijklmnopqrstuvwxyz" c q
   v="${v//\*/}"; v="${v//\`/}"
   v="${v#"${v%%[![:space:]_]*}"}"
   case "$v" in "범위:"*|"범위 :"*|"scope:"*|"Scope:"*|"SCOPE:"*) v="${v#*:}" ;; esac
@@ -900,14 +890,22 @@ scv_mp_scope_forbid() {
     *[eE][xX][cC][eE][pP][tT]*|*[oO][tT][hH][eE][rR]" "[tT][hH][aA][nN]*|*[oO][uU][tT][sS][iI][dD][eE]" "[oO][fF]*|*[bB][eE][sS][iI][dD][eE][sS]*) return 0 ;;
     *"말고"*|*"외에"*|*"빼고"*|*"제외"*|*"以外"*|*"を除"*) return 0 ;;
   esac
-  # 첫머리 문구는 글 머리에서만 본다 — 가장 긴 문구의 길이만큼만 소문자로 바꾼다.
-  for p in "${ps[@]}"; do (( ${#p} > max )) && max=${#p}; done
-  head="${v:0:max}"
-  for (( i = 0; i < ${#head}; i++ )); do
-    c="${head:i:1}"
-    case "$up" in *"$c"*) p="${up%%"$c"*}"; low+="${lo:${#p}:1}" ;; *) low+="$c" ;; esac
-  done
-  for p in "${ps[@]}"; do
+  # 첫머리 문구는 글 머리에서만 본다 — 견줄 문구의 길이만큼만, 필요해질 때 소문자로 바꿔 둔다(low).
+  # (문구를 함수 안의 배열에 담지 않는다 — bash 3.2 는 그런 배열의 메모리를 부를 때마다 조금씩 흘린다.)
+  for p in "변경 없음" "변경없음" "읽기 전용" "읽기만 한다" "읽기만" "보고만 한다" "보고만" "조회만 한다" "조회만" \
+           "제안만 한다" "제안만" "설명만 한다" "설명만" \
+           "아무것도 바꾸지 않는다" "아무것도 바꾸지 않음" "아무것도 바꾸지 않습니다" \
+           "파일 · 코드는 바꾸지 않는다" "파일 · 코드는 바꾸지 않음" "파일·코드는 바꾸지 않는다" "파일 · 코드를 바꾸지 않는다" \
+           "파일과 코드는 바꾸지 않는다" "파일은 바꾸지 않는다" "파일은 바꾸지 않음" "파일을 바꾸지 않는다" \
+           "파일은 수정하지 않는다" "파일을 수정하지 않는다" \
+           "no changes" "no file changes" "no edits" "make no changes" "change nothing" "read-only" "report only" "suggest only" \
+           "do not change any file" "do not change any files" "don't change any file" "don't change any files" \
+           "do not modify any file" "do not modify any files" "don't modify any file" "don't modify any files" \
+           "変更なし" "読み取り専用" "報告のみ" "提案のみ" "読むだけ" "ファイルは変更しない" "何も変更しない"; do
+    while [[ ${#low} -lt ${#p} && ${#low} -lt ${#v} ]]; do
+      c="${v:${#low}:1}"
+      case "$up" in *"$c"*) q="${up%%"$c"*}"; low+="${lo:${#q}:1}" ;; *) low+="$c" ;; esac
+    done
     [[ "$low" == "$p"* ]] || continue
     # 문구 뒤는 원래 글에서 본다 — 뒤따르는 글자는 문장 부호만 보므로 대소문자와 상관없다.
     rest="${v:${#p}}"; rest="${rest#"${rest%%[![:space:]]*}"}"

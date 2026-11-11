@@ -3,7 +3,7 @@ title: 느린 순수함수 고치기 — 입력이 커지면 크게 느려지는
 slug: 20261111-wookiya1364-slow-pure-functions
 author: wookiya1364
 created_at: 2026-11-11
-status: in_progress
+status: testing
 kind: refactor
 lang: korean
 tags: [purity, performance, bench]
@@ -21,6 +21,7 @@ scope:
   - core/scripts/lib/archive-search.sh
   - core/tests/test-slow-pure-functions.sh
   - core/tests/fixtures/slow-pure/reference.sh
+  - core/tests/test-pure-bench.sh
   - scv/core/catalog/pure/scale-baseline.bash3
   - scv/core/catalog/pure/scale-baseline.bash5
   - CHANGELOG.md
@@ -140,7 +141,19 @@ flow(
 - 범위 밖에서 본 것: 안내문 접기(`scv_mp_guide_fold`)가 새 셸에서 경계에 있다 — 고치기 전 7.5배, 이번에 다시 세 번 재니 7.6 · 8.1 · 7.5배. 이번에 손대지 않았고 기준 목록에도 넣지 않았다.
 - 표: [`RESULT-table.md`](./RESULT-table.md) (17개 앞뒤), 전체 표 [`BENCH-after-bash3.md`](./BENCH-after-bash3.md) · [`BENCH-after-bash5.md`](./BENCH-after-bash5.md).
 
+### 계획과 달라진 길
+
+- 계획에 없던 파일 하나를 고쳤다: 재는 명령 시험(`core/tests/test-pure-bench.sh`). 그 시험은 "낱말 나누기는 옛 셸에서 8배를 넘는다"를 가파른 쪽 본보기로 썼는데, 낱말 나누기를 고쳐 4.9배가 되면서 실패했다. 본보기를 답이 제곱으로 느는 같은 지문 짝(14배)으로 바꿨다.
+- 기계 글 빼기는 "빨라지지 않으면 되돌린다"는 기준에 딱 맞지 않는다 — 옛 셸에서는 그대로, 새 셸에서는 34% 줄었다. 한 줄(바이트 단위로 찾기)만 남기고, 효과가 없던 다른 시도는 버렸다.
+- 한글 비율 · 경로 이름 · 낱말 나누기는 토막 크기를 셸 큰 버전에 따라 다르게 했다. 옛 셸에 맞춘 작은 토막이 새 셸에서는 고리 값만 늘려 조금 느려졌기 때문이다(한글 비율 0.27 → 0.46ms → 맞춘 뒤 0.29ms).
+
+- 계획 끝 검사가 진짜 문제 하나를 잡았다: 범위 칸 판정의 첫 고친 판은 옛 셸에서 부를 때마다 메모리를 조금씩 흘렸다(1,500번에 3.4 → 9.2MB). 문구를 함수 안의 배열(`local -a 이름=(…)`)에 담은 탓이었다. 배열을 없애고 다시 썼다(3.4 → 3.5MB, 시간은 15 → 0.56ms). 나머지 15개는 같은 방법으로 재서 새지 않음을 봤다.
+- 계획 끝 검사는 새 셸에서 끝까지 돌렸다(견준 함수 49 · 통과 20 · 새 함수 28 · 한도 넘음 1). 옛 셸에서는 고치기 전 본문이 느려 20분을 넘겨 멈췄다 — 옛 셸 쪽은 전체 표와 함수별 다시 재기로 대신했다.
+- 한도 넘음 1은 뒤쪽 충돌 검사다. 느려진 것이 아니라(한 번 175 → 11ms), 고치기 전 본문이 4배 입력에서 끊겨 앞 배수를 재지 못했고 뒤 배수(11.5배)만 남아 걸렸다. 재는 검사의 빈틈이다: 고치기 전 값을 못 잰 경우를 "원래 한도 안"으로 본다.
+
 ### 고치면서 알게 된 것
+
+- 옛 셸(bash 3.2)은 함수 안에서 `local -a 이름=(값 …)` 로 만든 배열의 메모리를 함수가 끝나도 다 돌려주지 않는다(부를 때마다 약 4KB). `local -a 이름=()` 로 만들고 하나씩 넣는 것은 새지 않았다.
 
 - 옛 셸(bash 3.2)은 긴 글에서 `${글//무늬/}` 로 맞는 글자를 모두 지우거나 바꾸는 일이 글 길이의 제곱보다 느리다. 새 셸도 여러 바이트 글자가 든 글에서는 제곱에 가깝다(1,100자 6ms · 4,400자 63ms). 그래서 긴 글은 짧은 토막으로 잘라 하거나 머리만 본다.
 - `local LC_ALL=C 값="${글//…}"` 처럼 한 줄에 쓰면 글이 먼저 바뀌고 로캘이 나중에 바뀐다.
