@@ -579,3 +579,62 @@ pb_render_compare() {
   done <<< "$lines" 3<<< "$verdicts"
   printf '\n견준 함수 %s · 통과 %s · 한도 넘음 %s · 받아들임 %s · 새 함수 %s · 답이 달라 뺌 %s · 재지 못함 %s' "$total" "$pass" "$failn" "$acc" "$new" "$diff" "$bad"
 }
+
+# ---------------------------------------------------------------- 무엇을 견줄지 · 멈출 때의 글
+
+# @deterministic
+# 역할: 앞 코드와 뒤 코드의 함수 본문 글("@@ 이름" 줄 뒤에 본문)을 견줘 본문이 달라졌거나 새로 생긴 함수 이름을 낸다
+# 종류: 비교
+# 예: $'@@ f\n a\n@@ g\n b' $'@@ f\n a\n@@ g\n c\n@@ h\n d' → $'g\nh'
+# 예: $'@@ f\n a' $'@@ f\n a' → ""
+pb_changed_names() {
+  LC_ALL=C awk '
+    $0 == "@@@@" { second = 1; cur = ""; next }
+    /^@@ / { cur = substr($0, 4); if (second && !(cur in seen)) { seen[cur] = 1; order[++n] = cur } next }
+    cur == "" { next }
+    second { now[cur] = now[cur] "\n" $0; next }
+    { old[cur] = old[cur] "\n" $0; had[cur] = 1 }
+    END { for (i = 1; i != n + 1; i++) { k = order[i]; if (!(k in had) || old[k] != now[k]) print k } }' <<< "${1:-}"$'\n@@@@\n'"${2:-}"
+}
+
+# @pure
+# 역할: 엮은 함수 줄들("함수<탭>부르는 함수들")에서, 주어진 이름들 가운데 하나라도 부르는 엮은 함수의 이름을 낸다
+# 종류: 고르기
+# 예: $'f\tg h\nk\tx y' $'h\nz' → "f"
+# 예: $'f\tg h' $'q' → ""
+pb_callers() {
+  local names=$'\n'"${2:-}"$'\n' name callees c
+  while IFS=$'\t' read -r name callees; do
+    [[ -n "$name" ]] || continue
+    for c in $callees; do
+      case "$names" in *$'\n'"$c"$'\n'*) printf '%s\n' "$name"; break ;; esac
+    done
+  done <<< "${1:-}"
+  return 0
+}
+
+# @pure
+# 역할: '한도를 넘은 것' 줄들("함수<탭>이유들")과 선택 창의 질문 · 답에서 사용자가 받아들인 줄만 낸다 — 질문에 [재는 검사] 와 그 함수 이름이 있고 답이 "이대로"로 시작할 때
+# 종류: 고르기
+# 예: $'f\ttime=1.35\ng\tcalls=1:2' "[재는 검사] f — 시간 1.35배. 어떻게 할까요?" "이대로 둠" → $'f\ttime=1.35'
+# 예: $'f\ttime=1.35' "[재는 검사] f — 시간 1.35배" "고침 (추천)" → ""
+# 예: $'f\ttime=1.35' "다른 질문 f" "이대로 둠" → ""
+pb_accept_pick() {
+  local q="${2:-}" a="${3:-}" name why
+  [[ "$q" == *"[재는 검사]"* && "$a" == "이대로"* ]] || return 0
+  while IFS=$'\t' read -r name why; do
+    [[ -n "$name" ]] || continue
+    [[ "$q" =~ (^|[^A-Za-z0-9_])$name([^A-Za-z0-9_]|$) ]] && printf '%s\t%s\n' "$name" "$why"
+  done <<< "${1:-}"
+  return 0
+}
+
+# @pure
+# 역할: 한도를 넘은 것의 사람이 읽는 줄들에서, 멈춘 턴에 모델이 받을 글을 만든다 — 선택 창으로 실제 앞뒤 값을 넣어 묻게 한다
+# 종류: 조립/measure
+# 예: "f — 시간 1.25배" → "[SCV 재는 검사] 고친 순수함수가 고치기 전보다 한도를 넘었다: f — 시간 1.25배. 고칠 수 있으면 원인을 고쳐라. 고치지 않을 것이면 선택 창으로 사용자에게 물어라 — 함수마다 질문 하나, 질문은 '[재는 검사] 함수 이름 —' 으로 시작하고 위의 실제 앞뒤 값을 쉬운 말로 적는다. 첫 보기(추천)는 '고침', 둘째 보기는 '이대로 둠'(맞는 변경이라 받아들임). 끄기: SCV_PURE_BENCH=off."
+pb_block_text() {
+  local lines="${1:-}"
+  lines="${lines%$'\n'}"
+  printf '[SCV 재는 검사] 고친 순수함수가 고치기 전보다 한도를 넘었다: %s. 고칠 수 있으면 원인을 고쳐라. 고치지 않을 것이면 선택 창으로 사용자에게 물어라 — 함수마다 질문 하나, 질문은 '"'"'[재는 검사] 함수 이름 —'"'"' 으로 시작하고 위의 실제 앞뒤 값을 쉬운 말로 적는다. 첫 보기(추천)는 '"'"'고침'"'"', 둘째 보기는 '"'"'이대로 둠'"'"'(맞는 변경이라 받아들임). 끄기: SCV_PURE_BENCH=off.' "${lines//$'\n'/ / }"
+}

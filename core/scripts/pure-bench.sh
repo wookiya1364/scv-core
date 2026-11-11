@@ -34,6 +34,18 @@
 #       --budget 초를 넘기면 남은 함수는 '재지 못함'으로 적는다. --accepted 는 사용자가 받아들인 것("함수<탭>이유들"),
 #       --pending 은 한도를 넘은 것을 그 꼴로 쓸 파일. Exit 1 = 받아들이지 않은 한도 넘음이 있다.
 #
+#   pure-bench.sh turn-end --dir TURN_DIR      (턴 끝 훅이 부른다)
+#       이번 턴에 고친 파일(TURN_DIR/.turn-plan/changed)에 사전 함수가 있으면, 본문이 달라진 함수와 그것을 부르는 엮은
+#       함수만 빠르게 견준다 — 기준은 이 일을 시작하기 전의 코드(작업 가지가 갈라진 지점). 사전 함수를 고치지 않은 턴은
+#       아무것도 재지 않는다. 출력: "PURE_BENCH: pass|block|off|pass-unanswered", "PURE_BENCH_RUNS: N",
+#       막을 때 "PURE_BENCH_REASON: …". 같은 턴에 두 번 막은 뒤에는 지나가고 기록에 한 줄 남긴다.
+#   pure-bench.sh plan-end                     (계획을 끝내기 전에 한 번)
+#       이 일을 시작한 뒤 달라진 사전 함수 전부를 꼼꼼히(여섯 쌍 · 입력 4배) 견준다. Exit 1 = 한도 넘음.
+#   pure-bench.sh accept --question Q --answer A   (선택 창 답 훅이 부른다)
+#       질문이 "[재는 검사] 함수 이름 —" 으로 시작하고 답이 "이대로"로 시작하면, 그 함수의 넘은 값을 받아들인 것으로 적는다
+#       (진행 중 계획 폴더의 pure-bench-accepted.tsv). 그 값보다 더 나빠지면 다시 묻는다.
+#
+# 설정: SCV_PURE_BENCH=off 로 턴 끝 · 계획 끝 검사를 끈다(기본 on). SCV_PR_BASE 가 있으면 그 가지가 기준이다.
 # 환경: SCV_PB_GPU_TOOL=none|ioreg|nvidia 로 GPU 읽는 도구를 정한다(기본: 있는 것을 찾는다).
 # 잰 값은 이 스크립트를 돌린 셸과 지역 설정의 값이다 — 같은 함수가 bash 3.2 와 bash 5 에서 열 배 넘게 다를 수 있다
 # (2026-11-11: 낱말 나누기 한 번에 22ms 대 1.8ms). 앞뒤를 견줄 때는 같은 셸로 잰다. `env` 로 그 셸을 본다.
@@ -45,6 +57,10 @@ CORE_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
 source "$SCRIPT_DIR/lib/pure-catalog.sh"
 # shellcheck source=lib/pure-bench.sh
 source "$SCRIPT_DIR/lib/pure-bench.sh"
+# shellcheck source=lib/settings.sh
+source "$SCRIPT_DIR/lib/settings.sh" 2>/dev/null || true
+# shellcheck source=lib/pr-flow.sh
+source "$SCRIPT_DIR/lib/pr-flow.sh" 2>/dev/null || true
 
 # @effect read_catalog
 # 이유: 사전 파일을 읽는다 — 파이프라인의 입구(차례 파일은 뺀다)
@@ -273,9 +289,73 @@ pb_compare_fn() {
   printf '%s\tok\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$name" "$nm" "$(pb_median "$vb")" "$(pb_median "$va")" "$eb" "$ea" "$mb" "$ma" "$sb" "$sa"
 }
 
+# @effect pb_setting
+# 이유: 설정 파일에서 값을 읽는다(없으면 둘째 인자)
+pb_setting() {
+  local v=""
+  declare -F settings_get >/dev/null 2>&1 && v="$(settings_get "$1" 2>/dev/null | tr -d '"' | tr -d "'" || true)"
+  printf '%s' "${v:-${2:-}}"
+}
+
+# @effect pb_before_ref
+# 이유: 이 일을 시작하기 전의 코드가 있는 커밋을 찾는다 — 기준 가지(설정 > 원격의 기본 가지 > main)와 갈라진 지점, 그 가지 위에서 일하면 마지막 커밋
+pb_before_ref() {
+  local root="$1" head base ref
+  head="$(git -C "$root" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)"; head="${head#origin/}"
+  base="$(scv_pr_base_branch "" "$(pb_setting SCV_PR_BASE "")" "$head" 2>/dev/null)"; base="${base:-main}"
+  for ref in "origin/$base" "$base"; do
+    ref="$(git -C "$root" merge-base HEAD "$ref" 2>/dev/null)" && [[ -n "$ref" ]] && { printf '%s' "$ref"; return 0; }
+  done
+  git -C "$root" rev-parse --verify --quiet HEAD 2>/dev/null
+}
+
+# @effect pb_gate
+# 이유: 고친 파일들에서 달라진 사전 함수와 그것을 부르는 엮은 함수를 찾아 앞뒤를 견준다 — 턴 끝(빠르게)과 계획 끝(꼼꼼히)이 함께 쓴다
+pb_gate() {
+  local mode="$1" root="$2" files="$3" cat base ref prefix f rel hit="" t names bodies_a bodies_b changed calls callers only=() n acc pend out rc
+  cat="$root/scv/core/catalog/pure"
+  [[ -d "$cat" ]] || { echo "PURE_BENCH: pass"; echo "PURE_BENCH_RUNS: 0"; return 0; }
+  base="$root"; [[ -d "$root/core/scripts" && -f "$cat/INDEX.md" ]] && grep -q -- '- 위치: scripts/' "$cat"/*.md 2>/dev/null && base="$root/core"
+  prefix="${base#"$root"}"; prefix="${prefix#/}"; prefix="${prefix:+$prefix/}"
+  # 값싼 앞 검사: 고친 파일에 사전 함수가 하나라도 있는가 — 없으면 여기서 끝(아무것도 재지 않는다)
+  while IFS= read -r f; do
+    [[ -n "$f" && "$f" == "$prefix"* ]] || continue
+    rel="${f#"$prefix"}"
+    grep -q -F -- "- 위치: $rel · " "$cat"/*.md 2>/dev/null && hit+="$rel"$'\n'
+  done <<< "$files"
+  [[ -n "$hit" ]] || { echo "PURE_BENCH: pass"; echo "PURE_BENCH_RUNS: 0"; return 0; }
+  ref="$(pb_before_ref "$root")" || { echo "PURE_BENCH: pass"; echo "PURE_BENCH_RUNS: 0"; echo "PURE_BENCH_NOTE: git 저장소가 아니라 견줄 앞 코드가 없다"; return 0; }
+  # 달라진 함수: 앞 코드와 뒤 코드의 본문을 견준다
+  t="$(pb_targets "$(read_catalog "$cat")" "")"
+  mkdir -p "$PB_TMP/gate"
+  bodies_a="$(pb_bodies "$base" "$t")"
+  while IFS= read -r rel; do
+    [[ -n "$rel" ]] || continue
+    mkdir -p "$PB_TMP/gate/$(dirname "$rel")"
+    git -C "$root" show "$ref:$prefix$rel" > "$PB_TMP/gate/$rel" 2>/dev/null || rm -f "$PB_TMP/gate/$rel"
+  done <<< "$(cut -f2 <<< "$t" | sort -u)"
+  bodies_b="$(pb_bodies "$PB_TMP/gate" "$t")"
+  names="$(cut -f1 <<< "$t")"
+  changed="$(pb_changed_names "$bodies_b" "$bodies_a" | grep -F -x -f <(printf '%s\n' "$names") || true)"
+  [[ -n "$changed" ]] || { echo "PURE_BENCH: pass"; echo "PURE_BENCH_RUNS: 0"; return 0; }
+  calls="$(pb_composed "$(pb_calls "$bodies_a" "$names")")"
+  callers="$(pb_callers "$calls" "$changed")"
+  while IFS= read -r n; do [[ -n "$n" ]] && only+=(--only "$n"); done <<< "$(printf '%s\n%s\n' "$changed" "$callers" | sort -u)"
+  n=$(( ${#only[@]} / 2 ))
+  acc="$PB_TMP/accepted"; cat "$root"/scv/promote/*/pure-bench-accepted.tsv "$root/${SCV_JOURNAL_DIR:-scv/journal}/.pure-bench-accepted" > "$acc" 2>/dev/null || true
+  pend="$root/${SCV_JOURNAL_DIR:-scv/journal}/.pure-bench-pending"
+  if [[ "$mode" == full ]]; then
+    out="$("$BASH" "$0" compare --before-ref "$ref" --base "$base" --catalog "$cat" "${only[@]}" --full --accepted "$acc" --pending "$pend" 2>&1)"; rc=$?
+  else
+    out="$("$BASH" "$0" compare --before-ref "$ref" --base "$base" --catalog "$cat" "${only[@]}" --budget "${SCV_PB_BUDGET:-35}" --accepted "$acc" --pending "$pend" 2>&1)"; rc=$?
+  fi
+  PB_GATE_OUT="$out"; PB_GATE_N="$n"
+  return "$rc"
+}
+
 CMD="${1:-}"; [[ $# -gt 0 ]] && shift
 if [[ "$CMD" == _drive ]]; then pb_drive "$@"; fi
-CATALOG="$( cd "$CORE_DIR/.." && pwd )/scv/core/catalog/pure"; BASE="$CORE_DIR"; ONLY=""; SCALE=1; COUNT=1; COMPOSED=0; TSV=""; BEFORE=""; BEFORE_REF=""; PAIRS=""; FULL=0; BUDGET=0; ACCEPTED=""; PENDING=""
+CATALOG="$( cd "$CORE_DIR/.." && pwd )/scv/core/catalog/pure"; BASE="$CORE_DIR"; ONLY=""; SCALE=1; COUNT=1; COMPOSED=0; TSV=""; BEFORE=""; BEFORE_REF=""; PAIRS=""; FULL=0; BUDGET=0; ACCEPTED=""; PENDING=""; TDIR=""; Q=""; A=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --catalog)  CATALOG="${2:-}"; shift 2 ;;
@@ -291,6 +371,9 @@ while [[ $# -gt 0 ]]; do
     --budget)     BUDGET="${2:-0}"; shift 2 ;;
     --accepted)   ACCEPTED="${2:-}"; shift 2 ;;
     --pending)    PENDING="${2:-}"; shift 2 ;;
+    --dir)        TDIR="${2:-}"; shift 2 ;;
+    --question)   Q="${2:-}"; shift 2 ;;
+    --answer)     A="${2:-}"; shift 2 ;;
     --tsv)      TSV="${2:-}"; shift 2 ;;
     --) shift; break ;;
     *) echo "pure-bench: 모르는 인자: $1" >&2; exit 2 ;;
@@ -329,9 +412,13 @@ case "$CMD" in
       # 그 커밋의 코드를 임시 폴더에 푼다 — 지금 코드와 같은 상대 경로로
       PREFIX="$(git -C "$BASE" rev-parse --show-prefix 2>/dev/null)" || { echo "pure-bench: git 저장소가 아니다: $BASE" >&2; exit 2; }
       TOP="$(git -C "$BASE" rev-parse --show-toplevel)"
-      mkdir -p "$PB_TMP/before"
-      git -C "$TOP" archive "$BEFORE_REF" -- "${PREFIX}scripts" 2>/dev/null | tar -x -C "$PB_TMP/before" 2>/dev/null \
-        || { echo "pure-bench: 그 커밋의 코드를 꺼내지 못했다: $BEFORE_REF" >&2; exit 2; }
+      # 잴 함수가 있는 파일만 꺼낸다. 그 커밋에 없는 파일의 함수는 '새 함수'가 된다.
+      while IFS=$'\x1d' read -r _ rel _; do
+        [[ -n "$rel" && ! -e "$PB_TMP/before/$PREFIX$rel" ]] || continue
+        mkdir -p "$PB_TMP/before/$PREFIX$(dirname "$rel")"
+        git -C "$TOP" show "$BEFORE_REF:$PREFIX$rel" > "$PB_TMP/before/$PREFIX$rel" 2>/dev/null || rm -f "$PB_TMP/before/$PREFIX$rel"
+      done <<< "$(pb_targets "$(read_catalog "$CATALOG")" "${ONLY%$'\n'}" | tr '\t' '\035')"
+      mkdir -p "$PB_TMP/before/${PREFIX%/}"
       BEFORE="$PB_TMP/before/${PREFIX%/}"
     fi
     [[ -n "$BEFORE" && -d "$BEFORE" ]] || { echo "pure-bench: --before DIR 또는 --before-ref REF 가 있어야 한다" >&2; exit 2; }
@@ -365,6 +452,49 @@ case "$CMD" in
     [[ -z "$PENDING" ]] || printf '%s' "$PEND" > "$PENDING"
     if [[ $NFAIL -gt 0 ]]; then echo; echo "한도를 넘은 것:"; pb_fail_lines "$VERD"; exit 1; fi
     exit 0 ;;
+  turn-end)
+    [[ "$(pb_setting SCV_PURE_BENCH on)" != off ]] || { echo "PURE_BENCH: off"; exit 0; }
+    ST="$TDIR/.turn-plan"
+    [[ -n "$TDIR" && -s "$ST/changed" ]] || { echo "PURE_BENCH: pass"; echo "PURE_BENCH_RUNS: 0"; exit 0; }
+    ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
+    PB_GATE_OUT=""; PB_GATE_N=0
+    pb_gate quick "$ROOT" "$(grep -v ':' "$ST/changed")"; RC=$?
+    [[ -n "$PB_GATE_OUT" ]] || exit 0            # 재지 않았다 — pb_gate 가 이미 한 줄을 냈다
+    if [[ $RC -eq 1 ]]; then
+      BL="$(cat "$ST/pb-blocks" 2>/dev/null || echo 0)"
+      if [[ "$BL" -ge 2 ]]; then
+        echo "PURE_BENCH: pass-unanswered"
+        printf '%s 재는 검사 — 한도를 넘은 채 답 없이 끝남: %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$(sed -n '/^한도를 넘은 것:/,$p' <<< "$PB_GATE_OUT" | sed 1d | tr '\n' ' ')" >> "$ROOT/${SCV_JOURNAL_DIR:-scv/journal}/.pure-bench.log" 2>/dev/null || true
+      else
+        printf '%s' "$((BL + 1))" > "$ST/pb-blocks"
+        echo "PURE_BENCH: block"
+        printf 'PURE_BENCH_REASON: %s\n' "$(pb_block_text "$(sed -n '/^한도를 넘은 것:/,$p' <<< "$PB_GATE_OUT" | sed 1d)")"
+      fi
+    else
+      echo "PURE_BENCH: pass"
+    fi
+    echo "PURE_BENCH_RUNS: $PB_GATE_N"
+    SK="$(grep -c '| 재지 못함 |' <<< "$PB_GATE_OUT" || true)"; [[ "${SK:-0}" == 0 ]] || echo "PURE_BENCH_NOTE: 시간이 모자라거나 잴 수 없어 ${SK}개를 재지 못함"
+    exit 0 ;;
+  plan-end)
+    [[ "$(pb_setting SCV_PURE_BENCH on)" != off ]] || { echo "재는 검사: 꺼져 있음 (SCV_PURE_BENCH=off)"; exit 0; }
+    ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
+    REF="$(pb_before_ref "$ROOT")" || { echo "재는 검사: git 저장소가 아니라 견줄 앞 코드가 없다 — 재지 못함"; exit 0; }
+    PB_GATE_OUT=""; PB_GATE_N=0
+    pb_gate full "$ROOT" "$( { git -C "$ROOT" diff --name-only "$REF" 2>/dev/null; git -C "$ROOT" ls-files --others --exclude-standard 2>/dev/null; } | sort -u)" > "$PB_TMP/gate.line"; RC=$?
+    if [[ -z "$PB_GATE_OUT" ]]; then echo "재는 검사: 이 일을 시작한 뒤 달라진 사전 함수가 없다 — 잰 함수 0"; exit 0; fi
+    echo "견주는 기준: 이 일을 시작하기 전의 코드 (${REF:0:7})"; echo "$PB_GATE_OUT"
+    [[ $RC -ne 1 ]] || { echo; pb_block_text "$(sed -n '/^한도를 넘은 것:/,$p' <<< "$PB_GATE_OUT" | sed 1d)"; echo; }
+    exit "$RC" ;;
+  accept)
+    ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"; JD="$ROOT/${SCV_JOURNAL_DIR:-scv/journal}"
+    [[ -s "$JD/.pure-bench-pending" ]] || exit 0
+    PICK="$(pb_accept_pick "$(cat "$JD/.pure-bench-pending")" "$Q" "$A")"
+    [[ -n "$PICK" ]] || exit 0
+    PLAN="$(grep -l -E '^status:[[:space:]]*(in_progress|testing)' "$ROOT"/scv/promote/*/PLAN.md 2>/dev/null | head -n 1)"
+    if [[ -n "$PLAN" ]]; then DEST="$(dirname "$PLAN")/pure-bench-accepted.tsv"; else DEST="$JD/.pure-bench-accepted"; fi
+    printf '%s\n' "$PICK" >> "$DEST"
+    echo "PURE_BENCH_ACCEPTED: $(cut -f1 <<< "$PICK" | tr '\n' ' ')→ $DEST" ;;
   composed)
     [[ -d "$CATALOG" ]] || { echo "pure-bench: 사전 폴더가 없다: $CATALOG" >&2; exit 2; }
     T="$(pb_targets "$(read_catalog "$CATALOG")" "")"
@@ -397,5 +527,5 @@ case "$CMD" in
     [[ -z "$TSV" ]] || printf '%s\n' "$ROWS" > "$TSV"
     pb_render "$ROWS" "bash $BASH_VERSION · LC_ALL=${LC_ALL:-} · GPU 도구 $TOOL"; echo
     if [[ $COMPOSED -eq 1 ]]; then echo; pb_render_composed "$CALLS" "$ROWS"; echo; fi ;;
-  *) echo "Usage: pure-bench.sh targets|env|run|fn|composed|bench|compare … (파일 머리말 참고)" >&2; exit 2 ;;
+  *) echo "Usage: pure-bench.sh targets|env|run|fn|composed|bench|compare|turn-end|plan-end|accept … (파일 머리말 참고)" >&2; exit 2 ;;
 esac

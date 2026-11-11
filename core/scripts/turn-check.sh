@@ -345,6 +345,7 @@ case "$CMD" in
       while IFS= read -r f; do [[ -n "$f" ]] && CHANGED="$CHANGED$pre$f"$'\n'; done <<< "$d"
     done < "$S/roots"
     CHANGED="$(printf '%s' "$CHANGED" | LC_ALL=C sort -u | sed '/^$/d')"
+    printf '%s\n' "$CHANGED" > "$S/changed" 2>/dev/null || true   # 재는 검사(pure-bench.sh turn-end)가 읽는다
     NCH=0; [[ -n "$CHANGED" ]] && NCH="$(printf '%s\n' "$CHANGED" | wc -l | tr -d ' ')"
     NEWL="$(scv_tc_new_lines "$(cat "$S/plans" 2>/dev/null)" "$(plan_texts | { t="$(cat)"; scv_tc_plan_lines "$t"; })")"
     NST="$(scv_tc_struct_count "$NEWL")"; NRQ="$(scv_tc_req_count "$NEWL" "$ID")"
@@ -386,6 +387,9 @@ case "$CMD" in
   choice)
     enabled || exit 0
     [[ -n "$Q$A" ]] || exit 0
+    # 재는 검사의 물음에 "이대로"로 답했으면 받아들인 값으로 적는다(계획이 없어도).
+    # 그 물음일 때만 띄운다 — 선택 답마다 띄우면 답 17개에 1초가 더 든다(2026-11-11 시험 T12 가 잡음).
+    [[ "$Q" != *"[재는 검사]"* ]] || bash "$SCRIPT_DIR/pure-bench.sh" accept --question "$Q" --answer "$A" >/dev/null 2>&1 || true
     slug="$(active_plans | head -n 1)"
     [[ -n "$slug" ]] || exit 0
     f="$PROMOTE/$slug/PLAN.md"
