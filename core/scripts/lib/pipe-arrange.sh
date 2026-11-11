@@ -70,13 +70,18 @@ pa_rank() {
 # 예: $'k1\tfilter\tA\t-\t0.10\t0.9\nk2\tfilter\tB\t-\t0.01\t0.1\nup\tmap\tC\t-\t0.1\t1.00\nk3\tfilter\tD\t-\t0.01\t0.1' "mild" → $'k2\nk1\nup\nk3'
 # 예: "" → ""
 pa_order() {
-  local mode="${2:-}" name kind cmd after t r n=0 i j best bestr first=1 start end wall
-  local -a names=() kinds=() afters=() ranks=() placed=()
+  local mode="${2:-}" name kind cmd after t r n=0 i best bestr first=1 start end wall nextmap d
+  local -a names=() kinds=() afters=() ranks=() placed=() dep=()
   while IFS=$'\t' read -r name kind cmd after t r; do
     [[ -n "$name" ]] || continue
     [[ "$after" != "-" ]] || after=""
-    names[n]="$name"; kinds[n]="$kind"; afters[n]="$after"; ranks[n]="$(pa_rank "$t" "$r")"; placed[n]=0; n=$((n + 1))
+    names[n]="$name"; kinds[n]="$kind"; afters[n]="$after"; ranks[n]="$(pa_rank "$t" "$r")"; placed[n]=0; dep[n]=-1; n=$((n + 1))
   done <<< "${1:-}"
+  # after 선언이 가리키는 단계의 번호를 한 번만 찾아 둔다(선언이 있는 단계만)
+  for (( i = 0; i != n; i++ )); do
+    [[ -n "${afters[i]}" ]] || continue
+    for (( d = 0; d != i; d++ )); do [[ "${names[d]}" != "${afters[i]}" ]] || { dep[i]=$d; break; }; done
+  done
   start=0
   while [[ $start -lt $n ]]; do
     # 구간의 끝: 다음 벽의 자리(벽이 없으면 끝). 벽 자체는 제자리에 둔다.
@@ -87,22 +92,25 @@ pa_order() {
       [[ $wall -eq 0 ]] || break
       end=$((end + 1))
     done
+    # 바꾸기는 저희끼리의 순서를 지킨다 — 놓을 수 있는 바꾸기는 아직 안 놓인 첫 바꾸기 하나뿐이다
+    nextmap=$start
+    while [[ $nextmap -lt $end && "${kinds[nextmap]}" != map ]]; do nextmap=$((nextmap + 1)); done
     while :; do
       best=-1; bestr=0
       for (( i = start; i != end; i++ )); do
         [[ ${placed[i]} -eq 0 ]] || continue
-        # 바꾸기는 저희끼리의 순서를 지킨다 — 앞에 아직 안 놓인 바꾸기가 있으면 놓을 수 없다
-        if [[ "${kinds[i]}" == map ]]; then
-          for (( j = start; j != i; j++ )); do [[ "${kinds[j]}" != map || ${placed[j]} -eq 1 ]] || continue 2; done
-        fi
+        [[ "${kinds[i]}" != map || $i -eq $nextmap ]] || continue
         # after 선언: 그 단계가 이 구간에 있고 아직 안 놓였으면 놓을 수 없다
-        if [[ -n "${afters[i]}" ]]; then
-          for (( j = start; j != end; j++ )); do [[ "${names[j]}" != "${afters[i]}" || ${placed[j]} -eq 1 ]] || continue 2; done
-        fi
+        d=${dep[i]}
+        [[ $d -lt $start || ${placed[d]} -eq 1 ]] || continue
         if [[ $best -eq -1 || ${ranks[i]} -lt $bestr ]]; then best=$i; bestr=${ranks[i]}; fi
       done
       [[ $best -ne -1 ]] || break
       placed[best]=1
+      if [[ $best -eq $nextmap ]]; then
+        nextmap=$((nextmap + 1))
+        while [[ $nextmap -lt $end && "${kinds[nextmap]}" != map ]]; do nextmap=$((nextmap + 1)); done
+      fi
       if [[ $first -eq 1 ]]; then first=0; else printf '\n'; fi
       printf '%s' "${names[best]}"
     done
@@ -129,18 +137,22 @@ pa_order_mild() { pa_order "${1:-}" mild; }
 # 예: $'up\tmap\tA\t-\t0.100\t1.00\ntop\thead\t10\t-\t0\t0.10\nk\tfilter\tC\t-\t0.050\t0.50' $'up\ntop\nk' → "0.105"
 # 예: "" "" → "0.000"
 pa_expected() {
-  local order="${2:-}" o name kind cmd after t r alive=1000000 sum=0 c x
+  local o name kind cmd after t r alive=1000000 sum=0 c x n=0 i NL=$'\n' TAB=$'\t' blob=$'\n' hit
+  local -a kinds=() cs=() xs=()
+  # 잰 줄은 한 번만 읽어 둔다. 이름 → 번호는 "<줄바꿈>이름<탭>번호" 글에서 찾는다(순서의 이름마다 줄들을 다시 읽지 않는다).
+  while IFS=$'\t' read -r name kind cmd after t r; do
+    [[ -n "$name" ]] || continue
+    c="$(pb_to_milli "$t")" || c=0
+    x="$(pb_to_milli "$r")" || x=1000
+    kinds[n]="$kind"; cs[n]=$c; xs[n]=$x; blob+="$name$TAB$n$NL"; n=$((n + 1))
+  done <<< "${1:-}"
   while IFS= read -r o; do
-    [[ -n "$o" ]] || continue
-    while IFS=$'\t' read -r name kind cmd after t r; do
-      [[ "$name" == "$o" ]] || continue
-      c="$(pb_to_milli "$t")" || c=0
-      x="$(pb_to_milli "$r")" || x=1000
-      (( sum += c * alive / 1000 ))
-      if [[ "$kind" == head ]]; then [[ $(( x * 1000 )) -ge $alive ]] || alive=$(( x * 1000 ))
-      else alive=$(( alive * x / 1000 )); fi
-    done <<< "${1:-}"
-  done <<< "$order"
+    [[ -n "$o" && "$blob" == *"$NL$o$TAB"* ]] || continue
+    hit="${blob#*"$NL$o$TAB"}"; i="${hit%%"$NL"*}"
+    (( sum += cs[i] * alive / 1000 ))
+    if [[ "${kinds[i]}" == head ]]; then [[ $(( xs[i] * 1000 )) -ge $alive ]] || alive=$(( xs[i] * 1000 ))
+    else alive=$(( alive * xs[i] / 1000 )); fi
+  done <<< "${2:-}"
   # sum 은 백만분의 일 초 — 천분의 일 초로 반올림해 적는다
   (( sum = (sum + 500) / 1000 ))
   printf '%s.%03d' "$(( sum / 1000 ))" "$(( sum % 1000 ))"
@@ -152,15 +164,18 @@ pa_expected() {
 # 예: $'up\tmap\ttr a-z A-Z\t-\nkeep\tfilter\tgrep 7\t-\ntop\thead\t100\t-' $'keep\nup\ntop' → "grep 7 | tr a-z A-Z | head -n 100"
 # 예: $'up\tmap\ttr a-z A-Z\t-' "up" → "tr a-z A-Z"
 pa_pipeline() {
-  local order="${2:-}" o name kind cmd rest out=""
+  local o name kind cmd rest out="" n=0 i NL=$'\n' TAB=$'\t' blob=$'\n' hit
+  local -a cmds=()
+  while IFS=$'\t' read -r name kind cmd rest; do
+    [[ -n "$name" ]] || continue
+    [[ "$kind" != head ]] || cmd="head -n $cmd"
+    cmds[n]="$cmd"; blob+="$name$TAB$n$NL"; n=$((n + 1))
+  done <<< "${1:-}"
   while IFS= read -r o; do
-    [[ -n "$o" ]] || continue
-    while IFS=$'\t' read -r name kind cmd rest; do
-      [[ "$name" == "$o" ]] || continue
-      [[ "$kind" != head ]] || cmd="head -n $cmd"
-      out+="${out:+ | }$cmd"
-    done <<< "${1:-}"
-  done <<< "$order"
+    [[ -n "$o" && "$blob" == *"$NL$o$TAB"* ]] || continue
+    hit="${blob#*"$NL$o$TAB"}"; i="${hit%%"$NL"*}"
+    out+="${out:+ | }${cmds[i]}"
+  done <<< "${2:-}"
   printf '%s' "$out"
 }
 
@@ -171,36 +186,35 @@ pa_pipeline() {
 # 예: $'k\tfilter\tA\t-\t0.1\t0.5\ntop\thead\t10\t-\t0\t0.1' $'k\ntop' → "앞의 10줄만 쓴다 — 흘려보내면 앞 단계가 일찍 끝난다"
 # 예: $'k\tfilter\tA\t-\t0.1\t0.5\nup\tmap\tB\t-\t0.1\t1.00' $'k\nup' → "규칙으로 더 볼 것이 없음"
 pa_hints() {
-  local name kind cmd after t r o n=0 m=0 i j p out="" run="" runn=0
+  local name kind cmd after t r o n=0 m=0 i p out="" run="" runn=0 maxmap=-1 NL=$'\n' TAB=$'\t' blob=$'\n' hit
   local -a names=() kinds=() cmds=() ratios=() pos=() ord=()
   while IFS=$'\t' read -r name kind cmd after t r; do
     [[ -n "$name" ]] || continue
-    names[n]="$name"; kinds[n]="$kind"; cmds[n]="$cmd"; ratios[n]="$r"; pos[n]=-1; n=$((n + 1))
+    names[n]="$name"; kinds[n]="$kind"; cmds[n]="$cmd"; ratios[n]="$r"; pos[n]=-1; blob+="$name$TAB$n$NL"; n=$((n + 1))
   done <<< "${1:-}"
   # 고른 순서에서의 자리(pos)와, 자리마다의 단계 번호(ord)
   while IFS= read -r o; do
-    [[ -n "$o" ]] || continue
-    for (( i = 0; i != n; i++ )); do [[ "${names[i]}" != "$o" ]] || { pos[i]=$m; ord[m]=$i; }; done
-    m=$((m + 1))
+    [[ -n "$o" && "$blob" == *"$NL$o$TAB"* ]] || continue
+    hit="${blob#*"$NL$o$TAB"}"; i="${hit%%"$NL"*}"
+    pos[i]=$m; ord[m]=$i; m=$((m + 1))
   done <<< "${2:-}"
-  # 1) 처음 순서에서 앞에 있던 바꾸기를 넘어 앞으로 온 고르기
+  # 1) 처음 순서에서 앞에 있던 바꾸기를 넘어 앞으로 온 고르기 — 앞의 바꾸기들 가운데 가장 뒤 자리(maxmap)만 기억한다
   for (( i = 0; i != n; i++ )); do
-    [[ "${kinds[i]}" == filter && ${pos[i]} -ne -1 ]] || continue
-    for (( j = 0; j != i; j++ )); do
-      if [[ "${kinds[j]}" == map && ${pos[j]} -gt ${pos[i]} ]]; then
-        out+="${out:+$'\n'}고르기 ${names[i]} 을 바꾸기 앞으로 당김 — 통과 비율 ${ratios[i]}"; break
-      fi
-    done
+    if [[ "${kinds[i]}" == map ]]; then
+      [[ ${pos[i]} -le $maxmap ]] || maxmap=${pos[i]}
+    elif [[ "${kinds[i]}" == filter && ${pos[i]} -ne -1 && $maxmap -gt ${pos[i]} ]]; then
+      out+="${out:+$NL}고르기 ${names[i]} 을 바꾸기 앞으로 당김 — 통과 비율 ${ratios[i]}"
+    fi
   done
   # 2) 고른 순서에서 이어진 바꾸기, 3) 앞의 N줄
   for (( p = 0; p != m; p++ )); do
     i=${ord[p]}
     if [[ "${kinds[i]}" == map ]]; then run+="${run:+ · }${names[i]}"; runn=$((runn + 1)); continue; fi
-    [[ $runn -lt 2 ]] || out+="${out:+$'\n'}이어진 바꾸기 ${runn}개($run) — 한 명령으로 합칠 수 있으면 입력을 한 번만 훑는다"
+    [[ $runn -lt 2 ]] || out+="${out:+$NL}이어진 바꾸기 ${runn}개($run) — 한 명령으로 합칠 수 있으면 입력을 한 번만 훑는다"
     run=""; runn=0
-    [[ "${kinds[i]}" != head ]] || out+="${out:+$'\n'}앞의 ${cmds[i]}줄만 쓴다 — 흘려보내면 앞 단계가 일찍 끝난다"
+    [[ "${kinds[i]}" != head ]] || out+="${out:+$NL}앞의 ${cmds[i]}줄만 쓴다 — 흘려보내면 앞 단계가 일찍 끝난다"
   done
-  [[ $runn -lt 2 ]] || out+="${out:+$'\n'}이어진 바꾸기 ${runn}개($run) — 한 명령으로 합칠 수 있으면 입력을 한 번만 훑는다"
+  [[ $runn -lt 2 ]] || out+="${out:+$NL}이어진 바꾸기 ${runn}개($run) — 한 명령으로 합칠 수 있으면 입력을 한 번만 훑는다"
   printf '%s' "${out:-규칙으로 더 볼 것이 없음}"
 }
 
