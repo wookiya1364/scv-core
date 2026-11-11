@@ -256,6 +256,12 @@ for line in "" "Refund Button 환불 버튼" "the QUICK brown fox" "한글만 �
     chk scv_as_count_terms "$line" "$terms"
   done
 done
+# 깨진 바이트가 든 낱말 — 바꾸는 프로그램이 거기서 멈추는 환경이 있다. 그 낱말과 뒤 낱말의 답이 예전과 같아야 한다.
+BAD=$'bad\xffword'
+for terms in "$BAD" "fox${NL}$BAD${NL}QUICK${NL}없는말" "$BAD${NL}Refund" "Refund${NL}BUTTON${NL}$BAD" "A${NL}${NL}${NL}B${NL}$BAD${NL}${NL}C"; do
+  chk scv_as_count_terms "the QUICK brown fox Refund" "$terms"
+  chk scv_as_count_terms "한글 줄 abc" "$terms"
+done
 report "T3 scv_as_count_terms"
 
 echo "T4. 충돌 검사 둘은 큰 입력을 5초 안에 끝낸다"
@@ -270,6 +276,24 @@ while read -r fn file; do
   else ok "T4 $fn — ${took}초 · 답 $(grep -c . "$TMP/t4.out")줄"; fi
 done <<< "scv_plan_conflict_after lib/plan-link.sh
 scv_plan_conflict_before lib/plan-link.sh"
+
+echo "T5. 낱말 세기는 프로그램을 낱말 수만큼 부르지 않는다"
+# 고치기 전: 맞지 않는 낱말마다 글자 바꾸는 프로그램을 한 번씩 띄웠다(낱말 51개에 51번, 201개에 201번).
+# 가짜 tr 를 앞에 두어 띄운 횟수를 센다.
+REAL_TR="$(command -v tr)"; mkdir -p "$TMP/bin"
+printf '#!/bin/sh\necho x >> "%s"\nexec "%s" "$@"\n' "$TMP/tr.calls" "$REAL_TR" > "$TMP/bin/tr"; chmod +x "$TMP/bin/tr"
+calls_for() { # calls_for <낱말 수> — 줄에 없는 대문자 낱말 N개로 세게 하고, 띄운 횟수를 낸다
+  local n="$1" terms="" i
+  for (( i = 0; i != n; i++ )); do terms+="MISSING$i"$'\n'; done
+  : > "$TMP/tr.calls"
+  PATH="$TMP/bin:$PATH" scv_as_count_terms "Fix the Login bug" "${terms}LOGIN" > "$TMP/t5.out"
+  printf '%s %s' "$(grep -c x "$TMP/tr.calls")" "$(cat "$TMP/t5.out")"
+}
+c51="$(calls_for 51)"; c201="$(calls_for 201)"
+if [[ "${c51% *}" == "${c201% *}" && "${c51% *}" -le 2 ]]; then ok "T5 낱말 51개와 201개에서 띄운 횟수가 같다(${c51% *}번)"
+else fail "T5 띄운 횟수: 낱말 51개 ${c51% *}번 · 201개 ${c201% *}번"; fi
+if [[ "${c51#* }" == 1 && "${c201#* }" == 1 ]]; then ok "T5 센 값은 그대로다(대문자로 쓴 낱말 하나만 맞음)"
+else fail "T5 센 값: ${c51#* } · ${c201#* } (1 이어야 한다)"; fi
 
 echo
 echo "Total: $((PASS + FAIL)) · Pass: $PASS · Fail: $FAIL"
