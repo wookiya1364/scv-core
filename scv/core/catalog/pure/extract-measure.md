@@ -10,7 +10,7 @@
 
 ### pb_parse_nvidia
 - 역할: nvidia-smi 의 "사용률, 메모리 MiB" 줄들에서 "사용률 %<탭>쓰는 메모리 MB"를 낸다(장치가 여럿이면 사용률은 가장 큰 값, 메모리는 합)
-- 위치: scripts/lib/pure-bench.sh · @deterministic · sh
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
 - 예: `'35, 1024' → $'35\t1024.0'`
 - 예: `$'10, 100\n90, 200' → $'90\t300.0'`
 - 예: `'' → ""`

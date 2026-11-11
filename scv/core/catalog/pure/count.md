@@ -4,13 +4,13 @@
 
 ### pb_gpu_summary
 - 역할: GPU 표본 줄들("사용률<탭>메모리 MB")과 시작 전 메모리에서 "평균 사용률 %<탭>늘어난 메모리 MB"를 낸다(표본이 없으면 "-<탭>-")
-- 위치: scripts/lib/pure-bench.sh · @deterministic · sh
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
 - 예: `$'40\t1100.0\n60\t1300.0' 1000.0 → $'50\t300.0'`
 - 예: `'' 1000.0 → $'-\t-'`
 
 ### pb_reps_next
 - 역할: 잰 CPU 초와 되풀이 수를 보고 다음 되풀이 수를 낸다 — 0.2초에 못 미치면 0.3초가 되도록 늘린다(2000번까지)
-- 위치: scripts/lib/pure-bench.sh · @deterministic · sh
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
 - 예: `0.010 5 → "150"`
 - 예: `0.250 5 → "5"`
 - 예: `0.000 5 → "2000"`

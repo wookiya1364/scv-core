@@ -89,7 +89,8 @@ pb_targets() {
 }
 
 # ---------------------------------------------------------------- 잰 글을 값으로
-# 아래 함수들은 awk 를 부른다 — 같은 입력에 같은 출력이지만 외부 도구를 쓰므로 @deterministic 이다.
+# 순수성 검사는 꺾쇠(크다 · 작다)를 파일 쓰기 · 읽기로 본다. 그래서 견주기는 셸의 정수 계산으로 하고,
+# awk 를 쓰는 함수(외부 도구 — @deterministic)에서는 꺾쇠를 쓰지 않는다.
 
 # @deterministic
 # 역할: 시간 재는 명령의 출력 글에서 "벽시계 초<탭>CPU 초<탭>메모리 MB"를 낸다(BSD · GNU 두 꼴, 없는 값은 -)
@@ -105,7 +106,11 @@ pb_parse_time() {
     /maximum resident set size/ { rss = $1 / 1048576; hr = 1 }
     /User time \(seconds\)/ { u = $NF; hc = 1 }
     /System time \(seconds\)/ { s = $NF; hc = 1 }
-    /Elapsed \(wall clock\) time/ { n = split($NF, p, ":"); wall = 0; for (i = 1; i <= n; i++) wall = wall * 60 + p[i]; hw = 1 }
+    /Elapsed \(wall clock\) time/ {
+      t = $NF; wall = 0
+      while ((k = index(t, ":")) != 0) { wall = wall * 60 + substr(t, 1, k - 1); t = substr(t, k + 1) }
+      wall = wall * 60 + t; hw = 1
+    }
     /Maximum resident set size \(kbytes\)/ { rss = $NF / 1024; hr = 1 }
     END {
       a = "-"; b = "-"; c = "-"
@@ -122,23 +127,26 @@ pb_parse_time() {
 # 예: $'0m0.010s 0m0.020s\n0m1.000s 0m0.500s' → "1.530"
 # 예: $'1m2.000s 0m0.000s\n0m0.000s 0m0.000s' → "62.000"
 pb_times_secs() {
-  LC_ALL=C awk '{ for (i = 1; i <= NF; i++) { n = split($i, p, /[ms]/); if (n >= 2) t += p[1] * 60 + p[2] } } END { printf "%.3f", t }' <<< "${1:-}"
+  LC_ALL=C awk '{ for (i = 1; i != NF + 1; i++) { m = index($i, "m"); if (m != 0) t += substr($i, 1, m - 1) * 60 + substr($i, m + 1) } } END { printf "%.3f", t }' <<< "${1:-}"
 }
 
-# @deterministic
+# @pure
 # 역할: 잰 CPU 초와 되풀이 수를 보고 다음 되풀이 수를 낸다 — 0.2초에 못 미치면 0.3초가 되도록 늘린다(2000번까지)
 # 종류: 세기
 # 예: 0.010 5 → "150"
 # 예: 0.250 5 → "5"
 # 예: 0.000 5 → "2000"
 pb_reps_next() {
-  LC_ALL=C awk -v c="${1:-0}" -v r="${2:-1}" 'BEGIN {
-    if (c + 0 >= 0.2) { print r; exit }
-    n = (c + 0 > 0) ? int(r * 0.3 / c + 0.999) : 2000
-    if (n > 2000) n = 2000
-    if (n < r) n = r
-    print n
-  }'
+  local c="${1:-0}" r="${2:-1}" whole frac ms num n
+  whole="${c%%.*}"; frac=0; [[ "$c" != *.* ]] || frac="${c#*.}"
+  frac="${frac}000"; frac="${frac:0:3}"
+  (( ms = 10#${whole:-0} * 1000 + 10#$frac ))
+  if [[ $ms -ge 200 ]]; then printf '%s' "$r"; return 0; fi
+  n=2000
+  if [[ $ms -ne 0 ]]; then (( num = r * 300 + ms - 1 )); (( n = num / ms )); fi
+  [[ $n -le 2000 ]] || n=2000
+  [[ $n -ge $r ]] || n="$r"
+  printf '%s' "$n"
 }
 
 # @deterministic
@@ -153,23 +161,40 @@ pb_parse_ioreg() {
     END { if (u != "" && m != "") printf "%d\t%.1f", u, m / 1048576 }' <<< "${1:-}"
 }
 
-# @deterministic
+# @pure
 # 역할: nvidia-smi 의 "사용률, 메모리 MiB" 줄들에서 "사용률 %<탭>쓰는 메모리 MB"를 낸다(장치가 여럿이면 사용률은 가장 큰 값, 메모리는 합)
 # 종류: 꺼내기/measure
 # 예: '35, 1024' → $'35\t1024.0'
 # 예: $'10, 100\n90, 200' → $'90\t300.0'
 # 예: '' → ""
 pb_parse_nvidia() {
-  LC_ALL=C awk -F'[ ,]+' 'NF >= 2 && $1 ~ /^[0-9]+$/ { if ($1 + 0 > u) u = $1 + 0; m += $2; n++ } END { if (n) printf "%d\t%.1f", u, m }' <<< "${1:-}"
+  local u m rest top="" sum=0 n=0
+  while IFS=', ' read -r u m rest; do
+    [[ "$u" =~ ^[0-9]+$ && "$m" =~ ^[0-9]+$ ]] || continue
+    [[ -n "$top" && "$top" -ge "$u" ]] || top="$u"
+    (( sum = sum + m )); (( n = n + 1 ))
+  done <<< "${1:-}"
+  [[ $n -eq 0 ]] || printf '%s\t%s.0' "$top" "$sum"
 }
 
-# @deterministic
+# @pure
 # 역할: GPU 표본 줄들("사용률<탭>메모리 MB")과 시작 전 메모리에서 "평균 사용률 %<탭>늘어난 메모리 MB"를 낸다(표본이 없으면 "-<탭>-")
 # 종류: 세기
 # 예: $'40\t1100.0\n60\t1300.0' 1000.0 → $'50\t300.0'
 # 예: '' 1000.0 → $'-\t-'
 pb_gpu_summary() {
-  LC_ALL=C awk -F'\t' -v base="${2:-0}" '
-    NF >= 2 { s += $1; n++; if ($2 + 0 > mx) mx = $2 + 0 }
-    END { if (!n) { printf "-\t-"; exit } d = mx - base; if (d < 0) d = 0; printf "%.0f\t%.1f", s / n, d }' <<< "${1:-}"
+  local u m t n=0 s=0 top=0 base="${2:-0}" half avg d
+  [[ "$base" == *.* ]] || base="${base}.0"
+  base="${base%%.*}${base#*.}"; base="${base:0:${#base}}"
+  while IFS=$'\t' read -r u m; do
+    [[ "$u" =~ ^[0-9]+$ && "$m" =~ ^[0-9]+(\.[0-9])?$ ]] || continue
+    [[ "$m" == *.* ]] || m="${m}.0"
+    t="${m%%.*}${m#*.}"                       # 십분의 일 MB 를 정수로
+    [[ $((10#$top)) -ge $((10#$t)) ]] || top="$t"
+    (( s = s + u )); (( n = n + 1 ))
+  done <<< "${1:-}"
+  if [[ $n -eq 0 ]]; then printf -- '-\t-'; return 0; fi
+  (( half = n / 2 )); (( avg = s + half )); (( avg = avg / n ))
+  (( d = 10#$top - 10#$base )); [[ $d -ge 0 ]] || d=0
+  printf '%s\t%s.%s' "$avg" "$(( d / 10 ))" "$(( d % 10 ))"
 }
