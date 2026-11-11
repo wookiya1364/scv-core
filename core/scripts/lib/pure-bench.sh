@@ -449,6 +449,39 @@ pb_ratio() {
 }
 
 # @pure
+# 역할: 번갈아 잰 앞 값들과 뒤 값들에서, 마지막 두 쌍이 모두 "뒤가 앞의 절반 이하"이면 1 을 낸다 — 뚜렷이 빨라진 함수는 남은 쌍을 재지 않아도 된다
+# 종류: 판정
+# 예: "100.0 98.0" "10.0 12.0" → "1"
+# 예: "100.0 98.0" "10.0 60.0" → "0"
+# 예: "100.0" "10.0" → "0"
+# 예: "30.0 100.0 98.0" "29.0 10.0 12.0" → "1"
+# 예: "100.0 -" "10.0 12.0" → "0"
+# 느려졌거나 비슷한 함수에서는 0 이다 — 그때는 정한 쌍을 다 잰다(느려진 것을 놓치지 않는다).
+pb_pairs_enough() {
+  local v nb=0 na=0 b1="" b2="" a1="" a2="" x y
+  for v in ${1:-}; do b1="$b2"; b2="$v"; nb=$((nb + 1)); done
+  for v in ${2:-}; do a1="$a2"; a2="$v"; na=$((na + 1)); done
+  [[ $nb -ge 2 && $nb -eq $na ]] || { printf '0'; return 0; }
+  x="$(pb_to_milli "$b1")" && y="$(pb_to_milli "$a1")" && [[ $(( y * 2 )) -le $x ]] || { printf '0'; return 0; }
+  x="$(pb_to_milli "$b2")" && y="$(pb_to_milli "$a2")" && [[ $(( y * 2 )) -le $x ]] || { printf '0'; return 0; }
+  printf '1'
+}
+
+# @pure
+# 역할: 4배 배수 값이 한도(8배)를 넘거나 한도 시간에 끊긴 값(too-slow)이면 1 을 낸다 — 뒤 값이 이럴 때만 앞의 4배 값이 판정에 쓰인다
+# 종류: 판정
+# 예: 9.1 → "1"
+# 예: 8.0 → "0"
+# 예: too-slow → "1"
+# 예: - → "0"
+pb_scale_over() {
+  local v="${1:-}" x
+  [[ "$v" != too-slow ]] || { printf '1'; return 0; }
+  x="$(pb_to_milli "$v")" && [[ $x -gt $(( PB_SCALE_LIMIT * 1000 )) ]] && { printf '1'; return 0; }
+  printf '0'
+}
+
+# @pure
 # 역할: 한 함수의 앞뒤 잰 줄("함수<탭>상태<탭>잣대<탭>앞 값<탭>뒤 값<탭>부른 횟수 앞<탭>뒤<탭>메모리 앞<탭>뒤<탭>4배 배수 앞<탭>뒤")을 한도로 가려 "함수<탭>판정<탭>이유들"을 낸다 — 판정: pass | fail | new | skipped-different-answer | unmeasured | not-reached
 # 종류: 판정
 # 예: $'f\tok\tcpu\t3.000\t3.450\t0\t0\t2.4\t2.5\t-\t-' → $'f\tpass\t-'
@@ -456,6 +489,9 @@ pb_ratio() {
 # 예: $'f\tok\tcpu\t3.000\t3.000\t1\t2\t8.0\t10.0\t4.0\t9.1' → $'f\tfail\tcalls=1:2 mem=8.0:10.0 scale=4.0:9.1'
 # 예: $'f\tok\tcpu\t3.000\t3.000\t0\t0\t1.2\t1.5\t9.0\t9.5' → $'f\tpass\t-'
 # 예: $'f\tdifferent-answer\t-\t-\t-\t-\t-\t-\t-\t-\t-' → $'f\tskipped-different-answer\t-'
+# 예: $'f\tok\tcpu\t3.000\t3.000\t0\t0\t2.4\t2.5\ttoo-slow\t9.1' → $'f\tpass\t-'
+# 예: $'f\tok\tcpu\t3.000\t3.000\t0\t0\t2.4\t2.5\t4.0\ttoo-slow' → $'f\tfail\tscale=4.0:too-slow'
+# 예: $'f\tok\tcpu\ttoo-slow\t3.000\t0\t0\t-\t2.5\ttoo-slow\ttoo-slow' → $'f\tpass\t-'
 pb_compare() {
   local n st nm b a eb ea mb ma sb sa why="" r x y lim
   IFS=$'\t' read -r n st nm b a eb ea mb ma sb sa <<< "${1:-}"
@@ -467,8 +503,9 @@ pb_compare() {
   esac
   if [[ "$st" == ok ]]; then
     [[ "$nm" != unmeasured ]] || { printf '%s\tunmeasured\t-' "$n"; return 0; }
-    # 시간
-    if x="$(pb_to_milli "$b")" && y="$(pb_to_milli "$a")"; then
+    # 시간 — 앞이 한도 시간에 끊기고(too-slow) 뒤는 쟀으면 더 느려진 것이 아니다
+    if [[ "$b" == too-slow ]] && pb_to_milli "$a" >/dev/null; then :
+    elif x="$(pb_to_milli "$b")" && y="$(pb_to_milli "$a")"; then
       (( lim = x * PB_TIME_LIMIT_PCT )); (( r = y * 100 ))
       [[ $r -le $lim ]] || why="time=$(pb_ratio "$b" "$a")"
     else printf '%s\tunmeasured\t-' "$n"; return 0; fi
@@ -480,9 +517,14 @@ pb_compare() {
       if [[ $r -gt $lim && $(( y - x )) -gt $(( PB_MEM_MIN_TENTHS * 100 )) ]]; then why="${why:+$why }mem=$mb:$ma"; fi
     fi
   fi
-  # 입력 4배 배수 — 새로 한도를 넘거나, 이미 넘던 것이 1.2배 넘게 더 나빠지면
-  if y="$(pb_to_milli "$sa")" && [[ $y -gt $(( PB_SCALE_LIMIT * 1000 )) ]]; then
-    if x="$(pb_to_milli "$sb")" && [[ $x -gt $(( PB_SCALE_LIMIT * 1000 )) ]]; then
+  # 입력 4배 배수 — 새로 한도를 넘거나, 이미 넘던 것이 1.2배 넘게 더 나빠지면.
+  # too-slow 는 그 실행이 한도 시간에 끊겼다는 뜻이다(0.91.2+): 앞만 끊겼으면 이미 넘던 것이고 뒤는 끝냈으니 통과,
+  # 뒤만 끊겼으면 한도 넘음, 둘 다 끊겼으면 견줄 수 없어 가리지 않는다.
+  if [[ "$sa" == too-slow ]]; then
+    [[ "$sb" == too-slow ]] || why="${why:+$why }scale=${sb:--}:too-slow"
+  elif y="$(pb_to_milli "$sa")" && [[ $y -gt $(( PB_SCALE_LIMIT * 1000 )) ]]; then
+    if [[ "$sb" == too-slow ]]; then :
+    elif x="$(pb_to_milli "$sb")" && [[ $x -gt $(( PB_SCALE_LIMIT * 1000 )) ]]; then
       (( lim = x * PB_TIME_LIMIT_PCT )); (( r = y * 100 ))
       [[ $r -le $lim ]] || why="${why:+$why }scale=$sb:$sa"
     else
@@ -513,6 +555,7 @@ pb_accept_covers() {
     else
       # 시간 비율은 붐비는 컴퓨터에서 크게 흔들린다(다른 프로그램을 많이 부르는 함수는 같은 코드가 54배 ~ 96배로 재졌다) —
       # 받아들인 값의 2배까지는 같은 변경으로 본다. 메모리는 흔들림이 작아 1.2배까지.
+      [[ "$val" != "$was" ]] || continue      # 끊김(too-slow)처럼 숫자가 아닌 값은 같을 때만 같은 변경이다
       x="$(pb_to_milli "$was")" && y="$(pb_to_milli "$val")" || return 1
       if [[ "$kind" == mem ]]; then (( lim = x * 120 )); else (( lim = x * 200 )); fi
       [[ $(( y * 100 )) -le $lim ]] || return 1
@@ -544,8 +587,9 @@ pb_baseline_next() {
 # 역할: 판정 줄들("함수<탭>판정<탭>이유들")에서 한도를 넘은 것마다 사람이 읽는 한 줄을 만든다 — 실제 앞뒤 값으로
 # 종류: 조립/measure
 # 예: $'f\tfail\ttime=1.25 calls=1:100 mem=1.9:37.0\ng\tpass\t-' → "f — 시간 1.25배 · 다른 프로그램을 부른 횟수 1번 → 100번 · 메모리 1.9MB → 37.0MB"
+# 예: $'f\tfail\tscale=4.0:too-slow' → "f — 입력 4배에 걸리는 시간 4.0배 → 끊김"
 pb_fail_lines() {
-  local n v why r kind val line
+  local n v why r kind val line x y
   while IFS=$'\t' read -r n v why; do
     [[ "$v" == fail ]] || continue
     line=""
@@ -555,7 +599,10 @@ pb_fail_lines() {
         time)  line="${line:+$line · }시간 ${val}배" ;;
         calls) line="${line:+$line · }다른 프로그램을 부른 횟수 ${val%%:*}번 → ${val##*:}번" ;;
         mem)   line="${line:+$line · }메모리 ${val%%:*}MB → ${val##*:}MB" ;;
-        scale) line="${line:+$line · }입력 4배에 걸리는 시간 ${val%%:*}배 → ${val##*:}배" ;;
+        scale) x="${val%%:*}"; y="${val##*:}"
+               if [[ "$x" == too-slow ]]; then x="끊김"; else x="${x}배"; fi
+               if [[ "$y" == too-slow ]]; then y="끊김"; else y="${y}배"; fi
+               line="${line:+$line · }입력 4배에 걸리는 시간 $x → $y" ;;
       esac
     done
     printf '%s — %s\n' "$n" "$line"
@@ -568,7 +615,7 @@ pb_fail_lines() {
 # 종류: 조립/measure
 # 예: $'f\tok\tcpu\t3.000\t3.750\t0\t0\t2.4\t2.5\t-\t-' $'f\tfail\ttime=1.25' → $'| 함수 | 판정 | 앞(ms) | 뒤(ms) | 비율 | 부른 횟수 | 메모리(MB) | 4배 배수 |\n|---|---|---|---|---|---|---|---|\n| f | 한도 넘음 | 3.000 | 3.750 | 1.25 | 0 → 0 | 2.4 → 2.5 | - → - |\n\n견준 함수 1 · 통과 0 · 한도 넘음 1 · 받아들임 0 · 새 함수 0 · 답이 달라 뺌 0 · 재지 못함 0'
 pb_render_compare() {
-  local lines="${1:-}" verdicts="${2:-}" n st nm b a eb ea mb ma sb sa vn v why word
+  local lines="${1:-}" verdicts="${2:-}" n st nm b a eb ea mb ma sb sa vn v why word r
   local total=0 pass=0 failn=0 acc=0 new=0 diff=0 bad=0
   printf '| 함수 | 판정 | 앞(ms) | 뒤(ms) | 비율 | 부른 횟수 | 메모리(MB) | 4배 배수 |\n|---|---|---|---|---|---|---|---|\n'
   while IFS=$'\t' read -r n st nm b a eb ea mb ma sb sa && IFS=$'\t' read -r vn v why <&3; do
@@ -582,7 +629,10 @@ pb_render_compare() {
       skipped-different-answer) diff=$((diff + 1)); word="답이 달라 뺌" ;;
       *)        bad=$((bad + 1)); word="재지 못함" ;;
     esac
-    printf '| %s | %s | %s | %s | %s | %s → %s | %s → %s | %s → %s |\n' "$n" "$word" "$b" "$a" "$(pb_ratio "$b" "$a")" "$eb" "$ea" "$mb" "$ma" "$sb" "$sa"
+    r="$(pb_ratio "$b" "$a")"
+    # 한도 시간에 끊긴 값은 빈칸이 아니라 '끊김'이라고 적는다
+    [[ "$b" != too-slow ]] || b="끊김"; [[ "$sb" != too-slow ]] || sb="끊김"; [[ "$sa" != too-slow ]] || sa="끊김"
+    printf '| %s | %s | %s | %s | %s | %s → %s | %s → %s | %s → %s |\n' "$n" "$word" "$b" "$a" "$r" "$eb" "$ea" "$mb" "$ma" "$sb" "$sa"
   done <<< "$lines" 3<<< "$verdicts"
   printf '\n견준 함수 %s · 통과 %s · 한도 넘음 %s · 받아들임 %s · 새 함수 %s · 답이 달라 뺌 %s · 재지 못함 %s' "$total" "$pass" "$failn" "$acc" "$new" "$diff" "$bad"
 }

@@ -265,11 +265,13 @@ pb_measure_fn() {
 }
 
 # @effect pb_fixed_run
-# 이유: 되풀이 수를 정해 둔 채 함수를 한 번 재서 "회당 ms<탭>메모리 MB<탭>벽시계 초"를 낸다 — 앞뒤를 번갈아 잴 때(GPU 표본 없이, 가볍게)
+# 이유: 되풀이 수를 정해 둔 채 함수를 한 번 재서 "회당 ms<탭>메모리 MB<탭>벽시계 초"를 낸다 — 앞뒤를 번갈아 잴 때(GPU 표본 없이, 가볍게). 한도 시간에 끊기면 첫 칸이 too-slow
 pb_fixed_run() {
   local out="$PB_TMP/fx" cpu w c rss
-  rm -f "$out.a" "$out.b"
+  rm -f "$out.a" "$out.b" "$out.slow"
   pb_timed "$PB_TMP/fx.report" "$BASH" "$0" _drive "$1" "$3" "$2" "$4" "$5" "$out"
+  # 한도 시간에 끊겼으면 빈칸이 아니라 too-slow 를 낸다(0.91.2+) — 판정이 '못 잼'과 '너무 느림'을 가릴 수 있게
+  if [[ -e "$out.slow" ]]; then rm -f "$out.slow" "$out.a" "$out.b"; printf 'too-slow\t-\t-'; return 0; fi
   [[ -s "$out.b" ]] || { printf -- '-\t-\t-'; return 0; }
   cpu="$(LC_ALL=C awk -v a="$(pb_times_secs "$(cat "$out.a")")" -v b="$(pb_times_secs "$(cat "$out.b")")" -v r="$5" 'BEGIN { printf "%.3f", (b - a) * 1000 / r }')"
   IFS=$'\t' read -r w c rss <<< "$(pb_parse_time "$(cat "$PB_TMP/fx.report" 2>/dev/null)")"
@@ -280,7 +282,7 @@ pb_fixed_run() {
 # 이유: 한 함수를 앞 코드와 뒤 코드에서 번갈아 재서 앞뒤 잰 줄 하나를 낸다 — 답이 같은지 · 부른 횟수 · 시간 쌍 · 메모리 · (꼼꼼히) 입력 4배
 pb_compare_fn() {
   local tool="$1" before="$2" after="$3" name="$4" rel="$5" a1="$6" a4="$7" sc="$8" pairs="$9" full="${10}"
-  local LA LB reps nm eb ea mb ma i vb="" va="" r sb="-" sa="-" L st=ok
+  local LA LB reps nm eb ea mb ma i vb="" va="" r sb="-" sa="-" L st=ok a b a0 m0 bslow np
   if ! grep -q "^$name()" "$before/$rel" 2>/dev/null; then st=new; fi
   LA="$(pb_measure_fn "$tool" "$after" "$name" "$rel" "$a1" 1)"
   [[ "$LA" == *$'\tok\t'* ]] || { printf '%s\tload-failed\t-\t-\t-\t-\t-\t-\t-\t-\t-\n' "$name"; return 0; }
@@ -295,17 +297,37 @@ pb_compare_fn() {
   if ! cmp -s "$PB_TMP/ans.b" "$PB_TMP/ans.a"; then printf '%s\tdifferent-answer\t-\t-\t-\t-\t-\t-\t-\t-\t-\n' "$name"; return 0; fi
   # 부른 횟수(앞) — 뒤는 위에서 셌다
   "$BASH" "$0" _drive "$before" "$rel" "$name" "$a1" 1 "$PB_TMP/x" "$PB_TMP/cnt.b" >/dev/null 2>&1; eb="$(grep -c . "$PB_TMP/cnt.b")"
-  # 시간 — 같은 되풀이 수로 앞 · 뒤를 번갈아
-  vb=""; va=""; mb=0; ma=0
+  # 시간 — 같은 되풀이 수로 앞 · 뒤를 번갈아.
+  # 되풀이 수는 뒤(지금 코드)에 맞춰 정해졌다. 앞이 훨씬 느리면 그 횟수가 앞에는 너무 많다 — 그래서(0.91.2+):
+  #   · 앞이 한도 시간에 끊기면 다시 재지 않는다(b 는 too-slow, 뒤 값은 처음 잰 것을 쓴다).
+  #   · 꼼꼼히 잴 때, 두 쌍 연속으로 뒤가 앞의 절반 이하이면 남은 쌍을 재지 않는다(pb_pairs_enough).
+  a0="$va"; m0="$ma"; vb=""; va=""; mb=0; ma=0; bslow=0; np=0
   for (( i = 0; i != pairs; i++ )); do
-    IFS=$'\t' read -r r L _ <<< "$(pb_fixed_run "$before" "$name" "$rel" "$a1" "$reps")"; vb="$vb $r"; [[ "$L" == "-" ]] || mb="$(LC_ALL=C awk -v a="$mb" -v b="$L" 'BEGIN { print (b + 0 > a + 0) ? b : a }')"
+    IFS=$'\t' read -r r L _ <<< "$(pb_fixed_run "$before" "$name" "$rel" "$a1" "$reps")"
+    if [[ "$r" == too-slow ]]; then bslow=1; break; fi
+    vb="$vb $r"; [[ "$L" == "-" ]] || mb="$(LC_ALL=C awk -v a="$mb" -v b="$L" 'BEGIN { print (b + 0 > a + 0) ? b : a }')"
     IFS=$'\t' read -r r L _ <<< "$(pb_fixed_run "$after"  "$name" "$rel" "$a1" "$reps")"; va="$va $r"; [[ "$L" == "-" ]] || ma="$(LC_ALL=C awk -v a="$ma" -v b="$L" 'BEGIN { print (b + 0 > a + 0) ? b : a }')"
+    np=$((np + 1))
+    [[ "$full" == 1 && "$(pb_pairs_enough "$vb" "$va")" == 1 ]] && break
   done
+  [[ -z "${SCV_PB_PAIRS_LOG:-}" ]] || printf '%s\t%s\n' "$name" "$np" >> "$SCV_PB_PAIRS_LOG"
+  b="$(pb_median "$vb")"; a="$(pb_median "$va")"
+  [[ "$mb" != 0 ]] || mb="-"
+  [[ "$ma" != 0 ]] || ma="$m0"
+  if [[ $bslow -eq 1 ]]; then b=too-slow; [[ "$a" != "-" ]] || a="$a0"; fi
   if [[ "$full" == 1 && "$sc" == 1 ]]; then
-    IFS=$'\t' read -r r _ _ <<< "$(pb_fixed_run "$before" "$name" "$rel" "$a4" "$(( reps / 4 + 1 ))")"; sb="$(pb_scale_ratio "$(pb_median "$vb")" "$r")"
-    IFS=$'\t' read -r r _ _ <<< "$(pb_fixed_run "$after"  "$name" "$rel" "$a4" "$(( reps / 4 + 1 ))")"; sa="$(pb_scale_ratio "$(pb_median "$va")" "$r")"
+    # 4배 입력은 뒤를 먼저 잰다. 뒤 배수가 한도 안이면 앞의 4배 값은 판정에 쓰이지 않는다 — 재지 않는다(pb_scale_over).
+    IFS=$'\t' read -r r _ _ <<< "$(pb_fixed_run "$after"  "$name" "$rel" "$a4" "$(( reps / 4 + 1 ))")"
+    if [[ "$r" == too-slow ]]; then sa=too-slow; else sa="$(pb_scale_ratio "$a" "$r")"; fi
+    if [[ "$(pb_scale_over "$sa")" == 1 ]]; then
+      if [[ $bslow -eq 1 ]]; then sb=too-slow
+      else
+        IFS=$'\t' read -r r _ _ <<< "$(pb_fixed_run "$before" "$name" "$rel" "$a4" "$(( reps / 4 + 1 ))")"
+        if [[ "$r" == too-slow ]]; then sb=too-slow; else sb="$(pb_scale_ratio "$b" "$r")"; fi
+      fi
+    fi
   fi
-  printf '%s\tok\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$name" "$nm" "$(pb_median "$vb")" "$(pb_median "$va")" "$eb" "$ea" "$mb" "$ma" "$sb" "$sa"
+  printf '%s\tok\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$name" "$nm" "$b" "$a" "$eb" "$ea" "$mb" "$ma" "$sb" "$sa"
 }
 
 # @effect pb_setting
