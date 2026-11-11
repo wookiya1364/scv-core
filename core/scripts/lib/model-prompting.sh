@@ -711,16 +711,26 @@ scv_mp_harm_line() {
 # <답 본문> <다시 쓴 요청> → 1(코드 블록 밖 인용 줄에 다시 쓴 요청이 보인다) | 0. 인용 줄이 "다시 쓴 요청" · "Rewritten request"
 # 라벨을 담거나, 다시 쓴 요청의 앞 16글자(공백 제외)를 담으면 보인 것으로 본다.
 scv_mp_answer_shows_rewrite() {
-  local text="${1:-}" rw="${2:-}" line t fence=0 q=$'\x3e' key="" flat
-  key="${rw//[[:space:]]/}"; key="${key:0:16}"
+  local text="${1:-}" rw="${2:-}" line t fence=0 q=$'\x3e' key="" flat c rest win=32 len
+  # 열쇠는 다시 쓴 요청에서 공백을 뺀 앞 16자다 — 요청 전체에서 공백을 지우지 않고 16자가 찰 때까지만 본다.
+  len=${#rw}
+  while :; do
+    key="${rw:0:win}"; key="${key//[[:space:]]/}"
+    (( ${#key} >= 16 || win >= len )) && break
+    win=$((win * 2))
+  done
+  key="${key:0:16}"
   while IFS= read -r line || [[ -n "$line" ]]; do
     t="${line#"${line%%[![:space:]]*}"}"
     if [[ "$t" == '```'* ]]; then fence=$(( 1 - fence )); continue; fi
     (( fence )) && continue
     [[ "${t:0:1}" == "$q" ]] || continue
     case "$t" in *"다시 쓴 요청"*|*"Rewritten request"*) printf '1'; return 0 ;; esac
-    flat="${t//[[:space:]]/}"
-    [[ -n "$key" && "$flat" == *"$key"* ]] && { printf '1'; return 0; }
+    [[ -n "$key" ]] || continue
+    # 인용 줄에서 공백을 지운다 — 옛 셸은 긴 줄을 통째로 하면 느려서 24자씩 잘라 한다(글자 하나짜리 무늬라 답은 같다).
+    flat=""; rest="$t"
+    while [[ -n "$rest" ]]; do c="${rest:0:24}"; rest="${rest:24}"; flat+="${c//[[:space:]]/}"; done
+    [[ "$flat" == *"$key"* ]] && { printf '1'; return 0; }
   done <<< "$text"
   printf '0'
 }
@@ -869,20 +879,8 @@ scv_mp_register_value() {
 # 말하면('except', 'other than', '말고', '외에', '빼고', '제외', '以外') 막지 않는다. 변경 없는 턴의 범위는 '변경 없음 — …' 으로
 # 시작한다(매 턴 블록). 앞의 '범위:' · 'scope:' 이름표와 꾸밈 글자(* _ `)는 건너뛴다. 영어는 대소문자를 가리지 않는다.
 scv_mp_scope_forbid() {
-  local v="${1:-}" p low rest up="ABCDEFGHIJKLMNOPQRSTUVWXYZ" lo="abcdefghijklmnopqrstuvwxyz" c i out="" e
-  v="${v//\*/}"; v="${v//\`/}"
-  v="${v#"${v%%[![:space:]_]*}"}"
-  case "$v" in "범위:"*|"범위 :"*|"scope:"*|"Scope:"*|"SCOPE:"*) v="${v#*:}" ;; esac
-  v="${v#"${v%%[![:space:]_]*}"}"
-  for (( i = 0; i < ${#v}; i++ )); do
-    c="${v:i:1}"
-    case "$up" in *"$c"*) p="${up%%"$c"*}"; out+="${lo:${#p}:1}" ;; *) out+="$c" ;; esac
-  done
-  low="$out"
-  for e in "except" "other than" "outside of" "besides" "말고" "외에" "빼고" "제외" "以外" "を除"; do
-    [[ "$low" == *"$e"* ]] && return 0
-  done
-  for p in "변경 없음" "변경없음" "읽기 전용" "읽기만 한다" "읽기만" "보고만 한다" "보고만" "조회만 한다" "조회만" \
+  local v="${1:-}" p low="" head rest up="ABCDEFGHIJKLMNOPQRSTUVWXYZ" lo="abcdefghijklmnopqrstuvwxyz" c i max=0
+  local -a ps=("변경 없음" "변경없음" "읽기 전용" "읽기만 한다" "읽기만" "보고만 한다" "보고만" "조회만 한다" "조회만" \
            "제안만 한다" "제안만" "설명만 한다" "설명만" \
            "아무것도 바꾸지 않는다" "아무것도 바꾸지 않음" "아무것도 바꾸지 않습니다" \
            "파일 · 코드는 바꾸지 않는다" "파일 · 코드는 바꾸지 않음" "파일·코드는 바꾸지 않는다" "파일 · 코드를 바꾸지 않는다" \
@@ -891,9 +889,28 @@ scv_mp_scope_forbid() {
            "no changes" "no file changes" "no edits" "make no changes" "change nothing" "read-only" "report only" "suggest only" \
            "do not change any file" "do not change any files" "don't change any file" "don't change any files" \
            "do not modify any file" "do not modify any files" "don't modify any file" "don't modify any files" \
-           "変更なし" "読み取り専用" "報告のみ" "提案のみ" "読むだけ" "ファイルは変更しない" "何も変更しない"; do
+           "変更なし" "読み取り専用" "報告のみ" "提案のみ" "読むだけ" "ファイルは変更しない" "何も変更しない")
+  v="${v//\*/}"; v="${v//\`/}"
+  v="${v#"${v%%[![:space:]_]*}"}"
+  case "$v" in "범위:"*|"범위 :"*|"scope:"*|"Scope:"*|"SCOPE:"*) v="${v#*:}" ;; esac
+  v="${v#"${v%%[![:space:]_]*}"}"
+  # 예외 낱말은 글 어디에 있어도 된다. 글 전체를 한 글자씩 소문자로 바꾸지 않고,
+  # 영어 낱말은 대소문자를 함께 적은 무늬로 찾는다(A~Z 만 소문자로 보던 것과 같은 답).
+  case "$v" in
+    *[eE][xX][cC][eE][pP][tT]*|*[oO][tT][hH][eE][rR]" "[tT][hH][aA][nN]*|*[oO][uU][tT][sS][iI][dD][eE]" "[oO][fF]*|*[bB][eE][sS][iI][dD][eE][sS]*) return 0 ;;
+    *"말고"*|*"외에"*|*"빼고"*|*"제외"*|*"以外"*|*"を除"*) return 0 ;;
+  esac
+  # 첫머리 문구는 글 머리에서만 본다 — 가장 긴 문구의 길이만큼만 소문자로 바꾼다.
+  for p in "${ps[@]}"; do (( ${#p} > max )) && max=${#p}; done
+  head="${v:0:max}"
+  for (( i = 0; i < ${#head}; i++ )); do
+    c="${head:i:1}"
+    case "$up" in *"$c"*) p="${up%%"$c"*}"; low+="${lo:${#p}:1}" ;; *) low+="$c" ;; esac
+  done
+  for p in "${ps[@]}"; do
     [[ "$low" == "$p"* ]] || continue
-    rest="${low#"$p"}"; rest="${rest#"${rest%%[![:space:]]*}"}"
+    # 문구 뒤는 원래 글에서 본다 — 뒤따르는 글자는 문장 부호만 보므로 대소문자와 상관없다.
+    rest="${v:${#p}}"; rest="${rest#"${rest%%[![:space:]]*}"}"
     case "$rest" in ""|"—"*|"–"*|"-"*|":"*|"："*|","*|"，"*|"、"*|"."*|"。"*|";"*|"("*|"（"*|"/"*|")"*)
       printf '%s' "$p"; return 0 ;;
     esac

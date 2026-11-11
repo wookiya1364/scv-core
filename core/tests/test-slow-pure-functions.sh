@@ -135,20 +135,60 @@ for lang in korean ko english "" japanese; do
   chk scv_lint_lang_turn "no newline at the end of this english text" "" "$lang"
   chk scv_lint_lang_turn "" "${FENCE}${NL}an unclosed fence hides everything below it${NL}English after the fence line stays hidden" "$lang"
   chk scv_lint_lang_turn "x" "tab${TAB}separated english words in a long line${NL}${NL}${NL}  indented English sentence with enough letters" "$lang"
-  chk scv_lint_lang_turn "$LONGE$LONGE$LONGE$LONGE$LONGE$LONGE$LONGE$LONGE$LONGE 한글" "$LONGE$LONGK" "$lang"
+done
+# 옛 본문은 긴 줄에서 몇 초씩 걸린다 — 긴 줄은 꼭 필요한 것만 넣는다.
+# 4000바이트 경계: 글자가 경계 뒤에만 있는 줄, 경계 앞은 한글이고 뒤는 영어인 줄, 딱 경계에 걸친 줄
+DIG="$(printf '1234567890 %.0s' {1..400})"
+chk scv_lint_lang_turn "x" "${DIG}english words after the cut line" korean
+chk scv_lint_lang_turn "x" "${LONGK}${LONGK}${LONGK}${LONGK}${LONGK}${LONGK}${LONGK} ${LONGE}${LONGE}${LONGE}${LONGE}${LONGE}${LONGE}${LONGE}${LONGE}${LONGE}" korean
+chk scv_lint_lang_turn "x" "${DIG:0:3999}가나다라마바사 abcdefghijklmnop" korean
+# 한글 비율은 딱 앞 4000바이트로만 낸다 — 4000바이트 바로 뒤의 글자가 답을 뒤집는 줄 둘
+chk scv_lint_lang_turn "x" "가나다라마abcdefghijklmno${DIG:0:3970}pqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" korean
+chk scv_lint_lang_turn "x" "가나abcdefghijklmnopqr${DIG:0:3976}가나다라마바사아자차카타파하가나다라마바사아자차카타파하" korean
+# 앞 4000바이트에는 글자가 15개가 안 되고(한글 2 · 영문 3) 그 뒤에 영문 30자가 있는 줄 — 비율은 앞쪽만으로 40이다
+chk scv_lint_lang_turn "x" "가나abc${DIG:0:3991}abcdefghijklmnopqrstuvwxyzabcd" korean
+chk scv_lint_lang_turn "x" "abcde${DIG:0:3995}가나다라마바사아자차카타파하가나다라마바사아자차카타파하" korean
+for lang in korean english; do
+  chk scv_lint_lang_turn "x" "fourteen ltrs!${NL}fifteen letters!${NL}열네 글자 abcdefghij${NL}abcdefghijklmn 가${NL}한글 조금 but mostly english words in this line" "$lang"
 done
 report "T3 scv_lint_lang_turn"
-for t in "" "a" "가" "abc가나다" "한글만 있는 글" "English only" "1234 !@#" "$LONGK" "$LONGE" "$LONGE$LONGE$LONGE$LONGE$LONGE$LONGE$LONGE$LONGE$LONGE$LONGK" "$LONGK$LONGK$LONGK$LONGK$LONGK$LONGK$LONGK$LONGK$LONGK$LONGK$LONGK$LONGK$LONGK$LONGE" "日本語のテキスト と 한글" "이모지 😀 와 한글 abc" "줄${NL}바꿈${NL}abc"; do
+for t in "" "a" "가" "abc가나다" "한글만 있는 글" "English only" "1234 !@#" "${LONGK:0:60}" "${LONGE:0:200}" "$LONGE$LONGE$LONGE$LONGE$LONGE$LONGE$LONGE$LONGE$LONGE$LONGK" "日本語のテキスト と 한글" "이모지 😀 와 한글 abc" "줄${NL}바꿈${NL}abc"; do
   chk scv_lint_hangul_ratio "$t"
 done
 chk scv_lint_hangul_ratio
+# 토막(40바이트) · 자르는 자리(4000바이트) 경계 길이
+for n in 1 39 40 41 79 80 81 120; do
+  chk scv_lint_hangul_ratio "$(printf '%*s' "$n" '' | tr ' ' 'a')가나"
+  chk scv_lint_hangul_ratio "$(printf '%*s' "$n" '' | tr ' ' '1')가나abc"
+  chk scv_lint_hangul_ratio "가$(printf '%*s' "$n" '' | tr ' ' 'z')나"
+done
+# 옛 본문은 4000바이트 글 하나에 0.5초쯤 걸린다 — 경계마다 하나씩만 넣는다.
+for n in 3997 4001; do
+  chk scv_lint_hangul_ratio "$(printf '%*s' "$n" '' | tr ' ' '1')가나abc"
+done
 report "T3 scv_lint_hangul_ratio"
 for s in "" "a" 'say "hello" now' 'two "a" and "b" here' 'unbalanced "quote here' 'a (b) c (d (e) f) g' 'open ( only' 'close ) only' '“둥근 따옴표” 밖' '‘작은’ 그리고 “큰” 따옴표' '（전각 괄호） 밖' '“겹친 “안쪽” 따옴표” 끝' "여러 줄 \"안${NL}쪽\" 과 (괄${NL}호)" '"" () “” ‘’ （）' "$LONGK \"$LONGE\" ($LONGK) $LONGE" '((((깊은))))' '"a"b"c"d"'; do
   chk scv_lint_strip_quoted "$s"
 done
+# 짧은 글 전수: 따옴표 · 괄호 · 글자 넷으로 만든 길이 5까지의 모든 글(1364개)
+gen() { # gen <남은 길이> <지금까지의 글> <글자들…>
+  local left="$1" cur="$2" ch; shift 2
+  [[ -n "$cur" ]] && chk scv_lint_strip_quoted "$cur"
+  (( left )) || return 0
+  for ch in "$@"; do gen $((left - 1)) "$cur$ch" "$@"; done
+}
+gen 5 "" '"' '(' ')' 'a'
+gen 4 "" '“' '”' '가'
+gen 4 "" '（' '）' '‘' '’'
+gen 3 "" '"' '“' '”' '(' '（' '）' ')'
 report "T3 scv_lint_strip_quoted"
 GT=$'\x3e'
 for s in "" "$GT" "$GT **다시 쓴 요청**: 가" "  $GT **다시 쓴 요청**: 가" "${GT}다시 쓴 요청" "$GT _Rewritten request_: x" "$GT rewritten request" "$GT 書き直した依頼: あ" "다시 쓴 요청" "$GT 다른 인용" "$GT * _ * 다시 쓴 요청" "${TAB}$GT${TAB}**다시 쓴 요청**" "$GT $LONGK" "$LONGK $GT 다시 쓴 요청" "$GT **다시 쓴 요청**: $LONGK$LONGE$LONGK" "$GT${NL}다시 쓴 요청" "   " "$GT$GT 다시 쓴 요청"; do
+  chk scv_is_rewrite_quote "$s"
+done
+# 머리 토막(64자)을 넘겨야 답이 정해지는 줄
+SP100="$(printf '%*s' 100 '')"; SP300="$(printf '%*s' 300 '')"; ST150="$(printf '*%.0s' {1..150})"; UN500="$(printf '_ %.0s' {1..250})"
+for s in "$GT${SP100}다시 쓴 요청" "${SP300}$GT 다시 쓴 요청" "$GT ${ST150}다시 쓴 요청" "$GT ${ST150}Rewritten request" "$GT ${UN500}rewritten request" "$GT ${UN500}다른 말" "${SP300}" "${SP300}x" "$GT${SP300}" "$GT ${ST150}" "$GT ${ST150}Rewritten${ST150} request" "$GT 다${ST150}시 쓴 ${UN500}요청" "$GT Rewritten reques" "$GT Rewritten requestx" "$GT 다시 쓴 요" "$GT Rewritten_ request" "$GT Re*written request"; do
   chk scv_is_rewrite_quote "$s"
 done
 report "T3 scv_is_rewrite_quote"
@@ -158,13 +198,28 @@ for text in "" "$GT **다시 쓴 요청**: $RW${NL}본문" "본문만 있고 인
     chk scv_mp_answer_shows_rewrite "$text" "$rw"
   done
 done
+# 열쇠가 머리 토막(32자) 밖에서 정해지는 요청, 인용 줄에서 열쇠가 토막(24자) 경계에 걸치는 답
+SPACED="$(printf '가 나 다 라 마 바 사 아 자 차 카 타 파 하 %.0s' 1 2 3)"
+for rw in "${SP100}지금까지 한 일을 저장소의 실제 상태로" "가 ${SP100}나 ${SP100}다라마바사아자차카타파하거너더" "$SPACED" "${SP100}" "${SP100}짧"; do
+  for text in "$GT $SPACED" "$GT xx $SPACED" "$GT ${SP100}지 금 까 지   한   일 을   저 장 소 의   실 제   상 태 로" "$GT 가나${SP100}다라마바사아자차카타파하거너더" "$GT ${LONGE} 가나다라마바사아자차카타파하거너더 ${LONGE}" "$GT 가나다라마바사아자차카타파하거너"; do
+    chk scv_mp_answer_shows_rewrite "$text" "$rw"
+  done
+done
 report "T3 scv_mp_answer_shows_rewrite"
 for v in "" "변경 없음 — 보고만" "변경 없음" "변경없음: 조회" "변경 없음x" "  **범위:** 읽기만 한다" "Scope: No Changes" "SCOPE: READ-ONLY (docs)" "scope : no changes" "범위 : 변경 없음" "no changes except docs" "변경 없음 — 문서 말고" "No File Changes, only a report" "DO NOT CHANGE ANY FILES." "core/a.sh 를 고친다" "\`변경 없음\` — 보고" "__ 읽기 전용" "変更なし。" "何も変更しない（報告のみ）" "Report Only / status" "REPORT ONLYX" "변경 없음 OTHER THAN docs" "ÀÉÎ no changes" "$LONGE" "변경 없음 — $LONGK$LONGE" "ABCDEFGHIJKLMNOPQRSTUVWXYZ" "Z" "*" "\`"; do
+  chk scv_mp_scope_forbid "$v"
+done
+# 예외 낱말이 글 뒤쪽 멀리 있거나, 문구 뒤에 빈칸이 길게 오거나, 문구가 대소문자로 섞인 글
+for v in "변경 없음 — ${LONGK} EXCEPT docs" "변경 없음 — ${LONGK} Other Than docs" "no changes ${LONGE} OUTSIDE OF x" "No Changes ${LONGE} Besides" "변경 없음${SP100}— 보고" "변경 없음${SP100}x" "Do Not Modify Any Files${SP100}." "DON'T CHANGE ANY FILES" "do not modify any filesx" "No File Changes" "no file change" "READ-ONLY${TAB}(a)" "Read-Only" "읽기만 한다${NL}다음 줄" "__**scope:**  \`report only\` — x" "EXCEP T" "exceptional" "outside  of" "변경 없음 — OTHER  THAN" "ファイルは変更しない、報告のみ" "$(printf 'A%.0s' {1..200})" "no changes${LONGE}"; do
   chk scv_mp_scope_forbid "$v"
 done
 report "T3 scv_mp_scope_forbid"
 LT=$'\x3c'
 for p in "" "기계 글 없음" "앞 ${LT}system-reminder${GT}속${LT}/system-reminder${GT} 뒤" "앞 ${LT}system-reminder${GT}닫히지 않음" "${LT}task-notification${GT}a${LT}/task-notification${GT}${LT}task-notification${GT}b${LT}/task-notification${GT}끝" "가 ${LT}command-name${GT}x${LT}/command-name${GT} 나 ${LT}command-args${GT}y${LT}/command-args${GT} 다" "${LT}system-reminder attr=\"1\"${GT}속${LT}/system-reminder${GT}뒤" "${LT}system-reminder${GT}겹 ${LT}system-reminder${GT}안${LT}/system-reminder${GT} 밖${LT}/system-reminder${GT} 끝" "${LT}/system-reminder${GT} 닫는 것만" "${LT}other-tag${GT}그대로${LT}/other-tag${GT}" "$LONGK ${LT}ci-monitor-event${GT}$LONGE${LT}/ci-monitor-event${GT} $LONGK" "${LT}local-command-stdout${GT}${NL}여러${NL}줄${NL}${LT}/local-command-stdout${GT}${NL}사람 글"; do
+  chk scv_lang_drop_machine "$p"
+done
+# 블록을 지운 자리에서 앞뒤가 붙어 새 블록 머리가 생기는 글, 한글 사이에 낀 블록
+for p in "${LT}task-${LT}task-notification${GT}x${LT}/task-notification${GT}notification${GT}y${LT}/task-notification${GT}z" "${LT}system-${LT}system-reminder${GT}a${LT}/system-reminder${GT}reminder${GT}남음" "${LT}${LT}command-name${GT}a${LT}/command-name${GT}command-name${GT}b" "가${LT}command-name${GT}나${LT}/command-name${GT}다${LT}command-name${GT}라${LT}/command-name${GT}마" "${LT}task-notification${GT}${LT}system-reminder${GT}속${LT}/task-notification${GT}밖${LT}/system-reminder${GT}끝" "${LT}system-reminder${GT}a${LT}task-notification${GT}b${LT}/system-reminder${GT}c${LT}/task-notification${GT}d"; do
   chk scv_lang_drop_machine "$p"
 done
 report "T3 scv_lang_drop_machine"
