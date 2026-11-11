@@ -23,7 +23,7 @@
 
 ### pb_times_secs
 - 역할: 셸의 times 출력 글(분 · 초 꼴 네 값)을 모두 더한 초로 낸다
-- 위치: scripts/lib/pure-bench.sh · @pure · sh
+- 위치: scripts/lib/pure-bench.sh · @deterministic · sh
 - 예: `$'0m0.010s 0m0.020s\n0m1.000s 0m0.500s' → "1.530"`
 - 예: `$'1m2.000s 0m0.000s\n0m0.000s 0m0.000s' → "62.000"`
 

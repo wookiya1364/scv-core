@@ -89,8 +89,9 @@ pb_targets() {
 }
 
 # ---------------------------------------------------------------- 잰 글을 값으로
+# 아래 함수들은 awk 를 부른다 — 같은 입력에 같은 출력이지만 외부 도구를 쓰므로 @deterministic 이다.
 
-# @pure
+# @deterministic
 # 역할: 시간 재는 명령의 출력 글에서 "벽시계 초<탭>CPU 초<탭>메모리 MB"를 낸다(BSD · GNU 두 꼴, 없는 값은 -)
 # 종류: 꺼내기/measure
 # 예: $'real 1.50\nuser 0.40\nsys 0.10\n  2621440  maximum resident set size' → $'1.50\t0.50\t2.5'
@@ -115,7 +116,7 @@ pb_parse_time() {
     }' <<< "${1:-}"
 }
 
-# @pure
+# @deterministic
 # 역할: 셸의 times 출력 글(분 · 초 꼴 네 값)을 모두 더한 초로 낸다
 # 종류: 변환
 # 예: $'0m0.010s 0m0.020s\n0m1.000s 0m0.500s' → "1.530"
@@ -124,7 +125,7 @@ pb_times_secs() {
   LC_ALL=C awk '{ for (i = 1; i <= NF; i++) { n = split($i, p, /[ms]/); if (n >= 2) t += p[1] * 60 + p[2] } } END { printf "%.3f", t }' <<< "${1:-}"
 }
 
-# @pure
+# @deterministic
 # 역할: 잰 CPU 초와 되풀이 수를 보고 다음 되풀이 수를 낸다 — 0.2초에 못 미치면 0.3초가 되도록 늘린다(2000번까지)
 # 종류: 세기
 # 예: 0.010 5 → "150"
@@ -140,7 +141,7 @@ pb_reps_next() {
   }'
 }
 
-# @pure
+# @deterministic
 # 역할: 맥의 그래픽 장치 정보 글에서 "사용률 %<탭>쓰는 메모리 MB"를 낸다(값이 없으면 빈 글)
 # 종류: 꺼내기/measure
 # 예: '"PerformanceStatistics" = {"In use system memory"=104857600,"Device Utilization %"=42}' → $'42\t100.0'
@@ -152,7 +153,7 @@ pb_parse_ioreg() {
     END { if (u != "" && m != "") printf "%d\t%.1f", u, m / 1048576 }' <<< "${1:-}"
 }
 
-# @pure
+# @deterministic
 # 역할: nvidia-smi 의 "사용률, 메모리 MiB" 줄들에서 "사용률 %<탭>쓰는 메모리 MB"를 낸다(장치가 여럿이면 사용률은 가장 큰 값, 메모리는 합)
 # 종류: 꺼내기/measure
 # 예: '35, 1024' → $'35\t1024.0'
@@ -162,7 +163,7 @@ pb_parse_nvidia() {
   LC_ALL=C awk -F'[ ,]+' 'NF >= 2 && $1 ~ /^[0-9]+$/ { if ($1 + 0 > u) u = $1 + 0; m += $2; n++ } END { if (n) printf "%d\t%.1f", u, m }' <<< "${1:-}"
 }
 
-# @pure
+# @deterministic
 # 역할: GPU 표본 줄들("사용률<탭>메모리 MB")과 시작 전 메모리에서 "평균 사용률 %<탭>늘어난 메모리 MB"를 낸다(표본이 없으면 "-<탭>-")
 # 종류: 세기
 # 예: $'40\t1100.0\n60\t1300.0' 1000.0 → $'50\t300.0'
