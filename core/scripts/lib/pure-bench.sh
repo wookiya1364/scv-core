@@ -63,7 +63,7 @@ pb_scale_args() {
 
 # @pure
 # 역할: 사전 글에서 잴 목록 "함수<탭>파일<탭>언어<탭>1배 인자<탭>4배 인자<탭>늘림(1/0)" 줄들을 낸다(둘째 인자에 이름 목록을 주면 그 함수만, 예시 없는 함수는 뺀다)
-# 종류: 꺼내기
+# 종류: 꺼내기/measure
 # 예: $'### f\n- 역할: 센다\n- 위치: scripts/lib/a.sh · @pure · sh\n- 예: `"1.2" → "2"`' "" → $'f\tscripts/lib/a.sh\tsh\t"1.2"\t"1.2"\t0'
 # 예: $'### f\n- 위치: lib/a.sh · @pure · sh\n- 예: `"a" → "1"`\n### g\n- 위치: lib/a.sh · @pure · sh\n- 예: `"b" → "1"`' "g" → $'g\tlib/a.sh\tsh\t"b"\t"b"\t0'
 pb_targets() {
@@ -86,4 +86,89 @@ pb_targets() {
         printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$name" "$file" "$lang" "$a1" "$a4" "$ok" ;;
     esac
   done <<< "$catalog"
+}
+
+# ---------------------------------------------------------------- 잰 글을 값으로
+
+# @pure
+# 역할: 시간 재는 명령의 출력 글에서 "벽시계 초<탭>CPU 초<탭>메모리 MB"를 낸다(BSD · GNU 두 꼴, 없는 값은 -)
+# 종류: 꺼내기/measure
+# 예: $'real 1.50\nuser 0.40\nsys 0.10\n  2621440  maximum resident set size' → $'1.50\t0.50\t2.5'
+# 예: $'\tUser time (seconds): 0.40\n\tSystem time (seconds): 0.10\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0:01.50\n\tMaximum resident set size (kbytes): 2560' → $'1.50\t0.50\t2.5'
+# 예: $'real 0.30\nuser 0.00\nsys 0.00' → $'0.30\t0.00\t-'
+pb_parse_time() {
+  LC_ALL=C awk '
+    $1 == "real" { wall = $2; hw = 1 }
+    $1 == "user" { u = $2; hc = 1 }
+    $1 == "sys"  { s = $2; hc = 1 }
+    /maximum resident set size/ { rss = $1 / 1048576; hr = 1 }
+    /User time \(seconds\)/ { u = $NF; hc = 1 }
+    /System time \(seconds\)/ { s = $NF; hc = 1 }
+    /Elapsed \(wall clock\) time/ { n = split($NF, p, ":"); wall = 0; for (i = 1; i <= n; i++) wall = wall * 60 + p[i]; hw = 1 }
+    /Maximum resident set size \(kbytes\)/ { rss = $NF / 1024; hr = 1 }
+    END {
+      a = "-"; b = "-"; c = "-"
+      if (hw) a = sprintf("%.2f", wall)
+      if (hc) b = sprintf("%.2f", u + s)
+      if (hr) c = sprintf("%.1f", rss)
+      printf "%s\t%s\t%s", a, b, c
+    }' <<< "${1:-}"
+}
+
+# @pure
+# 역할: 셸의 times 출력 글(분 · 초 꼴 네 값)을 모두 더한 초로 낸다
+# 종류: 변환
+# 예: $'0m0.010s 0m0.020s\n0m1.000s 0m0.500s' → "1.530"
+# 예: $'1m2.000s 0m0.000s\n0m0.000s 0m0.000s' → "62.000"
+pb_times_secs() {
+  LC_ALL=C awk '{ for (i = 1; i <= NF; i++) { n = split($i, p, /[ms]/); if (n >= 2) t += p[1] * 60 + p[2] } } END { printf "%.3f", t }' <<< "${1:-}"
+}
+
+# @pure
+# 역할: 잰 CPU 초와 되풀이 수를 보고 다음 되풀이 수를 낸다 — 0.2초에 못 미치면 0.3초가 되도록 늘린다(2000번까지)
+# 종류: 세기
+# 예: 0.010 5 → "150"
+# 예: 0.250 5 → "5"
+# 예: 0.000 5 → "2000"
+pb_reps_next() {
+  LC_ALL=C awk -v c="${1:-0}" -v r="${2:-1}" 'BEGIN {
+    if (c + 0 >= 0.2) { print r; exit }
+    n = (c + 0 > 0) ? int(r * 0.3 / c + 0.999) : 2000
+    if (n > 2000) n = 2000
+    if (n < r) n = r
+    print n
+  }'
+}
+
+# @pure
+# 역할: 맥의 그래픽 장치 정보 글에서 "사용률 %<탭>쓰는 메모리 MB"를 낸다(값이 없으면 빈 글)
+# 종류: 꺼내기/measure
+# 예: '"PerformanceStatistics" = {"In use system memory"=104857600,"Device Utilization %"=42}' → $'42\t100.0'
+# 예: 'no gpu here' → ""
+pb_parse_ioreg() {
+  LC_ALL=C awk '
+    match($0, /"Device Utilization %"=[0-9]+/) && u == "" { u = substr($0, RSTART, RLENGTH); sub(/.*=/, "", u) }
+    match($0, /"In use system memory"=[0-9]+/) && m == "" { m = substr($0, RSTART, RLENGTH); sub(/.*=/, "", m) }
+    END { if (u != "" && m != "") printf "%d\t%.1f", u, m / 1048576 }' <<< "${1:-}"
+}
+
+# @pure
+# 역할: nvidia-smi 의 "사용률, 메모리 MiB" 줄들에서 "사용률 %<탭>쓰는 메모리 MB"를 낸다(장치가 여럿이면 사용률은 가장 큰 값, 메모리는 합)
+# 종류: 꺼내기/measure
+# 예: '35, 1024' → $'35\t1024.0'
+# 예: $'10, 100\n90, 200' → $'90\t300.0'
+# 예: '' → ""
+pb_parse_nvidia() {
+  LC_ALL=C awk -F'[ ,]+' 'NF >= 2 && $1 ~ /^[0-9]+$/ { if ($1 + 0 > u) u = $1 + 0; m += $2; n++ } END { if (n) printf "%d\t%.1f", u, m }' <<< "${1:-}"
+}
+
+# @pure
+# 역할: GPU 표본 줄들("사용률<탭>메모리 MB")과 시작 전 메모리에서 "평균 사용률 %<탭>늘어난 메모리 MB"를 낸다(표본이 없으면 "-<탭>-")
+# 종류: 세기
+# 예: $'40\t1100.0\n60\t1300.0' 1000.0 → $'50\t300.0'
+# 예: '' 1000.0 → $'-\t-'
+pb_gpu_summary() {
+  LC_ALL=C awk -F'\t' -v base="${2:-0}" '
+    NF >= 2 { s += $1; n++; if ($2 + 0 > mx) mx = $2 + 0 }
+    END { if (!n) { printf "-\t-"; exit } d = mx - base; if (d < 0) d = 0; printf "%.0f\t%.1f", s / n, d }' <<< "${1:-}"
 }

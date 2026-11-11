@@ -54,6 +54,59 @@ else
 fi
 bash "$PB" targets --catalog "$TMP/none" >/dev/null 2>&1; eq "S3 missing catalog → usage error" 2 "$?"
 
+echo "S4. 잰 글을 값으로 — 순수 함수"
+eq "S4 time, BSD form"  $'1.50\t0.50\t2.5' "$(pb_parse_time $'real 1.50\nuser 0.40\nsys 0.10\n  2621440  maximum resident set size')"
+eq "S4 time, GNU form"  $'61.50\t0.50\t2.5' "$(pb_parse_time $'\tUser time (seconds): 0.40\n\tSystem time (seconds): 0.10\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 1:01.50\n\tMaximum resident set size (kbytes): 2560')"
+eq "S4 time, no memory → -" $'0.30\t0.00\t-' "$(pb_parse_time $'real 0.30\nuser 0.00\nsys 0.00')"
+eq "S4 time, nothing → all -" $'-\t-\t-' "$(pb_parse_time '')"
+eq "S4 times → seconds" "1.530" "$(pb_times_secs $'0m0.010s 0m0.020s\n0m1.000s 0m0.500s')"
+eq "S4 reps grow to reach 0.3 s" "150" "$(pb_reps_next 0.010 5)"
+eq "S4 reps stay when long enough" "5" "$(pb_reps_next 0.250 5)"
+eq "S4 reps are capped" "2000" "$(pb_reps_next 0.000 5)"
+eq "S4 ioreg" $'42\t100.0' "$(pb_parse_ioreg '"PerformanceStatistics" = {"In use system memory"=104857600,"Device Utilization %"=42}')"
+eq "S4 ioreg, no device" "" "$(pb_parse_ioreg 'no gpu here')"
+eq "S4 nvidia, two devices" $'90\t300.0' "$(pb_parse_nvidia $'10, 100\n90, 200')"
+eq "S4 gpu summary" $'50\t300.0' "$(pb_gpu_summary $'40\t1100.0\n60\t1300.0' 1000.0)"
+eq "S4 gpu summary, no samples" $'-\t-' "$(pb_gpu_summary '' 1000.0)"
+
+echo "S5. 명령 하나 재기 (TESTS T4 — GPU 를 읽을 도구가 없을 때)"
+IFS=$'\t' read -r wall cpu rss gu gm ex <<<"$(SCV_PB_GPU_TOOL=none bash "$PB" run -- sleep 0.3)"
+awk -v w="$wall" 'BEGIN { exit !(w >= 0.25 && w < 3) }' && ok "OK [S5] wall of sleep 0.3 = $wall s" || fail "[S5] wall=$wall"
+eq "S5 no GPU tool → not measured, never a number" "- -" "$gu $gm"
+eq "S5 sleep is one program" 1 "$ex"
+eq "S5 --no-count leaves the count out" "-" "$(SCV_PB_GPU_TOOL=none bash "$PB" run --no-count -- true | cut -f6)"
+bash "$PB" run >/dev/null 2>&1; eq "S5 run without a command → usage error" 2 "$?"
+[[ -z "$(ls -d "${TMPDIR:-/tmp}"/scv-pure-bench.* 2>/dev/null)" ]] && ok "OK [S5] nothing left behind in the temp folder" || fail "[S5] leftover: $(ls -d "${TMPDIR:-/tmp}"/scv-pure-bench.* | head -2)"
+
+echo "S6. 함수 재기 — 부른 횟수와 입력 4배 (TESTS T5)"
+B="$TMP/base"; mkdir -p "$B/lib" "$B/cat"
+cat > "$B/lib/t.sh" <<'LIB'
+t_each() { local l; while IFS= read -r l; do printf '%s\n' "$l" | tr 'a-z' 'A-Z'; done <<< "$1"; }
+t_once() { printf '%s\n' "$1" | tr 'a-z' 'A-Z'; }
+LIB
+printf '### t_each\n- 위치: lib/t.sh · @pure · sh\n- 예: `$\x27a\\nb\x27 → $\x27A\\nB\x27`\n\n### t_once\n- 위치: lib/t.sh · @pure · sh\n- 예: `$\x27a\\nb\x27 → $\x27A\\nB\x27`\n\n### t_gone\n- 위치: lib/t.sh · @pure · sh\n- 예: `"a b" → "x"`\n\n### t_fixed\n- 위치: lib/t.sh · @pure · sh\n- 예: `7 → "7"`\n\n### t_ts\n- 위치: src/x.ts · @pure · ts\n- 예: `"a b" → "2"`\n' > "$B/cat/a.md"
+SCV_PB_GPU_TOOL=none bash "$PB" fn --catalog "$B/cat" --base "$B" > "$TMP/f1.tsv"
+SCV_PB_GPU_TOOL=none bash "$PB" fn --catalog "$B/cat" --base "$B" --scale 4 > "$TMP/f4.tsv"
+col() { awk -F'\t' -v n="$2" -v c="$3" '$1 == n { print $c }' "$1"; }
+eq "S6 a program per line: 50 → 200" "50 200" "$(col "$TMP/f1.tsv" t_each 9) $(col "$TMP/f4.tsv" t_each 9)"
+eq "S6 one program whatever the size: 1 → 1" "1 1" "$(col "$TMP/f1.tsv" t_once 9) $(col "$TMP/f4.tsv" t_once 9)"
+eq "S6 status ok" "ok ok" "$(col "$TMP/f1.tsv" t_each 10) $(col "$TMP/f4.tsv" t_once 10)"
+ms1="$(col "$TMP/f1.tsv" t_each 4)"; ms4="$(col "$TMP/f4.tsv" t_each 4)"
+awk -v a="$ms1" -v b="$ms4" 'BEGIN { exit !(a > 0 && b / a >= 2.5 && b / a <= 6.5) }' && ok "OK [S6] 4x input ≈ 4x time ($ms1 → $ms4 ms)" || fail "[S6] $ms1 → $ms4"
+eq "S6 a function that is not there" "load-failed" "$(col "$TMP/f1.tsv" t_gone 10)"
+eq "S6 a fixed-size example at 4x" "not-scalable" "$(col "$TMP/f4.tsv" t_fixed 10)"
+eq "S6 not a shell function" "not-shell" "$(col "$TMP/f1.tsv" t_ts 10)"
+eq "S6 ten columns on every line" 0 "$(awk -F'\t' 'NF != 10' "$TMP/f1.tsv" "$TMP/f4.tsv" | grep -c .)"
+
+echo "S7. 메모리 최고치 (TESTS T7)"
+seq 1 2000000 > "$TMP/big.txt"      # 약 14MB
+printf '#!/usr/bin/env bash\nwc -l < "$1"\n' > "$TMP/stream.sh"                    # 흘려보내며 센다
+printf '#!/usr/bin/env bash\nall="$(cat "$1")"; echo "${#all}"\n' > "$TMP/collect.sh"   # 전체를 변수에 담는다
+r1="$(SCV_PB_GPU_TOOL=none bash "$PB" run --no-count -- bash "$TMP/stream.sh" "$TMP/big.txt" | cut -f3)"
+r2="$(SCV_PB_GPU_TOOL=none bash "$PB" run --no-count -- bash "$TMP/collect.sh" "$TMP/big.txt" | cut -f3)"
+if [[ "$r1" == "-" || "$r2" == "-" ]]; then echo "  - SKIP [S7] 이 컴퓨터에는 메모리를 재는 명령이 없음 (재지 못함)"
+else awk -v a="$r1" -v b="$r2" 'BEGIN { exit !(b >= 2 * a) }' && ok "OK [S7] collecting uses at least twice the memory ($r1 → $r2 MB)" || fail "[S7] stream=$r1 collect=$r2"; fi
+
 echo
 echo "── $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
