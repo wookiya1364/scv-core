@@ -203,6 +203,19 @@ for line in "" "Refund Button 환불 버튼" "the QUICK brown fox" "한글만 �
 done
 report "T3 scv_as_count_terms"
 
+echo "T4. 충돌 검사 둘은 큰 입력을 5초 안에 끝낸다"
+# 고치기 전: 예시를 100번 되풀이한 입력에 뒤쪽 검사는 23초, 앞쪽 검사는 60초를 넘겼다.
+# 5초는 붐비는 컴퓨터를 생각해 넉넉히 잡은 값이다(고친 뒤 실제 값은 0.2초 안팎).
+while read -r fn file; do
+  first="$(examples_of "$CORE/scripts/$file" "$fn" | sed -n 1p)"
+  eval "set -- $(pb_scale_args "$first" 100)"
+  t0=$SECONDS; "$fn" "$@" > "$TMP/t4.out" 2>&1 </dev/null; took=$((SECONDS - t0))
+  if (( took >= 5 )); then fail "T4 $fn — ${took}초 걸림"
+  elif [[ ! -s "$TMP/t4.out" ]]; then fail "T4 $fn — 답이 비었다(겹침 줄이 나와야 한다)"
+  else ok "T4 $fn — ${took}초 · 답 $(grep -c . "$TMP/t4.out")줄"; fi
+done <<< "scv_plan_conflict_after lib/plan-link.sh
+scv_plan_conflict_before lib/plan-link.sh"
+
 echo
 echo "Total: $((PASS + FAIL)) · Pass: $PASS · Fail: $FAIL"
 [[ $FAIL -eq 0 ]]
