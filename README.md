@@ -165,6 +165,11 @@ read. Every key and its default:
   a new pure function, so an existing one is reused instead of rewritten.
   `build --project` does the same for any project and language, knowing only
   comment prefixes ([the purity contract](core/contracts/purity.md)).
+- **Composition checklist** — pure steps are the base; how they are composed
+  decides speed and memory. Every plan answers the composition questions with
+  evidence, again from the code before archiving, and `deck` warns about a
+  missing table or an answer without evidence
+  ([the composition contract](core/contracts/composition.md)).
 - **SCV's own graph** — docs links, archived plans → files, decision
   references, and files that change together, rebuilt automatically by
   promote and work with bash and jq, no install (`SCV_GRAPH`). Graft is
