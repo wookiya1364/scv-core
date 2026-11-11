@@ -1,12 +1,19 @@
 # 고르기 — 여럿 중 일부를 골라내거나 순서를 매긴다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 38개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 39개.
 
 ### attachment_scope_filter
 - 역할: 표준입력 줄들에서 슬러그가 든 줄만 남긴다 — 슬러그가 비면 전부 통과
 - 위치: scripts/lib/attachment-scope.sh · @pure · sh
 - 예: `my-plan <<< $'my-plan/a.md\nother/b.md' → "my-plan/a.md"`
 - 예: `'' <<< $'x\ny' → $'x\ny'`
+
+### pb_baseline_next
+- 역할: '입력이 커지면 위험한 함수' 기준 목록(이름 줄들)과 지금 한도를 넘는 이름들에서 새 목록을 낸다 — 줄어든 이름은 내리고, 새로 넘는 이름은 "@@new 이름" 줄로 알린다(목록에는 넣지 않는다)
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
+- 예: `$'a\nb' $'a\nb' → $'a\nb'`
+- 예: `$'a\nb' $'a' → "a"`
+- 예: `$'a\nb' $'a\nb\nc' → $'a\nb\n@@new c'`
 
 ### pb_composed
 - 역할: "함수<탭>부르는 함수들" 줄들에서 다른 사전 함수를 N개(기본 2) 이상 부르는 줄만 낸다 — 엮은 함수

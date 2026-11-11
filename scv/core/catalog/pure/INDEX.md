@@ -9,14 +9,15 @@
 | 다듬기 | 글자를 정리한다 — 공백 · 대소문자 · 이스케이프 · 자르기 | 17 | [tidy.md](tidy.md) |
 | 꺼내기/measure | 글 · JSON · 표에서 값이나 필드를 뽑는다 | 6 | [extract-measure.md](extract-measure.md) |
 | 꺼내기 | 글 · JSON · 표에서 값이나 필드를 뽑는다 | 61 | [extract.md](extract.md) |
-| 세기 | 개수 · 길이 · 합계를 센다 | 22 | [count.md](count.md) |
+| 세기 | 개수 · 길이 · 합계를 센다 | 24 | [count.md](count.md) |
 | 비교 | 둘을 비교해 순서나 같음을 낸다 — 버전 · 숫자 · 집합 | 3 | [compare.md](compare.md) |
 | 판정/answer | 답 · 메시지 글을 보고 판정한다 — 표가 있나, 묻는 글인가, 확인인가 | 27 | [judge-answer.md](judge-answer.md) |
 | 판정/gate | 훅이 막을지 · 넘길지 · 다시 물을지를 정한다 | 26 | [judge-gate.md](judge-gate.md) |
-| 판정 | 입력을 보고 예/아니오나 판정 이름 하나를 낸다 | 38 | [judge.md](judge.md) |
-| 고르기 | 여럿 중 일부를 골라내거나 순서를 매긴다 | 38 | [select.md](select.md) |
-| 조립 | 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지 | 67 | [build.md](build.md) |
+| 판정 | 입력을 보고 예/아니오나 판정 이름 하나를 낸다 | 40 | [judge.md](judge.md) |
+| 고르기 | 여럿 중 일부를 골라내거나 순서를 매긴다 | 39 | [select.md](select.md) |
+| 조립/measure | 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지 | 5 | [build-measure.md](build-measure.md) |
+| 조립 | 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지 | 64 | [build.md](build.md) |
 | 변환 | 한 표기를 다른 표기로 바꾼다 — 경로 · 날짜 · 단위 · 인코딩 | 41 | [convert.md](convert.md) |
 | 지문 | 내용에서 짧은 식별값을 만든다 — 해시 · 키 · 이름 | 6 | [fingerprint.md](fingerprint.md) |
 
-전체 352개
+전체 359개

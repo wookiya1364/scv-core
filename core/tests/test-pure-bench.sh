@@ -218,6 +218,69 @@ if [[ -d "$CORE/../scv/core/catalog/pure" ]]; then
   [[ "$n" -ge 20 ]] && ok "OK [S13] this repository: $n composed functions" || fail "[S13] composed=$n"
 fi
 
+echo "S14. 앞뒤 견주기의 판정 — 순수 함수 (TESTS T9 · T12)"
+eq "S14 median, odd" "2.000" "$(pb_median "3.000 1.000 2.000")"
+eq "S14 median, even" "2.500" "$(pb_median "4.0 1.0 3.0 2.0")"
+eq "S14 median, nothing" "-" "$(pb_median "")"
+eq "S14 ratio" "1.25 0.90 -" "$(pb_ratio 3.000 3.750) $(pb_ratio 10 9) $(pb_ratio 0 5)"
+v() { pb_compare "$1" | cut -f2-; }
+eq "S14 1.15 times → pass"                      $'pass\t-'                 "$(v $'f\tok\tcpu\t3.000\t3.450\t0\t0\t2.4\t2.5\t-\t-')"
+eq "S14 1.25 times → fail"                      $'fail\ttime=1.25'         "$(v $'f\tok\tcpu\t3.000\t3.750\t0\t0\t2.4\t2.5\t-\t-')"
+eq "S14 memory 1.25 times and +2 MB → fail"     $'fail\tmem=8.0:10.0'      "$(v $'f\tok\tcpu\t3.000\t3.000\t0\t0\t8.0\t10.0\t-\t-')"
+eq "S14 memory 1.25 times but +0.3 MB → pass"   $'pass\t-'                 "$(v $'f\tok\tcpu\t3.000\t3.000\t0\t0\t1.2\t1.5\t-\t-')"
+eq "S14 one more program called → fail"         $'fail\tcalls=1:2'         "$(v $'f\tok\tcpu\t3.000\t3.000\t1\t2\t2.4\t2.4\t-\t-')"
+eq "S14 the answer changed → left out"          $'skipped-different-answer\t-' "$(v $'f\tdifferent-answer\t-\t-\t-\t-\t-\t-\t-\t-\t-')"
+eq "S14 4x ratio newly over 8 → fail"           $'fail\tscale=4.0:9.1'     "$(v $'f\tok\tcpu\t3.000\t3.000\t0\t0\t2.4\t2.4\t4.0\t9.1')"
+eq "S14 4x ratio already over, not worse → pass" $'pass\t-'                "$(v $'f\tok\tcpu\t3.000\t3.000\t0\t0\t2.4\t2.4\t9.0\t9.5')"
+eq "S14 4x ratio already over, much worse → fail" $'fail\tscale=9.0:12.0'  "$(v $'f\tok\tcpu\t3.000\t3.000\t0\t0\t2.4\t2.4\t9.0\t12.0')"
+eq "S14 a new function over 8 → fail"           $'fail\tscale=-:17.5'      "$(v $'f\tnew\tcpu\t-\t3.000\t-\t0\t-\t2.4\t-\t17.5')"
+eq "S14 a new function within limits → new"     $'new\t-'                  "$(v $'f\tnew\tcpu\t-\t3.000\t-\t0\t-\t2.4\t-\t4.0')"
+eq "S14 judged unmeasured stays unmeasured"     $'unmeasured\t-'           "$(v $'f\tok\tunmeasured\t3.000\t9.000\t0\t0\t2.4\t2.4\t-\t-')"
+eq "S14 not reached in time"                    $'not-reached\t-'          "$(v $'f\tnot-reached\t-\t-\t-\t-\t-\t-\t-\t-\t-')"
+pb_accept_covers "time=1.35" "time=1.40"; eq "S14 accepted, about the same → covered" 0 "$?"
+pb_accept_covers "time=1.35" "time=1.80"; eq "S14 accepted, now much worse → asked again" 1 "$?"
+pb_accept_covers "time=1.35" "time=1.30 calls=1:2"; eq "S14 accepted, a new kind of excess → asked again" 1 "$?"
+pb_accept_covers "calls=1:100 mem=1.9:37.0" "calls=1:100"; eq "S14 accepted calls, same count → covered" 0 "$?"
+pb_accept_covers "calls=1:100" "calls=1:101"; eq "S14 accepted calls, one more → asked again" 1 "$?"
+eq "S14 baseline: the same stays" $'a\nb' "$(pb_baseline_next $'a\nb' $'a\nb')"
+eq "S14 baseline: one fewer → the list shrinks" "a" "$(pb_baseline_next $'a\nb' $'a')"
+eq "S14 baseline: a new one is named, not added" $'a\nb\n@@new c' "$(pb_baseline_next $'a\nb' $'a\nb\nc')"
+eq "S14 the line a person reads" "f — 시간 1.25배 · 다른 프로그램을 부른 횟수 1번 → 100번 · 메모리 1.9MB → 37.0MB" "$(pb_fail_lines $'f\tfail\ttime=1.25 calls=1:100 mem=1.9:37.0\ng\tpass\t-')"
+
+echo "S15. 앞뒤를 번갈아 재기 — 실제 실행 (TESTS T10 · T11 · T13)"
+A="$TMP/after"; mkdir -p "$A/lib"; cp "$B/lib/t.sh" "$A/lib/t.sh"
+SCV_PB_GPU_TOOL=none "$BASH" "$PB" compare --before "$B" --base "$A" --catalog "$B/cat" --only t_once --only t_up --only t_rev --only t_both --only t_each --pairs 6 > "$TMP/same.md"; st=$?
+eq "S15 the same code before and after: exit 0" 0 "$st"
+eq "S15 all five pass" 5 "$(grep -c '^| t_[a-z]* | 통과 |' "$TMP/same.md")"
+# 답은 같고 느리기만 한 판: 한 번 부르던 것을 줄마다 부른다
+cat >> "$A/lib/t.sh" <<'LIB'
+t_once() { local l; while IFS= read -r l; do printf '%s\n' "$l" | tr 'a-z' 'A-Z'; done <<< "$1"; }
+t_up()   { printf '%s\n' "$1" | tr 'a-z' 'A-Z' | tr 'A-Z' 'a-z'; }
+t_new()  { printf '%s\n' "$1"; }
+LIB
+printf '\n### t_new\n- 역할: 그대로 낸다\n- 위치: lib/t.sh · @pure · sh\n- 예: `$\x27a\\nb\x27 → $\x27a\\nb\x27`\n' >> "$B/cat/a.md"
+SCV_PB_GPU_TOOL=none "$BASH" "$PB" compare --before "$B" --base "$A" --catalog "$B/cat" --only t_once --only t_up --only t_rev --only t_new --pending "$TMP/pending" > "$TMP/slow.md"; st=$?
+eq "S15 a slower version: exit 1" 1 "$st"
+grep -q '^| t_once | 한도 넘음 |.*| 1 → 50 |' "$TMP/slow.md" && ok "OK [S15] the slowed function is named with its calls 1 → 50" || fail "[S15] $(grep '^| t_once' "$TMP/slow.md")"
+grep -q '^t_once — 시간 [0-9.]*배 · 다른 프로그램을 부른 횟수 1번 → 50번' "$TMP/slow.md" && ok "OK [S15] and said in plain words with the real numbers" || fail "[S15] $(grep '^t_once —' "$TMP/slow.md")"
+grep -q '^| t_up | 답이 달라 뺌 |' "$TMP/slow.md" && ok "OK [S15] a function whose answer changed is left out, not failed" || fail "[S15] $(grep '^| t_up' "$TMP/slow.md")"
+grep -q '^| t_rev | 통과 |' "$TMP/slow.md" && ok "OK [S15] an untouched function passes" || fail "[S15] $(grep '^| t_rev' "$TMP/slow.md")"
+grep -q '^| t_new | 새 함수 |' "$TMP/slow.md" && ok "OK [S15] a function with no 'before' is only recorded" || fail "[S15] $(grep '^| t_new' "$TMP/slow.md")"
+eq "S15 what went over is written for the choice step" "t_once" "$(cut -f1 "$TMP/pending")"
+cp "$TMP/pending" "$TMP/accepted"
+SCV_PB_GPU_TOOL=none "$BASH" "$PB" compare --before "$B" --base "$A" --catalog "$B/cat" --only t_once --accepted "$TMP/accepted" > "$TMP/acc.md"; st=$?
+eq "S15 after the user accepted it: exit 0" 0 "$st"
+grep -q '^| t_once | 받아들임 |' "$TMP/acc.md" && ok "OK [S15] and the row says accepted" || fail "[S15] $(grep '^| t_once' "$TMP/acc.md")"
+printf 't_once\ttime=1.30\n' > "$TMP/accepted-small"
+SCV_PB_GPU_TOOL=none "$BASH" "$PB" compare --before "$B" --base "$A" --catalog "$B/cat" --only t_once --accepted "$TMP/accepted-small" >/dev/null; eq "S15 worse than what was accepted: exit 1 again" 1 "$?"
+SCV_PB_GPU_TOOL=none "$BASH" "$PB" compare --before "$B" --base "$A" --catalog "$B/cat" --only t_rev --only t_both --only t_each --budget 1 > "$TMP/budget.md"
+[[ "$(grep -c '| 재지 못함 |' "$TMP/budget.md")" -ge 1 ]] && grep -q '재지 못함 [1-9]' "$TMP/budget.md" && ok "OK [S15] out of time: the rest is counted as not measured" || fail "[S15] $(tail -1 "$TMP/budget.md")"
+"$BASH" "$PB" compare --catalog "$B/cat" >/dev/null 2>&1; eq "S15 no 'before' given → usage error" 2 "$?"
+if git -C "$CORE" rev-parse --is-inside-work-tree >/dev/null 2>&1 && [[ -d "$CORE/../scv/core/catalog/pure" ]] && git -C "$CORE" cat-file -e HEAD:core/scripts/lib/turn-check.sh 2>/dev/null; then
+  SCV_PB_GPU_TOOL=none "$BASH" "$PB" compare --before-ref HEAD --only scv_tc_overlap_count > "$TMP/ref.md"; st=$?
+  [[ "$(grep -c '^| scv_tc_overlap_count | ' "$TMP/ref.md")" == 1 && $st -le 1 ]] && ok "OK [S15] the code of a commit can be the 'before' ($(grep '^| scv_tc_overlap_count' "$TMP/ref.md" | cut -d'|' -f3 | tr -d ' '))" || fail "[S15] st=$st $(tail -2 "$TMP/ref.md")"
+fi
+
 echo
 echo "── $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

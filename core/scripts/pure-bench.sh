@@ -26,6 +26,14 @@
 #       함수를 1배 · 4배 입력으로 재서 표를 낸다(비고 · 끝의 셈 포함). --composed 는 엮은 함수와 그것이 부르는 함수만
 #       재고, 엮은 함수의 표(묶음 전체의 값 · 부품 값의 합)를 덧붙인다. --tsv 는 표의 줄을 파일에도 쓴다.
 #
+#   pure-bench.sh compare (--before DIR | --before-ref REF) [--catalog DIR] [--base DIR] [--only NAME]…
+#                         [--pairs N] [--full] [--budget SEC] [--accepted FILE] [--pending FILE]
+#       고치기 전 코드(--before: 같은 상대 경로를 가진 폴더, --before-ref: 그 커밋의 코드)와 지금 코드를 번갈아 재서
+#       한도로 가린다: 시간 1.2배 · 다른 프로그램을 부른 횟수(1번이라도) · 메모리 1.2배와 1MB · (--full) 입력 4배 배수 8배.
+#       기본은 빠른 검사(세 쌍 — 넘으면 그 함수만 여섯 쌍으로 다시), --full 은 여섯 쌍 + 입력 4배.
+#       --budget 초를 넘기면 남은 함수는 '재지 못함'으로 적는다. --accepted 는 사용자가 받아들인 것("함수<탭>이유들"),
+#       --pending 은 한도를 넘은 것을 그 꼴로 쓸 파일. Exit 1 = 받아들이지 않은 한도 넘음이 있다.
+#
 # 환경: SCV_PB_GPU_TOOL=none|ioreg|nvidia 로 GPU 읽는 도구를 정한다(기본: 있는 것을 찾는다).
 # 잰 값은 이 스크립트를 돌린 셸과 지역 설정의 값이다 — 같은 함수가 bash 3.2 와 bash 5 에서 열 배 넘게 다를 수 있다
 # (2026-11-11: 낱말 나누기 한 번에 22ms 대 1.8ms). 앞뒤를 견줄 때는 같은 셸로 잰다. `env` 로 그 셸을 본다.
@@ -180,13 +188,17 @@ pb_count_execs() {
 # 이유: 사전의 함수 하나를 불러와 인자 글로 여러 번 부르고, 그 앞뒤의 CPU 시간을 파일에 쓴다(새 셸에서 돈다)
 pb_drive() {
   set +eu +o pipefail
-  local base="$1" rel="$2" fn="$3" args="$4" reps="$5" out="$6" count="${7:-}" r
+  local base="$1" rel="$2" fn="$3" args="$4" reps="$5" out="$6" count="${7:-}" answer="${8:-}" r
   case "$rel" in
     lib/*|*/lib/*) source "$base/$rel" ;;
     *) eval "$(LC_ALL=C awk -v fn="$fn" '$0 ~ "^"fn"\\(\\)[[:space:]]*\\{" {on=1} on {print} on && /^\}$/ {exit}' "$base/$rel")" ;;
   esac
   declare -F "$fn" >/dev/null || exit 3
   if [[ "$args" == *"<<<"* ]]; then pb_call() { eval "$fn $args"; }; else pb_call() { eval "$fn $args" </dev/null; }; fi
+  if [[ -n "$answer" ]]; then     # 답만 낸다 — 앞뒤의 답이 같은지 보려는 실행
+    pb_call > "$answer" 2>/dev/null; echo "[$?]" >> "$answer"
+    exit 0
+  fi
   if [[ -n "$count" ]]; then      # 세는 실행 — 부르는 동안만 가짜 명령 묶음을 앞에 둔다
     local shim real="$PATH"; shim="$(pb_shim_dir)"; : > "$count"
     export PB_COUNT="$count" PB_REALPATH="$real"
@@ -217,9 +229,53 @@ pb_measure_fn() {
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\tok\t%s\n' "$name" "$scale" "$reps" "$ms" "$wall" "$rss" "$gutil" "$gmem" "$(grep -c . "$PB_TMP/fn.count")" "$(pb_measure_name "$wall" "$tcpu" "$gmem" "$grise")"
 }
 
+# @effect pb_fixed_run
+# 이유: 되풀이 수를 정해 둔 채 함수를 한 번 재서 "회당 ms<탭>메모리 MB<탭>벽시계 초"를 낸다 — 앞뒤를 번갈아 잴 때(GPU 표본 없이, 가볍게)
+pb_fixed_run() {
+  local out="$PB_TMP/fx" cpu w c rss
+  rm -f "$out.a" "$out.b"
+  pb_timed "$PB_TMP/fx.report" "$BASH" "$0" _drive "$1" "$3" "$2" "$4" "$5" "$out"
+  [[ -s "$out.b" ]] || { printf -- '-\t-\t-'; return 0; }
+  cpu="$(LC_ALL=C awk -v a="$(pb_times_secs "$(cat "$out.a")")" -v b="$(pb_times_secs "$(cat "$out.b")")" -v r="$5" 'BEGIN { printf "%.3f", (b - a) * 1000 / r }')"
+  IFS=$'\t' read -r w c rss <<< "$(pb_parse_time "$(cat "$PB_TMP/fx.report" 2>/dev/null)")"
+  printf '%s\t%s\t%s' "$cpu" "$rss" "$w"
+}
+
+# @effect pb_compare_fn
+# 이유: 한 함수를 앞 코드와 뒤 코드에서 번갈아 재서 앞뒤 잰 줄 하나를 낸다 — 답이 같은지 · 부른 횟수 · 시간 쌍 · 메모리 · (꼼꼼히) 입력 4배
+pb_compare_fn() {
+  local tool="$1" before="$2" after="$3" name="$4" rel="$5" a1="$6" a4="$7" sc="$8" pairs="$9" full="${10}"
+  local LA LB reps nm eb ea mb ma i vb="" va="" r sb="-" sa="-" L st=ok
+  if ! grep -q "^$name()" "$before/$rel" 2>/dev/null; then st=new; fi
+  LA="$(pb_measure_fn "$tool" "$after" "$name" "$rel" "$a1" 1)"
+  [[ "$LA" == *$'\tok\t'* ]] || { printf '%s\tload-failed\t-\t-\t-\t-\t-\t-\t-\t-\t-\n' "$name"; return 0; }
+  IFS=$'\x1d' read -r _ _ reps va _ ma _ _ ea _ nm <<< "$(tr '\t' '\035' <<< "$LA")"
+  if [[ "$st" == new ]]; then
+    if [[ "$full" == 1 && "$sc" == 1 ]]; then L="$(pb_measure_fn "$tool" "$after" "$name" "$rel" "$a4" 4)"; sa="$(pb_scale_ratio "$va" "$(cut -f4 <<< "$L")")"; fi
+    printf '%s\tnew\t%s\t-\t%s\t-\t%s\t-\t%s\t-\t%s\n' "$name" "$nm" "$va" "$ea" "$ma" "$sa"; return 0
+  fi
+  # 답이 달라졌으면 다른 일을 하게 된 것 — 견주지 않는다
+  "$BASH" "$0" _drive "$before" "$rel" "$name" "$a1" 1 "$PB_TMP/x" "" "$PB_TMP/ans.b" >/dev/null 2>&1
+  "$BASH" "$0" _drive "$after"  "$rel" "$name" "$a1" 1 "$PB_TMP/x" "" "$PB_TMP/ans.a" >/dev/null 2>&1
+  if ! cmp -s "$PB_TMP/ans.b" "$PB_TMP/ans.a"; then printf '%s\tdifferent-answer\t-\t-\t-\t-\t-\t-\t-\t-\t-\n' "$name"; return 0; fi
+  # 부른 횟수(앞) — 뒤는 위에서 셌다
+  "$BASH" "$0" _drive "$before" "$rel" "$name" "$a1" 1 "$PB_TMP/x" "$PB_TMP/cnt.b" >/dev/null 2>&1; eb="$(grep -c . "$PB_TMP/cnt.b")"
+  # 시간 — 같은 되풀이 수로 앞 · 뒤를 번갈아
+  vb=""; va=""; mb=0; ma=0
+  for (( i = 0; i != pairs; i++ )); do
+    IFS=$'\t' read -r r L _ <<< "$(pb_fixed_run "$before" "$name" "$rel" "$a1" "$reps")"; vb="$vb $r"; [[ "$L" == "-" ]] || mb="$(LC_ALL=C awk -v a="$mb" -v b="$L" 'BEGIN { print (b + 0 > a + 0) ? b : a }')"
+    IFS=$'\t' read -r r L _ <<< "$(pb_fixed_run "$after"  "$name" "$rel" "$a1" "$reps")"; va="$va $r"; [[ "$L" == "-" ]] || ma="$(LC_ALL=C awk -v a="$ma" -v b="$L" 'BEGIN { print (b + 0 > a + 0) ? b : a }')"
+  done
+  if [[ "$full" == 1 && "$sc" == 1 ]]; then
+    IFS=$'\t' read -r r _ _ <<< "$(pb_fixed_run "$before" "$name" "$rel" "$a4" "$(( reps / 4 + 1 ))")"; sb="$(pb_scale_ratio "$(pb_median "$vb")" "$r")"
+    IFS=$'\t' read -r r _ _ <<< "$(pb_fixed_run "$after"  "$name" "$rel" "$a4" "$(( reps / 4 + 1 ))")"; sa="$(pb_scale_ratio "$(pb_median "$va")" "$r")"
+  fi
+  printf '%s\tok\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$name" "$nm" "$(pb_median "$vb")" "$(pb_median "$va")" "$eb" "$ea" "$mb" "$ma" "$sb" "$sa"
+}
+
 CMD="${1:-}"; [[ $# -gt 0 ]] && shift
 if [[ "$CMD" == _drive ]]; then pb_drive "$@"; fi
-CATALOG="$( cd "$CORE_DIR/.." && pwd )/scv/core/catalog/pure"; BASE="$CORE_DIR"; ONLY=""; SCALE=1; COUNT=1; COMPOSED=0; TSV=""
+CATALOG="$( cd "$CORE_DIR/.." && pwd )/scv/core/catalog/pure"; BASE="$CORE_DIR"; ONLY=""; SCALE=1; COUNT=1; COMPOSED=0; TSV=""; BEFORE=""; BEFORE_REF=""; PAIRS=""; FULL=0; BUDGET=0; ACCEPTED=""; PENDING=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --catalog)  CATALOG="${2:-}"; shift 2 ;;
@@ -228,6 +284,13 @@ while [[ $# -gt 0 ]]; do
     --scale)    SCALE="${2:-}"; shift 2 ;;
     --no-count) COUNT=0; shift ;;
     --composed) COMPOSED=1; shift ;;
+    --before)     BEFORE="${2:-}"; shift 2 ;;
+    --before-ref) BEFORE_REF="${2:-}"; shift 2 ;;
+    --pairs)      PAIRS="${2:-}"; shift 2 ;;
+    --full)       FULL=1; shift ;;
+    --budget)     BUDGET="${2:-0}"; shift 2 ;;
+    --accepted)   ACCEPTED="${2:-}"; shift 2 ;;
+    --pending)    PENDING="${2:-}"; shift 2 ;;
     --tsv)      TSV="${2:-}"; shift 2 ;;
     --) shift; break ;;
     *) echo "pure-bench: 모르는 인자: $1" >&2; exit 2 ;;
@@ -260,6 +323,48 @@ case "$CMD" in
       if [[ "$SCALE" == 4 ]]; then pb_measure_fn "$TOOL" "$BASE" "$name" "$rel" "$a4" 4
       else pb_measure_fn "$TOOL" "$BASE" "$name" "$rel" "$a1" 1; fi
     done <<< "$(pb_targets "$(read_catalog "$CATALOG")" "${ONLY%$'\n'}" | tr '\t' '\035')" ;;
+  compare)
+    [[ -d "$CATALOG" ]] || { echo "pure-bench: 사전 폴더가 없다: $CATALOG" >&2; exit 2; }
+    if [[ -n "$BEFORE_REF" ]]; then
+      # 그 커밋의 코드를 임시 폴더에 푼다 — 지금 코드와 같은 상대 경로로
+      PREFIX="$(git -C "$BASE" rev-parse --show-prefix 2>/dev/null)" || { echo "pure-bench: git 저장소가 아니다: $BASE" >&2; exit 2; }
+      TOP="$(git -C "$BASE" rev-parse --show-toplevel)"
+      mkdir -p "$PB_TMP/before"
+      git -C "$TOP" archive "$BEFORE_REF" -- "${PREFIX}scripts" 2>/dev/null | tar -x -C "$PB_TMP/before" 2>/dev/null \
+        || { echo "pure-bench: 그 커밋의 코드를 꺼내지 못했다: $BEFORE_REF" >&2; exit 2; }
+      BEFORE="$PB_TMP/before/${PREFIX%/}"
+    fi
+    [[ -n "$BEFORE" && -d "$BEFORE" ]] || { echo "pure-bench: --before DIR 또는 --before-ref REF 가 있어야 한다" >&2; exit 2; }
+    [[ -n "$PAIRS" ]] || { if [[ $FULL -eq 1 ]]; then PAIRS=6; else PAIRS=3; fi; }
+    TOOL="$(pb_gpu_tool)"; LINES=""; VERD=""; ACC=""; [[ -z "$ACCEPTED" || ! -f "$ACCEPTED" ]] || ACC="$(cat "$ACCEPTED")"
+    T0=$SECONDS; NFAIL=0; PEND=""
+    while IFS=$'\x1d' read -r name rel lang a1 a4 sc; do
+      [[ -n "$name" && "$lang" == sh ]] || continue
+      if [[ "$BUDGET" -gt 0 && $(( SECONDS - T0 )) -ge "$BUDGET" ]]; then
+        L="$(printf '%s\tnot-reached\t-\t-\t-\t-\t-\t-\t-\t-\t-' "$name")"
+      else
+        L="$(pb_compare_fn "$TOOL" "$BEFORE" "$BASE" "$name" "$rel" "$a1" "$a4" "$sc" "$PAIRS" "$FULL")"
+        V="$(pb_compare "$L")"
+        # 빠른 검사에서 시간만으로 넘었으면 여섯 쌍으로 한 번 더 재서 확인한다
+        if [[ $FULL -eq 0 && "$PAIRS" -lt 6 && "$V" == *$'\tfail\t'*time=* ]]; then
+          L="$(pb_compare_fn "$TOOL" "$BEFORE" "$BASE" "$name" "$rel" "$a1" "$a4" "$sc" 6 0)"
+        fi
+      fi
+      V="$(pb_compare "$L")"
+      if [[ "$V" == *$'\tfail\t'* ]]; then
+        WHY="${V##*$'\t'}"; WAS=""
+        while IFS=$'\t' read -r an aw; do [[ "$an" == "$name" ]] && WAS="$aw"; done <<< "$ACC"
+        if [[ -n "$WAS" ]] && pb_accept_covers "$WAS" "$WHY"; then V="$(printf '%s\taccepted\t%s' "$name" "$WHY")"
+        else NFAIL=$((NFAIL + 1)); PEND+="$name"$'\t'"$WHY"$'\n'; fi
+      fi
+      LINES+="$L"$'\n'; VERD+="$V"$'\n'
+    done <<< "$(pb_targets "$(read_catalog "$CATALOG")" "${ONLY%$'\n'}" | tr '\t' '\035')"
+    LINES="${LINES%$'\n'}"; VERD="${VERD%$'\n'}"
+    echo "잰 환경: bash $BASH_VERSION · LC_ALL=${LC_ALL:-} · GPU 도구 $TOOL · 쌍 $PAIRS$( [[ $FULL -eq 1 ]] && echo ' · 입력 4배 포함' )"; echo
+    pb_render_compare "$LINES" "$VERD"; echo
+    [[ -z "$PENDING" ]] || printf '%s' "$PEND" > "$PENDING"
+    if [[ $NFAIL -gt 0 ]]; then echo; echo "한도를 넘은 것:"; pb_fail_lines "$VERD"; exit 1; fi
+    exit 0 ;;
   composed)
     [[ -d "$CATALOG" ]] || { echo "pure-bench: 사전 폴더가 없다: $CATALOG" >&2; exit 2; }
     T="$(pb_targets "$(read_catalog "$CATALOG")" "")"
@@ -292,5 +397,5 @@ case "$CMD" in
     [[ -z "$TSV" ]] || printf '%s\n' "$ROWS" > "$TSV"
     pb_render "$ROWS" "bash $BASH_VERSION · LC_ALL=${LC_ALL:-} · GPU 도구 $TOOL"; echo
     if [[ $COMPOSED -eq 1 ]]; then echo; pb_render_composed "$CALLS" "$ROWS"; echo; fi ;;
-  *) echo "Usage: pure-bench.sh targets|env|run|fn|composed|bench … (파일 머리말 참고)" >&2; exit 2 ;;
+  *) echo "Usage: pure-bench.sh targets|env|run|fn|composed|bench|compare … (파일 머리말 참고)" >&2; exit 2 ;;
 esac

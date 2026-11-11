@@ -333,7 +333,7 @@ pb_roles() {
 
 # @pure
 # 역할: 한 함수의 1배 줄과 4배 줄(재는 명령 fn 의 줄, 4배는 없어도 됨)과 하는 일 글을 표의 한 줄로 잇는다 — "함수<탭>잣대<탭>1배 ms<탭>4배 ms<탭>배수<탭>메모리 MB<탭>부른 횟수 1배<탭>4배<탭>상태<탭>하는 일"
-# 종류: 조립
+# 종류: 조립/measure
 # 예: $'f\t1\t14\t22.286\t0.32\t2.9\t7\t0.0\t0\tok\tcpu' $'f\t4\t5\t386.600\t1.95\t3.1\t14\t15.9\t0\tok\tcpu' "글을 나눈다" → $'f\tcpu\t22.286\t386.600\t17.3\t2.9\t0\t0\tok\t글을 나눈다'
 # 예: $'g\t1\t60\t1.500\t0.31\t2.4\t7\t0.0\t1\tok\tcpu' $'g\t4\t-\t-\t-\t-\t-\t-\t-\tnot-scalable\t-' → $'g\tcpu\t1.500\t-\t-\t2.4\t1\t-\tnot-scalable\t-'
 pb_row() {
@@ -350,7 +350,7 @@ PB_SCALE_LIMIT=8
 
 # @pure
 # 역할: 표의 줄들(pb_row 의 줄)과 잰 환경 한 줄에서 사람이 읽는 표 글을 만든다 — 표 · 비고 · 끝의 셈(잰 수 · 못 잰 수와 이유)
-# 종류: 조립
+# 종류: 조립/measure
 # 예: $'f\tcpu\t22.286\t386.600\t17.3\t2.9\t0\t0\tok\t글을 나눈다' 'bash 3.2' → $'잰 환경: bash 3.2\n\n| 함수 | 하는 일 | 잣대 | 한 번(ms) | 4배 입력(ms) | 배수 | 메모리(MB) | 부른 횟수 | 비고 |\n|---|---|---|---|---|---|---|---|---|\n| f | 글을 나눈다 | cpu | 22.286 | 386.600 | 17.3 | 2.9 | 0 → 0 | 배수 한도(8배) 넘음 |\n\n잰 함수 1 · 못 잰 함수 0 · 늘려 재지 못함 0 · 배수 한도 넘음 1 · 입력만큼 부름 0'
 pb_render() {
   local rows="${1:-}" env="${2:-}" n nm ms1 ms4 ratio mem e1 e4 st role note r
@@ -379,7 +379,7 @@ pb_render() {
 
 # @pure
 # 역할: 엮은 함수 줄들("함수<탭>부르는 함수들")과 표의 줄들에서 엮은 함수의 표 글을 만든다 — 묶음 전체의 값과 부르는 함수들 값의 합을 나란히
-# 종류: 조립
+# 종류: 조립/measure
 # 예: $'f\tg h' $'f\tcpu\t10.000\t50.000\t5.0\t2.9\t0\t0\tok\t셋을 잇는다\ng\tcpu\t1.500\t6.000\t4.0\t2.4\t1\t1\tok\t-\nh\tcpu\t2.000\t-\t-\t2.4\t0\t-\tnot-scalable\t-' → $'| 엮은 함수 | 하는 일 | 부르는 함수 | 묶음 한 번(ms) | 부품 합(ms) | 4배 배수 | 부른 횟수 |\n|---|---|---|---|---|---|---|\n| f | 셋을 잇는다 | g · h | 10.000 | 3.500 | 5.0 | 0 → 0 |'
 pb_render_composed() {
   local calls="${1:-}" rows="${2:-}" name callees c sum part n nm ms1 ms4 ratio mem e1 e4 st role got list hit
@@ -402,4 +402,180 @@ pb_render_composed() {
     [[ -n "$hit" ]] || continue
     printf '\n| %s | %s | %s | %s | %s | %s | %s → %s |' "$name" "${role:--}" "$list" "$ms1" "$part" "$ratio" "$e1" "$e4"
   done <<< "$calls"
+}
+
+# ---------------------------------------------------------------- 앞뒤 견주기와 한도
+# 한도(2026-11-11 사용자 결정) — 기준은 "고치기 전의 같은 함수를 같은 입력으로 돌린 값".
+PB_TIME_LIMIT_PCT=120      # 시간: 앞뒤 가운데값 비율이 1.2배를 넘으면
+PB_MEM_LIMIT_PCT=120       # 메모리: 1.2배를 넘고
+PB_MEM_MIN_TENTHS=10       #         1MB 넘게 늘면 (십분의 일 MB)
+
+# @pure
+# 역할: 빈칸으로 나눈 수들의 가운데값을 소수 셋째 자리로 낸다(짝수 개면 가운데 둘의 평균, 수가 없으면 "-")
+# 종류: 세기
+# 예: "3.000 1.000 2.000" → "2.000"
+# 예: "4.0 1.0 3.0 2.0" → "2.500"
+# 예: "" → "-"
+pb_median() {
+  local v m a=() i j t n mid
+  for v in ${1:-}; do m="$(pb_to_milli "$v")" || continue; a+=("$m"); done
+  n=${#a[@]}
+  [[ $n -ne 0 ]] || { printf -- '-'; return 0; }
+  for (( i = 1; i != n; i++ )); do
+    t=${a[i]}; j=$i
+    while [[ $j -ne 0 && ${a[j-1]} -gt $t ]]; do a[j]=${a[j-1]}; j=$((j - 1)); done
+    a[j]=$t
+  done
+  mid=$(( n / 2 ))
+  if [[ $(( n % 2 )) -eq 1 ]]; then m=${a[mid]}; else (( m = a[mid-1] + a[mid] )); (( m = m / 2 )); fi
+  printf '%s.%03d' "$(( m / 1000 ))" "$(( m % 1000 ))"
+}
+
+# @pure
+# 역할: 앞 값과 뒤 값에서 뒤 ÷ 앞을 소수 둘째 자리로 낸다(한쪽이 숫자가 아니거나 앞 값이 0이면 "-")
+# 종류: 세기
+# 예: 3.000 3.750 → "1.25"
+# 예: 10 9 → "0.90"
+# 예: 0 5 → "-"
+pb_ratio() {
+  local a b half r
+  a="$(pb_to_milli "${1:-}")" && b="$(pb_to_milli "${2:-}")" || { printf -- '-'; return 0; }
+  [[ $a -ne 0 ]] || { printf -- '-'; return 0; }
+  (( half = a / 2 )); (( r = b * 100 + half )); (( r = r / a ))
+  printf '%s.%02d' "$(( r / 100 ))" "$(( r % 100 ))"
+}
+
+# @pure
+# 역할: 한 함수의 앞뒤 잰 줄("함수<탭>상태<탭>잣대<탭>앞 값<탭>뒤 값<탭>부른 횟수 앞<탭>뒤<탭>메모리 앞<탭>뒤<탭>4배 배수 앞<탭>뒤")을 한도로 가려 "함수<탭>판정<탭>이유들"을 낸다 — 판정: pass | fail | new | skipped-different-answer | unmeasured | not-reached
+# 종류: 판정
+# 예: $'f\tok\tcpu\t3.000\t3.450\t0\t0\t2.4\t2.5\t-\t-' → $'f\tpass\t-'
+# 예: $'f\tok\tcpu\t3.000\t3.750\t0\t0\t2.4\t2.5\t-\t-' → $'f\tfail\ttime=1.25'
+# 예: $'f\tok\tcpu\t3.000\t3.000\t1\t2\t8.0\t10.0\t4.0\t9.1' → $'f\tfail\tcalls=1:2 mem=8.0:10.0 scale=4.0:9.1'
+# 예: $'f\tok\tcpu\t3.000\t3.000\t0\t0\t1.2\t1.5\t9.0\t9.5' → $'f\tpass\t-'
+# 예: $'f\tdifferent-answer\t-\t-\t-\t-\t-\t-\t-\t-\t-' → $'f\tskipped-different-answer\t-'
+pb_compare() {
+  local n st nm b a eb ea mb ma sb sa why="" r x y lim
+  IFS=$'\t' read -r n st nm b a eb ea mb ma sb sa <<< "${1:-}"
+  case "$st" in
+    different-answer) printf '%s\tskipped-different-answer\t-' "$n"; return 0 ;;
+    not-reached)      printf '%s\tnot-reached\t-' "$n"; return 0 ;;
+    new|ok) ;;
+    *)                printf '%s\tunmeasured\t%s' "$n" "${st:--}"; return 0 ;;
+  esac
+  if [[ "$st" == ok ]]; then
+    [[ "$nm" != unmeasured ]] || { printf '%s\tunmeasured\t-' "$n"; return 0; }
+    # 시간
+    if x="$(pb_to_milli "$b")" && y="$(pb_to_milli "$a")"; then
+      (( lim = x * PB_TIME_LIMIT_PCT )); (( r = y * 100 ))
+      [[ $r -le $lim ]] || why="time=$(pb_ratio "$b" "$a")"
+    else printf '%s\tunmeasured\t-' "$n"; return 0; fi
+    # 다른 프로그램을 부른 횟수 — 1번이라도 늘면
+    if [[ "$eb" =~ ^[0-9]+$ && "$ea" =~ ^[0-9]+$ && $ea -gt $eb ]]; then why="${why:+$why }calls=$eb:$ea"; fi
+    # 메모리 — 1.2배를 넘고 1MB 넘게
+    if x="$(pb_to_milli "$mb")" && y="$(pb_to_milli "$ma")"; then
+      (( lim = x * PB_MEM_LIMIT_PCT )); (( r = y * 100 ))
+      if [[ $r -gt $lim && $(( y - x )) -gt $(( PB_MEM_MIN_TENTHS * 100 )) ]]; then why="${why:+$why }mem=$mb:$ma"; fi
+    fi
+  fi
+  # 입력 4배 배수 — 새로 한도를 넘거나, 이미 넘던 것이 1.2배 넘게 더 나빠지면
+  if y="$(pb_to_milli "$sa")" && [[ $y -gt $(( PB_SCALE_LIMIT * 1000 )) ]]; then
+    if x="$(pb_to_milli "$sb")" && [[ $x -gt $(( PB_SCALE_LIMIT * 1000 )) ]]; then
+      (( lim = x * PB_TIME_LIMIT_PCT )); (( r = y * 100 ))
+      [[ $r -le $lim ]] || why="${why:+$why }scale=$sb:$sa"
+    else
+      why="${why:+$why }scale=${sb:--}:$sa"
+    fi
+  fi
+  if [[ -n "$why" ]]; then printf '%s\tfail\t%s' "$n" "$why"
+  elif [[ "$st" == new ]]; then printf '%s\tnew\t-' "$n"
+  else printf '%s\tpass\t-' "$n"; fi
+}
+
+# @pure
+# 역할: 사용자가 받아들인 이유들과 지금의 이유들을 견줘, 지금 것이 모두 받아들인 범위 안이면 참 — 시간 · 메모리 · 배수는 받아들인 값의 1.2배까지, 부른 횟수는 받아들인 수까지
+# 종류: 판정
+# 예: "time=1.35" "time=1.40" → ""
+# 예: "time=1.35" "time=1.80" → "" [1]
+# 예: "time=1.35" "time=1.30 calls=1:2" → "" [1]
+# 예: "calls=1:100 mem=1.9:37.0" "calls=1:100" → ""
+pb_accept_covers() {
+  local acc=" ${1:-} " cur="${2:-}" r kind val was x y lim
+  for r in $cur; do
+    kind="${r%%=*}"; val="${r##*[=:]}"
+    case "$acc" in *" $kind="*) ;; *) return 1 ;; esac
+    was="${acc##* $kind=}"; was="${was%% *}"; was="${was##*:}"
+    if [[ "$kind" == calls ]]; then
+      [[ "$val" =~ ^[0-9]+$ && "$was" =~ ^[0-9]+$ && $val -le $was ]] || return 1
+    else
+      x="$(pb_to_milli "$was")" && y="$(pb_to_milli "$val")" || return 1
+      (( lim = x * 120 )); [[ $(( y * 100 )) -le $lim ]] || return 1
+    fi
+  done
+  return 0
+}
+
+# @pure
+# 역할: '입력이 커지면 위험한 함수' 기준 목록(이름 줄들)과 지금 한도를 넘는 이름들에서 새 목록을 낸다 — 줄어든 이름은 내리고, 새로 넘는 이름은 "@@new 이름" 줄로 알린다(목록에는 넣지 않는다)
+# 종류: 고르기
+# 예: $'a\nb' $'a\nb' → $'a\nb'
+# 예: $'a\nb' $'a' → "a"
+# 예: $'a\nb' $'a\nb\nc' → $'a\nb\n@@new c'
+pb_baseline_next() {
+  local base=$'\n'"${1:-}"$'\n' now=$'\n'"${2:-}"$'\n' n out=""
+  while IFS= read -r n; do
+    [[ -n "$n" ]] || continue
+    case "$now" in *$'\n'"$n"$'\n'*) out+="$n"$'\n' ;; esac
+  done <<< "${1:-}"
+  while IFS= read -r n; do
+    [[ -n "$n" ]] || continue
+    case "$base" in *$'\n'"$n"$'\n'*) ;; *) out+="@@new $n"$'\n' ;; esac
+  done <<< "${2:-}"
+  printf '%s' "${out%$'\n'}"
+}
+
+# @pure
+# 역할: 판정 줄들("함수<탭>판정<탭>이유들")에서 한도를 넘은 것마다 사람이 읽는 한 줄을 만든다 — 실제 앞뒤 값으로
+# 종류: 조립/measure
+# 예: $'f\tfail\ttime=1.25 calls=1:100 mem=1.9:37.0\ng\tpass\t-' → "f — 시간 1.25배 · 다른 프로그램을 부른 횟수 1번 → 100번 · 메모리 1.9MB → 37.0MB"
+pb_fail_lines() {
+  local n v why r kind val line
+  while IFS=$'\t' read -r n v why; do
+    [[ "$v" == fail ]] || continue
+    line=""
+    for r in $why; do
+      kind="${r%%=*}"; val="${r#*=}"
+      case "$kind" in
+        time)  line="${line:+$line · }시간 ${val}배" ;;
+        calls) line="${line:+$line · }다른 프로그램을 부른 횟수 ${val%%:*}번 → ${val##*:}번" ;;
+        mem)   line="${line:+$line · }메모리 ${val%%:*}MB → ${val##*:}MB" ;;
+        scale) line="${line:+$line · }입력 4배에 걸리는 시간 ${val%%:*}배 → ${val##*:}배" ;;
+      esac
+    done
+    printf '%s — %s\n' "$n" "$line"
+  done <<< "${1:-}"
+  return 0
+}
+
+# @pure
+# 역할: 앞뒤 잰 줄들과 판정 줄들에서 사람이 읽는 표 글을 만든다 — 함수 · 판정 · 앞뒤 값 · 비율 · 부른 횟수 · 메모리 · 4배 배수, 끝에 셈
+# 종류: 조립/measure
+# 예: $'f\tok\tcpu\t3.000\t3.750\t0\t0\t2.4\t2.5\t-\t-' $'f\tfail\ttime=1.25' → $'| 함수 | 판정 | 앞(ms) | 뒤(ms) | 비율 | 부른 횟수 | 메모리(MB) | 4배 배수 |\n|---|---|---|---|---|---|---|---|\n| f | 한도 넘음 | 3.000 | 3.750 | 1.25 | 0 → 0 | 2.4 → 2.5 | - → - |\n\n견준 함수 1 · 통과 0 · 한도 넘음 1 · 받아들임 0 · 새 함수 0 · 답이 달라 뺌 0 · 재지 못함 0'
+pb_render_compare() {
+  local lines="${1:-}" verdicts="${2:-}" n st nm b a eb ea mb ma sb sa vn v why word
+  local total=0 pass=0 failn=0 acc=0 new=0 diff=0 bad=0
+  printf '| 함수 | 판정 | 앞(ms) | 뒤(ms) | 비율 | 부른 횟수 | 메모리(MB) | 4배 배수 |\n|---|---|---|---|---|---|---|---|\n'
+  while IFS=$'\t' read -r n st nm b a eb ea mb ma sb sa && IFS=$'\t' read -r vn v why <&3; do
+    [[ -n "$n" ]] || continue
+    total=$((total + 1))
+    case "$v" in
+      pass)     pass=$((pass + 1)); word="통과" ;;
+      fail)     failn=$((failn + 1)); word="한도 넘음" ;;
+      accepted) acc=$((acc + 1)); word="받아들임" ;;
+      new)      new=$((new + 1)); word="새 함수" ;;
+      skipped-different-answer) diff=$((diff + 1)); word="답이 달라 뺌" ;;
+      *)        bad=$((bad + 1)); word="재지 못함" ;;
+    esac
+    printf '| %s | %s | %s | %s | %s | %s → %s | %s → %s | %s → %s |\n' "$n" "$word" "$b" "$a" "$(pb_ratio "$b" "$a")" "$eb" "$ea" "$mb" "$ma" "$sb" "$sa"
+  done <<< "$lines" 3<<< "$verdicts"
+  printf '\n견준 함수 %s · 통과 %s · 한도 넘음 %s · 받아들임 %s · 새 함수 %s · 답이 달라 뺌 %s · 재지 못함 %s' "$total" "$pass" "$failn" "$acc" "$new" "$diff" "$bad"
 }

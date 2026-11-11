@@ -1,6 +1,23 @@
 # 판정 — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 38개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 40개.
+
+### pb_accept_covers
+- 역할: 사용자가 받아들인 이유들과 지금의 이유들을 견줘, 지금 것이 모두 받아들인 범위 안이면 참 — 시간 · 메모리 · 배수는 받아들인 값의 1.2배까지, 부른 횟수는 받아들인 수까지
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
+- 예: `"time=1.35" "time=1.40" → ""`
+- 예: `"time=1.35" "time=1.80" → "" [1]`
+- 예: `"time=1.35" "time=1.30 calls=1:2" → "" [1]`
+- 예: `"calls=1:100 mem=1.9:37.0" "calls=1:100" → ""`
+
+### pb_compare
+- 역할: 한 함수의 앞뒤 잰 줄("함수<탭>상태<탭>잣대<탭>앞 값<탭>뒤 값<탭>부른 횟수 앞<탭>뒤<탭>메모리 앞<탭>뒤<탭>4배 배수 앞<탭>뒤")을 한도로 가려 "함수<탭>판정<탭>이유들"을 낸다 — 판정: pass | fail | new | skipped-different-answer | unmeasured | not-reached
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
+- 예: `$'f\tok\tcpu\t3.000\t3.450\t0\t0\t2.4\t2.5\t-\t-' → $'f\tpass\t-'`
+- 예: `$'f\tok\tcpu\t3.000\t3.750\t0\t0\t2.4\t2.5\t-\t-' → $'f\tfail\ttime=1.25'`
+- 예: `$'f\tok\tcpu\t3.000\t3.000\t1\t2\t8.0\t10.0\t4.0\t9.1' → $'f\tfail\tcalls=1:2 mem=8.0:10.0 scale=4.0:9.1'`
+- 예: `$'f\tok\tcpu\t3.000\t3.000\t0\t0\t1.2\t1.5\t9.0\t9.5' → $'f\tpass\t-'`
+- 예: `$'f\tdifferent-answer\t-\t-\t-\t-\t-\t-\t-\t-\t-' → $'f\tskipped-different-answer\t-'`
 
 ### pb_pick_measure
 - 역할: 잰 값(벽시계 · CPU 초 · GPU 메모리 증가 · GPU 사용률 오름)과 컴퓨터의 붐빔(100 = 한가함)을 보고 판정 잣대 이름을 낸다 — cpu | wall-gpu | unmeasured
