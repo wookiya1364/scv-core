@@ -135,17 +135,16 @@ eq "S9 waiting with no GPU tool → not measured" "unmeasured" "$(SCV_PB_GPU_TOO
 
 echo "S10. 입력 4배 때의 배수 — 이 저장소의 두 함수 (TESTS T6)"
 if [[ -d "$CORE/../scv/core/catalog/pure" ]]; then
-  SCV_PB_GPU_TOOL=none "$BASH" "$PB" fn --only scv_tc_words --only scv_tc_diff > "$TMP/r1.tsv"
-  SCV_PB_GPU_TOOL=none "$BASH" "$PB" fn --only scv_tc_words --only scv_tc_diff --scale 4 > "$TMP/r4.tsv"
-  rw="$(pb_scale_ratio "$(col "$TMP/r1.tsv" scv_tc_words 4)" "$(col "$TMP/r4.tsv" scv_tc_words 4)")"
+  SCV_PB_GPU_TOOL=none "$BASH" "$PB" fn --only pc_duplicate_pairs --only scv_tc_diff > "$TMP/r1.tsv"
+  SCV_PB_GPU_TOOL=none "$BASH" "$PB" fn --only pc_duplicate_pairs --only scv_tc_diff --scale 4 > "$TMP/r4.tsv"
+  rw="$(pb_scale_ratio "$(col "$TMP/r1.tsv" pc_duplicate_pairs 4)" "$(col "$TMP/r4.tsv" pc_duplicate_pairs 4)")"
   rd="$(pb_scale_ratio "$(col "$TMP/r1.tsv" scv_tc_diff 4)" "$(col "$TMP/r4.tsv" scv_tc_diff 4)")"
-  # 같은 함수라도 셸에 따라 다르다(2026-11-11 실측: bash 3.2 는 17배 · 한 번 22ms, bash 5 는 6배 · 한 번 1.8ms).
-  # 어느 셸에서나: 낱말 나누기가 줄 견주기보다 뚜렷이 가파르다. bash 3.2 에서는 한도(8배)를 넘는다.
+  # 가파른 쪽 본보기는 '같은 지문 짝'이다 — 되풀이한 입력에서 답 줄 수가 입력의 제곱만큼 늘어 어느 셸에서나
+  # 한도(8배)를 넘는다(2026-11-11 실측: bash 3.2 14.3배, bash 5 14.9배).
+  # 처음 본보기였던 낱말 나누기(bash 3.2 에서 17배)는 0.91.1 에서 고쳐 4.9배가 됐다 — 그래서 바꿨다.
   [[ "$rw" != "-" && "$rd" != "-" && $(( $(pb_to_milli "$rw") * 10 )) -ge $(( $(pb_to_milli "$rd") * 15 )) ]] \
-    && ok "OK [S10] word splitting grows faster than line comparing ($rw vs $rd times at 4x, bash ${BASH_VERSINFO[0]})" || fail "[S10] words=$rw diff=$rd"
-  if [[ ${BASH_VERSINFO[0]} -le 3 ]]; then
-    [[ "$(pb_to_milli "$rw")" -ge 8000 ]] && ok "OK [S10] on bash 3.2 it is past the limit of 8 ($rw)" || fail "[S10] words ratio=$rw on bash 3"
-  fi
+    && ok "OK [S10] pair listing grows faster than line comparing ($rw vs $rd times at 4x, bash ${BASH_VERSINFO[0]})" || fail "[S10] pairs=$rw diff=$rd"
+  [[ "$rw" != "-" && "$(pb_to_milli "$rw")" -ge 8000 ]] && ok "OK [S10] pair listing is past the limit of 8 ($rw)" || fail "[S10] pairs ratio=$rw"
   [[ "$rd" != "-" && "$(pb_to_milli "$rd")" -le 6000 ]] && ok "OK [S10] line comparing stays near linear ($rd times at 4x)" || fail "[S10] diff ratio=$rd"
 else
   echo "  - SKIP [S10] 이 저장소에 사전이 없음"

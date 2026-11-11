@@ -1,11 +1,4 @@
 pc_duplicate_pairs
 pc_mutual_pairs
-scv_is_rewrite_quote
 scv_lang_drop_machine
-scv_lint_strip_quoted
-scv_mp_scope_forbid
-scv_mx_aggregate
 scv_plan_conflict_after
-scv_plan_conflict_before
-scv_reg_split_chain
-scv_tc_receipt

@@ -238,8 +238,17 @@ report "T3 key_of"
 for l in "" "k1${TAB}a${NL}k1${TAB}b${NL}k2${TAB}c" "k${TAB}a${NL}k${TAB}b${NL}k${TAB}c${NL}k${TAB}d" "k1${TAB}a${NL}k2${TAB}b" "k${TAB}a${NL}이름 없음${NL}k${TAB}b${NL}${NL}k${TAB}" "k${TAB}a${NL}k${TAB}a" "${TAB}a${NL}${TAB}b" "k${TAB}a${TAB}더${NL}k${TAB}b" "가${TAB}함수1${NL}나${TAB}함수2${NL}가${TAB}함수3${NL}나${TAB}함수4${NL}가${TAB}함수5"; do
   chk pc_duplicate_pairs "$l"
 done
+# 지문에 무늬 글자 · 역슬래시가 든 줄, 한 지문이 다른 지문의 앞부분인 줄, 번호처럼 보이는 지문
+BS='\\'
+for l in "a${BS}b${TAB}f1${NL}a${BS}b${TAB}f2${NL}*${TAB}f3${NL}*${TAB}f4${NL}[x]${TAB}f5${NL}[x]${TAB}f6${NL}?${TAB}f7" "k${TAB}a${NL}kk${TAB}b${NL}k${TAB}c${NL}kk${TAB}d${NL}kkk${TAB}e" "1${TAB}a${NL}11${TAB}b${NL}1${TAB}c${NL}0${TAB}d${NL}0${TAB}e${NL}1${TAB}f" "k${TAB}0${NL}k${TAB}1${NL}k${TAB}2" "k k${TAB}a b${NL}k k${TAB}c${TAB}d${NL}k${TAB}k"; do
+  chk pc_duplicate_pairs "$l"
+done
 report "T3 pc_duplicate_pairs"
 for l in "" "a${TAB}b${NL}b${TAB}a" "a${TAB}b${NL}c${TAB}d" "a${TAB}b${NL}b${TAB}a${NL}a${TAB}b" "a${TAB}a" "a${TAB}a${NL}a${TAB}a" "a${TAB}b${NL}b${TAB}a${NL}b${TAB}c${NL}c${TAB}b${NL}c${TAB}a" "a${NL}b${TAB}a${NL}a${TAB}b${NL}${NL}x${TAB}" "가${TAB}나${NL}나${TAB}가${NL}다${TAB}가${NL}가${TAB}다${NL}나${TAB}가"; do
+  chk pc_mutual_pairs "$l"
+done
+# 나 쪽에 탭이 든 줄(거꾸로 된 줄이 있을 수 없다), 무늬 글자 · 역슬래시, 이름이 서로의 앞부분인 줄
+for l in "a${TAB}b${TAB}c${NL}b${TAB}c${TAB}a${NL}b${TAB}a" "p${TAB}q${TAB}x${NL}p${TAB}q${NL}q${TAB}p${NL}q${TAB}x${TAB}p" "*${TAB}?${NL}?${TAB}*${NL}a${BS}${TAB}b${NL}b${TAB}a${BS}" "a${TAB}ab${NL}ab${TAB}a${NL}a${TAB}a${NL}ab${TAB}ab${NL}ab${TAB}a${NL}a${TAB}ab" "1${TAB}2${NL}2${TAB}1${NL}2${TAB}1${NL}1${TAB}2${NL}2${TAB}1" "a b${TAB}c d${NL}c d${TAB}a b"; do
   chk pc_mutual_pairs "$l"
 done
 report "T3 pc_mutual_pairs"
@@ -294,6 +303,20 @@ if [[ "${c51% *}" == "${c201% *}" && "${c51% *}" -le 2 ]]; then ok "T5 낱말 51
 else fail "T5 띄운 횟수: 낱말 51개 ${c51% *}번 · 201개 ${c201% *}번"; fi
 if [[ "${c51#* }" == 1 && "${c201#* }" == 1 ]]; then ok "T5 센 값은 그대로다(대문자로 쓴 낱말 하나만 맞음)"
 else fail "T5 센 값: ${c51#* } · ${c201#* } (1 이어야 한다)"; fi
+
+echo "T7. 한도 안으로 들어온 함수는 배수 기준 목록에 없다"
+# 기준 목록은 '입력 4배에 8배를 넘는 함수'의 이름이다(재는 명령이 셸 큰 버전마다 따로 적는다).
+# 이 계획으로 한도 안에 들어온 12개가 목록에 다시 들어오면 그 함수가 다시 느려진 것이다.
+# 래퍼 설치본에는 사전 폴더가 없다 — 그때는 건너뛴다.
+FIXED="scv_plan_conflict_before scv_lint_lang_turn scv_lint_hangul_ratio scv_lint_strip_quoted scv_is_rewrite_quote scv_mp_answer_shows_rewrite scv_mp_scope_forbid scv_tc_words scv_tc_receipt key_of scv_mx_aggregate scv_reg_split_chain"
+for v in 3 5; do
+  list="$CORE/../scv/core/catalog/pure/scale-baseline.bash$v"
+  if [[ ! -f "$list" ]]; then ok "T7 bash$v — 기준 목록이 없는 설치본이라 건너뜀"; continue; fi
+  back=""
+  for fn in $FIXED; do grep -q -x "$fn" "$list" && back="$back $fn"; done
+  if [[ -z "$back" ]]; then ok "T7 bash$v — 고친 12개가 목록에 없다(목록 $(grep -c . "$list")개)"
+  else fail "T7 bash$v — 다시 목록에 들어온 함수:$back"; fi
+done
 
 echo
 echo "Total: $((PASS + FAIL)) · Pass: $PASS · Fail: $FAIL"
