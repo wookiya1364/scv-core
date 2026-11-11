@@ -63,11 +63,14 @@ export function parsePipelineSection(markdown) {
   const depth = (lines[i].match(/^#+/) || ["##"])[0].length;
   i++;
 
-  // 절의 끝 = 같은 깊이 이하의 다음 제목.
+  // 절의 끝 = 같은 깊이 이하의 다음 제목, 또는 절 안의 체크리스트 소제목.
+  // 합성 설계 체크리스트 표(0.90.0)는 이 절 아래에 오지만 단계 표가 아니다 — 단계 표가 없는
+  // 계획에서 그 표를 단계로 읽으면 물음들이 변경 지도에 단계로 그려진다.
+  const CHECKLIST = /^#+\s+.*(체크리스트|checklist|チェックリスト)/i;
   const end = (() => {
     for (let j = i; j < lines.length; j++) {
       const m = lines[j].match(/^(#+)\s/);
-      if (m && m[1].length <= depth) return j;
+      if (m && (m[1].length <= depth || CHECKLIST.test(lines[j]))) return j;
     }
     return lines.length;
   })();

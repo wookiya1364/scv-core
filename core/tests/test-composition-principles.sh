@@ -47,6 +47,42 @@ WRK="$CORE/protocols/work.md"
 a="$(grep -n 'Composition checklist, answered from the code' "$WRK" | head -1 | cut -d: -f1)"; b="$(grep -n '^### Step 9b — Archive decision' "$WRK" | head -1 | cut -d: -f1)"
 [[ -n "$a" && -n "$b" && "$a" -lt "$b" ]] && ok "OK [T7] asked before the archive decision" || fail "[T7] a=$a b=$b"
 
+echo "T8 ~ T11. 기획서 검사의 체크리스트 경고"
+DOCJS="$CORE/DeckUI/scripts/deckdoc/doc.mjs"
+if ! command -v node >/dev/null 2>&1 || [[ ! -d "$CORE/DeckUI/scripts/deckdoc/node_modules" ]]; then
+  echo "  - SKIP [T8 ~ T11] node 또는 기획서 도구의 의존 묶음이 없음"
+else
+  TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+  deck() { node "$DOCJS" "$1" --out "$2" --lang korean --no-source >"$TMP/log" 2>&1; }
+  head_md() { printf '# 어떤 계획\n\n## 순수함수 · 파이프라인 (Pure functions & pipeline)\n\nflow(a, b)\n\n```mermaid\nflowchart LR\n  A --> B\n```\n\n'; }
+  CK='합성 설계 체크리스트'
+
+  head_md >"$TMP/none.md"
+  deck "$TMP/none.md" "$TMP/none.html"; rc=$?
+  n="$(grep -c "$CK" "$TMP/log")"
+  [[ $rc == 0 && -s "$TMP/none.html" && "$n" == 1 ]] && ok "OK [T8] no table → one warning, deck still built" || fail "[T8] rc=$rc warnings=$n"
+
+  { head_md; printf '### 합성 설계 체크리스트\n\n| # | 물음 | 답 | 근거 |\n|---|---|---|---|\n| 1 | 단항인가 | 예 | a.sh:10 |\n| 3 | 순회 한 번인가 | 예 | |\n| 7 | 부수효과는 끝에만 | 예 | <TODO> |\n| 9 | 변이를 막는가 | | |\n'; } >"$TMP/empty.md"
+  deck "$TMP/empty.md" "$TMP/empty.html"; rc=$?
+  ev="$(grep '근거가 빈 답' "$TMP/log")"; an="$(grep '답이 빈 줄' "$TMP/log")"
+  [[ $rc == 0 && "$ev" == *"3, 7"* && "$ev" != *"1,"* ]] && ok "OK [T9] names both rows without evidence (3, 7), not row 1" || fail "[T9] $ev"
+  [[ "$an" == *"9"* ]] && ok "OK [T9b] a row with no answer is named too" || fail "[T9b] $an"
+
+  { head_md; printf '### 합성 설계 체크리스트\n\n| # | 물음 | 답 | 근거 |\n|---|---|---|---|\n| 1 | 단항인가 | 예 | a.sh:10 |\n| 그 밖 | 2 ~ 10 | 해당 없음 | 한 번 훑는 작은 글 |\n'; } >"$TMP/full.md"
+  deck "$TMP/full.md" "$TMP/full.html"; rc=$?
+  [[ $rc == 0 && "$(grep -c "$CK" "$TMP/log")" == 0 ]] && ok "OK [T10] every answer has evidence → no checklist warning" || fail "[T10] $(grep "$CK" "$TMP/log")"
+  # 다른 절의 제목에 같은 낱말이 있어도(표 없음) 진짜 표를 찾는다
+  { head_md; printf '## 시험 체크리스트\n\n- 하나\n\n### 합성 설계 체크리스트\n\n| # | 물음 | 답 | 근거 |\n|---|---|---|---|\n| 1 | 단항인가 | 예 | a.sh:10 |\n'; } >"$TMP/two.md"
+  deck "$TMP/two.md" "$TMP/two.html"
+  [[ "$(grep -c "$CK" "$TMP/log")" == 0 ]] && ok "OK [T10b] another heading with the same word does not hide the table" || fail "[T10b] $(grep "$CK" "$TMP/log")"
+
+  # 파이프라인 절이 아예 없는 글은 기존 경고 하나만 — 체크리스트 경고를 겹쳐 내지 않는다
+  printf '# 옛 계획\n\n## Why\n\n설명.\n\n```mermaid\nflowchart LR\n  A --> B\n```\n' >"$TMP/old.md"
+  deck "$TMP/old.md" "$TMP/old.html"; rc=$?
+  [[ $rc == 0 && -s "$TMP/old.html" && "$(grep -c "$CK" "$TMP/log")" == 0 && "$(grep -c '파이프라인 섹션이 없습니다' "$TMP/log")" == 1 ]] \
+    && ok "OK [T11] a plan without the pipeline part: built, one old warning, no new one" || fail "[T11] rc=$rc $(grep -c "$CK" "$TMP/log")"
+fi
+
 echo
 echo "── $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
