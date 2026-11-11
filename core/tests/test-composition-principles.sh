@@ -29,7 +29,10 @@ echo "T3. 계약 문서 — 막는 것과 못 막는 것"
 sec="$(awk '/^## SCV 가 막는 것과 못 막는 것/{f=1; next} /^## /{f=0} f' "$DOC" 2>/dev/null)"
 grep -q '최대 성능은 증명할 수 없다' <<<"$sec" && ! grep -Eq '(최대|최고) ?성능(을|이|은)? ?보장' "$DOC" && ok "OK [T3] says it cannot be proven; never promises it" || fail "[T3]"
 
-grep -q '아직 없다' <<<"$sec" && ok "OK [T3b] says the measuring command does not exist yet" || fail "[T3b] the doc speaks of a measuring command as if it existed"
+# 0.90.0 에는 재는 명령이, 0.91.0 에는 더 나은 엮음을 계산으로 찾는 일이 "아직 없다"고 적혀 있었다.
+# 0.92.0 에 엮음 고르기 명령이 생겼다 — 이제 이 절은 그 명령을 이름으로 말하고, 아직 없는 것(계획 · 마무리 단계가
+# 스스로 돌리지 않음)을 따로 밝힌다. 있는 것처럼만 말하고 없는 것을 감추면 실패한다.
+grep -q 'pipe-arrange.sh' <<<"$sec" && grep -q '아직 없는 것' <<<"$sec" && ok "OK [T3b] names the arranging command and says what is still missing" || fail "[T3b] the doc must name pipe-arrange.sh and say what does not exist yet"
 
 echo "T4. 계약 문서 — 체크리스트 10개"
 n="$(awk '/^## 체크리스트/{f=1; next} /^## /{f=0} f && /^[0-9]+\. /' "$DOC" 2>/dev/null | grep -c .)"
