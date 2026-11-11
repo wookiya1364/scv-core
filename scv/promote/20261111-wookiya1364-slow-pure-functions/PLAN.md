@@ -3,7 +3,7 @@ title: 느린 순수함수 고치기 — 입력이 커지면 크게 느려지는
 slug: 20261111-wookiya1364-slow-pure-functions
 author: wookiya1364
 created_at: 2026-11-11
-status: planned
+status: in_progress
 kind: refactor
 lang: korean
 tags: [purity, performance, bench]
@@ -151,6 +151,11 @@ flow(
 - 옛 셸에서 긴 글의 통째 바꾸기가 느린 것은 셸 자체의 성질이다. 바이트 단위로 바꿔도 답이 같은지는 여러 바이트 글자가 든 입력으로 맞대 봐야 안다.
 - 재는 값은 컴퓨터가 붐비면 흔들린다. 앞뒤는 번갈아 재는 방식(`compare`)으로 본다.
 - 리눅스와 CI 에서는 올릴 때까지 돌려 보지 못한다.
+
+## 변경 이력
+
+- **2026-11-11 진행** — 1단계 시작: 옛 본문 17개를 견줄 판으로 옮기고 맞대는 시험을 만드는 중
+  - 요청: 어디까지했어 (요청 d2fd6a0d)
 
 ## Links
 
