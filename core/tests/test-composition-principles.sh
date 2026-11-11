@@ -37,6 +37,16 @@ n="$(awk '/^## 체크리스트/{f=1; next} /^## /{f=0} f && /^[0-9]+\. /' "$DOC"
 echo "T5. 기존 순수성 문서가 새 문서를 가리킨다"
 [[ "$(grep -c 'composition.md' "$PUR")" == 1 ]] && ok "OK [T5] one pointer" || fail "[T5] $(grep -c 'composition.md' "$PUR")"
 
+echo "T6. 계획 템플릿 — 체크리스트 표"
+PRO="$CORE/protocols/promote.md"
+grep -q '^### 합성 설계 체크리스트' "$PRO" && grep -q '^| # | 물음 | 답 | 근거 |$' "$PRO" && grep -q 'core/contracts/composition.md' "$PRO" \
+  && ok "OK [T6] the PLAN template carries the table" || fail "[T6]"
+
+echo "T7. 작업 규약 — 끝낼 때 코드로 다시 답한다"
+WRK="$CORE/protocols/work.md"
+a="$(grep -n 'Composition checklist, answered from the code' "$WRK" | head -1 | cut -d: -f1)"; b="$(grep -n '^### Step 9b — Archive decision' "$WRK" | head -1 | cut -d: -f1)"
+[[ -n "$a" && -n "$b" && "$a" -lt "$b" ]] && ok "OK [T7] asked before the archive decision" || fail "[T7] a=$a b=$b"
+
 echo
 echo "── $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

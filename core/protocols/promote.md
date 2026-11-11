@@ -391,6 +391,21 @@ flow(
 - 부수효과 위치: <TODO — 어떤 단계가 DB·네트워크·시각·난수를 만지는가>
 - 재사용: <TODO — 이미 있는 단계 중 무엇을 그대로 쓰는가>
 
+### 합성 설계 체크리스트 (Composition checklist)
+
+<!-- REQUIRED with the section above (0.90.0+). The ten questions live in
+     core/contracts/composition.md. Answer each one that applies with its evidence —
+     a file and line, or the step it rests on. Fold the ones that do not apply into one
+     "그 밖" row with the reason. An answer with an empty 근거 cell is not an answer:
+     `action:deck` warns about a missing table and about each row without evidence. -->
+
+| # | 물음 | 답 | 근거 |
+|---|---|---|---|
+| 1 | 각 단계가 요소 단위 단항 순수 함수인가 | <TODO> | <TODO — 파일과 줄, 또는 기대는 단계> |
+| 3 | 요소 단위로 먼저 합성한 뒤 순회는 한 번만 하는가 | <TODO> | <TODO> |
+| 7 | 부수효과가 파이프라인 양 끝에만 있는가 | <TODO> | <TODO> |
+| 그 밖 | <TODO — 해당 없는 번호들> | 해당 없음 | <TODO — 이유> |
+
 ## Guardrails
 
 <!-- What must NOT be done: untouchable areas, forbidden approaches, and the
@@ -777,6 +792,12 @@ scenario, a test run, a recording) ends with ` — ` and its 하는 일 in one p
 instead, without backticks. In the numbered
 spec below, each pipeline step is a natural marker: a number on the picture, its
 input/output and role in the detail beside it.
+
+**The composition checklist goes with it (0.90.0+).** Pure steps are the base; how they are
+composed decides the rest — the same steps can run tens of times slower in the wrong order or
+with collected intermediates (`core/contracts/composition.md`). Under the pipeline section,
+every PLAN.md carries the `합성 설계 체크리스트` table: number · question · answer · evidence,
+for the questions that apply, with the rest folded into one row and its reason.
 
 **A plan missing this section is warned about, not blocked** — `action:deck` surfaces a
 lint warning so the gap is visible rather than silent. Never invent a pipeline the
