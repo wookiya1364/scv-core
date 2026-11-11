@@ -9,15 +9,20 @@
 #       사전에서 잴 목록을 낸다: "함수<탭>파일<탭>언어<탭>1배 인자<탭>4배 인자<탭>늘림(1/0)".
 #       1배 = 예시를 25번 되풀이, 4배 = 100번. 늘릴 값이 없는 예시는 늘림 0 (늘려 재지 못함).
 #
+#   pure-bench.sh env
+#       재는 환경 한 줄: 셸 버전 · 지역 설정 · GPU 읽는 도구.
 #   pure-bench.sh run [--no-count] -- <명령…>
-#       셸에서 띄우는 명령 하나를 감싸 잰다. 한 줄: "벽시계 초<탭>CPU 초<탭>메모리 MB<탭>GPU 사용률 %<탭>GPU 메모리 MB<탭>부른 횟수".
+#       셸에서 띄우는 명령 하나를 감싸 잰다. 한 줄: "벽시계 초<탭>CPU 초<탭>메모리 MB<탭>GPU 사용률 %<탭>GPU 메모리 MB<탭>부른 횟수<탭>판정 잣대<탭>명령의 종료 코드".
+#       판정 잣대: cpu(CPU 시간으로 본다) · wall-gpu(GPU 를 썼다 — 벽시계와 GPU 값으로 본다) · unmeasured(재지 못함).
 #       잴 수 없는 값은 "-" (통과가 아니라 '재지 못함'). GPU 값은 컴퓨터 전체의 값이다.
 #   pure-bench.sh fn [--catalog DIR] [--base DIR] [--only NAME]… [--scale 1|4]
 #       사전의 함수를 그 예시(1배 또는 4배 입력)로 재서 줄마다:
-#       "함수<탭>배<탭>되풀이<탭>회당 ms<탭>벽시계 초<탭>메모리 MB<탭>GPU 사용률<탭>GPU 메모리<탭>부른 횟수<탭>상태".
+#       "함수<탭>배<탭>되풀이<탭>회당 ms<탭>벽시계 초<탭>메모리 MB<탭>GPU 사용률<탭>GPU 메모리<탭>부른 횟수<탭>상태<탭>판정 잣대".
 #       상태: ok · not-scalable(늘려 재지 못함) · load-failed(함수를 불러오지 못함) · not-shell(셸 함수가 아님).
 #
 # 환경: SCV_PB_GPU_TOOL=none|ioreg|nvidia 로 GPU 읽는 도구를 정한다(기본: 있는 것을 찾는다).
+# 잰 값은 이 스크립트를 돌린 셸과 지역 설정의 값이다 — 같은 함수가 bash 3.2 와 bash 5 에서 열 배 넘게 다를 수 있다
+# (2026-11-11: 낱말 나누기 한 번에 22ms 대 1.8ms). 앞뒤를 견줄 때는 같은 셸로 잰다. `env` 로 그 셸을 본다.
 # Exit: 0 통과 · 2 사용법 오류
 set -uo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -79,19 +84,37 @@ pb_timed() {
 }
 
 # @effect run_measured
-# 이유: 명령 하나를 돌려 잰다 — "벽시계<탭>CPU<탭>메모리<탭>GPU 사용률<탭>GPU 메모리" (파이프라인의 입구)
+# 이유: 명령 하나를 돌려 잰다 — "벽시계<탭>CPU<탭>메모리<탭>GPU 사용률<탭>GPU 메모리<탭>GPU 사용률 오름" (파이프라인의 입구)
 run_measured() {
-  local tool="$1" base="" before samples="$PB_TMP/gpu.samples" sum; shift
+  local tool="$1" base="" before="" samples="$PB_TMP/gpu.samples" sum; shift
   : > "$samples"
   if [[ "$tool" != none ]]; then
     before="$(pb_gpu_read "$tool")"; base="${before#*$'\t'}"
     ( while :; do pb_gpu_read "$tool"; echo; sleep 0.2; done >> "$samples" ) &
     PB_SAMPLER=$!
   fi
-  pb_timed "$PB_TMP/time.report" "$@"
+  pb_timed "$PB_TMP/time.report" "$@"; echo "$?" > "$PB_TMP/exit"
   if [[ -n "$PB_SAMPLER" ]]; then kill "$PB_SAMPLER" 2>/dev/null; wait "$PB_SAMPLER" 2>/dev/null; PB_SAMPLER=""; fi
-  sum=$'-\t-'; [[ "$tool" == none ]] || sum="$(pb_gpu_summary "$(grep . "$samples")" "${base:-0}")"
+  sum=$'-\t-\t-'; [[ "$tool" == none ]] || sum="$(pb_gpu_summary "$(grep . "$samples")" "${base:-0}" "${before%%$'\t'*}")"
   printf '%s\t%s' "$(pb_parse_time "$(cat "$PB_TMP/time.report" 2>/dev/null)")" "$sum"
+}
+
+# @effect pb_load_now
+# 이유: 지금 컴퓨터가 얼마나 붐비는지 잰다 — CPU 만 쓰는 짧은 반복의 벽시계 ÷ CPU × 100 (100 = 한가함)
+pb_load_now() {
+  local w c
+  pb_timed "$PB_TMP/load.report" "$BASH" -c 'i=0; while [[ $i -ne 150000 ]]; do i=$((i + 1)); done'
+  IFS=$'\t' read -r w c _ <<< "$(pb_parse_time "$(cat "$PB_TMP/load.report" 2>/dev/null)")"
+  w="$(pb_to_milli "$w")" || w=0; c="$(pb_to_milli "$c")" || c=0
+  if [[ $c -eq 0 ]]; then printf 100; else printf '%s' "$(( w * 100 / c ))"; fi
+}
+
+# @effect pb_measure_name
+# 이유: 잰 값으로 판정 잣대를 고른다 — CPU 가 아닌 답이 나오면 붐빔을 한 번 재서 다시 고른다(붐비는 컴퓨터를 GPU 신호로 잘못 읽지 않게)
+pb_measure_name() {
+  local name; name="$(pb_pick_measure "$1" "$2" "$3" "$4" 100)"
+  [[ "$name" == cpu ]] || name="$(pb_pick_measure "$1" "$2" "$3" "$4" "$(pb_load_now)")"
+  printf '%s' "$name"
 }
 
 # @effect pb_shim_dir
@@ -151,10 +174,10 @@ pb_drive() {
 # @effect pb_measure_fn
 # 이유: 사전의 함수 하나를 한 배(1 또는 4)의 입력으로 재서 한 줄을 낸다 — 되풀이 수를 맞추고, 시간 · 메모리 · GPU · 부른 횟수를 모은다
 pb_measure_fn() {
-  local tool="$1" base="$2" name="$3" rel="$4" args="$5" scale="$6" reps=5 try cpu="" m ms out="$PB_TMP/drive"
+  local tool="$1" base="$2" name="$3" rel="$4" args="$5" scale="$6" reps=5 try cpu="" m ms r2 wall tcpu rss gutil gmem grise out="$PB_TMP/drive"
   for try in 1 2 3; do
     m="$(run_measured "$tool" "$BASH" "$0" _drive "$base" "$rel" "$name" "$args" "$reps" "$out")"
-    [[ -s "$out.b" ]] || { printf '%s\t%s\t-\t-\t-\t-\t-\t-\t-\tload-failed\n' "$name" "$scale"; return; }
+    [[ -s "$out.b" ]] || { printf '%s\t%s\t-\t-\t-\t-\t-\t-\t-\tload-failed\t-\n' "$name" "$scale"; return; }
     cpu="$(LC_ALL=C awk -v a="$(pb_times_secs "$(cat "$out.a")")" -v b="$(pb_times_secs "$(cat "$out.b")")" 'BEGIN { printf "%.3f", b - a }')"
     r2="$(pb_reps_next "$cpu" "$reps")"; rm -f "$out.a" "$out.b"
     [[ "$r2" == "$reps" ]] && break
@@ -162,8 +185,8 @@ pb_measure_fn() {
   done
   ms="$(LC_ALL=C awk -v c="$cpu" -v r="$reps" 'BEGIN { printf "%.3f", c * 1000 / r }')"
   "$BASH" "$0" _drive "$base" "$rel" "$name" "$args" 1 "$out" "$PB_TMP/fn.count" >/dev/null 2>&1
-  IFS=$'\t' read -r wall _ rss gutil gmem <<< "$m"
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\tok\n' "$name" "$scale" "$reps" "$ms" "$wall" "$rss" "$gutil" "$gmem" "$(grep -c . "$PB_TMP/fn.count")"
+  IFS=$'\t' read -r wall tcpu rss gutil gmem grise <<< "$m"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\tok\t%s\n' "$name" "$scale" "$reps" "$ms" "$wall" "$rss" "$gutil" "$gmem" "$(grep -c . "$PB_TMP/fn.count")" "$(pb_measure_name "$wall" "$tcpu" "$gmem" "$grise")"
 }
 
 CMD="${1:-}"; [[ $# -gt 0 ]] && shift
@@ -182,6 +205,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$CMD" in
+  env)
+    printf 'bash %s · LC_ALL=%s · LANG=%s · GPU 도구 %s\n' "$BASH_VERSION" "${LC_ALL:-}" "${LANG:-}" "$(pb_gpu_tool)" ;;
   targets)
     [[ -d "$CATALOG" ]] || { echo "pure-bench: 사전 폴더가 없다: $CATALOG" >&2; exit 2; }
     pb_targets "$(read_catalog "$CATALOG")" "${ONLY%$'\n'}" ;;
@@ -190,17 +215,20 @@ case "$CMD" in
     TOOL="$(pb_gpu_tool)"
     M="$(run_measured "$TOOL" "$@")"
     N="-"; [[ $COUNT -eq 0 ]] || N="$(pb_count_execs "$@")"
-    printf '%s\t%s\n' "$M" "$N" ;;
+    IFS=$'\t' read -r wall tcpu rss gutil gmem grise <<< "$M"
+    RC="$(cat "$PB_TMP/exit" 2>/dev/null)"; RC="${RC:-0}"
+    [[ "$RC" == 0 ]] || echo "pure-bench: 잰 명령이 종료 코드 $RC 로 끝났다 — 아래 값은 실패한 실행의 값이다" >&2
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$wall" "$tcpu" "$rss" "$gutil" "$gmem" "$N" "$(pb_measure_name "$wall" "$tcpu" "$gmem" "$grise")" "$RC" ;;
   fn)
     [[ -d "$CATALOG" ]] || { echo "pure-bench: 사전 폴더가 없다: $CATALOG" >&2; exit 2; }
     [[ "$SCALE" == 1 || "$SCALE" == 4 ]] || { echo "pure-bench: --scale 은 1 또는 4" >&2; exit 2; }
     TOOL="$(pb_gpu_tool)"
     while IFS=$'\x1d' read -r name rel lang a1 a4 sc; do
       [[ -n "$name" ]] || continue
-      if [[ "$lang" != sh ]]; then printf '%s\t%s\t-\t-\t-\t-\t-\t-\t-\tnot-shell\n' "$name" "$SCALE"; continue; fi
-      if [[ "$SCALE" == 4 && "$sc" != 1 ]]; then printf '%s\t4\t-\t-\t-\t-\t-\t-\t-\tnot-scalable\n' "$name"; continue; fi
+      if [[ "$lang" != sh ]]; then printf '%s\t%s\t-\t-\t-\t-\t-\t-\t-\tnot-shell\t-\n' "$name" "$SCALE"; continue; fi
+      if [[ "$SCALE" == 4 && "$sc" != 1 ]]; then printf '%s\t4\t-\t-\t-\t-\t-\t-\t-\tnot-scalable\t-\n' "$name"; continue; fi
       if [[ "$SCALE" == 4 ]]; then pb_measure_fn "$TOOL" "$BASE" "$name" "$rel" "$a4" 4
       else pb_measure_fn "$TOOL" "$BASE" "$name" "$rel" "$a1" 1; fi
     done <<< "$(pb_targets "$(read_catalog "$CATALOG")" "${ONLY%$'\n'}" | tr '\t' '\035')" ;;
-  *) echo "Usage: pure-bench.sh targets|run|fn … (파일 머리말 참고)" >&2; exit 2 ;;
+  *) echo "Usage: pure-bench.sh targets|env|run|fn … (파일 머리말 참고)" >&2; exit 2 ;;
 esac

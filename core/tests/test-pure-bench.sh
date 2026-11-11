@@ -43,16 +43,16 @@ eq "S2 --only filter" "f_fixed" "$(pb_targets "$CAT" $'f_fixed\nnope' | cut -f1)
 
 echo "S3. 명령 — 이 저장소의 사전으로"
 if [[ -d "$CORE/../scv/core/catalog/pure" ]]; then
-  bash "$PB" targets > "$TMP/all.tsv"; st=$?
+  "$BASH" "$PB" targets > "$TMP/all.tsv"; st=$?
   want="$(grep -h -A8 '^### ' "$CORE"/../scv/core/catalog/pure/[a-z]*.md | grep -c '^### ')"
   have="$(grep -c . "$TMP/all.tsv")"
   [[ $st == 0 && "$have" -gt 100 && "$have" -le "$want" ]] && ok "OK [S3] $have of $want functions listed" || fail "[S3] st=$st have=$have want=$want"
   eq "S3 six columns on every line" 0 "$(awk -F'\t' 'NF != 6' "$TMP/all.tsv" | grep -c .)"
-  eq "S3 --only" "scv_tc_words" "$(bash "$PB" targets --only scv_tc_words | cut -f1)"
+  eq "S3 --only" "scv_tc_words" "$("$BASH" "$PB" targets --only scv_tc_words | cut -f1)"
 else
   echo "  - SKIP [S3] 이 저장소에 사전이 없음"
 fi
-bash "$PB" targets --catalog "$TMP/none" >/dev/null 2>&1; eq "S3 missing catalog → usage error" 2 "$?"
+"$BASH" "$PB" targets --catalog "$TMP/none" >/dev/null 2>&1; eq "S3 missing catalog → usage error" 2 "$?"
 
 echo "S4. 잰 글을 값으로 — 순수 함수"
 eq "S4 time, BSD form"  $'1.50\t0.50\t2.5' "$(pb_parse_time $'real 1.50\nuser 0.40\nsys 0.10\n  2621440  maximum resident set size')"
@@ -66,16 +66,17 @@ eq "S4 reps are capped" "2000" "$(pb_reps_next 0.000 5)"
 eq "S4 ioreg" $'42\t100.0' "$(pb_parse_ioreg '"PerformanceStatistics" = {"In use system memory"=104857600,"Device Utilization %"=42}')"
 eq "S4 ioreg, no device" "" "$(pb_parse_ioreg 'no gpu here')"
 eq "S4 nvidia, two devices" $'90\t300.0' "$(pb_parse_nvidia $'10, 100\n90, 200')"
-eq "S4 gpu summary" $'50\t300.0' "$(pb_gpu_summary $'40\t1100.0\n60\t1300.0' 1000.0)"
-eq "S4 gpu summary, no samples" $'-\t-' "$(pb_gpu_summary '' 1000.0)"
+eq "S4 gpu summary: average · memory added · rise over the start" $'50\t300.0\t40' "$(pb_gpu_summary $'40\t1100.0\n60\t1300.0' 1000.0 10)"
+eq "S4 gpu summary: nothing rose" $'10\t0.0\t0' "$(pb_gpu_summary $'10\t1000.0' 1000.0 15)"
+eq "S4 gpu summary, no samples" $'-\t-\t-' "$(pb_gpu_summary '' 1000.0 0)"
 
 echo "S5. 명령 하나 재기 (TESTS T4 — GPU 를 읽을 도구가 없을 때)"
-IFS=$'\t' read -r wall cpu rss gu gm ex <<<"$(SCV_PB_GPU_TOOL=none bash "$PB" run -- sleep 0.3)"
+IFS=$'\t' read -r wall cpu rss gu gm ex nm rc <<<"$(SCV_PB_GPU_TOOL=none "$BASH" "$PB" run -- sleep 0.3)"
 awk -v w="$wall" 'BEGIN { exit !(w >= 0.25 && w < 3) }' && ok "OK [S5] wall of sleep 0.3 = $wall s" || fail "[S5] wall=$wall"
 eq "S5 no GPU tool → not measured, never a number" "- -" "$gu $gm"
 eq "S5 sleep is one program" 1 "$ex"
-eq "S5 --no-count leaves the count out" "-" "$(SCV_PB_GPU_TOOL=none bash "$PB" run --no-count -- true | cut -f6)"
-bash "$PB" run >/dev/null 2>&1; eq "S5 run without a command → usage error" 2 "$?"
+eq "S5 --no-count leaves the count out" "-" "$(SCV_PB_GPU_TOOL=none "$BASH" "$PB" run --no-count -- true | cut -f6)"
+"$BASH" "$PB" run >/dev/null 2>&1; eq "S5 run without a command → usage error" 2 "$?"
 [[ -z "$(ls -d "${TMPDIR:-/tmp}"/scv-pure-bench.* 2>/dev/null)" ]] && ok "OK [S5] nothing left behind in the temp folder" || fail "[S5] leftover: $(ls -d "${TMPDIR:-/tmp}"/scv-pure-bench.* | head -2)"
 
 echo "S6. 함수 재기 — 부른 횟수와 입력 4배 (TESTS T5)"
@@ -85,8 +86,8 @@ t_each() { local l; while IFS= read -r l; do printf '%s\n' "$l" | tr 'a-z' 'A-Z'
 t_once() { printf '%s\n' "$1" | tr 'a-z' 'A-Z'; }
 LIB
 printf '### t_each\n- 위치: lib/t.sh · @pure · sh\n- 예: `$\x27a\\nb\x27 → $\x27A\\nB\x27`\n\n### t_once\n- 위치: lib/t.sh · @pure · sh\n- 예: `$\x27a\\nb\x27 → $\x27A\\nB\x27`\n\n### t_gone\n- 위치: lib/t.sh · @pure · sh\n- 예: `"a b" → "x"`\n\n### t_fixed\n- 위치: lib/t.sh · @pure · sh\n- 예: `7 → "7"`\n\n### t_ts\n- 위치: src/x.ts · @pure · ts\n- 예: `"a b" → "2"`\n' > "$B/cat/a.md"
-SCV_PB_GPU_TOOL=none bash "$PB" fn --catalog "$B/cat" --base "$B" > "$TMP/f1.tsv"
-SCV_PB_GPU_TOOL=none bash "$PB" fn --catalog "$B/cat" --base "$B" --scale 4 > "$TMP/f4.tsv"
+SCV_PB_GPU_TOOL=none "$BASH" "$PB" fn --catalog "$B/cat" --base "$B" > "$TMP/f1.tsv"
+SCV_PB_GPU_TOOL=none "$BASH" "$PB" fn --catalog "$B/cat" --base "$B" --scale 4 > "$TMP/f4.tsv"
 col() { awk -F'\t' -v n="$2" -v c="$3" '$1 == n { print $c }' "$1"; }
 eq "S6 a program per line: 50 → 200" "50 200" "$(col "$TMP/f1.tsv" t_each 9) $(col "$TMP/f4.tsv" t_each 9)"
 eq "S6 one program whatever the size: 1 → 1" "1 1" "$(col "$TMP/f1.tsv" t_once 9) $(col "$TMP/f4.tsv" t_once 9)"
@@ -96,16 +97,83 @@ awk -v a="$ms1" -v b="$ms4" 'BEGIN { exit !(a > 0 && b / a >= 2.5 && b / a <= 6.
 eq "S6 a function that is not there" "load-failed" "$(col "$TMP/f1.tsv" t_gone 10)"
 eq "S6 a fixed-size example at 4x" "not-scalable" "$(col "$TMP/f4.tsv" t_fixed 10)"
 eq "S6 not a shell function" "not-shell" "$(col "$TMP/f1.tsv" t_ts 10)"
-eq "S6 ten columns on every line" 0 "$(awk -F'\t' 'NF != 10' "$TMP/f1.tsv" "$TMP/f4.tsv" | grep -c .)"
+eq "S6 eleven columns on every line" 0 "$(awk -F'\t' 'NF != 11' "$TMP/f1.tsv" "$TMP/f4.tsv" | grep -c .)"
+eq "S6 a shell function that only computes is judged by CPU time" "cpu" "$(col "$TMP/f1.tsv" t_once 11)"
 
 echo "S7. 메모리 최고치 (TESTS T7)"
 seq 1 2000000 > "$TMP/big.txt"      # 약 14MB
 printf '#!/usr/bin/env bash\nwc -l < "$1"\n' > "$TMP/stream.sh"                    # 흘려보내며 센다
 printf '#!/usr/bin/env bash\nall="$(cat "$1")"; echo "${#all}"\n' > "$TMP/collect.sh"   # 전체를 변수에 담는다
-r1="$(SCV_PB_GPU_TOOL=none bash "$PB" run --no-count -- bash "$TMP/stream.sh" "$TMP/big.txt" | cut -f3)"
-r2="$(SCV_PB_GPU_TOOL=none bash "$PB" run --no-count -- bash "$TMP/collect.sh" "$TMP/big.txt" | cut -f3)"
+r1="$(SCV_PB_GPU_TOOL=none "$BASH" "$PB" run --no-count -- bash "$TMP/stream.sh" "$TMP/big.txt" | cut -f3)"
+r2="$(SCV_PB_GPU_TOOL=none "$BASH" "$PB" run --no-count -- bash "$TMP/collect.sh" "$TMP/big.txt" | cut -f3)"
 if [[ "$r1" == "-" || "$r2" == "-" ]]; then echo "  - SKIP [S7] 이 컴퓨터에는 메모리를 재는 명령이 없음 (재지 못함)"
 else awk -v a="$r1" -v b="$r2" 'BEGIN { exit !(b >= 2 * a) }' && ok "OK [S7] collecting uses at least twice the memory ($r1 → $r2 MB)" || fail "[S7] stream=$r1 collect=$r2"; fi
+
+echo "S8. 판정 잣대 고르기 — 전수 (TESTS T8)"
+eq "S8 works on the CPU only"                     cpu        "$(pb_pick_measure 1.00 0.98 0.0 4 100)"
+eq "S8 used the GPU (memory)"                     wall-gpu   "$(pb_pick_measure 8.40 0.80 1171.0 78 100)"
+eq "S8 used the GPU (use rose, little memory)"    wall-gpu   "$(pb_pick_measure 1.10 1.50 20.0 35 100)"
+eq "S8 wall far above CPU, no GPU tool"           unmeasured "$(pb_pick_measure 8.40 0.80 - - 100)"
+eq "S8 too short to measure"                      unmeasured "$(pb_pick_measure 0.01 0.00 - - 100)"
+eq "S8 nothing measured"                          unmeasured "$(pb_pick_measure - - - - 100)"
+eq "S8 a busy computer is not a GPU signal"       cpu        "$(pb_pick_measure 2.00 0.98 0.0 4 210)"
+eq "S8 a busy computer, no tool — still CPU"      cpu        "$(pb_pick_measure 2.00 0.98 - - 210)"
+eq "S8 waits on something else, tool present"     wall-gpu   "$(pb_pick_measure 1.00 0.00 0.0 0 100)"
+eq "S8 background GPU noise stays CPU"            cpu        "$(pb_pick_measure 0.34 0.30 56.2 17 100)"
+eq "S8 ratio"                 "17.3" "$(pb_scale_ratio 22.286 386.600)"
+eq "S8 ratio, linear"         "3.1"  "$(pb_scale_ratio 4.492 13.739)"
+eq "S8 ratio, not measured"   "-"    "$(pb_scale_ratio 5 -)"
+eq "S8 ratio, zero base"      "-"    "$(pb_scale_ratio 0.000 3.0)"
+eq "S8 milli" "22286 500 3000" "$(pb_to_milli 22.286) $(pb_to_milli 0.5) $(pb_to_milli 3)"
+pb_to_milli - >/dev/null; eq "S8 milli, not a number → 1" 1 "$?"
+
+echo "S9. 명령의 실패와 잣대 — 실제 실행"
+SCV_PB_GPU_TOOL=none "$BASH" "$PB" run --no-count -- bash -c 'exit 3' > "$TMP/fail.out" 2> "$TMP/fail.err"
+eq "S9 a failing command: its exit code is in the line" 3 "$(cut -f8 "$TMP/fail.out")"
+grep -q '종료 코드 3' "$TMP/fail.err" && ok "OK [S9] and it is said out loud" || fail "[S9] $(cat "$TMP/fail.err")"
+eq "S9 waiting with no GPU tool → not measured" "unmeasured" "$(SCV_PB_GPU_TOOL=none "$BASH" "$PB" run --no-count -- sleep 1 | cut -f7)"
+
+echo "S10. 입력 4배 때의 배수 — 이 저장소의 두 함수 (TESTS T6)"
+if [[ -d "$CORE/../scv/core/catalog/pure" ]]; then
+  SCV_PB_GPU_TOOL=none "$BASH" "$PB" fn --only scv_tc_words --only scv_tc_diff > "$TMP/r1.tsv"
+  SCV_PB_GPU_TOOL=none "$BASH" "$PB" fn --only scv_tc_words --only scv_tc_diff --scale 4 > "$TMP/r4.tsv"
+  rw="$(pb_scale_ratio "$(col "$TMP/r1.tsv" scv_tc_words 4)" "$(col "$TMP/r4.tsv" scv_tc_words 4)")"
+  rd="$(pb_scale_ratio "$(col "$TMP/r1.tsv" scv_tc_diff 4)" "$(col "$TMP/r4.tsv" scv_tc_diff 4)")"
+  # 같은 함수라도 셸에 따라 다르다(2026-11-11 실측: bash 3.2 는 17배 · 한 번 22ms, bash 5 는 6배 · 한 번 1.8ms).
+  # 어느 셸에서나: 낱말 나누기가 줄 견주기보다 뚜렷이 가파르다. bash 3.2 에서는 한도(8배)를 넘는다.
+  [[ "$rw" != "-" && "$rd" != "-" && $(( $(pb_to_milli "$rw") * 10 )) -ge $(( $(pb_to_milli "$rd") * 15 )) ]] \
+    && ok "OK [S10] word splitting grows faster than line comparing ($rw vs $rd times at 4x, bash ${BASH_VERSINFO[0]})" || fail "[S10] words=$rw diff=$rd"
+  if [[ ${BASH_VERSINFO[0]} -le 3 ]]; then
+    [[ "$(pb_to_milli "$rw")" -ge 8000 ]] && ok "OK [S10] on bash 3.2 it is past the limit of 8 ($rw)" || fail "[S10] words ratio=$rw on bash 3"
+  fi
+  [[ "$rd" != "-" && "$(pb_to_milli "$rd")" -le 6000 ]] && ok "OK [S10] line comparing stays near linear ($rd times at 4x)" || fail "[S10] diff ratio=$rd"
+else
+  echo "  - SKIP [S10] 이 저장소에 사전이 없음"
+fi
+
+echo "S11. GPU 를 쓴 명령은 GPU 로 판정한다 (TESTS T3 — GPU 와 torch 가 있는 컴퓨터에서만)"
+if command -v python3 >/dev/null 2>&1 && python3 -c 'import torch, sys; sys.exit(0 if torch.backends.mps.is_available() or torch.cuda.is_available() else 1)' >/dev/null 2>&1 && [[ "$(SCV_PB_GPU_TOOL='' bash -c "source '$CORE/scripts/lib/pure-bench.sh'; command -v ioreg >/dev/null || command -v nvidia-smi >/dev/null; echo \$?")" == 0 ]]; then
+  cat > "$TMP/job.py" <<'PY'
+import sys, torch
+dev = "mps" if torch.backends.mps.is_available() else "cuda"
+n = int(sys.argv[1]); reps = int(sys.argv[2])
+x = torch.rand(n, n, device=dev); y = torch.rand(n, n, device=dev)
+for _ in range(reps):
+    z = x @ y
+    x = z / z.norm()
+if dev == "mps": torch.mps.synchronize()
+else: torch.cuda.synchronize()
+print(float(x.sum().cpu()) > 0)
+PY
+  IFS=$'\t' read -r w1 c1 _ _ _ _ n1 e1 <<<"$("$BASH" "$PB" run --no-count -- python3 "$TMP/job.py" 3000 20)"
+  IFS=$'\t' read -r w2 c2 _ _ _ _ n2 e2 <<<"$("$BASH" "$PB" run --no-count -- python3 "$TMP/job.py" 6000 60)"
+  eq "S11 both ran" "0 0" "$e1 $e2"
+  eq "S11 both judged by wall clock and GPU" "wall-gpu wall-gpu" "$n1 $n2"
+  awk -v a="$w1" -v b="$w2" 'BEGIN { exit !(b >= 3 * a) }' && ok "OK [S11] the bigger job shows in the wall clock ($w1 → $w2 s)" || fail "[S11] wall $w1 → $w2"
+  awk -v a="$c1" -v b="$c2" 'BEGIN { exit !(b <= 1.5 * a) }' && ok "OK [S11] and CPU time alone would have missed it ($c1 → $c2 s)" || echo "  - note [S11] CPU time also grew here ($c1 → $c2 s)"
+else
+  echo "  - SKIP [S11] GPU · torch · GPU 읽는 도구 중 없는 것이 있음 — 이 컴퓨터에서는 돌려 보지 않음"
+fi
 
 echo
 echo "── $PASS passed, $FAIL failed"

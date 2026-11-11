@@ -178,14 +178,16 @@ pb_parse_nvidia() {
 }
 
 # @pure
-# 역할: GPU 표본 줄들("사용률<탭>메모리 MB")과 시작 전 메모리에서 "평균 사용률 %<탭>늘어난 메모리 MB"를 낸다(표본이 없으면 "-<탭>-")
+# 역할: GPU 표본 줄들("사용률<탭>메모리 MB")과 시작 전 메모리 · 시작 전 사용률에서 "평균 사용률 %<탭>늘어난 메모리 MB<탭>오른 사용률 %p"를 낸다(표본이 없으면 "-" 셋)
 # 종류: 세기
-# 예: $'40\t1100.0\n60\t1300.0' 1000.0 → $'50\t300.0'
-# 예: '' 1000.0 → $'-\t-'
+# 예: $'40\t1100.0\n60\t1300.0' 1000.0 10 → $'50\t300.0\t40'
+# 예: $'10\t1000.0' 1000.0 15 → $'10\t0.0\t0'
+# 예: '' 1000.0 0 → $'-\t-\t-'
 pb_gpu_summary() {
-  local u m t n=0 s=0 top=0 base="${2:-0}" half avg d
+  local u m t n=0 s=0 top=0 base="${2:-0}" before="${3:-0}" half avg d rise
   [[ "$base" == *.* ]] || base="${base}.0"
-  base="${base%%.*}${base#*.}"; base="${base:0:${#base}}"
+  base="${base%%.*}${base#*.}"
+  [[ "$before" =~ ^[0-9]+$ ]] || before=0
   while IFS=$'\t' read -r u m; do
     [[ "$u" =~ ^[0-9]+$ && "$m" =~ ^[0-9]+(\.[0-9])?$ ]] || continue
     [[ "$m" == *.* ]] || m="${m}.0"
@@ -193,8 +195,75 @@ pb_gpu_summary() {
     [[ $((10#$top)) -ge $((10#$t)) ]] || top="$t"
     (( s = s + u )); (( n = n + 1 ))
   done <<< "${1:-}"
-  if [[ $n -eq 0 ]]; then printf -- '-\t-'; return 0; fi
+  if [[ $n -eq 0 ]]; then printf -- '-\t-\t-'; return 0; fi
   (( half = n / 2 )); (( avg = s + half )); (( avg = avg / n ))
   (( d = 10#$top - 10#$base )); [[ $d -ge 0 ]] || d=0
-  printf '%s\t%s.%s' "$avg" "$(( d / 10 ))" "$(( d % 10 ))"
+  (( rise = avg - before )); [[ $rise -ge 0 ]] || rise=0
+  printf '%s\t%s.%s\t%s' "$avg" "$(( d / 10 ))" "$(( d % 10 ))" "$rise"
+}
+
+# ---------------------------------------------------------------- 판정 잣대와 배수
+
+# @pure
+# 역할: 소수 글을 천분의 일 단위 정수로 바꾼다(소수 셋째 자리까지, 숫자가 아니면 빈 글과 1)
+# 종류: 변환
+# 예: 22.286 → "22286"
+# 예: 0.5 → "500"
+# 예: 3 → "3000"
+# 예: - → "" [1]
+pb_to_milli() {
+  local v="${1:-}" whole frac
+  [[ "$v" =~ ^[0-9]+(\.[0-9]+)?$ ]] || return 1
+  whole="${v%%.*}"; frac=0; [[ "$v" != *.* ]] || frac="${v#*.}"
+  frac="${frac}000"; frac="${frac:0:3}"
+  printf '%s' "$(( 10#$whole * 1000 + 10#$frac ))"
+}
+
+# @pure
+# 역할: 1배 값과 4배 값에서 배수를 소수 한 자리로 낸다(한쪽이 숫자가 아니거나 1배 값이 0이면 "-")
+# 종류: 세기
+# 예: 22.286 386.600 → "17.3"
+# 예: 4.492 13.739 → "3.1"
+# 예: 5 - → "-"
+# 예: 0.000 3.0 → "-"
+pb_scale_ratio() {
+  local a b half r
+  a="$(pb_to_milli "${1:-}")" && b="$(pb_to_milli "${2:-}")" || { printf -- '-'; return 0; }
+  [[ $a -ne 0 ]] || { printf -- '-'; return 0; }
+  (( half = a / 2 )); (( r = b * 10 + half )); (( r = r / a ))
+  printf '%s.%s' "$(( r / 10 ))" "$(( r % 10 ))"
+}
+
+# GPU 를 썼다고 보는 선: 메모리가 200MB 넘게 늘었거나, 사용률이 시작 전보다 30%p 넘게 올랐다.
+# 근거(2026-11-11 이 맥의 실측): 아무 일도 안 할 때 메모리 +0 ~ 56MB · 사용률 7 ~ 17%, GPU 작업은 +1078 ~ 1204MB · 35 ~ 92%.
+PB_GPU_MEM_MB=200
+PB_GPU_RISE=30
+
+# @pure
+# 역할: 잰 값(벽시계 · CPU 초 · GPU 메모리 증가 · GPU 사용률 오름)과 컴퓨터의 붐빔(100 = 한가함)을 보고 판정 잣대 이름을 낸다 — cpu | wall-gpu | unmeasured
+# 종류: 판정
+# 예: 1.00 0.98 0.0 4 100 → "cpu"
+# 예: 8.40 0.80 1171.0 78 100 → "wall-gpu"
+# 예: 8.40 0.80 - - 100 → "unmeasured"
+# 예: 0.01 0.00 - - 100 → "unmeasured"
+# 예: 2.00 0.98 0.0 4 210 → "cpu"
+pb_pick_measure() {
+  local wall cpu mem rise="${4:--}" load="${5:-100}" lhs rhs
+  wall="$(pb_to_milli "${1:-}")" || { printf unmeasured; return 0; }
+  cpu="$(pb_to_milli "${2:-}")" || cpu=0
+  # GPU 를 썼다 — 벽시계와 GPU 값으로 본다
+  if mem="$(pb_to_milli "${3:-}")"; then
+    if [[ $mem -ge $(( PB_GPU_MEM_MB * 1000 )) ]]; then printf wall-gpu; return 0; fi
+    if [[ "$rise" =~ ^[0-9]+$ && $rise -ge $PB_GPU_RISE ]]; then printf wall-gpu; return 0; fi
+  fi
+  # 너무 짧아 잴 수 없다
+  if [[ $wall -lt 50 && $cpu -lt 20 ]]; then printf unmeasured; return 0; fi
+  # 벽시계가 CPU 시간보다 훨씬 크다(붐빔을 빼고도 1.5배) — 다른 곳에서 일했다는 신호
+  [[ "$load" =~ ^[0-9]+$ && $load -ge 100 ]] || load=100
+  (( lhs = wall * 10000 )); (( rhs = 150 * cpu * load ))
+  if [[ $wall -ge 500 && $lhs -ge $rhs ]]; then
+    if [[ "${3:--}" == "-" ]]; then printf unmeasured; else printf wall-gpu; fi
+    return 0
+  fi
+  printf cpu
 }
