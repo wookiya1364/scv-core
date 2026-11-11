@@ -58,10 +58,15 @@ export function checklist_rows(tree) {
   return null;
 }
 
+// One pass over the rows — a row with no answer is not also asked for its evidence.
 export function checklist_problems(rows) {
   if (rows == null) return [{ kind: "missing", nums: [] }];
-  const noAnswer = rows.filter((r) => blank(r.answer)).map((r) => r.num);
-  const noEvidence = rows.filter((r) => !blank(r.answer) && blank(r.evidence)).map((r) => r.num);
+  const noAnswer = [];
+  const noEvidence = [];
+  for (const r of rows) {
+    if (blank(r.answer)) noAnswer.push(r.num);
+    else if (blank(r.evidence)) noEvidence.push(r.num);
+  }
   return [
     ...(noAnswer.length ? [{ kind: "noAnswer", nums: noAnswer }] : []),
     ...(noEvidence.length ? [{ kind: "noEvidence", nums: noEvidence }] : []),
