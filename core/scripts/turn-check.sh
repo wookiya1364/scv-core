@@ -128,8 +128,18 @@ take_snap() {
 }
 
 # @effect plan_texts
-# 이유: 진행 중 계획 파일들을 읽는다
-plan_texts() { local f; for f in "$PROMOTE"/*/PLAN.md; do [[ -f "$f" ]] && cat "$f" && printf '\n'; done; }
+# 이유: 진행 중 계획 파일들과, 이번 턴에 보관한 계획 파일들을 읽는다
+plan_texts() {
+  local f
+  for f in "$PROMOTE"/*/PLAN.md; do [[ -f "$f" ]] && cat "$f" && printf '\n'; done
+  # 이번 턴에 보관한 계획의 글도 읽는다(0.91.2+) — 턴 도중 보관하면 그 턴에 남긴 기록이 진행 중 자리에서 사라져
+  # "기록 없음"으로 막혔다. 보관 기록 파일이 턴 시작 표시보다 새것인 계획만 본다(예전에 보관된 것은 읽지 않는다).
+  [[ -n "${S:-}" && -f "$S/id" ]] || return 0
+  for f in "$ARCHIVE"/*/ARCHIVED_AT.md; do
+    [[ -f "$f" && "$f" -nt "$S/id" && -f "${f%/*}/PLAN.md" ]] && cat "${f%/*}/PLAN.md" && printf '\n'
+  done
+  return 0
+}
 
 # @effect active_plans
 # 이유: 계획 파일들을 읽어 진행 중(in_progress · testing) 계획 이름을 최근에 고친 것부터 낸다
