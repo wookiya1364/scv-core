@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-11T09:50:50Z
+generated_at: 2026-11-11T15:16:43Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -504,8 +504,12 @@ archives:
   - slug: 20261111-wookiya1364-pure-bench-and-gate
     title: "재는 명령과 느려지면 막기 — 순수함수가 기본, 그다음 합성 함수"
     kind: feature
-    status: testing
+    status: done
   - slug: 20261111-wookiya1364-recommended-effort-ask
     title: "권장 effort 요청 — 모델의 권장 값과 다르면 한 번 묻는다"
     kind: feature
     status: planned
+  - slug: 20261111-wookiya1364-slow-pure-functions
+    title: "느린 순수함수 고치기 — 입력이 커지면 크게 느려지는 17개"
+    kind: refactor
+    status: done
