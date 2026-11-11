@@ -106,8 +106,15 @@ head_of() { git -C "$1" rev-parse HEAD 2>/dev/null || true; }
 # 종류: 변환
 # 예: "/Users/a/b c" → "_Users_a_b_c"
 key_of() {
-  local k="${1//\//_}"
-  printf '%s' "${k// /_}"
+  # / 와 빈칸은 한 바이트 글자다 — 바이트 단위로 바꿔도 같은 글이 나온다.
+  # 옛 셸은 바꿀 곳이 많은 긴 글을 통째로 바꾸면 길이의 제곱으로 느려서, 128바이트씩 잘라 바꾼다(새 셸은 4096바이트씩).
+  local LC_ALL=C s="$1" c out="" i=0 n step=128
+  [[ ${BASH_VERSINFO[0]} -ge 4 ]] && step=4096
+  n=${#s}
+  while [[ $i -lt $n ]]; do
+    c="${s:i:step}"; c="${c//\//_}"; out+="${c// /_}"; i=$((i + step))
+  done
+  printf '%s' "$out"
 }
 
 # @effect take_snap
