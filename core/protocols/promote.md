@@ -793,15 +793,17 @@ instead, without backticks. In the numbered
 spec below, each pipeline step is a natural marker: a number on the picture, its
 input/output and role in the detail beside it.
 
-**The composition checklist goes with it (0.90.0+).** Pure steps are the base; how they are
-composed decides the rest — the same steps can run tens of times slower in the wrong order or
-with collected intermediates (`core/contracts/composition.md`). Under the pipeline section,
-every PLAN.md carries the `합성 설계 체크리스트` table: number · question · answer · evidence,
-for the questions that apply, with the rest folded into one row and its reason.
-
 **A plan missing this section is warned about, not blocked** — `action:deck` surfaces a
 lint warning so the gap is visible rather than silent. Never invent a pipeline the
 source docs do not describe; ask the user for the steps instead.
+
+**The composition checklist goes with it (0.90.0+).** Pure steps are the base; how they are
+composed decides the rest — in one measured case the same three steps took about 60 times the
+CPU time when composed the slow way (`core/contracts/composition.md`). Under the pipeline
+section, every PLAN.md carries the `합성 설계 체크리스트` table: number · question · answer ·
+evidence, for the questions that apply, with the rest folded into one row and its reason.
+A missing table, a row without an answer and an answer without evidence are warned about by
+`action:deck`, never blocked.
 
 #### Step 6.4 — 번호식 화면설계서 (numbered screen spec) — REQUIRED material
 

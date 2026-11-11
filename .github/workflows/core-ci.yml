@@ -227,7 +227,9 @@ jobs:
 
       - name: Deck document regression
         if: env.SCV_CI_FULL == 'true'
-        run: bash core/tests/test-deck-doc.sh
+        run: |
+          bash core/tests/test-deck-doc.sh
+          bash core/tests/test-composition-principles.sh
 
   artifact:
     name: Deterministic release artifact

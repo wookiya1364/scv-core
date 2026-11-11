@@ -18,17 +18,18 @@ c=0; for k in '요소 단위' '순회는 한' '중간 모음' '지연 평가' '�
 
 echo "T2. 계약 문서 — 언어별 수단 표 (언어 9개 + 셸, 칸 5개)"
 rows="$(awk '/^## 언어별 수단/{f=1; next} /^## /{f=0} f && /^\| / && !/^\| 언어 /' "$DOC" 2>/dev/null)"
-n="$(grep -c . <<<"$rows")"; cols=1
-while IFS= read -r r; do [[ -n "$r" ]] || continue; k="$(awk -F'|' '{print NF-2}' <<<"$r")"; [[ "$k" == 5 ]] || cols=0; done <<<"$rows"
+# 한 번 훑어 셋을 낸다: 줄 수 · 칸이 5개가 아닌 줄 수 · 60바이트(한글 스무 자)를 넘는 첫 칸. LC_ALL=C 라 어느 awk 든 바이트로 센다.
+stat="$(LC_ALL=C awk -F'|' 'NF { n++; if (NF - 2 != 5) bad++; for (i = 2; i < NF; i++) { c = $i; gsub(/^ +| +$/, "", c); if (length(c) > 60 && long == "") long = c } } END { printf "%d\t%d\t%s", n, bad, long }' <<<"$rows")"
+IFS=$'\t' read -r n bad long <<<"$stat"
 miss=""; for l in 'TypeScript/JS' Python Java Kotlin 'C#' Go Rust Scala Haskell 셸; do grep -q "^| $l |" <<<"$rows" || miss="$miss $l"; done
-[[ "$n" == 10 && $cols == 1 && -z "$miss" ]] && ok "OK [T2] 10 rows × 5 cells" || fail "[T2] rows=$n cols-ok=$cols missing:$miss"
-# 문서 표에는 줄글을 넣지 않는다 — 칸은 60바이트(한글 스무 자)까지. awk 마다 글자 · 바이트 세는 법이 달라 넉넉한 쪽으로 잡는다
-long="$(awk -F'|' '{ for (i = 2; i < NF; i++) { c = $i; gsub(/^ +| +$/, "", c); if (length(c) > 60) print c } }' <<<"$rows")"
-[[ -z "$long" ]] && ok "OK [T2b] no prose cells" || fail "[T2b] long cell: $(head -1 <<<"$long")"
+[[ "$n" == 10 && "$bad" == 0 && -z "$miss" ]] && ok "OK [T2] 10 rows × 5 cells" || fail "[T2] rows=$n bad-rows=$bad missing:$miss"
+[[ -z "$long" ]] && ok "OK [T2b] no prose cells" || fail "[T2b] long cell: $long"
 
 echo "T3. 계약 문서 — 막는 것과 못 막는 것"
 sec="$(awk '/^## SCV 가 막는 것과 못 막는 것/{f=1; next} /^## /{f=0} f' "$DOC" 2>/dev/null)"
-grep -q '최대 성능은 증명할 수 없다' <<<"$sec" && ! grep -q '최대 성능을 보장' "$DOC" && ok "OK [T3] says it cannot be proven; never promises it" || fail "[T3]"
+grep -q '최대 성능은 증명할 수 없다' <<<"$sec" && ! grep -Eq '(최대|최고) ?성능(을|이|은)? ?보장' "$DOC" && ok "OK [T3] says it cannot be proven; never promises it" || fail "[T3]"
+
+grep -q '아직 없다' <<<"$sec" && ok "OK [T3b] says the measuring command does not exist yet" || fail "[T3b] the doc speaks of a measuring command as if it existed"
 
 echo "T4. 계약 문서 — 체크리스트 10개"
 n="$(awk '/^## 체크리스트/{f=1; next} /^## /{f=0} f && /^[0-9]+\. /' "$DOC" 2>/dev/null | grep -c .)"
@@ -42,14 +43,21 @@ PRO="$CORE/protocols/promote.md"
 grep -q '^### 합성 설계 체크리스트' "$PRO" && grep -q '^| # | 물음 | 답 | 근거 |$' "$PRO" && grep -q 'core/contracts/composition.md' "$PRO" \
   && ok "OK [T6] the PLAN template carries the table" || fail "[T6]"
 
-echo "T7. 작업 규약 — 끝낼 때 코드로 다시 답한다"
+echo "T7. 작업 규약 — 보관을 정하는 단계의 첫 일로 코드로 다시 답한다"
 WRK="$CORE/protocols/work.md"
-a="$(grep -n 'Composition checklist, answered from the code' "$WRK" | head -1 | cut -d: -f1)"; b="$(grep -n '^### Step 9b — Archive decision' "$WRK" | head -1 | cut -d: -f1)"
-[[ -n "$a" && -n "$b" && "$a" -lt "$b" ]] && ok "OK [T7] asked before the archive decision" || fail "[T7] a=$a b=$b"
+h="$(grep -n '^### Step 9b — Archive decision' "$WRK" | head -1 | cut -d: -f1)"
+a="$(grep -n 'the composition checklist — answered from the code' "$WRK" | head -1 | cut -d: -f1)"
+b="$(grep -n '^#### Step 9b.0' "$WRK" | head -1 | cut -d: -f1)"
+[[ -n "$h" && -n "$a" && -n "$b" && "$a" -gt "$h" && "$a" -lt "$b" ]] && ok "OK [T7] inside the archive step, before the decision log" || fail "[T7] h=$h a=$a b=$b"
+grep -q 'Step 9a.5' "$WRK" && fail "[T7b] a separate step that the routes into 9b jump over" || ok "OK [T7b] no step for the 9a routes to skip"
 
 echo "T8 ~ T11. 기획서 검사의 체크리스트 경고"
 DOCJS="$CORE/DeckUI/scripts/deckdoc/doc.mjs"
-if ! command -v node >/dev/null 2>&1 || [[ ! -d "$CORE/DeckUI/scripts/deckdoc/node_modules" ]]; then
+DECKDOC="$CORE/DeckUI/scripts/deckdoc"
+if command -v node >/dev/null 2>&1 && command -v pnpm >/dev/null 2>&1 && [[ ! -d "$DECKDOC/node_modules" ]]; then
+  ( cd "$DECKDOC" && pnpm install ) >/dev/null 2>&1
+fi
+if ! command -v node >/dev/null 2>&1 || [[ ! -d "$DECKDOC/node_modules" ]]; then
   echo "  - SKIP [T8 ~ T11] node 또는 기획서 도구의 의존 묶음이 없음"
 else
   TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
@@ -75,6 +83,33 @@ else
   { head_md; printf '## 시험 체크리스트\n\n- 하나\n\n### 합성 설계 체크리스트\n\n| # | 물음 | 답 | 근거 |\n|---|---|---|---|\n| 1 | 단항인가 | 예 | a.sh:10 |\n'; } >"$TMP/two.md"
   deck "$TMP/two.md" "$TMP/two.html"
   [[ "$(grep -c "$CK" "$TMP/log")" == 0 ]] && ok "OK [T10b] another heading with the same word does not hide the table" || fail "[T10b] $(grep "$CK" "$TMP/log")"
+
+  # 반박 검증(2026-11-11)에서 나온 경우들
+  { head_md; printf '### 합성 설계 체크리스트\n\n| # | 물음 | 답 | 근거 |\n|---|---|---|---|\n| 1 | 단항인가 | 예 | todo/store.ts:12 |\n| 2 | 입출력 | 예 | `TODO.md:3` |\n'; } >"$TMP/todo.md"
+  deck "$TMP/todo.md" "$TMP/todo.html"
+  [[ "$(grep -c "$CK" "$TMP/log")" == 0 ]] && ok "OK [T9c] a file named todo is evidence, not a placeholder" || fail "[T9c] $(grep "$CK" "$TMP/log")"
+  { head_md; printf '### 합성 설계 체크리스트\n\n| # | 물음 | 답 | 근거 |\n|---|---|---|---|\n| 1 | 단항인가 | 예 | 없음 |\n| 2 | 입출력 | 예 | TBD |\n|  | 번호 없는 줄 | 예 | |\n'; } >"$TMP/weak.md"
+  deck "$TMP/weak.md" "$TMP/weak.html"; ev="$(grep '근거가 빈 답' "$TMP/log")"
+  [[ "$ev" == *"1, 2, #3"* ]] && ok "OK [T9d] a bare 없음 · TBD is no evidence; a row without a number is named by position" || fail "[T9d] $ev"
+  { head_md; printf '### 합성 설계 체크리스트\n\n| # | 물음 | 답 | 근거 |\n|---|---|---|---|\n'; } >"$TMP/headonly.md"
+  deck "$TMP/headonly.md" "$TMP/headonly.html"
+  [[ "$(grep -c '체크리스트가 없습니다' "$TMP/log")" == 1 ]] && ok "OK [T8b] a table with no rows counts as missing" || fail "[T8b] $(grep "$CK" "$TMP/log")"
+  { head_md; printf '## 수동 확인 체크리스트\n\n| # | 확인 | 답 | 근거 |\n|---|---|---|---|\n| 1 | 눌러 봄 | 예 | 화면 |\n\n### 합성 설계 체크리스트\n\n| # | 물음 | 답 | 근거 |\n|---|---|---|---|\n| 1 | 단항인가 | 예 | |\n'; } >"$TMP/other.md"
+  deck "$TMP/other.md" "$TMP/other.html"
+  [[ "$(grep -c '근거가 빈 답 1' "$TMP/log")" == 1 ]] && ok "OK [T10c] another checklist with the same columns does not stand in for it" || fail "[T10c] $(grep "$CK" "$TMP/log")"
+
+  # 변경 지도: 체크리스트 표가 단계 표의 앞에 와도 · 뒤에 와도 단계는 단계 표에서 읽는다
+  STEPS='| # | 단계 | 하는 일 | 받는 값 → 돌려주는 값 | 순수/부수효과 |\n|---|---|---|---|---|\n| 1 | `aa_one` | 읽는다 | 글 → 줄 | 순수 |\n| 2 | `bb_two` | 센다 | 줄 → 수 | 순수 |\n'
+  CKT='### 합성 설계 체크리스트\n\n| # | 물음 | 답 | 근거 |\n|---|---|---|---|\n| 1 | 단항인가 | 예 | a.sh:10 |\n'
+  for order in before after; do
+    d="$TMP/plan-$order"; mkdir -p "$d"
+    { printf '# 어떤 계획\n\n## 순수함수 · 파이프라인 (Pure functions & pipeline)\n\nflow(aa_one, bb_two)\n\n'
+      if [[ $order == before ]]; then printf "$CKT\n$STEPS"; else printf "$STEPS\n$CKT"; fi; } >"$d/PLAN.md"
+    printf '# Architecture\n\n## 1. 흐름\n\n```mermaid\nflowchart LR\n  A --> B\n```\n' >"$d/FEATURE_ARCHITECTURE.md"
+    deck "$d" "$TMP/plan-$order.html"
+    cm="$(grep '^CHANGE_MAP' "$TMP/log")"
+    [[ "$cm" == *"steps=2"* ]] && grep -q 'aa_one' "$TMP/plan-$order.html" && ! grep -q '단항인가' "$TMP/plan-$order.html" && ok "OK [T12-$order] the change map reads the step table ($cm)" || fail "[T12-$order] $cm"
+  done
 
   # 파이프라인 절이 아예 없는 글은 기존 경고 하나만 — 체크리스트 경고를 겹쳐 내지 않는다
   printf '# 옛 계획\n\n## Why\n\n설명.\n\n```mermaid\nflowchart LR\n  A --> B\n```\n' >"$TMP/old.md"

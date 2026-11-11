@@ -464,14 +464,16 @@ Result handling:
 
 **Pre-declared mode** (e.g., user said earlier "auto-archive when tests pass" / "tests 통과하면 알아서 archive 해"): pre-flight still runs automatically, but if `FAILED_SLUGS: 0` it proceeds to Step 9b without asking.
 
-### Step 9a.5 — Composition checklist, answered from the code (0.90.0+)
-
-Before the archive decision, fill the plan's `합성 설계 체크리스트` table again — this time from the
-code that was written, not from the design (`core/contracts/composition.md`). Each answer names
-its evidence (file and line). Where an answer changed since the plan was written, say which row
-and why in one line. A plan written before 0.90.0 has no table: add nothing, say so in one line.
-
 ### Step 9b — Archive decision
+
+**First, the composition checklist — answered from the code (0.90.0+).** Every route into this
+step passes here, pre-declared mode included. Before asking or archiving, rewrite the plan's
+`합성 설계 체크리스트` table in place — the same table, never a second one — from the code that
+was written, not from the design (`core/contracts/composition.md`). Each answer names its
+evidence: a file and line, or the step it rests on. Where an answer changed since the plan was
+written, say which row and why in one line. A plan written before 0.90.0 has no table: add
+nothing, say so in one line. Step 0's archive short-circuit skips this — that work was done
+outside this conversation.
 
 Only if tests fully passed in Step 7 (and Step 9a passed or was skipped):
 
