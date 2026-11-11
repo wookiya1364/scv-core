@@ -2216,6 +2216,12 @@ merge_policy: preserve
 - why: 0.89.0 에서 새 키를 읽는 쪽에만 넣어 래퍼 릴리스가 프로필 검사에서 막혔다. 0.87.0 에서도 같은 일이 있었다. 읽는 쪽이 아는 키를 두 도구도 아는지 보는 시험(test-effort-ask T17b)을 더해 다음에는 코어 PR 에서 잡힌다.
 - refs: scv/archive/20261111-wookiya1364-recommended-effort-ask/PLAN.md
 
+## [2026-11-11 07:55] wookiya1364 — 남은 일 다섯 마무리 — 저널 거절 · 안 물은 턴 · 맥 속도 시험 · 코덱스 확인과 권장 표
+
+- verdict: adopted
+- why: 0.89.1 릴리스 뒤 남은 다섯을 계획 하나로 순서대로 끝낸다. 기록 폴더를 연결한 날부터 2주째 저널이 안 쌓인 것이 확인돼 저널부터 고친다. 단계마다 커밋하고 PR · 릴리스는 하지 않는다.
+- discarded alternatives: 안 물은 턴을 턴 끝에서 막기 — 막힘이 하나 늘고 턴이 한 번 더 돎 / 속도 시험 한도 늘리기 · 세 번 재기 — 진짜 느려짐을 놓치거나 다시 흔들림 / 코덱스 설치본을 두고 확인 — 실제 세션의 훅 동작을 못 봄 / 코어 셋과 코덱스 둘로 계획 나누기
+- refs: scv/promote/20261111-wookiya1364-followups-five/PLAN.md
 ## [2026-11-11 09:50] wookiya1364 — 합성 설계 원칙을 SCV 계약에 넣기 — 원칙 · 언어별 표 · 체크리스트
 
 - verdict: adopted

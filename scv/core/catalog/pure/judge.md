@@ -1,6 +1,6 @@
 # 판정 — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 42개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 43개.
 
 ### pb_accept_covers
 - 역할: 사용자가 받아들인 이유들과 지금의 이유들을 견줘, 지금 것이 모두 받아들인 범위 안이면 참 — 시간 · 배수는 받아들인 값의 2배까지, 메모리는 1.2배까지, 부른 횟수는 받아들인 수까지
@@ -115,11 +115,21 @@
 - 예: `$'s1\x1f1\x1f3' on → "PROTOCOL: loaded"`
 - 예: `$'s1\x1f1\x1f3' off → "PROTOCOL: load"`
 
+### scv_mp_effort_asked_in
+- 역할: 그 턴에 effort 를 실제로 물었는지 가린다 — 선택 창 질문 글에 effort 가 있거나, 답 글에 effort · 지금 값 · 권장 값 · 물음표가 함께 있으면 1
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `"" "effort 를 high 로 바꾸시겠어요?" medium high → "1"`
+- 예: `"effort 는 low 인데 권장은 high. high 로 바꿀까요, low 그대로 둘까요?" "" low high → "1"`
+- 예: `"effort 를 high 로 올렸습니다." "" low high → "0"`
+- 예: `"파일은 한 줄입니다." "" low high → "0"`
+
 ### scv_mp_effort_verdict
-- 역할: effort 를 물을지 정한다 — off(꺼짐) · unknown(값이나 표를 모름) · same(권장과 같음) · asked(이 조건으로 이미 물음) · ask
+- 역할: effort 를 물을지 정한다 — off(꺼짐) · unknown(값이나 표를 모름) · same(권장과 같음) · asked(물었거나 세 번 실었다) · ask
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
 - 예: `on high $'medium\t-\tq\ts' "" m → "ask"`
-- 예: `on high $'medium\t-\tq\ts' "m|high|medium" m → "asked"`
+- 예: `on high $'medium\t-\tq\ts' "asked" m → "asked"`
+- 예: `on high $'medium\t-\tq\ts' "shown:2" m → "ask"`
+- 예: `on high $'medium\t-\tq\ts' "shown:3" m → "asked"`
 - 예: `on medium $'medium\t-\tq\ts' "" m → "same"`
 - 예: `on "" $'medium\t-\tq\ts' "" m → "unknown"`
 - 예: `on high "" "" m → "unknown"`

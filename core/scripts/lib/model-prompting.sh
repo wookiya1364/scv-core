@@ -1227,22 +1227,90 @@ scv_mp_effort_from_log() {
 }
 
 # @pure
-# 역할: effort 를 물을지 정한다 — off(꺼짐) · unknown(값이나 표를 모름) · same(권장과 같음) · asked(이 조건으로 이미 물음) · ask
+# 역할: 물은 조건 파일 글에서 이 조건의 상태를 꺼낸다 — asked(물었다) · shown:N(줄을 N번 실었다) · 빈 값(처음)
+# 종류: 고르기
+# 예: $'m|high|medium|shown:2\nx|low|high|asked' "m|high|medium" → "shown:2"
+# 예: $'x|low|high|asked' "x|low|high" → "asked"
+# 예: "m|high|medium" "m|high|medium" → "asked"
+# 예: "" "m|high|medium" → ""
+# 0.89.1 까지의 줄(조건만 적힌 줄)은 '물었다'로 읽는다.
+scv_mp_effort_state_of() {
+  local text="${1:-}" key="${2:-}" line out=""
+  [[ -n "$key" ]] || return 0
+  while IFS= read -r line; do
+    case "$line" in
+      "$key"|"$key|asked") out="asked" ;;
+      "$key|shown:"*) [[ "${line##*|shown:}" =~ ^[0-9]+$ ]] && out="shown:${line##*|shown:}" ;;
+    esac
+  done <<< "$text"
+  printf '%s' "$out"
+}
+
+# @pure
+# 역할: 물은 조건 파일 글에서 이 조건의 줄을 새 상태로 바꿔 낸다 — shown 은 실은 횟수를 하나 올리고, asked 는 '물었다'로 올린다(줄은 50개까지)
+# 종류: 변환
+# 예: "" "m|high|medium" shown → "m|high|medium|shown:1"
+# 예: "m|high|medium|shown:1" "m|high|medium" shown → "m|high|medium|shown:2"
+# 예: $'a|low|high|asked\nm|high|medium|shown:2' "m|high|medium" asked → $'a|low|high|asked\nm|high|medium|asked'
+# 예: "m|high|medium|asked" "m|high|medium" shown → "m|high|medium|asked"
+scv_mp_effort_state_next() {
+  local text="${1:-}" key="${2:-}" ev="${3:-}" line out="" st n=0 cnt=0 new
+  [[ -n "$key" ]] || { printf '%s' "$text"; return 0; }
+  st="$(scv_mp_effort_state_of "$text" "$key")"
+  case "$ev" in
+    asked) new="$key|asked" ;;
+    *) if [[ "$st" == "asked" ]]; then new="$key|asked"
+       else [[ "$st" == shown:* ]] && n="${st#shown:}"; new="$key|shown:$((n + 1))"; fi ;;
+  esac
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    case "$line" in "$key"|"$key|asked"|"$key|shown:"*) continue ;; esac
+    out="$out$line"$'\n'; cnt=$((cnt + 1))
+  done <<< "$text"
+  out="$out$new"
+  while (( cnt >= 50 )); do out="${out#*$'\n'}"; cnt=$((cnt - 1)); done
+  printf '%s' "$out"
+}
+
+# @pure
+# 역할: 그 턴에 effort 를 실제로 물었는지 가린다 — 선택 창 질문 글에 effort 가 있거나, 답 글에 effort · 지금 값 · 권장 값 · 물음표가 함께 있으면 1
+# 종류: 판정
+# 예: "" "effort 를 high 로 바꾸시겠어요?" medium high → "1"
+# 예: "effort 는 low 인데 권장은 high. high 로 바꿀까요, low 그대로 둘까요?" "" low high → "1"
+# 예: "effort 를 high 로 올렸습니다." "" low high → "0"
+# 예: "파일은 한 줄입니다." "" low high → "0"
+# <답 글> <선택 창 질문 글> <지금 값> <권장 값>. 글자로만 가린다 — 다르게 물은 것은 못 알아볼 수 있다(그러면 한 번 더 실린다).
+scv_mp_effort_asked_in() {
+  local a q now="${3:-}" rec="${4:-}"
+  a="$(scv_lower "${1:-}")"; q="$(scv_lower "${2:-}")"
+  [[ "$q" == *effort* ]] && { printf '1'; return 0; }
+  if [[ -n "$now" && -n "$rec" && "$a" == *effort* && "$a" == *"$rec"* && "$a" == *"$now"* ]] && [[ "$a" == *'?'* || "$a" == *'？'* ]]; then
+    printf '1'; return 0
+  fi
+  printf '0'
+}
+
+# @pure
+# 역할: effort 를 물을지 정한다 — off(꺼짐) · unknown(값이나 표를 모름) · same(권장과 같음) · asked(물었거나 세 번 실었다) · ask
 # 종류: 판정
 # 예: on high $'medium\t-\tq\ts' "" m → "ask"
-# 예: on high $'medium\t-\tq\ts' "m|high|medium" m → "asked"
+# 예: on high $'medium\t-\tq\ts' "asked" m → "asked"
+# 예: on high $'medium\t-\tq\ts' "shown:2" m → "ask"
+# 예: on high $'medium\t-\tq\ts' "shown:3" m → "asked"
 # 예: on medium $'medium\t-\tq\ts' "" m → "same"
 # 예: on "" $'medium\t-\tq\ts' "" m → "unknown"
 # 예: on high "" "" m → "unknown"
 # 예: off high $'medium\t-\tq\ts' "" m → "off"
-# <스위치> <지금 값> <권장 줄> <지난번 물은 조건> <모델 id>. 조건 = "모델|지금 값|권장 값".
+# <스위치> <지금 값> <권장 줄> <이 조건의 상태(scv_mp_effort_state_of)> <모델 id>. 줄이 실렸는데 모델이 묻지 않은 턴은 다음 턴에
+# 다시 싣는다 — 모두 세 번까지(0.89.2). 그 전에는 줄을 실은 것만으로 물었다고 적었다.
 scv_mp_effort_verdict() {
-  local sw="${1:-}" now="${2:-}" row="${3:-}" last="${4:-}" id="${5:-}" rec
+  local sw="${1:-}" now="${2:-}" row="${3:-}" st="${4:-}" id="${5:-}" rec
   [[ "$(scv_mp_switch "$sw")" == "on" ]] || { printf 'off'; return 0; }
   now="$(scv_mp_effort_word "$now")"; rec="${row%%$'\t'*}"
   [[ -n "$now" && -n "$row" && -n "$id" ]] || { printf 'unknown'; return 0; }
   [[ "$now" == "$rec" ]] && { printf 'same'; return 0; }
-  [[ "$last" == "$id|$now|$rec" ]] && { printf 'asked'; return 0; }
+  [[ "$st" == "asked" ]] && { printf 'asked'; return 0; }
+  if [[ "$st" == shown:* && "${st#shown:}" =~ ^[0-9]+$ ]] && (( ${st#shown:} >= 3 )); then printf 'asked'; return 0; fi
   printf 'ask'
 }
 
@@ -1260,7 +1328,7 @@ scv_mp_effort_block() {
     choice) how="선택 창으로 한 번 물어라 — 첫 보기(추천) '$rec 로 바꿈', 둘째 '$now 그대로'" ;;
     *) how="글 질문 한 번으로 물어라 — '$rec 로 바꿀까요, $now 그대로 둘까요?'" ;;
   esac
-  printf '[SCV effort] 이 세션의 effort 는 %s 인데, 이 모델(%s)의 공식 프롬프팅 가이드가 권하는 값은 %s 이다. 이번 답의 끝에서 %s. 바꾸는 것은 사용자다 — 값을 직접 바꾸지 말고, 사용자가 바꾸기를 고르면 바꾸는 법만 알려라. 같은 조건에서는 다시 묻지 않는다.\n' "$now" "$id" "$rec" "$how"
+  printf '[SCV effort] 이 세션의 effort 는 %s 인데, 이 모델(%s)의 공식 프롬프팅 가이드가 권하는 값은 %s 이다. 이번 답의 끝에서 %s. 바꾸는 것은 사용자다 — 값을 직접 바꾸지 말고, 사용자가 바꾸기를 고르면 바꾸는 법만 알려라. 이미 물었으면 다시 묻지 않는다.\n' "$now" "$id" "$rec" "$how"
   printf '근거(%s): "%s"' "${src:-공식 가이드}" "$quote"
   [[ -n "$cond" && "$cond" != "-" ]] && printf '\n조건: %s' "$cond"
   return 0

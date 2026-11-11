@@ -1,6 +1,6 @@
 # 고르기 — 여럿 중 일부를 골라내거나 순서를 매긴다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 41개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 42개.
 
 ### attachment_scope_filter
 - 역할: 표준입력 줄들에서 슬러그가 든 줄만 남긴다 — 슬러그가 비면 전부 통과
@@ -127,6 +127,14 @@
 - 예: `$'# c\nm-a\thigh\t-\tStart at high.\ta.md' "m-a" → $'high\t-\tStart at high.\ta.md'`
 - 예: `$'m-a\thigh\t-\tStart at high.\ta.md' "m-b" → ""`
 - 예: `$'m-a\tfast\t-\tx\ta.md' "m-a" → ""`
+
+### scv_mp_effort_state_of
+- 역할: 물은 조건 파일 글에서 이 조건의 상태를 꺼낸다 — asked(물었다) · shown:N(줄을 N번 실었다) · 빈 값(처음)
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `$'m|high|medium|shown:2\nx|low|high|asked' "m|high|medium" → "shown:2"`
+- 예: `$'x|low|high|asked' "x|low|high" → "asked"`
+- 예: `"m|high|medium" "m|high|medium" → "asked"`
+- 예: `"" "m|high|medium" → ""`
 
 ### scv_mp_warn_keep
 - 역할: 경고 파일에서 "[SCV 가이드]" 줄과 그 뒤 두 칸 들여 쓴 줄만 남긴다

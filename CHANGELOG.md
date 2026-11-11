@@ -92,6 +92,15 @@ All notable changes to SCV Core are documented here.
 - 기획서의 변경 지도가 파이프라인 절 안의 첫 표를 단계 표로 읽어, 체크리스트 표가 단계 표보다 앞에 있거나 단계 표가 없는 계획에서 물음들이 단계로 그려질 수 있었다. 머리줄에 답 · 근거 칸이 함께 있는 표는 건너뛰고 단계 표를 찾는다.
 
 계획 `20261111-wookiya1364-composition-principles`.
+## [0.89.2] - 2026-11-11
+
+### Fixed
+- 저널이 쌓이지 않던 것: 저널 폴더(`scv/journal`)를 다른 저장소로 연결(symlink)해 둔 프로젝트에서 `journal-append.sh` 가 통째로 거절해, 매 턴 훅과 종료 훅의 저널 기록이 한 줄도 남지 않았다. 이 컴퓨터에서 만든 연결(git 이 추적하지 않고 폴더를 가리키는 것)은 따라간다. 저장소가 추적하는 연결 · git 저장소 밖 · 저널 파일 자체의 연결은 지금처럼 거절한다.
+- 권장 effort 요청이 모델이 묻지 않아도 '물었다'로 끝나던 것: 줄을 실을 때는 '실었다 n번'으로만 적고, 종료 판정이 그 턴의 답 글에서(effort · 지금 값 · 권장 값 · 물음), 선택 창 답 훅이 질문 글에서 실제로 물은 것을 보면 '물었다'로 올린다. 묻지 않은 턴은 다음 턴에 다시 싣는다 — 모두 세 번까지, 턴 끝에서 막지는 않는다. `on-choice-answer.sh` 가 질문 글을 `model-prompting.sh effort-seen` 에 넘긴다. 물은 조건 파일의 옛 줄은 '물었다'로 읽는다.
+- 새 순수 함수 `scv_mp_effort_state_of` · `scv_mp_effort_state_next` · `scv_mp_effort_asked_in`.
+
+### Changed
+- 속도 시험 둘(`test-rewrite-stays-current` T7 · `test-finish-report` T15)이 벽시계 대신 그 일에 쓴 CPU 시간으로 판정한다(`core/tests/lib/cpu-time.sh`). 코어 수만큼 바쁜 작업을 띄운 측정에서 벽시계는 1.6 ~ 2.0배로 늘고 CPU 시간은 1.06배였다. 한도 숫자는 그대로다. 계획 `20261111-wookiya1364-followups-five`.
 
 ## [0.89.1] - 2026-11-11
 

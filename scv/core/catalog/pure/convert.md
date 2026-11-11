@@ -1,6 +1,6 @@
 # 변환 — 한 표기를 다른 표기로 바꾼다 — 경로 · 날짜 · 단위 · 인코딩
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 41개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 42개.
 
 ### below_raw_root
 - 역할: 경로에서 원자료 폴더 뿌리까지를 떼어 낸다 — 뿌리 아래 마디만 연결 검사를 하려고
@@ -89,6 +89,14 @@
 - 예: `$'s1\x1f1\x1f3\x1fab12\x1f09:30\x1fdeadbeef' s1 prompt 0 → $'s1\x1f1\x1f4\x1fab12\x1f09:30\x1fdeadbeef'`
 - 예: `$'s1\x1f1\x1f3\x1fab12\x1f09:30\x1fdeadbeef' s2 prompt 0 → $'s2\x1f0\x1f1\x1f\x1f\x1f'`
 - 예: `$'s1\x1f1\x1f3\x1fab12\x1f09:30\x1fdeadbeef' s1 reset 0 → $'s1\x1f0\x1f3\x1fab12\x1f09:30\x1f'`
+
+### scv_mp_effort_state_next
+- 역할: 물은 조건 파일 글에서 이 조건의 줄을 새 상태로 바꿔 낸다 — shown 은 실은 횟수를 하나 올리고, asked 는 '물었다'로 올린다(줄은 50개까지)
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `"" "m|high|medium" shown → "m|high|medium|shown:1"`
+- 예: `"m|high|medium|shown:1" "m|high|medium" shown → "m|high|medium|shown:2"`
+- 예: `$'a|low|high|asked\nm|high|medium|shown:2' "m|high|medium" asked → $'a|low|high|asked\nm|high|medium|asked'`
+- 예: `"m|high|medium|asked" "m|high|medium" shown → "m|high|medium|asked"`
 
 ### scv_mp_guides_dir
 - 역할: 프로필 값이 절대 경로면 그대로, 상대 경로면 코어 루트 아래 경로로 바꾼다
