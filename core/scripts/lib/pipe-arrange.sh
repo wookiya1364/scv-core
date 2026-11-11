@@ -220,11 +220,11 @@ pa_count_orders() {
 }
 
 # @pure
-# 역할: 잰 줄들 · 짜임 줄들("이름표<탭>순서 글<탭>예상<탭>실제<탭>메모리<탭>답") · 도움 글 · 머리 글에서 사람이 읽는 표를 만든다
+# 역할: 잰 줄들 · 짜임 줄들("이름표<탭>순서 글<탭>예상<탭>잰 시간<탭>벽시계<탭>메모리<탭>답") · 도움 글 · 머리 글에서 사람이 읽는 표를 만든다
 # 종류: 조립/arrange
-# 예: $'keep\tfilter\tgrep 7\t-\t0.030\t0.41' $'처음\tkeep\t0.030\t0.04\t3.1\t—' "규칙으로 더 볼 것이 없음" "입력 10줄" → $'입력 10줄\n\n| 단계 | 종류 | 한 번 잰 시간(초) | 통과 비율 | 순위 값 |\n|---|---|---|---|---|\n| keep | 고르기 | 0.030 | 0.41 | -19.66 |\n\n| 짜임 | 순서 | 예상(초) | 실제(초) | 메모리(MB) | 답 |\n|---|---|---|---|---|---|\n| 처음 | keep | 0.030 | 0.04 | 3.1 | — |\n\n규칙으로 본 것:\n- 규칙으로 더 볼 것이 없음'
+# 예: $'keep\tfilter\tgrep 7\t-\t0.030\t0.41' $'처음\tkeep\t0.030\t0.04\t0.05\t3.1\t—' "규칙으로 더 볼 것이 없음" "입력 10줄" → $'입력 10줄\n\n| 단계 | 종류 | 한 번 잰 시간(초) | 통과 비율 | 순위 값 |\n|---|---|---|---|---|\n| keep | 고르기 | 0.030 | 0.41 | -19.66 |\n\n| 짜임 | 순서 | 예상(초) | 잰 시간(초) | 기다린 시간(초) | 메모리(MB) | 답 |\n|---|---|---|---|---|---|---|\n| 처음 | keep | 0.030 | 0.04 | 0.05 | 3.1 | — |\n\n규칙으로 본 것:\n- 규칙으로 더 볼 것이 없음'
 pa_render() {
-  local name kind cmd after t r k v w label order exp real mem ans h
+  local name kind cmd after t r k v w label order exp real wall mem ans h
   printf '%s\n\n| 단계 | 종류 | 한 번 잰 시간(초) | 통과 비율 | 순위 값 |\n|---|---|---|---|---|\n' "${4:-}"
   while IFS=$'\t' read -r name kind cmd after t r; do
     [[ -n "$name" ]] || continue
@@ -233,11 +233,24 @@ pa_render() {
     if [[ $v -lt 0 ]]; then w="-"; v=$(( 0 - v )); fi
     printf '| %s | %s | %s | %s | %s%s.%02d |\n' "$name" "$k" "$t" "$r" "$w" "$(( v / 1000 ))" "$(( v % 1000 / 10 ))"
   done <<< "${1:-}"
-  printf '\n| 짜임 | 순서 | 예상(초) | 실제(초) | 메모리(MB) | 답 |\n|---|---|---|---|---|---|\n'
-  while IFS=$'\t' read -r label order exp real mem ans; do
+  # 잰 시간 = 순서를 가리는 데 쓰는 값(CPU 가 일한 시간, GPU 를 쓴 명령은 벽시계). 기다린 시간 = 벽시계.
+  printf '\n| 짜임 | 순서 | 예상(초) | 잰 시간(초) | 기다린 시간(초) | 메모리(MB) | 답 |\n|---|---|---|---|---|---|---|\n'
+  while IFS=$'\t' read -r label order exp real wall mem ans; do
     [[ -n "$label" ]] || continue
-    printf '| %s | %s | %s | %s | %s | %s |\n' "$label" "$order" "$exp" "$real" "$mem" "$ans"
+    printf '| %s | %s | %s | %s | %s | %s | %s |\n' "$label" "$order" "$exp" "$real" "$wall" "$mem" "$ans"
   done <<< "${2:-}"
   printf '\n규칙으로 본 것:'
   while IFS= read -r h; do [[ -z "$h" ]] || printf '\n- %s' "$h"; done <<< "${3:-}"
+}
+
+# @pure
+# 역할: 이름 한 줄씩의 순서를 "가 → 나 → 다" 한 줄로 잇는다 — 표에 적을 순서 글
+# 종류: 조립/arrange
+# 예: $'keep\nup\ntag' → "keep → up → tag"
+# 예: "up" → "up"
+# 예: "" → ""
+pa_join_names() {
+  local o out=""
+  while IFS= read -r o; do [[ -z "$o" ]] || out+="${out:+ → }$o"; done <<< "${1:-}"
+  printf '%s' "$out"
 }
