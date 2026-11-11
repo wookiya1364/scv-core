@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-11T22:53:01Z
+generated_at: 2026-11-11T23:38:39Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -501,6 +501,10 @@ archives:
     title: "잘못된 거절 셋 고치기 — 기록 폴더가 연결돼 있을 때와 낱말 하나 겹침"
     kind: feature
     status: planned
+  - slug: 20261111-wookiya1364-followups-five
+    title: "남은 일 다섯 마무리 — 저널 거절 · 안 물은 턴 · 맥 속도 시험 · 코덱스 확인과 권장 표"
+    kind: feature
+    status: done
   - slug: 20261111-wookiya1364-pure-bench-and-gate
     title: "재는 명령과 느려지면 막기 — 순수함수가 기본, 그다음 합성 함수"
     kind: feature
