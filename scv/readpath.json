@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated_at": "2026-11-11T13:22:22Z",
+  "updated_at": "2026-11-11T15:35:22Z",
   "files": {
     "scv/raw/20261001-hook-path-bash32-audit.md": { "size": 3354, "mtime": "2026-10-01T02:15:20Z" },
     "scv/raw/20261001-resume-recap-stale-conversation.md": { "size": 1918, "mtime": "2026-10-01T13:52:26Z" },
@@ -55,7 +55,8 @@
     "scv/raw/stale/20261111-pure-bench-gpu-measure.md": { "size": 7775, "mtime": "2026-11-11T01:45:13Z" },
     "scv/raw/stale/20261111-pure-bench-step1-measure.md": { "size": 5551, "mtime": "2026-11-11T05:43:00Z" },
     "scv/raw/stale/20261111-pure-function-performance-talk.md": { "size": 4001, "mtime": "2026-11-11T00:41:18Z" },
-    "scv/raw/stale/20261111-slow-pure-functions.md": { "size": 4079, "mtime": "2026-11-11T09:51:57Z" }
+    "scv/raw/stale/20261111-slow-pure-functions.md": { "size": 4079, "mtime": "2026-11-11T09:51:57Z" },
+    "scv/raw/stale/20261112-bench-gate-gaps.md": { "size": 1991, "mtime": "2026-11-11T15:16:40Z" }
   },
   "ref_docs": {
     "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "slugs": ["20260812-wookiya1364-ci-provenance-gate", "20260930-wookiya1364-readme-refresh-core-wrappers"], "ref_commit": "e64e0ae", "consumed_at": "2026-09-30T01:42:19Z", "origin": "scv/raw/20260812-wookiya1364-ci-provenance-gate.md" },
@@ -98,6 +99,7 @@
     "scv/raw/stale/20261111-pure-bench-gpu-measure.md": { "slugs": ["20261111-wookiya1364-pure-bench-and-gate"], "ref_commit": "e3e91d2", "consumed_at": "2026-11-11T01:56:00Z", "origin": "scv/raw/20261111-pure-bench-gpu-measure.md" },
     "scv/raw/stale/20261111-pure-bench-step1-measure.md": { "slugs": ["20261111-wookiya1364-pure-bench-and-gate"], "ref_commit": "ac35f6c", "consumed_at": "2026-11-11T05:13:24Z", "origin": "scv/raw/20261111-pure-bench-step1-measure.md" },
     "scv/raw/stale/20261111-pure-function-performance-talk.md": { "slugs": ["20261111-wookiya1364-composition-principles", "20261111-wookiya1364-pure-bench-and-gate"], "ref_commit": "e3e91d2", "consumed_at": "2026-11-11T01:56:00Z", "origin": "scv/raw/20261111-pure-function-performance-talk.md" },
-    "scv/raw/stale/20261111-slow-pure-functions.md": { "slugs": ["20261111-wookiya1364-slow-pure-functions"], "ref_commit": "ac52db1", "consumed_at": "2026-11-11T13:22:21Z", "origin": "scv/raw/20261111-slow-pure-functions.md" }
+    "scv/raw/stale/20261111-slow-pure-functions.md": { "slugs": ["20261111-wookiya1364-slow-pure-functions"], "ref_commit": "ac52db1", "consumed_at": "2026-11-11T13:22:21Z", "origin": "scv/raw/20261111-slow-pure-functions.md" },
+    "scv/raw/stale/20261112-bench-gate-gaps.md": { "slugs": ["20261112-wookiya1364-bench-gate-gaps"], "ref_commit": "7d036e5", "consumed_at": "2026-11-11T15:35:21Z", "origin": "scv/raw/20261112-bench-gate-gaps.md" }
   }
 }
