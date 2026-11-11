@@ -19,6 +19,7 @@ raw_sources:
   - scv/raw/stale/20261111-pure-function-performance-talk.md
   - scv/raw/stale/20261111-function-composition-guide.md
   - scv/raw/stale/20261110-linux-session-plans.md
+  - scv/raw/stale/20261111-pure-bench-step1-measure.md
 refs:
   - type: link
     url: https://news.hada.io/topic?id=35724
@@ -190,6 +191,9 @@ flow(
   - 질문: 같은 답을 내는 코드 두 개를 실제로 돌렸습니다. A는 낱말 100개를 한꺼번에 바꿔서 3ms 걸렸고, B는 낱말마다 도우미 프로그램을 따로 불러서(100번) 194ms 걸렸습니다. 코드를 고치다가 A 같던 함수가 …
 
 - **2026-11-11 진행** — 1단계 끝: 재는 방법을 세 조건에서 잼(함수 열 개 · GPU 작업). 번갈아 여섯 쌍의 가운데값 비율이 붐벼도 0.99 ~ 1.05. 사용자가 한도 넷을 정함: 시간 1.2배 · 입력 배수 8배 · 부른 횟수는 1번이라도 · 메모리 1.2배와 1MB
+  - 요청: @"(첨부 파일)… (요청 5cde49c2)
+
+- **2026-11-11 진행** — 2단계 끝: 사전에서 잴 목록(335개)과 4배 입력을 만듦 — 여러 줄 값은 줄을, 아니면 낱말을 되풀이. 늘릴 수 있는 것 188개, 나머지는 '늘려 재지 못함'
   - 요청: @"(첨부 파일)… (요청 5cde49c2)
 
 ## Links
