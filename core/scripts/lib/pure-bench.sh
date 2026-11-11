@@ -267,3 +267,139 @@ pb_pick_measure() {
   fi
   printf cpu
 }
+
+# ---------------------------------------------------------------- 엮은 함수와 표
+
+# @deterministic
+# 역할: 함수 본문 글("@@ 이름" 줄 뒤에 본문)과 사전의 이름 목록에서, 사전 함수마다 본문이 부르는 다른 사전 함수를 "함수<탭>부르는 함수들(빈칸으로 나눔)" 줄로 낸다(부르는 것이 없으면 뺀다)
+# 종류: 꺼내기/measure
+# 예: $'@@ f\n  g "$1" | h\n  # i 는 주석\n@@ g\n  echo x\n@@ z\n  f' $'f\ng\nh\ni' → $'f\tg h'
+pb_calls() {
+  local names="${2:-}"
+  LC_ALL=C awk -v names="${names//$'\n'/ }" '
+    function flush(   k, out) {
+      if (cur == "" || !(cur in known)) return
+      out = ""
+      for (k = 1; k != cnt + 1; k++) out = out (out == "" ? "" : " ") order[k]
+      if (out != "") printf "%s\t%s\n", cur, out
+    }
+    BEGIN { n = split(names, a, " "); for (i = 1; i != n + 1; i++) if (a[i] != "") known[a[i]] = 1 }
+    /^@@ / { flush(); cur = substr($0, 4); cnt = 0; split("", seen); next }
+    /^[ \t]*#/ { next }
+    {
+      line = $0; gsub(/[^A-Za-z0-9_]+/, " ", line); m = split(line, w, " ")
+      for (i = 1; i != m + 1; i++) if ((w[i] in known) && w[i] != cur && !(w[i] in seen)) { seen[w[i]] = 1; order[++cnt] = w[i] }
+    }
+    END { flush() }' <<< "${1:-}"
+}
+
+# @pure
+# 역할: "함수<탭>부르는 함수들" 줄들에서 다른 사전 함수를 N개(기본 2) 이상 부르는 줄만 낸다 — 엮은 함수
+# 종류: 고르기
+# 예: $'f\tg h\nk\tg' → $'f\tg h'
+# 예: $'f\tg h\nk\tg' 1 → $'f\tg h\nk\tg'
+pb_composed() {
+  local lines="${1:-}" min="${2:-2}" name callees w n
+  while IFS=$'\t' read -r name callees; do
+    [[ -n "$name" ]] || continue
+    n=0; for w in $callees; do n=$((n + 1)); done
+    [[ $n -ge $min ]] && printf '%s\t%s\n' "$name" "$callees"
+  done <<< "$lines"
+  return 0
+}
+
+# @pure
+# 역할: 사전 글에서 "함수<탭>하는 일(짧게)" 줄들을 낸다 — 잴 목록과 같은 차례(예시 있는 함수만, 이름 목록을 주면 그 함수만), 하는 일은 풀이 앞까지 · 여덟 낱말까지
+# 종류: 꺼내기/measure
+# 예: $'### f\n- 역할: 글을 낱말들로 나눈다 — 2자 이상(빈칸으로 이음)\n- 위치: lib/a.sh · @pure · sh\n- 예: `"a" → "1"`\n### g\n- 역할: 없다\n- 위치: lib/a.sh · @pure · sh' "" → $'f\t글을 낱말들로 나눈다'
+# 예: $'### f\n- 역할: 하나 둘 셋 넷 다섯 여섯 | 일곱 여덟 아홉\n- 위치: lib/a.sh · @pure · sh\n- 예: `"a" → "1"`' "" → $'f\t하나 둘 셋 넷 다섯 여섯 / 일곱…'
+pb_roles() {
+  local catalog="${1:-}" only="${2:-}" line name="" role="" seen="" w out k bar=/     # 표의 칸을 깨는 세로줄은 빗금으로 (bash 3.2 는 바꿀 글에 적은 역빗금을 그대로 남긴다)
+  while IFS= read -r line; do
+    case "$line" in
+      '### '*) name="${line#\#\#\# }"; role=""; seen="" ;;
+      '- 역할: '*) role="${line#- 역할: }" ;;
+      '- 예: `'*)
+        [[ -n "$name" && -z "$seen" ]] || continue
+        seen=1
+        if [[ -n "$only" ]]; then case $'\n'"$only"$'\n' in *$'\n'"$name"$'\n'*) ;; *) continue ;; esac; fi
+        role="${role%% — *}"; role="${role%%(*}"; role="${role//|/$bar}"
+        out=""; k=0
+        for w in $role; do k=$((k + 1)); [[ $k -le 8 ]] || { out="${out}…"; break; }; out="${out:+$out }$w"; done
+        printf '%s\t%s\n' "$name" "${out:--}" ;;
+    esac
+  done <<< "$catalog"
+}
+
+# @pure
+# 역할: 한 함수의 1배 줄과 4배 줄(재는 명령 fn 의 줄, 4배는 없어도 됨)과 하는 일 글을 표의 한 줄로 잇는다 — "함수<탭>잣대<탭>1배 ms<탭>4배 ms<탭>배수<탭>메모리 MB<탭>부른 횟수 1배<탭>4배<탭>상태<탭>하는 일"
+# 종류: 조립
+# 예: $'f\t1\t14\t22.286\t0.32\t2.9\t7\t0.0\t0\tok\tcpu' $'f\t4\t5\t386.600\t1.95\t3.1\t14\t15.9\t0\tok\tcpu' "글을 나눈다" → $'f\tcpu\t22.286\t386.600\t17.3\t2.9\t0\t0\tok\t글을 나눈다'
+# 예: $'g\t1\t60\t1.500\t0.31\t2.4\t7\t0.0\t1\tok\tcpu' $'g\t4\t-\t-\t-\t-\t-\t-\t-\tnot-scalable\t-' → $'g\tcpu\t1.500\t-\t-\t2.4\t1\t-\tnot-scalable\t-'
+pb_row() {
+  local n s r ms1 w m g gm e1 st nm x ms4="-" e4="-" st4=""
+  IFS=$'\t' read -r n s r ms1 w m g gm e1 st nm <<< "${1:-}"
+  [[ -z "${2:-}" ]] || IFS=$'\t' read -r x x x ms4 x x x x e4 st4 x <<< "$2"
+  [[ "$st" != ok || -z "$st4" || "$st4" == ok ]] || st="$st4"
+  x="${3:-}"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' "$n" "${nm:--}" "$ms1" "$ms4" "$(pb_scale_ratio "$ms1" "$ms4")" "$m" "$e1" "$e4" "$st" "${x:--}"
+}
+
+# 입력을 4배로 늘렸을 때 시간이 이 배수를 넘으면 '입력이 커지면 위험한 함수'로 적는다(2026-11-11 사용자 결정).
+PB_SCALE_LIMIT=8
+
+# @pure
+# 역할: 표의 줄들(pb_row 의 줄)과 잰 환경 한 줄에서 사람이 읽는 표 글을 만든다 — 표 · 비고 · 끝의 셈(잰 수 · 못 잰 수와 이유)
+# 종류: 조립
+# 예: $'f\tcpu\t22.286\t386.600\t17.3\t2.9\t0\t0\tok\t글을 나눈다' 'bash 3.2' → $'잰 환경: bash 3.2\n\n| 함수 | 하는 일 | 잣대 | 한 번(ms) | 4배 입력(ms) | 배수 | 메모리(MB) | 부른 횟수 | 비고 |\n|---|---|---|---|---|---|---|---|---|\n| f | 글을 나눈다 | cpu | 22.286 | 386.600 | 17.3 | 2.9 | 0 → 0 | 배수 한도(8배) 넘음 |\n\n잰 함수 1 · 못 잰 함수 0 · 늘려 재지 못함 0 · 배수 한도 넘음 1 · 입력만큼 부름 0'
+pb_render() {
+  local rows="${1:-}" env="${2:-}" n nm ms1 ms4 ratio mem e1 e4 st role note r
+  local ok=0 bad=0 noscale=0 over=0 grow=0 why_load=0 why_lang=0 why_meas=0 tail=""
+  printf '잰 환경: %s\n\n| 함수 | 하는 일 | 잣대 | 한 번(ms) | 4배 입력(ms) | 배수 | 메모리(MB) | 부른 횟수 | 비고 |\n|---|---|---|---|---|---|---|---|---|\n' "$env"
+  while IFS=$'\t' read -r n nm ms1 ms4 ratio mem e1 e4 st role; do
+    [[ -n "$n" ]] || continue
+    note=""
+    case "$st" in
+      load-failed) bad=$((bad + 1)); why_load=$((why_load + 1)); note="불러오지 못함" ;;
+      not-shell)   bad=$((bad + 1)); why_lang=$((why_lang + 1)); note="셸 함수 아님" ;;
+      *)
+        if [[ "$nm" == unmeasured ]]; then bad=$((bad + 1)); why_meas=$((why_meas + 1)); note="재지 못함"
+        else
+          ok=$((ok + 1))
+          [[ "$st" != not-scalable ]] || { noscale=$((noscale + 1)); note="늘려 재지 못함"; }
+          if r="$(pb_to_milli "$ratio")" && [[ $r -gt $(( PB_SCALE_LIMIT * 1000 )) ]]; then over=$((over + 1)); note="${note:+$note · }배수 한도(${PB_SCALE_LIMIT}배) 넘음"; fi
+          if [[ "$e1" =~ ^[0-9]+$ && "$e4" =~ ^[0-9]+$ && $e4 -gt $e1 ]]; then grow=$((grow + 1)); note="${note:+$note · }입력만큼 부름"; fi
+        fi ;;
+    esac
+    printf '| %s | %s | %s | %s | %s | %s | %s | %s → %s | %s |\n' "$n" "${role:--}" "$nm" "$ms1" "$ms4" "$ratio" "$mem" "$e1" "$e4" "$note"
+  done <<< "$rows"
+  [[ $bad -eq 0 ]] || tail="(불러오지 못함 $why_load · 셸 함수 아님 $why_lang · 재지 못함 $why_meas)"
+  printf '\n잰 함수 %s · 못 잰 함수 %s%s · 늘려 재지 못함 %s · 배수 한도 넘음 %s · 입력만큼 부름 %s' "$ok" "$bad" "$tail" "$noscale" "$over" "$grow"
+}
+
+# @pure
+# 역할: 엮은 함수 줄들("함수<탭>부르는 함수들")과 표의 줄들에서 엮은 함수의 표 글을 만든다 — 묶음 전체의 값과 부르는 함수들 값의 합을 나란히
+# 종류: 조립
+# 예: $'f\tg h' $'f\tcpu\t10.000\t50.000\t5.0\t2.9\t0\t0\tok\t셋을 잇는다\ng\tcpu\t1.500\t6.000\t4.0\t2.4\t1\t1\tok\t-\nh\tcpu\t2.000\t-\t-\t2.4\t0\t-\tnot-scalable\t-' → $'| 엮은 함수 | 하는 일 | 부르는 함수 | 묶음 한 번(ms) | 부품 합(ms) | 4배 배수 | 부른 횟수 |\n|---|---|---|---|---|---|---|\n| f | 셋을 잇는다 | g · h | 10.000 | 3.500 | 5.0 | 0 → 0 |'
+pb_render_composed() {
+  local calls="${1:-}" rows="${2:-}" name callees c sum part n nm ms1 ms4 ratio mem e1 e4 st role got list hit
+  printf '| 엮은 함수 | 하는 일 | 부르는 함수 | 묶음 한 번(ms) | 부품 합(ms) | 4배 배수 | 부른 횟수 |\n|---|---|---|---|---|---|---|'
+  while IFS=$'\t' read -r name callees; do
+    [[ -n "$name" ]] || continue
+    sum=0; list=""
+    for c in $callees; do
+      list="${list:+$list · }$c"; got=""
+      while IFS=$'\t' read -r n nm part ms4 ratio mem e1 e4 st role; do
+        [[ "$n" == "$c" ]] || continue
+        if part="$(pb_to_milli "$part")"; then got=1; (( sum = sum + part )); fi
+        break
+      done <<< "$rows"
+      [[ -n "$got" ]] || { sum=-1; break; }
+    done
+    if [[ $sum -eq -1 ]]; then part="-"; else part="$(( sum / 1000 )).$(printf '%03d' "$(( sum % 1000 ))")"; fi
+    hit=""
+    while IFS=$'\t' read -r n nm ms1 ms4 ratio mem e1 e4 st role; do [[ "$n" == "$name" ]] && { hit=1; break; }; done <<< "$rows"
+    [[ -n "$hit" ]] || continue
+    printf '\n| %s | %s | %s | %s | %s | %s | %s → %s |' "$name" "${role:--}" "$list" "$ms1" "$part" "$ratio" "$e1" "$e4"
+  done <<< "$calls"
+}

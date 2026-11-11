@@ -175,6 +175,49 @@ else
   echo "  - SKIP [S11] GPU · torch · GPU 읽는 도구 중 없는 것이 있음 — 이 컴퓨터에서는 돌려 보지 않음"
 fi
 
+echo "S12. 엮은 함수와 표 — 순수 함수"
+eq "S12 who calls whom (comments and unknown names are skipped)" $'f\tg h' "$(pb_calls $'@@ f\n  g "$1" | h\n  # i 는 주석\n@@ g\n  echo x\n@@ z\n  f' $'f\ng\nh\ni')"
+eq "S12 composed = two or more" $'f\tg h' "$(pb_composed $'f\tg h\nk\tg')"
+eq "S12 composed, at least one" 2 "$(pb_composed $'f\tg h\nk\tg' 1 | grep -c .)"
+R1="$(pb_row $'f\t1\t14\t22.286\t0.32\t2.9\t7\t0.0\t0\tok\tcpu' $'f\t4\t5\t386.600\t1.95\t3.1\t14\t15.9\t0\tok\tcpu' "글을 나눈다")"
+eq "S12 a row joins both sizes and the role" $'f\tcpu\t22.286\t386.600\t17.3\t2.9\t0\t0\tok\t글을 나눈다' "$R1"
+R2="$(pb_row $'g\t1\t60\t1.500\t0.31\t2.4\t7\t0.0\t1\tok\tcpu' $'g\t4\t-\t-\t-\t-\t-\t-\t-\tnot-scalable\t-' "")"
+eq "S12 a row that could not be scaled" $'g\tcpu\t1.500\t-\t-\t2.4\t1\t-\tnot-scalable\t-' "$R2"
+R3=$'h\tcpu\t3.000\t12.000\t4.0\t2.4\t50\t200\tok\t줄마다 부른다'
+R4=$'k\t-\t-\t-\t-\t-\t-\t-\tload-failed\t-'
+R5=$'m\tunmeasured\t0.100\t-\t-\t2.4\t0\t-\tok\t-'
+OUT="$(pb_render "$R1"$'\n'"$R2"$'\n'"$R3"$'\n'"$R4"$'\n'"$R5" "bash X")"
+grep -q '^| f | 글을 나눈다 | cpu | 22.286 | 386.600 | 17.3 | 2.9 | 0 → 0 | 배수 한도(8배) 넘음 |$' <<<"$OUT" && ok "OK [S12] over the limit of 8 is said in the row" || fail "[S12] $(grep '^| f ' <<<"$OUT")"
+grep -q '^| h | .* | 50 → 200 | 입력만큼 부름 |$' <<<"$OUT" && ok "OK [S12] calls that grow with the input are said in the row" || fail "[S12] $(grep '^| h ' <<<"$OUT")"
+eq "S12 the count at the end" "잰 함수 3 · 못 잰 함수 2(불러오지 못함 1 · 셸 함수 아님 0 · 재지 못함 1) · 늘려 재지 못함 1 · 배수 한도 넘음 1 · 입력만큼 부름 1" "$(tail -1 <<<"$OUT")"
+eq "S12 measured + not measured = all rows" 5 "$(( 3 + 2 ))"
+eq "S12 the environment is the first line" "잰 환경: bash X" "$(head -1 <<<"$OUT")"
+C="$(pb_render_composed $'f\tg h' $'f\tcpu\t10.000\t50.000\t5.0\t2.9\t0\t0\tok\t셋을 잇는다\ng\tcpu\t1.500\t6.000\t4.0\t2.4\t1\t1\tok\t-\nh\tcpu\t2.000\t-\t-\t2.4\t0\t-\tnot-scalable\t-')"
+eq "S12 composed row: whole next to the sum of its parts" "| f | 셋을 잇는다 | g · h | 10.000 | 3.500 | 5.0 | 0 → 0 |" "$(tail -1 <<<"$C")"
+eq "S12 roles: cut before the explanation" $'f\t글을 낱말들로 나눈다' "$(pb_roles $'### f\n- 역할: 글을 낱말들로 나눈다 — 2자 이상(빈칸으로 이음)\n- 위치: lib/a.sh · @pure · sh\n- 예: `"a" → "1"`' "")"
+eq "S12 roles: long ones stop after eight words (the mark survives on bash 3.2)" $'f\t하나 둘 셋 넷 다섯 여섯 / 일곱…' "$(pb_roles $'### f\n- 역할: 하나 둘 셋 넷 다섯 여섯 | 일곱 여덟 아홉\n- 위치: lib/a.sh · @pure · sh\n- 예: `"a" → "1"`' "")"
+eq "S12 roles follow the same order as the targets" "$(pb_targets "$CAT" "" | cut -f1)" "$(pb_roles "$CAT" "" | cut -f1)"
+
+echo "S13. 엮은 함수 재기 — 임시 함수로 (TESTS T15)"
+cat >> "$B/lib/t.sh" <<'LIB'
+t_up()   { printf '%s\n' "$1" | tr 'a-z' 'A-Z'; }
+t_rev()  { printf '%s\n' "$1" | tr 'A-Z' 'a-z'; }
+t_both() { t_rev "$(t_up "$1")"; }
+LIB
+printf '\n### t_up\n- 역할: 대문자로 바꾼다\n- 위치: lib/t.sh · @deterministic · sh\n- 예: `$\x27a\\nb\x27 → $\x27A\\nB\x27`\n\n### t_rev\n- 역할: 소문자로 바꾼다\n- 위치: lib/t.sh · @deterministic · sh\n- 예: `$\x27A\\nB\x27 → $\x27a\\nb\x27`\n\n### t_both\n- 역할: 둘을 잇는다 — 대문자로 바꿨다가 소문자로\n- 위치: lib/t.sh · @deterministic · sh\n- 예: `$\x27a\\nb\x27 → $\x27a\\nb\x27`\n' >> "$B/cat/a.md"
+eq "S13 found in the code, not from a list" $'t_both\tt_rev t_up' "$("$BASH" "$PB" composed --catalog "$B/cat" --base "$B")"
+SCV_PB_GPU_TOOL=none "$BASH" "$PB" bench --composed --catalog "$B/cat" --base "$B" --tsv "$TMP/rows.tsv" > "$TMP/bench.md"
+eq "S13 only the composed function and what it calls are measured" "t_both t_rev t_up" "$(cut -f1 "$TMP/rows.tsv" | sort | tr '\n' ' ' | sed 's/ $//')"
+crow="$(grep '^| t_both | 둘을 잇는다 | ' "$TMP/bench.md" | tail -1)"
+IFS='|' read -r _ _ _ _ whole parts ratio calls _ <<<"$crow"
+[[ "$(pb_to_milli "${whole// /}")" -gt 0 && "$(pb_to_milli "${parts// /}")" -gt 0 && "${ratio// /}" != "-" ]] && ok "OK [S13] whole · sum of parts · 4x ratio are all there (${whole// /} · ${parts// /} · ${ratio// /})" || fail "[S13] $crow"
+eq "S13 the composed function runs two programs, at any size" "2 → 2" "$(sed 's/^ *//; s/ *$//' <<<"$calls")"
+grep -q '^잰 함수 3 · 못 잰 함수 0' "$TMP/bench.md" && ok "OK [S13] the count line" || fail "[S13] $(grep '^잰 함수' "$TMP/bench.md")"
+if [[ -d "$CORE/../scv/core/catalog/pure" ]]; then
+  n="$("$BASH" "$PB" composed | grep -c .)"
+  [[ "$n" -ge 20 ]] && ok "OK [S13] this repository: $n composed functions" || fail "[S13] composed=$n"
+fi
+
 echo
 echo "── $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

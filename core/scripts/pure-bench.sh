@@ -20,6 +20,12 @@
 #       "함수<탭>배<탭>되풀이<탭>회당 ms<탭>벽시계 초<탭>메모리 MB<탭>GPU 사용률<탭>GPU 메모리<탭>부른 횟수<탭>상태<탭>판정 잣대".
 #       상태: ok · not-scalable(늘려 재지 못함) · load-failed(함수를 불러오지 못함) · not-shell(셸 함수가 아님).
 #
+#   pure-bench.sh composed [--catalog DIR] [--base DIR]
+#       엮은 함수(다른 사전 함수를 2개 이상 부르는 사전 함수)를 "함수<탭>부르는 함수들" 줄로 낸다.
+#   pure-bench.sh bench [--catalog DIR] [--base DIR] [--only NAME]… [--composed] [--tsv FILE]
+#       함수를 1배 · 4배 입력으로 재서 표를 낸다(비고 · 끝의 셈 포함). --composed 는 엮은 함수와 그것이 부르는 함수만
+#       재고, 엮은 함수의 표(묶음 전체의 값 · 부품 값의 합)를 덧붙인다. --tsv 는 표의 줄을 파일에도 쓴다.
+#
 # 환경: SCV_PB_GPU_TOOL=none|ioreg|nvidia 로 GPU 읽는 도구를 정한다(기본: 있는 것을 찾는다).
 # 잰 값은 이 스크립트를 돌린 셸과 지역 설정의 값이다 — 같은 함수가 bash 3.2 와 bash 5 에서 열 배 넘게 다를 수 있다
 # (2026-11-11: 낱말 나누기 한 번에 22ms 대 1.8ms). 앞뒤를 견줄 때는 같은 셸로 잰다. `env` 로 그 셸을 본다.
@@ -117,6 +123,28 @@ pb_measure_name() {
   printf '%s' "$name"
 }
 
+# @effect pb_bodies
+# 이유: 사전 함수들이 있는 파일을 읽어 함수마다 "@@ 이름" 줄과 본문을 낸다 — 누가 누구를 부르는지 보려는 입구
+pb_bodies() {
+  local base="$1" files=() f seen=$'\n'
+  while IFS=$'\x1d' read -r _ f _; do
+    [[ -n "$f" && -f "$base/$f" ]] || continue
+    case "$seen" in *$'\n'"$f"$'\n'*) continue ;; esac
+    seen+="$f"$'\n'; files+=("$base/$f")
+  done <<< "$(tr '\t' '\035' <<< "$2")"
+  [[ ${#files[@]} -eq 0 ]] && return 0
+  # 한 줄짜리 함수(이름() { … })는 그 줄의 나머지가 본문이다.
+  LC_ALL=C awk '/^[A-Za-z_][A-Za-z0-9_]*\(\)[ \t]*\{/ {
+                  name = $0; sub(/\(\).*/, "", name); print "@@ " name
+                  rest = $0; sub(/^[^{]*\{/, "", rest); on = 1
+                  if (rest ~ /\}[ \t]*$/) on = 0
+                  if (rest ~ /[^ \t]/) print rest
+                  next
+                }
+                on && /^\}/ { on = 0; next }
+                on { print }' "${files[@]}"
+}
+
 # @effect pb_shim_dir
 # 이유: 이름만 빌린 가짜 명령 묶음을 만든다 — 불린 이름을 한 줄 적고 진짜 명령을 돌린다(부른 횟수를 세는 장치)
 pb_shim_dir() {
@@ -191,7 +219,7 @@ pb_measure_fn() {
 
 CMD="${1:-}"; [[ $# -gt 0 ]] && shift
 if [[ "$CMD" == _drive ]]; then pb_drive "$@"; fi
-CATALOG="$( cd "$CORE_DIR/.." && pwd )/scv/core/catalog/pure"; BASE="$CORE_DIR"; ONLY=""; SCALE=1; COUNT=1
+CATALOG="$( cd "$CORE_DIR/.." && pwd )/scv/core/catalog/pure"; BASE="$CORE_DIR"; ONLY=""; SCALE=1; COUNT=1; COMPOSED=0; TSV=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --catalog)  CATALOG="${2:-}"; shift 2 ;;
@@ -199,6 +227,8 @@ while [[ $# -gt 0 ]]; do
     --only)     ONLY+="${2:-}"$'\n'; shift 2 ;;
     --scale)    SCALE="${2:-}"; shift 2 ;;
     --no-count) COUNT=0; shift ;;
+    --composed) COMPOSED=1; shift ;;
+    --tsv)      TSV="${2:-}"; shift 2 ;;
     --) shift; break ;;
     *) echo "pure-bench: 모르는 인자: $1" >&2; exit 2 ;;
   esac
@@ -230,5 +260,37 @@ case "$CMD" in
       if [[ "$SCALE" == 4 ]]; then pb_measure_fn "$TOOL" "$BASE" "$name" "$rel" "$a4" 4
       else pb_measure_fn "$TOOL" "$BASE" "$name" "$rel" "$a1" 1; fi
     done <<< "$(pb_targets "$(read_catalog "$CATALOG")" "${ONLY%$'\n'}" | tr '\t' '\035')" ;;
-  *) echo "Usage: pure-bench.sh targets|env|run|fn … (파일 머리말 참고)" >&2; exit 2 ;;
+  composed)
+    [[ -d "$CATALOG" ]] || { echo "pure-bench: 사전 폴더가 없다: $CATALOG" >&2; exit 2; }
+    T="$(pb_targets "$(read_catalog "$CATALOG")" "")"
+    pb_composed "$(pb_calls "$(pb_bodies "$BASE" "$T")" "$(cut -f1 <<< "$T")")" ;;
+  bench)
+    [[ -d "$CATALOG" ]] || { echo "pure-bench: 사전 폴더가 없다: $CATALOG" >&2; exit 2; }
+    ALL="$(pb_targets "$(read_catalog "$CATALOG")" "")"; CALLS=""
+    if [[ $COMPOSED -eq 1 ]]; then
+      CALLS="$(pb_composed "$(pb_calls "$(pb_bodies "$BASE" "$ALL")" "$(cut -f1 <<< "$ALL")")")"
+      if [[ -n "${ONLY%$'\n'}" ]]; then
+        KEEP=""; while IFS=$'\t' read -r cn cc; do case $'\n'"$ONLY" in *$'\n'"$cn"$'\n'*) KEEP+="$cn"$'\t'"$cc"$'\n' ;; esac; done <<< "$CALLS"
+        CALLS="${KEEP%$'\n'}"
+      fi
+      WANT="$(tr '\t ' '\n\n' <<< "$CALLS" | grep . | sort -u)"
+      [[ -n "$WANT" ]] || { echo "엮은 함수 없음 — 다른 사전 함수를 2개 이상 부르는 사전 함수가 없다"; exit 0; }
+    else
+      WANT="${ONLY%$'\n'}"
+    fi
+    TOOL="$(pb_gpu_tool)"; ROWS=""; CATTEXT="$(read_catalog "$CATALOG")"
+    while IFS=$'\x1d' read -r name rel lang a1 a4 sc && IFS=$'\x1d' read -r rname role <&3; do
+      [[ -n "$name" ]] || continue
+      [[ "$rname" == "$name" ]] || role="-"
+      if [[ "$lang" != sh ]]; then ROWS+="$(pb_row "$(printf '%s\t1\t-\t-\t-\t-\t-\t-\t-\tnot-shell\t-' "$name")" "" "$role")"$'\n'; continue; fi
+      L1="$(pb_measure_fn "$TOOL" "$BASE" "$name" "$rel" "$a1" 1)"
+      if [[ "$sc" == 1 && "$L1" == *$'\tok\t'* ]]; then L4="$(pb_measure_fn "$TOOL" "$BASE" "$name" "$rel" "$a4" 4)"
+      else L4="$(printf '%s\t4\t-\t-\t-\t-\t-\t-\t-\tnot-scalable\t-' "$name")"; fi
+      ROWS+="$(pb_row "$L1" "$L4" "$role")"$'\n'
+    done <<< "$(pb_targets "$CATTEXT" "$WANT" | tr '\t' '\035')" 3<<< "$(pb_roles "$CATTEXT" "$WANT" | tr '\t' '\035')"
+    ROWS="${ROWS%$'\n'}"
+    [[ -z "$TSV" ]] || printf '%s\n' "$ROWS" > "$TSV"
+    pb_render "$ROWS" "bash $BASH_VERSION · LC_ALL=${LC_ALL:-} · GPU 도구 $TOOL"; echo
+    if [[ $COMPOSED -eq 1 ]]; then echo; pb_render_composed "$CALLS" "$ROWS"; echo; fi ;;
+  *) echo "Usage: pure-bench.sh targets|env|run|fn|composed|bench … (파일 머리말 참고)" >&2; exit 2 ;;
 esac

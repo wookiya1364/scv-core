@@ -1,12 +1,18 @@
 # 고르기 — 여럿 중 일부를 골라내거나 순서를 매긴다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 37개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 38개.
 
 ### attachment_scope_filter
 - 역할: 표준입력 줄들에서 슬러그가 든 줄만 남긴다 — 슬러그가 비면 전부 통과
 - 위치: scripts/lib/attachment-scope.sh · @pure · sh
 - 예: `my-plan <<< $'my-plan/a.md\nother/b.md' → "my-plan/a.md"`
 - 예: `'' <<< $'x\ny' → $'x\ny'`
+
+### pb_composed
+- 역할: "함수<탭>부르는 함수들" 줄들에서 다른 사전 함수를 N개(기본 2) 이상 부르는 줄만 낸다 — 엮은 함수
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
+- 예: `$'f\tg h\nk\tg' → $'f\tg h'`
+- 예: `$'f\tg h\nk\tg' 1 → $'f\tg h\nk\tg'`
 
 ### pc_allowed_filter
 - 역할: 짝 목록에서 예외 목록에 이유와 함께 적힌 짝을 빼고, 이유 없는 예외는 따로 표시한다
