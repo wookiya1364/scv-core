@@ -24,8 +24,12 @@ jobs:
   # The tests are independent of each other, so they are cut into shards exactly as the PR
   # check does (core-ci.yml): same runner script, same folders, one runner per shard, one
   # test at a time inside a shard — which keeps the wall-clock checks in some tests steady.
-  # Balanced by core/tests/timings.tsv, a shard is about a sixth of the tests' summed time
-  # (1,269 s on 2026-11-12, longest single test 203 s).
+  # Balanced by core/tests/timings.tsv, a shard is about a sixth of the tests' summed time.
+  # v0.92.1, the first run in shards: 200–252 s per shard, 284 s for the whole run (1,986 s
+  # before). The 252 s shard held the one test that could not be cut (203–256 s) plus many
+  # small tests the table had at 0 s. 0.92.2 split that test into four files and re-wrote the
+  # table from this job's own times — tests/test-release-verify.sh fails when a test is missing
+  # from the table, when one test outgrows two thirds of a shard, or when the shards drift apart.
   #
   # What changes besides the wait: the old loop ran `core/tests/test-*.sh`, so the two
   # aggregate files (`# scv-test: aggregate`) ran their parts a second time — 225 s of

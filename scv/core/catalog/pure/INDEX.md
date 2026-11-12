@@ -6,7 +6,7 @@
 
 | 종류 | 하는 일 | 개수 | 파일 |
 |---|---|---|---|
-| 다듬기 | 글자를 정리한다 — 공백 · 대소문자 · 이스케이프 · 자르기 | 17 | [tidy.md](tidy.md) |
+| 다듬기 | 글자를 정리한다 — 공백 · 대소문자 · 이스케이프 · 자르기 | 18 | [tidy.md](tidy.md) |
 | 꺼내기/arrange | 글 · JSON · 표에서 값이나 필드를 뽑는다 | 1 | [extract-arrange.md](extract-arrange.md) |
 | 꺼내기/measure | 글 · JSON · 표에서 값이나 필드를 뽑는다 | 6 | [extract-measure.md](extract-measure.md) |
 | 꺼내기 | 글 · JSON · 표에서 값이나 필드를 뽑는다 | 61 | [extract.md](extract.md) |
@@ -24,4 +24,4 @@
 | 변환 | 한 표기를 다른 표기로 바꾼다 — 경로 · 날짜 · 단위 · 인코딩 | 42 | [convert.md](convert.md) |
 | 지문 | 내용에서 짧은 식별값을 만든다 — 해시 · 키 · 이름 | 6 | [fingerprint.md](fingerprint.md) |
 
-전체 378개
+전체 379개
