@@ -1,12 +1,38 @@
 # 고르기 — 여럿 중 일부를 골라내거나 순서를 매긴다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 37개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 42개.
 
 ### attachment_scope_filter
 - 역할: 표준입력 줄들에서 슬러그가 든 줄만 남긴다 — 슬러그가 비면 전부 통과
 - 위치: scripts/lib/attachment-scope.sh · @pure · sh
 - 예: `my-plan <<< $'my-plan/a.md\nother/b.md' → "my-plan/a.md"`
 - 예: `'' <<< $'x\ny' → $'x\ny'`
+
+### pb_accept_pick
+- 역할: '한도를 넘은 것' 줄들("함수<탭>이유들")과 선택 창의 질문 · 답에서 사용자가 받아들인 줄만 낸다 — 질문에 [재는 검사] 와 그 함수 이름이 있고 답이 "이대로"로 시작할 때
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
+- 예: `$'f\ttime=1.35\ng\tcalls=1:2' "[재는 검사] f — 시간 1.35배. 어떻게 할까요?" "이대로 둠" → $'f\ttime=1.35'`
+- 예: `$'f\ttime=1.35' "[재는 검사] f — 시간 1.35배" "고침 (추천)" → ""`
+- 예: `$'f\ttime=1.35' "다른 질문 f" "이대로 둠" → ""`
+
+### pb_baseline_next
+- 역할: '입력이 커지면 위험한 함수' 기준 목록(이름 줄들)과 지금 한도를 넘는 이름들에서 새 목록을 낸다 — 줄어든 이름은 내리고, 새로 넘는 이름은 "@@new 이름" 줄로 알린다(목록에는 넣지 않는다)
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
+- 예: `$'a\nb' $'a\nb' → $'a\nb'`
+- 예: `$'a\nb' $'a' → "a"`
+- 예: `$'a\nb' $'a\nb\nc' → $'a\nb\n@@new c'`
+
+### pb_callers
+- 역할: 엮은 함수 줄들("함수<탭>부르는 함수들")에서, 주어진 이름들 가운데 하나라도 부르는 엮은 함수의 이름을 낸다
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
+- 예: `$'f\tg h\nk\tx y' $'h\nz' → "f"`
+- 예: `$'f\tg h' $'q' → ""`
+
+### pb_composed
+- 역할: "함수<탭>부르는 함수들" 줄들에서 다른 사전 함수를 N개(기본 2) 이상 부르는 줄만 낸다 — 엮은 함수
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
+- 예: `$'f\tg h\nk\tg' → $'f\tg h'`
+- 예: `$'f\tg h\nk\tg' 1 → $'f\tg h\nk\tg'`
 
 ### pc_allowed_filter
 - 역할: 짝 목록에서 예외 목록에 이유와 함께 적힌 짝을 빼고, 이유 없는 예외는 따로 표시한다
@@ -101,6 +127,14 @@
 - 예: `$'# c\nm-a\thigh\t-\tStart at high.\ta.md' "m-a" → $'high\t-\tStart at high.\ta.md'`
 - 예: `$'m-a\thigh\t-\tStart at high.\ta.md' "m-b" → ""`
 - 예: `$'m-a\tfast\t-\tx\ta.md' "m-a" → ""`
+
+### scv_mp_effort_state_of
+- 역할: 물은 조건 파일 글에서 이 조건의 상태를 꺼낸다 — asked(물었다) · shown:N(줄을 N번 실었다) · 빈 값(처음)
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `$'m|high|medium|shown:2\nx|low|high|asked' "m|high|medium" → "shown:2"`
+- 예: `$'x|low|high|asked' "x|low|high" → "asked"`
+- 예: `"m|high|medium" "m|high|medium" → "asked"`
+- 예: `"" "m|high|medium" → ""`
 
 ### scv_mp_warn_keep
 - 역할: 경고 파일에서 "[SCV 가이드]" 줄과 그 뒤 두 칸 들여 쓴 줄만 남긴다

@@ -1,6 +1,53 @@
 # 판정 — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 37개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 43개.
+
+### pb_accept_covers
+- 역할: 사용자가 받아들인 이유들과 지금의 이유들을 견줘, 지금 것이 모두 받아들인 범위 안이면 참 — 시간 · 배수는 받아들인 값의 2배까지, 메모리는 1.2배까지, 부른 횟수는 받아들인 수까지
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
+- 예: `"time=1.35" "time=1.40" → ""`
+- 예: `"time=1.35" "time=3.00" → "" [1]`
+- 예: `"mem=1.9:37.0" "mem=1.9:50.0" → "" [1]`
+- 예: `"time=1.35" "time=1.30 calls=1:2" → "" [1]`
+- 예: `"calls=1:100 mem=1.9:37.0" "calls=1:100" → ""`
+
+### pb_compare
+- 역할: 한 함수의 앞뒤 잰 줄("함수<탭>상태<탭>잣대<탭>앞 값<탭>뒤 값<탭>부른 횟수 앞<탭>뒤<탭>메모리 앞<탭>뒤<탭>4배 배수 앞<탭>뒤")을 한도로 가려 "함수<탭>판정<탭>이유들"을 낸다 — 판정: pass | fail | new | skipped-different-answer | unmeasured | not-reached
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
+- 예: `$'f\tok\tcpu\t3.000\t3.450\t0\t0\t2.4\t2.5\t-\t-' → $'f\tpass\t-'`
+- 예: `$'f\tok\tcpu\t3.000\t3.750\t0\t0\t2.4\t2.5\t-\t-' → $'f\tfail\ttime=1.25'`
+- 예: `$'f\tok\tcpu\t3.000\t3.000\t1\t2\t8.0\t10.0\t4.0\t9.1' → $'f\tfail\tcalls=1:2 mem=8.0:10.0 scale=4.0:9.1'`
+- 예: `$'f\tok\tcpu\t3.000\t3.000\t0\t0\t1.2\t1.5\t9.0\t9.5' → $'f\tpass\t-'`
+- 예: `$'f\tdifferent-answer\t-\t-\t-\t-\t-\t-\t-\t-\t-' → $'f\tskipped-different-answer\t-'`
+- 예: `$'f\tok\tcpu\t3.000\t3.000\t0\t0\t2.4\t2.5\ttoo-slow\t9.1' → $'f\tpass\t-'`
+- 예: `$'f\tok\tcpu\t3.000\t3.000\t0\t0\t2.4\t2.5\t4.0\ttoo-slow' → $'f\tfail\tscale=4.0:too-slow'`
+- 예: `$'f\tok\tcpu\ttoo-slow\t3.000\t0\t0\t-\t2.5\ttoo-slow\ttoo-slow' → $'f\tpass\t-'`
+
+### pb_pairs_enough
+- 역할: 번갈아 잰 앞 값들과 뒤 값들에서, 마지막 두 쌍이 모두 "뒤가 앞의 절반 이하"이면 1 을 낸다 — 뚜렷이 빨라진 함수는 남은 쌍을 재지 않아도 된다
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
+- 예: `"100.0 98.0" "10.0 12.0" → "1"`
+- 예: `"100.0 98.0" "10.0 60.0" → "0"`
+- 예: `"100.0" "10.0" → "0"`
+- 예: `"30.0 100.0 98.0" "29.0 10.0 12.0" → "1"`
+- 예: `"100.0 -" "10.0 12.0" → "0"`
+
+### pb_pick_measure
+- 역할: 잰 값(벽시계 · CPU 초 · GPU 메모리 증가 · GPU 사용률 오름)과 컴퓨터의 붐빔(100 = 한가함)을 보고 판정 잣대 이름을 낸다 — cpu | wall-gpu | unmeasured
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
+- 예: `1.00 0.98 0.0 4 100 → "cpu"`
+- 예: `8.40 0.80 1171.0 78 100 → "wall-gpu"`
+- 예: `8.40 0.80 - - 100 → "unmeasured"`
+- 예: `0.01 0.00 - - 100 → "unmeasured"`
+- 예: `2.00 0.98 0.0 4 210 → "cpu"`
+
+### pb_scale_over
+- 역할: 4배 배수 값이 한도(8배)를 넘거나 한도 시간에 끊긴 값(too-slow)이면 1 을 낸다 — 뒤 값이 이럴 때만 앞의 4배 값이 판정에 쓰인다
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
+- 예: `9.1 → "1"`
+- 예: `8.0 → "0"`
+- 예: `too-slow → "1"`
+- 예: `- → "0"`
 
 ### pc_validate_entries
 - 역할: 항목마다 빠진 칸(역할 · 종류 · 예)과 종류 표에 없는 종류를 위반 줄로 낸다
@@ -68,11 +115,21 @@
 - 예: `$'s1\x1f1\x1f3' on → "PROTOCOL: loaded"`
 - 예: `$'s1\x1f1\x1f3' off → "PROTOCOL: load"`
 
+### scv_mp_effort_asked_in
+- 역할: 그 턴에 effort 를 실제로 물었는지 가린다 — 선택 창 질문 글에 effort 가 있거나, 답 글에 effort · 지금 값 · 권장 값 · 물음표가 함께 있으면 1
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `"" "effort 를 high 로 바꾸시겠어요?" medium high → "1"`
+- 예: `"effort 는 low 인데 권장은 high. high 로 바꿀까요, low 그대로 둘까요?" "" low high → "1"`
+- 예: `"effort 를 high 로 올렸습니다." "" low high → "0"`
+- 예: `"파일은 한 줄입니다." "" low high → "0"`
+
 ### scv_mp_effort_verdict
-- 역할: effort 를 물을지 정한다 — off(꺼짐) · unknown(값이나 표를 모름) · same(권장과 같음) · asked(이 조건으로 이미 물음) · ask
+- 역할: effort 를 물을지 정한다 — off(꺼짐) · unknown(값이나 표를 모름) · same(권장과 같음) · asked(물었거나 세 번 실었다) · ask
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
 - 예: `on high $'medium\t-\tq\ts' "" m → "ask"`
-- 예: `on high $'medium\t-\tq\ts' "m|high|medium" m → "asked"`
+- 예: `on high $'medium\t-\tq\ts' "asked" m → "asked"`
+- 예: `on high $'medium\t-\tq\ts' "shown:2" m → "ask"`
+- 예: `on high $'medium\t-\tq\ts' "shown:3" m → "asked"`
 - 예: `on medium $'medium\t-\tq\ts' "" m → "same"`
 - 예: `on "" $'medium\t-\tq\ts' "" m → "unknown"`
 - 예: `on high "" "" m → "unknown"`
