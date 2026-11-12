@@ -51,6 +51,41 @@ n_rel="$(job_block "$REL" verify | grep -E 'run-focused\.sh .*--shard' | head -1
 # 여덟 조각(사용자 결정 2026-11-12): 여섯일 때는 조각 평균이 약 227초라 러너가 조금만 느려도 4분을 넘었다(네 번 재서 네 번).
 [[ "$n_rel" == 8 ]] && ok "조각은 여덟" || fail "조각 수: ${n_rel:-없음}"
 
+# 맥 조각(PR 검사) — 조각 수는 이름 · 조각 목록 · 명령 세 곳에 적힌다. 하나만 고치면 어떤 조각은 돌지 않거나 두 번 돈다.
+# @effect mac_problems
+# 이유: PR 검사 설정 파일을 읽어 맥 조각 작업의 어긋남을 한 줄에 하나씩 낸다(없으면 빈 글)
+mac_problems() {
+  local m list n cmd_n name_n
+  m="$(job_block "$1" shards-macos)"
+  [[ -n "$m" ]] || { echo "맥 조각 작업(shards-macos)이 없다"; return 0; }
+  list="$(grep -E '^[[:space:]]+shard:[[:space:]]*\[' <<< "$m" | head -1 | sed -E 's/^[^[]*\[//; s/\].*$//; s/[[:space:]]//g')"
+  n="$(tr ',' '\n' <<< "$list" | grep -c .)"
+  [[ "$list" == "$(seq -s, 1 "$n" | sed 's/,$//')" ]] || echo "조각 목록이 1부터 차례가 아니다: [$list]"
+  cmd_n="$(grep -E 'run-focused\.sh .*--shard' <<< "$m" | head -1 | sed -E 's/^.*--shard[[:space:]]+[^/]*\/([0-9]+).*$/\1/')"
+  name_n="$(grep -E '^[[:space:]]+name:[[:space:]]*Shard \(macos' <<< "$m" | head -1 | sed -E 's/^.*\/([0-9]+)\).*$/\1/')"
+  [[ "$cmd_n" == "$n" && "$name_n" == "$n" ]] || echo "조각 수가 어긋난다: 목록 ${n}개 · 명령 /${cmd_n:-없음} · 이름 /${name_n:-없음}"
+  grep -Eq 'run-focused\.sh .*--timings core/tests/timings-macos\.tsv' <<< "$m" || echo "맥 시간표로 나누지 않는다"
+  return 0
+}
+
+echo "T4c. PR 검사의 맥 조각 — 일곱 조각, 한도 15분"
+p="$(mac_problems "$CI")"
+[[ -z "$p" ]] && ok "맥 조각 설정에 문제 없음" || fail "맥 조각 설정: $(tr '\n' ';' <<< "$p")"
+n_mac="$(job_block "$CI" shards-macos | grep -E 'run-focused\.sh .*--shard' | head -1 | sed -E 's/^.*--shard[[:space:]]+[^/]*\/([0-9]+).*$/\1/')"
+t_mac="$(job_block "$CI" shards-macos | sed -n -E 's/^[[:space:]]+timeout-minutes:[[:space:]]*([0-9]+).*$/\1/p' | head -1)"
+# 일곱 조각 · 15분(사용자 결정 2026-11-12): 다섯 조각일 때 가장 긴 조각이 455 ~ 577초로 10분 한도에 붙어 있었다.
+[[ "$n_mac" == 7 && "$t_mac" == 15 ]] && ok "맥 조각은 일곱 · 한도 15분" || fail "맥 조각 수 ${n_mac:-없음} · 한도 ${t_mac:-없음}분"
+# @effect mac_mut
+# 이유: 설정을 바꾼 사본을 임시 폴더에 쓰고 확인 결과를 찍는다
+mac_mut() {  # <이름> <sed 식> — 바꿔 본 설정에서 "조각 수가 어긋난다"가 나와야 한다
+  sed -E "$2" "$CI" > "$TMP/mac.yml"
+  if cmp -s "$CI" "$TMP/mac.yml"; then fail "$1 — 바꿔 본 것이 원본과 같다(시험이 낡았다)"; return; fi
+  if mac_problems "$TMP/mac.yml" | grep -q "조각 수가 어긋난다"; then ok "$1 → 잡음"; else fail "$1 → 못 잡음: [$(mac_problems "$TMP/mac.yml" | tr '\n' ';')]"; fi
+}
+mac_mut "맥 조각 목록을 다섯으로"   's/shard: \[1, 2, 3, 4, 5, 6, 7\]/shard: [1, 2, 3, 4, 5]/'
+mac_mut "맥 명령의 조각 수를 5로"   's#(matrix\.shard \}\})/7 --timings#\1/5 --timings#'
+mac_mut "맥 이름의 조각 수를 5로"   's#(Shard \(macos \$\{\{ matrix\.shard \}\})/7#\1/5#'
+
 echo "T4b. 틀어진 설정은 잡는다"
 mut() {  # <이름> <sed 식> <나와야 할 글>
   sed -E "$2" "$REL" > "$TMP/$1.yml"
@@ -100,7 +135,7 @@ check_table() {  # <이름> <시간표 파일> <조각 수>
 }
 check_table "리눅스(PR 검사 6조각)" "$ROOT/core/tests/timings.tsv" 6
 check_table "리눅스(릴리스 8조각)" "$ROOT/core/tests/timings.tsv" "$n_rel"
-check_table "맥"     "$ROOT/core/tests/timings-macos.tsv" 5
+check_table "맥(PR 검사 ${n_mac}조각)" "$ROOT/core/tests/timings-macos.tsv" "$n_mac"
 # 시간표에서 한 줄을 지우면 그 이름을 댄다
 grep -v '^core/tests/test-run-focused\.sh' "$ROOT/core/tests/timings.tsv" > "$TMP/short.tsv"
 t="$(cat "$TMP/short.tsv")"
