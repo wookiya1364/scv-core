@@ -24,12 +24,15 @@ jobs:
   # The tests are independent of each other, so they are cut into shards exactly as the PR
   # check does (core-ci.yml): same runner script, same folders, one runner per shard, one
   # test at a time inside a shard — which keeps the wall-clock checks in some tests steady.
-  # Balanced by core/tests/timings.tsv, a shard is about a sixth of the tests' summed time.
+  # Balanced by core/tests/timings.tsv, a shard is about an eighth of the tests' summed time.
   # v0.92.1, the first run in shards: 200–252 s per shard, 284 s for the whole run (1,986 s
   # before). The 252 s shard held the one test that could not be cut (203–256 s) plus many
   # small tests the table had at 0 s. 0.92.2 split that test into four files and re-wrote the
   # table from this job's own times — tests/test-release-verify.sh fails when a test is missing
-  # from the table, when one test outgrows two thirds of a shard, or when the shards drift apart.
+  # from the table, when one test outgrows a shard, or when the shards drift apart.
+  # Eight shards, not the PR check's six (2026-11-12): with six, a shard averaged ~227 s and the
+  # longest was past four minutes in four runs out of four (252 · 281 · 276 · 262 s) — the table
+  # was right, the runners differed by −27 % to +24 %. Eight leaves room for a slow runner.
   #
   # What changes besides the wait: the old loop ran `core/tests/test-*.sh`, so the two
   # aggregate files (`# scv-test: aggregate`) ran their parts a second time — 225 s of
@@ -44,13 +47,13 @@ jobs:
   # `release` needs every shard. A failed or cancelled shard means no assets and no wrapper
   # dispatch; `gh run rerun <id> --failed` re-runs only the shards that failed.
   verify:
-    name: Verify Core (shard ${{ matrix.shard }}/6)
+    name: Verify Core (shard ${{ matrix.shard }}/8)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - uses: actions/checkout@v5
 
@@ -69,7 +72,7 @@ jobs:
           test "$GITHUB_REF_NAME" = "v$version"
 
       - name: Contracts, shared regression and focused suites (this shard)
-        run: bash core/tests/run-focused.sh --dir tests --dir core/tests --also core/tests/run-dry.sh --shard ${{ matrix.shard }}/6
+        run: bash core/tests/run-focused.sh --dir tests --dir core/tests --also core/tests/run-dry.sh --shard ${{ matrix.shard }}/8
 
   release:
     needs: verify
