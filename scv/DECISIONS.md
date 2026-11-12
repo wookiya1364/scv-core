@@ -2413,3 +2413,19 @@ merge_policy: preserve
 - path delta: as planned — 시험의 '처음에 잰 함수는 더 재지 않는다' 장면만 진짜 시간 도구 대신 가짜 도구의 좋은 값으로 바꿨다(진짜 도구는 붐비는 컴퓨터에서 결과가 달라진다).
 - refs: scv/archive/20261112-wookiya1364-pure-bench-remeasure/PLAN.md
 - conversation: scv/conversations/20261112-214709-pure-bench-s13-flake.md
+
+## [2026-11-13 00:12] wookiya1364 — 마무리 보고 — 계획마다 문제에서 배운 것까지 남기고, 계획 없는 변경은 없앤다
+
+- verdict: adopted
+- why: 계획 폴더에 마무리 보고 파일(일곱 묶음 14칸)을 두고, 계획 때 앞 칸 · 끝난 뒤 나머지를 채우며, 빈 칸이면 보관을 막고 끝 답에서 한 번 보여 준다. 함께 계획 없이 가는 빠른 길을 없앤다 — 문서는 허용하고 턴 끝 검사는 막아 둘이 어긋나 있었다. 사용자 선택 2026-11-13.
+- discarded alternatives: 주신 25칸 그대로(겹치는 칸 넷을 합친 14칸을 고름) · 계획 문서 끝의 한 절(따로 파일을 고름) · 모든 계획이 모든 칸(새 기능 계획은 가운데 넷을 건너뜀) · 고치는 계획에만 보고 · 계획 둘로 나누기(한 계획에 함께를 고름) · 릴리스와 동기화 예외도 없애기(둘만 예외로 둠)
+- refs: scv/promote/20261113-wookiya1364-wrapup-report-plan-required/PLAN.md
+- conversation: scv/conversations/20261112-235826-plan-wrapup-report.md
+
+## [2026-11-13 00:49] wookiya1364 — 마무리 보고 — 계획마다 문제에서 배운 것까지 남기고, 계획 없는 변경은 없앤다 archived
+
+- verdict: archived
+- why: 계획 폴더에 마무리 보고 파일(일곱 묶음 16칸)이 생겼다. 명령이 틀을 쓰고, 보관 명령이 옮기기 전에 빈 칸 · 모자란 칸 · 이유 없는 건너뜀을 막으며, 보관 뒤 보고를 한 번 낸다. 계획 없이 가는 빠른 길은 문서 · 설정 · 훅 문구에서 지웠고 선언 명령은 없어졌다고만 말한다. 지켜야 할 것: 보고 파일이 없는 옛 계획은 막지 않는다 · 예외는 릴리스와 동기화뿐 · 검사는 칸 이름의 말이 아니라 묶음 번호와 줄 모양을 본다. 배운 것: 틀을 명령 한 곳에 두고 문서의 예와 시험으로 견주니, 칸 수를 14로 잘못 센 것을 시험이 잡았다(실제 16).
+- path delta: 함수 다섯 → 아홉: 가리킴 판정을 효과층에 두지 않으려고 하나, 틀을 문서 두 곳에 베끼지 않고 명령이 쓰게 하려고 셋을 더했다. 틀 버전 숫자는 추출 뒤로 올린 적이 없어 요약값만 갱신했고, 변경 기록은 지금까지처럼 릴리스 때 적는다. 선언 명령 이름은 틀 문서에서도 뺐다(시험 T14 그대로).
+- refs: scv/archive/20261113-wookiya1364-wrapup-report-plan-required/PLAN.md
+- conversation: scv/conversations/20261112-235826-plan-wrapup-report.md
