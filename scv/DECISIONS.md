@@ -2349,3 +2349,19 @@ merge_policy: preserve
 - path delta: 계획은 '환경이 느리면 배수 조건을 더한다'였으나, 재 보니 느린 까닭이 고칠 수 있는 한 가지(남은 배경 프로그램)여서 한도는 그대로 두고 실행기에 뒷정리를 넣었다. 배수 조건은 원인을 가리기만 한다고 보고 사용자가 선택 창에서 뒷정리를 골랐다.
 - refs: scv/archive/20261112-wookiya1364-codex-choice-speed-limit/PLAN.md
 - conversation: scv/conversations/20261112-165612-next-four-plans-after-0922.md
+
+## [2026-11-12 18:13] wookiya1364 — 대시보드에 "사용자 차례" 상태와 색
+
+- verdict: adopted
+- why: 턴이 끝나 사용자의 말을 기다릴 때도 단계가 노랑 '진행 중'으로 남아 일하는 중인지 알 수 없었다. 대시보드가 이미 턴의 시작 · 끝과 도는 보조 작업을 알므로 대시보드만 고친다: 턴 끝 + 하는 중 단계 + 빨강 멈춤 없음 + 배경 작업 없음이면 새 상태 · 새 색. 색은 실제 화면을 보인 뒤 확정.
+- discarded alternatives: 코어 훅이 '턴 끝' 표시를 남기게 하기 — 대시보드가 이미 받고 있어 필요 없다 / 배경 작업을 기다리는 턴도 사용자 차례로 보이기 — 일하는 중인데 사용자를 부르게 된다 / 코어 릴리스와 함께 내기 — 사용자가 바로 내기를 골랐다
+- refs: scv/promote/20261112-wookiya1364-dashboard-your-turn/PLAN.md
+- conversation: scv/conversations/20261112-165612-next-four-plans-after-0922.md
+
+## [2026-11-12 18:24] wookiya1364 — 대시보드에 "사용자 차례" 상태와 색 archived
+
+- verdict: archived
+- why: 대시보드 0.2.24: 이 세션의 턴이 끝났고 빨강 멈춤이 없고 남아 도는 일이 없으면 하는 중인 단계를 보라(#a371f7) '사용자 차례'로 보인다. 배경 명령 · 보조 작업 · 스스로 맞춘 깨우기가 있으면 노랑을 유지하고 글만 바꾼다. 새 상태는 화면에서만 생기고 계획 글 · 단계 신호에는 실리지 않는다 — 앞으로도 저장하지 않는다. 색은 사용자가 그림을 보고 골랐다(파랑은 '일하는 중' 글과 겹침).
+- path delta: 막 연 세션도 사용자 차례로 보이려던 것을 뺐다 — 그 세션은 턴의 끝을 본 적이 없어 다른 세션이 일하는 계획과 가릴 수 없고, 기존 시험 118개의 모습도 그대로 남는다. 거울 세션은 따로 고치려 했으나 이미 보내던 live 값에 표시 둘을 실어 고칠 곳이 없었다.
+- refs: scv/archive/20261112-wookiya1364-dashboard-your-turn/PLAN.md
+- conversation: scv/conversations/20261112-165612-next-four-plans-after-0922.md

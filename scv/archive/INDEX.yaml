@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-12T09:07:49Z
+generated_at: 2026-11-12T09:24:04Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -523,6 +523,10 @@ archives:
     status: done
   - slug: 20261112-wookiya1364-codex-choice-speed-limit
     title: "코덱스 쪽에서만 걸리는 선택 답 속도 한도 고치기"
+    kind: feature
+    status: testing
+  - slug: 20261112-wookiya1364-dashboard-your-turn
+    title: "대시보드에 "사용자 차례" 상태와 색"
     kind: feature
     status: testing
   - slug: 20261112-wookiya1364-pipe-arrange
