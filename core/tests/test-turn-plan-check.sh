@@ -324,5 +324,22 @@ reset; start; ed; H "P='$CORE/scripts'; bash \"\$P/plan-link.sh\" progress no-su
 v="$(verdict)"; [[ "$v" == block ]] && ok "T34 실패한 기록 명령은 영수증이 아니다 → block" || bad "T34 실패한 명령 v=$v"
 reset
 
+# T35 — 파일을 붙여 보낸 요청: 첨부 파일의 경로는 계획 기록에 적히지 않는다 (같은 계획 T5)
+#   2026-11-12: 보관된 계획 둘의 "요청:" 줄에 내 컴퓨터의 경로가 그대로 남아 손으로 지웠다.
+att='@"/Users/x/uploads/s1/shot@2x.png" 이 화면처럼 방패 옵션을 고쳐줘'
+reset; start "$att"; ed
+H "bash $PL progress p1 --step 2 --note '방패 옵션 고침'"
+v="$(verdict)"; id="$(tid)"
+if [[ "$v" == pass ]] && plan | grep -q "요청: \[첨부\] 이 화면처럼 방패 옵션을 고쳐줘 (요청 $id)" \
+   && ! plan | grep -q '/Users/x' && ! grep -q '/Users/x' scv/journal/.turn-plan/req; then ok "T35 첨부 경로는 계획 기록 · 턴 상태에 없다, 나머지 글은 그대로"
+else bad "T35 v=$v"; plan | tail -3 >&2; fi
+# 첨부가 없는 요청은 한 글자도 바뀌지 않는다
+reset; start "방패 옵션 바꿔라 — 메일은 a@b.com"; ed
+[[ "$(cat scv/journal/.turn-plan/req)" == "방패 옵션 바꿔라 — 메일은 a@b.com" ]] && ok "T35 첨부 없는 요청은 그대로" || bad "T35 그대로가 아님: $(cat scv/journal/.turn-plan/req)"
+# 순수 함수 — 닫는 따옴표가 없으면 경로가 아니다, 맨 꼴은 빈칸 뒤에서만
+t35="$(scv_tc_strip_attach '안 닫힘 @"/a/b 그리고 x@/y'; printf '|'; scv_tc_strip_attach $'줄\n@/a/b.png\n끝')"
+[[ "$t35" == $'안 닫힘 @"/a/b 그리고 x@/y|줄\n[첨부]\n끝' ]] && ok "T35 순수 함수: 안 닫힌 따옴표 · 메일 꼴은 그대로, 줄 사이의 맨 꼴은 지움" || bad "T35 순수 함수: [$t35]"
+reset
+
 if [[ $fail -ne 0 ]]; then echo "test-turn-plan-check: FAIL" >&2; exit 1; fi
 echo "test-turn-plan-check: all passed"
