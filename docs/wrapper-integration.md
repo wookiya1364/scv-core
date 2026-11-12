@@ -333,6 +333,16 @@ Hosts without hook support cannot capture free conversation — the session-end
 protocol summaries partially compensate; the gap is documented in the
 project-side `scv/journal/README.md`.
 
+### Stop hook time budget (0.91.0+)
+
+The Stop hook also runs the pure-function check (`core/scripts/pure-bench.sh turn-end`). It starts
+only on a turn that changed a file holding catalogued pure functions; every other turn pays one
+cheap check (about 9 ms, two processes). When it does start, it compares the changed functions with
+the code from before the work began and stops after 35 seconds of measuring, so keep the Stop
+hook's timeout at **60 seconds or more**. Over a limit, the hook answers `{"decision":"block"}`
+with the real before/after numbers; no wrapper change is needed. `SCV_PURE_BENCH=off` in the
+project settings turns it off.
+
 ## 7. Register the workspace guard
 
 `core/template/hooks/guard.sh` is a `PreToolUse` hook that denies writes no SCV

@@ -1,6 +1,6 @@
 # 변환 — 한 표기를 다른 표기로 바꾼다 — 경로 · 날짜 · 단위 · 인코딩
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 38개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 42개.
 
 ### below_raw_root
 - 역할: 경로에서 원자료 폴더 뿌리까지를 떼어 낸다 — 뿌리 아래 마디만 연결 검사를 하려고
@@ -13,6 +13,27 @@
 - 역할: 폴더 경로를 사진 파일 이름으로 바꾼다 — 슬래시 · 빈칸을 밑줄로
 - 위치: scripts/turn-check.sh · @pure · sh
 - 예: `"/Users/a/b c" → "_Users_a_b_c"`
+
+### pb_scale_args
+- 역할: 예시의 인자 글에서 여러 줄 값은 줄을, 여러 줄 값이 없으면 낱말이 여럿인 값은 낱말을 N번 되풀이한다(늘릴 값이 없으면 그대로 내고 1)
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
+- 예: `$'$\'a\\nb\' "x y"' 2 → $'$\'a\\nb\\na\\nb\' "x y"'`
+- 예: `'"x y" k' 2 → '"x y x y" k'`
+- 예: `'"1.2.3" k' 2 → '"1.2.3" k' [1]`
+
+### pb_times_secs
+- 역할: 셸의 times 출력 글(분 · 초 꼴 네 값)을 모두 더한 초로 낸다
+- 위치: scripts/lib/pure-bench.sh · @deterministic · sh
+- 예: `$'0m0.010s 0m0.020s\n0m1.000s 0m0.500s' → "1.530"`
+- 예: `$'1m2.000s 0m0.000s\n0m0.000s 0m0.000s' → "62.000"`
+
+### pb_to_milli
+- 역할: 소수 글을 천분의 일 단위 정수로 바꾼다(소수 셋째 자리까지, 숫자가 아니면 빈 글과 1)
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
+- 예: `22.286 → "22286"`
+- 예: `0.5 → "500"`
+- 예: `3 → "3000"`
+- 예: `- → "" [1]`
 
 ### scv_as_group_of
 - 역할: 파일 경로에서 묶음 이름을 낸다 — 보관된 계획의 네 문서는 폴더 이름 하나로 합친다
@@ -68,6 +89,14 @@
 - 예: `$'s1\x1f1\x1f3\x1fab12\x1f09:30\x1fdeadbeef' s1 prompt 0 → $'s1\x1f1\x1f4\x1fab12\x1f09:30\x1fdeadbeef'`
 - 예: `$'s1\x1f1\x1f3\x1fab12\x1f09:30\x1fdeadbeef' s2 prompt 0 → $'s2\x1f0\x1f1\x1f\x1f\x1f'`
 - 예: `$'s1\x1f1\x1f3\x1fab12\x1f09:30\x1fdeadbeef' s1 reset 0 → $'s1\x1f0\x1f3\x1fab12\x1f09:30\x1f'`
+
+### scv_mp_effort_state_next
+- 역할: 물은 조건 파일 글에서 이 조건의 줄을 새 상태로 바꿔 낸다 — shown 은 실은 횟수를 하나 올리고, asked 는 '물었다'로 올린다(줄은 50개까지)
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `"" "m|high|medium" shown → "m|high|medium|shown:1"`
+- 예: `"m|high|medium|shown:1" "m|high|medium" shown → "m|high|medium|shown:2"`
+- 예: `$'a|low|high|asked\nm|high|medium|shown:2' "m|high|medium" asked → $'a|low|high|asked\nm|high|medium|asked'`
+- 예: `"m|high|medium|asked" "m|high|medium" shown → "m|high|medium|asked"`
 
 ### scv_mp_guides_dir
 - 역할: 프로필 값이 절대 경로면 그대로, 상대 경로면 코어 루트 아래 경로로 바꾼다
