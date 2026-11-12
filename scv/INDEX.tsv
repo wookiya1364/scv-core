@@ -212,3 +212,12 @@ decision	릴리스-검증-나눠-돌리기	scv/DECISIONS.md	276938	879	2026-11-1
 decision	릴리스-검증-나눠-돌리기-archived	scv/DECISIONS.md	277817	1004	2026-11-12 11:23	[archived] 릴리스 검증 나눠 돌리기 archived
 decision	작은-고침-묶음-가장-긴-시험-나누기-보관한-턴-첨부-경로-흔들리는-시험	scv/DECISIONS.md	278821	877	2026-11-12 13:43	[adopted] 작은 고침 묶음 — 가장 긴 시험 나누기 · 보관한 턴 · 첨부 경로 · 흔들리는 시험
 decision	작은-고침-묶음-archived	scv/DECISIONS.md	279698	1239	2026-11-12 14:54	[archived] 작은 고침 묶음 archived
+decision	릴리스-검증-조각-수-6-8	scv/DECISIONS.md	280937	740	2026-11-12 16:03	[adopted] 릴리스 검증 조각 수 6 → 8
+decision	코덱스-쪽에서만-걸리는-선택-답-속도-한도-고치기	scv/DECISIONS.md	281677	847	2026-11-12 17:04	[adopted] 코덱스 쪽에서만 걸리는 선택 답 속도 한도 고치기
+decision	코덱스-쪽에서만-걸리는-선택-답-속도-한도-고치기-archived	scv/DECISIONS.md	282524	1252	2026-11-12 18:08	[archived] 코덱스 쪽에서만 걸리는 선택 답 속도 한도 고치기 archived
+decision	대시보드에-사용자-차례-상태와-색	scv/DECISIONS.md	283776	986	2026-11-12 18:13	[adopted] 대시보드에 "사용자 차례" 상태와 색
+decision	대시보드에-사용자-차례-상태와-색-archived	scv/DECISIONS.md	284762	1152	2026-11-12 18:24	[archived] 대시보드에 "사용자 차례" 상태와 색 archived
+decision	턴-도중에-온-말은-같은-턴으로-이어-가기	scv/DECISIONS.md	285914	1131	2026-11-12 18:29	[adopted] 턴 도중에 온 말은 같은 턴으로 이어 가기
+decision	턴-도중에-온-말은-같은-턴으로-이어-가기-archived	scv/DECISIONS.md	287045	985	2026-11-12 18:54	[archived] 턴 도중에 온 말은 같은 턴으로 이어 가기 archived
+decision	맥-검사의-시간-한도-둘	scv/DECISIONS.md	288030	899	2026-11-12 18:56	[adopted] 맥 검사의 시간 한도 둘
+decision	맥-검사의-시간-한도-둘-archived	scv/DECISIONS.md	288929	786	2026-11-12 19:15	[archived] 맥 검사의 시간 한도 둘 archived

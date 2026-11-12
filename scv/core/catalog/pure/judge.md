@@ -1,6 +1,6 @@
 # 판정 — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 43개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 45개.
 
 ### pb_accept_covers
 - 역할: 사용자가 받아들인 이유들과 지금의 이유들을 견줘, 지금 것이 모두 받아들인 범위 안이면 참 — 시간 · 배수는 받아들인 값의 2배까지, 메모리는 1.2배까지, 부른 횟수는 받아들인 수까지
@@ -276,6 +276,23 @@
 - 예: `$'cd /w && SCV_TODAY=2026-11-09 bash "/p/plan-link.sh" append a --after 1' → "plan-link append"`
 - 예: `"echo plan-link.sh append; printf x" → ""`
 - 예: `"bash plan-link.sh append a" → ""`
+
+### scv_tc_session_closes
+- 역할: 세션 열기의 종류가 앞 턴을 끝난 것으로 만드는지 가린다 — 새로 열기 · 다시 열기만 그렇다
+- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 예: `"startup" → "1"`
+- 예: `"resume" → "1"`
+- 예: `"compact" → "0"`
+- 예: `"clear" → "0"`
+- 예: `"" → "0"`
+
+### scv_tc_start_mode
+- 역할: 사람의 말이 왔을 때 턴 상태를 새로 시작할지 이어 갈지 가린다 — 앞 턴이 끝나지 않았을 때만 이어 간다
+- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 예: `1 0 → "continue"`
+- 예: `1 1 → "fresh"`
+- 예: `0 0 → "fresh"`
+- 예: `0 1 → "fresh"`
 
 ### scv_tc_step_on
 - 역할: 호스트 설정 글에 대시보드(단계 보고 도구를 주는 모드)가 켜졌다는 표시가 있는지 가린다
