@@ -48,7 +48,8 @@ echo "T4. 릴리스 설정 — 여섯 조각, 릴리스는 조각을 기다린�
 p="$(rv_problems "$REL" "$CI")"
 [[ -z "$p" ]] && ok "릴리스 설정에 문제 없음" || fail "릴리스 설정: $(tr '\n' ';' <<< "$p")"
 n_rel="$(job_block "$REL" verify | grep -E 'run-focused\.sh .*--shard' | head -1 | sed -E 's/^.*--shard[[:space:]]+[^/]*\/([0-9]+).*$/\1/')"
-[[ "$n_rel" == 6 ]] && ok "조각은 여섯" || fail "조각 수: ${n_rel:-없음}"
+# 여덟 조각(사용자 결정 2026-11-12): 여섯일 때는 조각 평균이 약 227초라 러너가 조금만 느려도 4분을 넘었다(네 번 재서 네 번).
+[[ "$n_rel" == 8 ]] && ok "조각은 여덟" || fail "조각 수: ${n_rel:-없음}"
 
 echo "T4b. 틀어진 설정은 잡는다"
 mut() {  # <이름> <sed 식> <나와야 할 글>
@@ -56,7 +57,7 @@ mut() {  # <이름> <sed 식> <나와야 할 글>
   if cmp -s "$REL" "$TMP/$1.yml"; then fail "$1 — 바꿔 본 것이 원본과 같다(시험이 낡았다)"; return; fi
   if rv_problems "$TMP/$1.yml" "$CI" | grep -q "$3"; then ok "$1 → 잡음"; else fail "$1 → 못 잡음: [$(rv_problems "$TMP/$1.yml" "$CI" | tr '\n' ';')]"; fi
 }
-mut "조각 목록을 다섯으로"     's/shard: \[1, 2, 3, 4, 5, 6\]/shard: [1, 2, 3, 4, 5]/'  "조각 수가 어긋난다"
+mut "조각 목록을 다섯으로"     's/shard: \[1, 2, 3, 4, 5, 6, 7, 8\]/shard: [1, 2, 3, 4, 5]/'  "조각 수가 어긋난다"
 mut "기다림을 지움"            '/^    needs: verify$/d'                               "조각을 기다리지 않는다"
 mut "PR 에서도 릴리스가 돎"    "/^    if: github.event_name == 'push'\$/d"             "꼬리표를 올릴 때만"
 mut "도는 폴더를 줄임"         's/--dir tests --dir core\/tests --also/--dir core\/tests --also/' "PR 검사와 다르다"
@@ -89,15 +90,16 @@ check_table() {  # <이름> <시간표 파일> <조각 수>
   max="$(tr ' ' '\n' <<< "$sums" | awk '$1 > m { m = $1 } END { print m + 0 }')"; avg=$(( total / n ))
   (( max <= avg + longest )) && ok "$name: 조각 합 [${sums% }]초 — 가장 무거운 ${max}초 ≤ 평균 ${avg} + 가장 긴 시험 ${longest}" \
     || fail "$name: 조각이 쏠렸다 [${sums% }] (평균 $avg · 가장 긴 시험 $longest)"
-  # 시험 하나가 조각 하나만큼 길어지면 그 조각을 고르게 맞출 수 없다 — 평균의 3분의 2 를 넘기 전에 나눠야 한다.
-  # (처음에는 절반으로 잡았으나, 나눈 재는 명령 시험의 가장 긴 파일이 리눅스에서 127초 · 평균 211초였다.)
-  (( longest * 3 <= avg * 2 )) && ok "$name: 가장 긴 시험 ${longest}초 ≤ 조각 평균 ${avg}초의 3분의 2" \
-    || fail "$name: 가장 긴 시험 ${longest}초가 조각 평균 ${avg}초의 3분의 2 를 넘는다 — 그 시험을 나눠라"
+  # 시험 하나가 조각 평균보다 길면 그 시험이 든 조각은 반드시 평균을 넘는다 — 고르게 맞출 수 없으니 그 시험을 나눠야 한다.
+  # (어림값으로 절반 · 3분의 2 를 차례로 잡았으나 실제 값에 맞지 않았다. 따져야 할 것은 "조각 하나보다 긴가"다.)
+  (( longest <= avg )) && ok "$name: 가장 긴 시험 ${longest}초 ≤ 조각 평균 ${avg}초" \
+    || fail "$name: 가장 긴 시험 ${longest}초가 조각 평균 ${avg}초보다 길다 — 그 시험을 나눠라"
   min="$(tr ' ' '\n' <<< "$sums" | grep . | awk 'NR == 1 || $1 < m { m = $1 } END { print m + 0 }')"
   (( max - min <= 5 )) && ok "$name: 가장 무거운 조각 − 가장 가벼운 조각 = $(( max - min ))초 (5초 안)" \
     || fail "$name: 조각의 차이 $(( max - min ))초 — 시간표를 다시 적어라"
 }
-check_table "리눅스" "$ROOT/core/tests/timings.tsv" 6
+check_table "리눅스(PR 검사 6조각)" "$ROOT/core/tests/timings.tsv" 6
+check_table "리눅스(릴리스 8조각)" "$ROOT/core/tests/timings.tsv" "$n_rel"
 check_table "맥"     "$ROOT/core/tests/timings-macos.tsv" 5
 # 시간표에서 한 줄을 지우면 그 이름을 댄다
 grep -v '^core/tests/test-run-focused\.sh' "$ROOT/core/tests/timings.tsv" > "$TMP/short.tsv"
