@@ -306,5 +306,23 @@ if [[ "$v" == block ]]; then ok "T33 예전에 보관된 계획만 있고 기록
 else bad "T33 v=$v"; fi
 reset
 
+# T34 — 기록 명령을 실제로 돌렸으면 명령 글의 모양과 상관없이 영수증이 남는다 (계획 20261112-wookiya1364-small-fixes-bundle T4)
+#   2026-11-12 재현: 모델은 기록 명령을 "경로를 변수에 담아" · "다른 명령 뒤에 이어서" · "둘째 줄에서" 돌린다.
+#   도구 앞 훅은 명령 글의 첫 줄이 정해진 꼴일 때만 영수증을 남겨, 기록 줄이 계획에 있는데도 턴이 막혔다
+#   (그 세션의 상태 파일: 기록 명령 네 번 · 영수증 0). 기록 명령 스스로가 기록을 남긴 뒤 영수증을 더한다.
+n34=0
+reset; start; ed; H "P='$CORE/scripts'; bash \"\$P/plan-link.sh\" progress p1 --step 2 --note '변수에 담은 경로'"
+v="$(verdict)"; [[ "$v" == pass ]] && n34=$((n34 + 1)) || echo "  (T34 변수 경로: $v)" >&2
+reset; start; ed; H "cd '$R' && git status --short >/dev/null; SL=p1; bash '$PL' progress \"\$SL\" --step 2 --note '다른 명령 뒤'"
+v="$(verdict)"; [[ "$v" == pass ]] && n34=$((n34 + 1)) || echo "  (T34 다른 명령 뒤: $v)" >&2
+reset; start; ed; H "echo 먼저
+bash '$PL' progress p1 --step 2 --note '둘째 줄'"
+v="$(verdict)"; [[ "$v" == pass ]] && n34=$((n34 + 1)) || echo "  (T34 둘째 줄: $v)" >&2
+[[ $n34 == 3 ]] && ok "T34 기록 명령을 실제로 돌린 턴 3/3 pass (변수 경로 · 다른 명령 뒤 · 둘째 줄)" || bad "T34 $n34/3"
+# 실패한 기록 명령은 영수증을 남기지 않는다 — 없는 계획에 적으려 한 턴은 그대로 막힌다
+reset; start; ed; H "P='$CORE/scripts'; bash \"\$P/plan-link.sh\" progress no-such --step 1 --note x"
+v="$(verdict)"; [[ "$v" == block ]] && ok "T34 실패한 기록 명령은 영수증이 아니다 → block" || bad "T34 실패한 명령 v=$v"
+reset
+
 if [[ $fail -ne 0 ]]; then echo "test-turn-plan-check: FAIL" >&2; exit 1; fi
 echo "test-turn-plan-check: all passed"
