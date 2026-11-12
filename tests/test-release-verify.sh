@@ -72,7 +72,7 @@ ALL="$(cd "$ROOT" && rf_list_tests D:tests D:core/tests F:core/tests/run-dry.sh 
 n_all="$(grep -c . <<< "$ALL")"
 keys_of() { cut -f2 <<< "$1" | while IFS= read -r q; do [[ -n "$q" ]] && rf_key "$q"; done; }
 check_table() {  # <이름> <시간표 파일> <조각 수>
-  local name="$1" file="$2" n="$3" t i part union="" missing sums max avg longest total
+  local name="$1" file="$2" n="$3" t i part union="" missing sums max min avg longest total
   t="$(cat "$file")"
   missing="$(keys_of "$ALL" | while IFS= read -r k; do awk -F'\t' -v k="$k" '$1 == k { f = 1 } END { exit !f }' <<< "$t" || printf '%s ' "$k"; done)"
   [[ -z "$missing" ]] && ok "$name 시간표: 모으는 시험 ${n_all}개가 모두 있다" || fail "$name 시간표에 없는 시험: $missing"
@@ -89,6 +89,12 @@ check_table() {  # <이름> <시간표 파일> <조각 수>
   max="$(tr ' ' '\n' <<< "$sums" | awk '$1 > m { m = $1 } END { print m + 0 }')"; avg=$(( total / n ))
   (( max <= avg + longest )) && ok "$name: 조각 합 [${sums% }]초 — 가장 무거운 ${max}초 ≤ 평균 ${avg} + 가장 긴 시험 ${longest}" \
     || fail "$name: 조각이 쏠렸다 [${sums% }] (평균 $avg · 가장 긴 시험 $longest)"
+  # 가장 긴 시험이 평균의 절반을 넘으면 그 시험이 든 조각을 고르게 맞출 수 없다 — 그 시험을 나눠야 한다
+  (( longest * 2 <= avg )) && ok "$name: 가장 긴 시험 ${longest}초 ≤ 조각 평균 ${avg}초의 절반" \
+    || fail "$name: 가장 긴 시험 ${longest}초가 조각 평균 ${avg}초의 절반을 넘는다 — 그 시험을 나눠라"
+  min="$(tr ' ' '\n' <<< "$sums" | grep . | awk 'NR == 1 || $1 < m { m = $1 } END { print m + 0 }')"
+  (( max - min <= 5 )) && ok "$name: 가장 무거운 조각 − 가장 가벼운 조각 = $(( max - min ))초 (5초 안)" \
+    || fail "$name: 조각의 차이 $(( max - min ))초 — 시간표를 다시 적어라"
 }
 check_table "리눅스" "$ROOT/core/tests/timings.tsv" 6
 check_table "맥"     "$ROOT/core/tests/timings-macos.tsv" 5
