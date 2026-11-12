@@ -221,3 +221,7 @@ decision	턴-도중에-온-말은-같은-턴으로-이어-가기	scv/DECISIONS.m
 decision	턴-도중에-온-말은-같은-턴으로-이어-가기-archived	scv/DECISIONS.md	287045	985	2026-11-12 18:54	[archived] 턴 도중에 온 말은 같은 턴으로 이어 가기 archived
 decision	맥-검사의-시간-한도-둘	scv/DECISIONS.md	288030	899	2026-11-12 18:56	[adopted] 맥 검사의 시간 한도 둘
 decision	맥-검사의-시간-한도-둘-archived	scv/DECISIONS.md	288929	786	2026-11-12 19:15	[archived] 맥 검사의 시간 한도 둘 archived
+decision	재지-못한-함수만-다시-재기	scv/DECISIONS.md	289715	939	2026-11-12 22:02	[adopted] 재지 못한 함수만 다시 재기
+decision	재지-못한-함수만-다시-재기-archived	scv/DECISIONS.md	290654	1059	2026-11-12 22:44	[archived] 재지 못한 함수만 다시 재기 archived
+decision	마무리-보고-계획마다-문제에서-배운-것까지-남기고-계획-없는-변경은-없앤다	scv/DECISIONS.md	291713	1074	2026-11-13 00:12	[adopted] 마무리 보고 — 계획마다 문제에서 배운 것까지 남기고, 계획 없는 변경은 없앤다
+decision	마무리-보고-계획마다-문제에서-배운-것까지-남기고-계획-없는-변경은-없앤다-archiv	scv/DECISIONS.md	292787	1455	2026-11-13 00:49	[archived] 마무리 보고 — 계획마다 문제에서 배운 것까지 남기고, 계획 없는 변경은 없앤다 archived
