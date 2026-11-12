@@ -4,13 +4,75 @@ on:
   push:
     tags:
       - 'v*'
+  # A PR that edits this file rehearses the verify shards below — the release job itself
+  # never runs on a PR. Without this, a change to the shards is first exercised by a real
+  # tag, when a mistake already blocks a release.
+  pull_request:
+    branches: [develop]
+    paths:
+      - '.github/workflows/release.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
+  # WHERE THE RELEASE WAITS — and why it is split across runners (0.92.1).
+  #
+  # One runner used to run every test one after another before anything was published:
+  # 19–23 minutes through 2026-11-10, 32m33s for v0.92.0. Release assets appear only after
+  # that, and the wrappers' sync starts from the assets, so both wrappers waited as long.
+  # The tests are independent of each other, so they are cut into shards exactly as the PR
+  # check does (core-ci.yml): same runner script, same folders, one runner per shard, one
+  # test at a time inside a shard — which keeps the wall-clock checks in some tests steady.
+  # Balanced by core/tests/timings.tsv, a shard is about a sixth of the tests' summed time
+  # (1,269 s on 2026-11-12, longest single test 203 s).
+  #
+  # What changes besides the wait: the old loop ran `core/tests/test-*.sh`, so the two
+  # aggregate files (`# scv-test: aggregate`) ran their parts a second time — 225 s of
+  # repeated work. The runner script skips aggregates; every part still runs once.
+  #
+  # pnpm and Node are set up in every shard on purpose. The deck tests skip themselves when
+  # pnpm is missing (they do on the PR shards), and this step is where they actually run —
+  # so the shards keep the environment the single verify step had. No `cache:` here: a shard
+  # that installs nothing has no store to save, and setup-node's post step fails the job on
+  # that ("Path Validation Error" — the same trap the DeckUI job in core-ci.yml documents).
+  #
+  # `release` needs every shard. A failed or cancelled shard means no assets and no wrapper
+  # dispatch; `gh run rerun <id> --failed` re-runs only the shards that failed.
+  verify:
+    name: Verify Core (shard ${{ matrix.shard }}/6)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+
+      - name: Validate tag
+        if: github.event_name == 'push'
+        run: |
+          version=$(tr -d '[:space:]' < VERSION)
+          test "$GITHUB_REF_NAME" = "v$version"
+
+      - name: Contracts, shared regression and focused suites (this shard)
+        run: bash core/tests/run-focused.sh --dir tests --dir core/tests --also core/tests/run-dry.sh --shard ${{ matrix.shard }}/6
+
+  release:
+    needs: verify
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       GH_TOKEN: ${{ github.token }}
       SCV_WRAPPER_SYNC_TOKEN: ${{ secrets.SCV_WRAPPER_SYNC_TOKEN }}
@@ -35,14 +97,6 @@ jobs:
         run: |
           version=$(tr -d '[:space:]' < VERSION)
           test "$GITHUB_REF_NAME" = "v$version"
-
-      - name: Verify Core
-        run: |
-          bash tests/run.sh
-          bash core/tests/run-dry.sh
-          for test_file in core/tests/test-*.sh; do
-            bash "$test_file"
-          done
 
       - name: Verify DeckUI
         run: |
