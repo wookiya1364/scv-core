@@ -2397,3 +2397,19 @@ merge_policy: preserve
 - path delta: as planned — 코어 PR 의 맥 조각 시간은 보관 뒤에 읽어 적는다(보관해야 PR 이 계획 근거를 갖는다).
 - refs: scv/archive/20261112-wookiya1364-mac-ci-time-limits/PLAN.md
 - conversation: scv/conversations/20261112-165612-next-four-plans-after-0922.md
+
+## [2026-11-12 22:02] wookiya1364 — 재지 못한 함수만 다시 재기
+
+- verdict: adopted
+- why: 재는 명령 시험 S13 의 '재지 못함'은 맥 러너가 잠깐 바쁠 때 프로그램을 띄우는 함수의 벽시계가 CPU 의 1.5배를 넘어서 났다(시험 뒤의 러너 3대에서 48줄 가운데 0 · 2 · 11줄, 갓 띄운 러너 0줄). 그 순간은 짧으므로 재지 못한 함수만 최대 두 번 더 잰다. 규칙과 한도는 그대로.
+- discarded alternatives: 시험에서만 다시 재기 — 사용자 컴퓨터에서 같은 일이 남는다 / 붐빔 재기에 프로그램 띄우기를 포함하기 — 다른 함수의 판정이 달라질 수 있어 따로 재 봐야 한다 / 고치지 않고 실패하면 다시 돌리기 — PR 이 그때마다 멈춘다
+- refs: scv/promote/20261112-wookiya1364-pure-bench-remeasure/PLAN.md
+- conversation: scv/conversations/20261112-214709-pure-bench-s13-flake.md
+
+## [2026-11-12 22:44] wookiya1364 — 재지 못한 함수만 다시 재기 archived
+
+- verdict: archived
+- why: 재는 명령이 '재지 못함'이 나온 함수만 같은 되풀이 수로 두 번까지 다시 잰다. 원인은 값으로 갈랐다: 맥 러너가 잠깐 바쁠 때 프로그램을 띄우는 함수의 벽시계가 CPU 의 1.5배를 넘는다(고치기 전 세 대 144줄 가운데 13줄). 고친 뒤 아홉 대 432줄에서 처음에 못 잰 3번이 모두 한 번 다시 재서 값이 나왔다. 앞으로 깨면 안 되는 것: 규칙(0.5초 · 1.5배)은 그대로이고 계속 못 재면 '재지 못함'으로 남는다, 잰 줄은 열한 칸 그대로다.
+- path delta: as planned — 시험의 '처음에 잰 함수는 더 재지 않는다' 장면만 진짜 시간 도구 대신 가짜 도구의 좋은 값으로 바꿨다(진짜 도구는 붐비는 컴퓨터에서 결과가 달라진다).
+- refs: scv/archive/20261112-wookiya1364-pure-bench-remeasure/PLAN.md
+- conversation: scv/conversations/20261112-214709-pure-bench-s13-flake.md
