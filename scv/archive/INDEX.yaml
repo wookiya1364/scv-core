@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-12T09:54:24Z
+generated_at: 2026-11-12T10:15:33Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -527,6 +527,10 @@ archives:
     status: testing
   - slug: 20261112-wookiya1364-dashboard-your-turn
     title: "대시보드에 "사용자 차례" 상태와 색"
+    kind: feature
+    status: testing
+  - slug: 20261112-wookiya1364-mac-ci-time-limits
+    title: "맥 검사의 시간 한도 둘"
     kind: feature
     status: testing
   - slug: 20261112-wookiya1364-pipe-arrange

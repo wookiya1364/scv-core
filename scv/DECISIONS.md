@@ -2381,3 +2381,19 @@ merge_policy: preserve
 - path delta: as planned — 다만 세션 시작 훅은 끝내는 종류(새로 열기 · 다시 열기)일 때만 프로그램을 띄우도록 값싼 앞 검사를 뒀다(훅 속도).
 - refs: scv/archive/20261112-wookiya1364-turn-continues-mid-message/PLAN.md
 - conversation: scv/conversations/20261112-165612-next-four-plans-after-0922.md
+
+## [2026-11-12 18:56] wookiya1364 — 맥 검사의 시간 한도 둘
+
+- verdict: adopted
+- why: 코어 PR 검사의 맥 조각은 가장 긴 것이 455~577초(한도 600초), 클로드 래퍼의 맥 검사는 380초로 한 번 끊겼다(한도 360초). 코어는 맥 조각 5 → 7 과 한도 10 → 15분(사용자 선택: 둘 다), 래퍼는 맥 갈래 한도 6 → 10분(사용자 선택). 합치는 데 필요한 검사 이름은 조각을 모으는 검사라 그대로다.
+- discarded alternatives: 코어: 조각만 늘리기(추천했던 것) — 사용자가 한도도 함께 올리기를 골랐다 / 래퍼: 시험을 실행기로 돌려 빠르게 — 재 봐야 알고 코어 릴리스 뒤에야 가능해 사용자가 한도만 골랐다
+- refs: scv/promote/20261112-wookiya1364-mac-ci-time-limits/PLAN.md
+- conversation: scv/conversations/20261112-165612-next-four-plans-after-0922.md
+
+## [2026-11-12 19:15] wookiya1364 — 맥 검사의 시간 한도 둘 archived
+
+- verdict: archived
+- why: 코어 PR 검사의 맥 조각을 7개 · 한도 15분으로, 클로드 쪽 저장소의 맥 갈래 한도를 10분으로(리눅스 6분 그대로) 바꿨다. 조각 수는 이름 · 목록 · 명령 세 곳에 적히므로 어긋나면 잡는 확인을 뒀고, 맥 시간표의 균형은 설정에서 읽은 조각 수로 본다. 합치는 데 필요한 검사 이름은 그대로다.
+- path delta: as planned — 코어 PR 의 맥 조각 시간은 보관 뒤에 읽어 적는다(보관해야 PR 이 계획 근거를 갖는다).
+- refs: scv/archive/20261112-wookiya1364-mac-ci-time-limits/PLAN.md
+- conversation: scv/conversations/20261112-165612-next-four-plans-after-0922.md

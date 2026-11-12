@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated_at": "2026-11-12T09:29:59Z",
+  "updated_at": "2026-11-12T09:56:37Z",
   "files": {
     "scv/raw/20261001-hook-path-bash32-audit.md": { "size": 3354, "mtime": "2026-10-01T02:15:20Z" },
     "scv/raw/20261001-resume-recap-stale-conversation.md": { "size": 1918, "mtime": "2026-10-01T13:52:26Z" },
@@ -107,7 +107,7 @@
     "scv/raw/stale/20261111-slow-pure-functions.md": { "slugs": ["20261111-wookiya1364-slow-pure-functions"], "ref_commit": "ac52db1", "consumed_at": "2026-11-11T13:22:21Z", "origin": "scv/raw/20261111-slow-pure-functions.md" },
     "scv/raw/stale/20261112-bench-gate-gaps.md": { "slugs": ["20261112-wookiya1364-bench-gate-gaps"], "ref_commit": "7d036e5", "consumed_at": "2026-11-11T15:35:21Z", "origin": "scv/raw/20261112-bench-gate-gaps.md" },
     "scv/raw/stale/20261112-dashboard-waiting-for-go-ahead.md": { "slugs": ["20261112-wookiya1364-dashboard-your-turn"], "ref_commit": "49965e8", "consumed_at": "2026-11-12T09:13:39Z", "origin": "scv/raw/20261112-dashboard-waiting-for-go-ahead.md" },
-    "scv/raw/stale/20261112-next-fixes-after-0922.md": { "slugs": ["20261112-wookiya1364-codex-choice-speed-limit", "20261112-wookiya1364-turn-continues-mid-message"], "ref_commit": "f0013dc", "consumed_at": "2026-11-12T09:29:58Z", "origin": "scv/raw/20261112-next-fixes-after-0922.md" },
+    "scv/raw/stale/20261112-next-fixes-after-0922.md": { "slugs": ["20261112-wookiya1364-codex-choice-speed-limit", "20261112-wookiya1364-turn-continues-mid-message", "20261112-wookiya1364-mac-ci-time-limits"], "ref_commit": "f80ca6e", "consumed_at": "2026-11-12T09:56:36Z", "origin": "scv/raw/20261112-next-fixes-after-0922.md" },
     "scv/raw/stale/20261112-release-verify-parallel.md": { "slugs": ["20261112-wookiya1364-release-verify-shards"], "ref_commit": "a082caa", "consumed_at": "2026-11-12T01:47:04Z", "origin": "scv/raw/20261112-release-verify-parallel.md" },
     "scv/raw/stale/20261112-small-fixes-bundle.md": { "slugs": ["20261112-wookiya1364-small-fixes-bundle"], "ref_commit": "42e1a8f", "consumed_at": "2026-11-12T04:43:57Z", "origin": "scv/raw/20261112-small-fixes-bundle.md" }
   }
