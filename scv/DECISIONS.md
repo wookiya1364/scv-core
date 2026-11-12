@@ -2365,3 +2365,19 @@ merge_policy: preserve
 - path delta: 막 연 세션도 사용자 차례로 보이려던 것을 뺐다 — 그 세션은 턴의 끝을 본 적이 없어 다른 세션이 일하는 계획과 가릴 수 없고, 기존 시험 118개의 모습도 그대로 남는다. 거울 세션은 따로 고치려 했으나 이미 보내던 live 값에 표시 둘을 실어 고칠 곳이 없었다.
 - refs: scv/archive/20261112-wookiya1364-dashboard-your-turn/PLAN.md
 - conversation: scv/conversations/20261112-165612-next-four-plans-after-0922.md
+
+## [2026-11-12 18:29] wookiya1364 — 턴 도중에 온 말은 같은 턴으로 이어 가기
+
+- verdict: adopted
+- why: 턴 끝 검사가 사람의 말마다 턴 상태를 새로 시작해, 일하는 도중에 온 말 뒤에는 앞의 기록이 세어지지 않고 보관한 계획도 읽히지 않았다. 턴 끝이 통과를 낼 때와 세션을 새로 열거나 다시 열 때 '끝' 표시를 남기고, 끝나지 않은 턴에 온 말은 번호 · 영수증 · 사진 · 기준선을 그대로 두고 이어 간다. 사용자가 멈춘 턴 뒤의 말도 이어 간다(사용자 선택).
+- discarded alternatives: 멈춘 턴 뒤의 말을 새 턴으로 보기 — 멈추기 전에 고친 파일이 기록 없이 넘어간다 / 도구를 쓸 때마다 끝 표시를 지우기 — 자동 알림 턴의 도구 사용이 끝난 턴을 되살려 지난 기록이 다음 턴에 세어진다 / 시간으로 가르기(몇 시간 지나면 새 턴) — 어림값이 필요하다
+- refs: scv/promote/20261112-wookiya1364-turn-continues-mid-message/PLAN.md
+- conversation: scv/conversations/20261112-165612-next-four-plans-after-0922.md
+
+## [2026-11-12 18:54] wookiya1364 — 턴 도중에 온 말은 같은 턴으로 이어 가기 archived
+
+- verdict: archived
+- why: 턴 끝 검사에 '턴이 끝났다' 표시가 생겼다: 턴 끝이 통과를 낼 때와 세션을 새로 열거나 다시 열 때. 표시가 없는데 사람의 말이 오면 그 턴을 이어 간다(번호 · 영수증 · 사진 · 기준선 · 막힌 횟수 그대로). 도중에 온 말 뒤의 기록 재요구와 보관 뒤의 릴리스 예외가 없어진다. 앞으로 깨면 안 되는 것: 끝난 턴의 기록은 다음 턴 것으로 세지 않는다(T38), 압축은 턴을 끝내지 않는다(T41).
+- path delta: as planned — 다만 세션 시작 훅은 끝내는 종류(새로 열기 · 다시 열기)일 때만 프로그램을 띄우도록 값싼 앞 검사를 뒀다(훅 속도).
+- refs: scv/archive/20261112-wookiya1364-turn-continues-mid-message/PLAN.md
+- conversation: scv/conversations/20261112-165612-next-four-plans-after-0922.md

@@ -217,3 +217,5 @@ decision	코덱스-쪽에서만-걸리는-선택-답-속도-한도-고치기	scv
 decision	코덱스-쪽에서만-걸리는-선택-답-속도-한도-고치기-archived	scv/DECISIONS.md	282524	1252	2026-11-12 18:08	[archived] 코덱스 쪽에서만 걸리는 선택 답 속도 한도 고치기 archived
 decision	대시보드에-사용자-차례-상태와-색	scv/DECISIONS.md	283776	986	2026-11-12 18:13	[adopted] 대시보드에 "사용자 차례" 상태와 색
 decision	대시보드에-사용자-차례-상태와-색-archived	scv/DECISIONS.md	284762	1152	2026-11-12 18:24	[archived] 대시보드에 "사용자 차례" 상태와 색 archived
+decision	턴-도중에-온-말은-같은-턴으로-이어-가기	scv/DECISIONS.md	285914	1131	2026-11-12 18:29	[adopted] 턴 도중에 온 말은 같은 턴으로 이어 가기
+decision	턴-도중에-온-말은-같은-턴으로-이어-가기-archived	scv/DECISIONS.md	287045	985	2026-11-12 18:54	[archived] 턴 도중에 온 말은 같은 턴으로 이어 가기 archived
