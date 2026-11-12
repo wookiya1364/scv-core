@@ -1,6 +1,6 @@
 # 갱신: CI 조각 작업 표의 'PASS  <초>s  <key>' 줄을 '<key><TAB><초>' 로 옮겨 적는다. 기록 없는 시험은 5초.
 # 시험별 시간(초, ubuntu 릴리스 조각 실측 2026-11-12 · v0.92.1 — 기획서 도구가 있는 러너) — run-focused.sh --shard 가 조각을 고르게 나눌 때 쓴다. 상대 무게라 대략이면 된다.
-# 0초로 찍힌 시험은 1초로 적는다 — 시험을 띄우는 데 드는 시간이 있어, 0으로 두면 작은 시험이 한 조각에 몰린다(v0.92.1: 40개가 몰린 조각이 252초). 재는 명령 시험 넷은 한 파일일 때의 196초를 구간별로 잰 비(20 : 75 : 57 : 109)로 나눈 값이다.
+# 0초로 찍힌 시험은 1초로 적는다 — 시험을 띄우는 데 드는 시간이 있어, 0으로 두면 작은 시험이 한 조각에 몰린다(v0.92.1: 40개가 몰린 조각이 252초). 재는 명령 시험 넷은 나눈 뒤 처음 돌린 릴리스 조각(2026-11-12 미리 돌려 보기)의 실제 값이다 — 맥에서 잰 비로 어림했던 값(d 82초)은 리눅스의 실제(127초)와 달라 그 조각이 281초가 됐다.
 core/tests/run-dry.sh	25
 core/tests/test-anchor-intent.sh	8
 core/tests/test-answer-bullets.sh	1
@@ -64,9 +64,9 @@ core/tests/test-pr-notify.sh	2
 core/tests/test-project-pure-catalog.sh	2
 core/tests/test-provenance-gates.sh	1
 core/tests/test-pure-bench-a.sh	15
-core/tests/test-pure-bench-b.sh	56
-core/tests/test-pure-bench-c.sh	43
-core/tests/test-pure-bench-d.sh	82
+core/tests/test-pure-bench-b.sh	51
+core/tests/test-pure-bench-c.sh	48
+core/tests/test-pure-bench-d.sh	127
 core/tests/test-pure-catalog.sh	20
 core/tests/test-pure-declare.sh	2
 core/tests/test-purity.sh	2

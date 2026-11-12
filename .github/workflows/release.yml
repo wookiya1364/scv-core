@@ -29,7 +29,7 @@ jobs:
   # before). The 252 s shard held the one test that could not be cut (203–256 s) plus many
   # small tests the table had at 0 s. 0.92.2 split that test into four files and re-wrote the
   # table from this job's own times — tests/test-release-verify.sh fails when a test is missing
-  # from the table, when one test outgrows half a shard, or when the shards drift apart.
+  # from the table, when one test outgrows two thirds of a shard, or when the shards drift apart.
   #
   # What changes besides the wait: the old loop ran `core/tests/test-*.sh`, so the two
   # aggregate files (`# scv-test: aggregate`) ran their parts a second time — 225 s of
