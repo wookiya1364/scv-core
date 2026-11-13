@@ -1,6 +1,6 @@
 # 고르기 — 여럿 중 일부를 골라내거나 순서를 매긴다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 43개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 44개.
 
 ### attachment_scope_filter
 - 역할: 표준입력 줄들에서 슬러그가 든 줄만 남긴다 — 슬러그가 비면 전부 통과
@@ -198,14 +198,25 @@
 - 예: `"echo x" → ""`
 
 ### scv_resume_other_active
-- 역할: 고른 경로를 뺀 나머지 active 경로들을 한 줄씩 낸다
+- 역할: 고른 경로를 뺀 나머지 active 경로들을 한 줄씩 낸다 — 기준 초보다 오래 손대지 않은 것은 빼고(그것은 따로 알린다)
 - 위치: scripts/lib/resume-recap.sh · @pure · sh
 - 예: `$'a.md\tactive\t5\nb.md\tactive\t9' b.md → "a.md"`
+- 예: `$'a.md\tactive\t5\nb.md\tactive\t900' b.md 1000 300 → ""`
 
-### scv_resume_pick_active
-- 역할: "경로 status mtime" 줄들 중 active 이고 mtime 이 가장 큰 경로 하나를 고른다(동률이면 뒤 줄)
+### scv_resume_pick
+- 역할: 전문으로 실을 대화 하나를 고른다 — 구현 중인 계획에 이어진 대화 가운데 가장 최근에 손댄 것, 없으면 표시가 active 이고 기준 초 안에 손댄 것 가운데 가장 최근 것(동률이면 뒤 줄)
 - 위치: scripts/lib/resume-recap.sh · @pure · sh
-- 예: `$'a.md\tactive\t5\nb.md\tactive\t9\nc.md\tdone\t99' → "b.md"`
+- 예: `$'a.md\tactive\t100\nb.md\tpromoted\t50' "b.md" 200 300 → "b.md"`
+- 예: `$'a.md\tactive\t100\nb.md\tpromoted\t50' "" 200 300 → "a.md"`
+- 예: `$'a.md\tactive\t100' "" 1000 300 → ""`
+- 예: `$'a.md\tactive\t5\nb.md\tactive\t9\nc.md\tdone\t99' "" 0 0 → "b.md"`
+
+### scv_resume_stale
+- 역할: 표시가 active 인데 기준 초보다 오래 손대지 않은 대화의 경로들을 한 줄씩 낸다(고른 경로는 빼고) — 끝났을 가능성이 큰 대화
+- 위치: scripts/lib/resume-recap.sh · @pure · sh
+- 예: `$'a.md\tactive\t5\nb.md\tactive\t900' "" 1000 300 → "a.md"`
+- 예: `$'a.md\tactive\t5' a.md 1000 300 → ""`
+- 예: `$'a.md\tactive\t0\nb.md\tdone\t5' "" 1000 300 → ""`
 
 ### scv_show_real_lookup
 - 역할: 열쇠 붙은 발췌 줄마다 저장된 답이 있으면 A 줄, 없으면 물을 턴 Q 줄로 나눠 낸다
