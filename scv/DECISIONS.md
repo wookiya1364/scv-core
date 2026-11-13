@@ -2477,3 +2477,19 @@ merge_policy: preserve
 - path delta: as planned — 조각 수는 처음 잡은 여덟 그대로였고(가장 긴 조각 205초), 원자성 시험은 다섯 묶음을 76 · 119 · 104초의 세 부분으로 묶었다. 코어 → 코덱스 전체 시간(목표 30분)은 이번에 잴 수 없어 다음 코어 릴리스로 넘겼다.
 - refs: scv/archive/20261113-wookiya1364-codex-ci-parallel/PLAN.md
 - conversation: scv/conversations/20261113-154850-whats-left-how-scv-works.md
+
+## [2026-11-13 17:03] wookiya1364 — 복원 요약이 끝난 대화를 싣던 것 · PR 도구가 묶음 계획 가지를 늘 main 에서 만들던 것
+
+- verdict: adopted
+- why: 복원 요약은 구현 중인 계획에 이어진 대화를 먼저 싣고, 없으면 3일 안에 손댄 진행 중 대화를 싣는다. 3일 넘게 손대지 않은 대화는 경로만 알린다. PR 도구는 묶음 계획 가지의 출발점을 PR 대상과 같은 순서로 정하고, 없으면 커밋 앞에서 멈춘다. 0.93.3 으로 릴리스한다.
+- discarded alternatives: 기준을 7일로 — 지금의 5일 전 대화가 계속 전문으로 실린다 / 날짜를 보지 않기 — 계획이 없을 때 옛 대화가 계속 실린다 / 끝난 대화의 표시를 스스로 바꾸기 — 대화 파일은 건드리지 않기로 했다
+- refs: scv/promote/20261113-wookiya1364-resume-pick-and-epic-base/PLAN.md
+- conversation: scv/conversations/20261113-154850-whats-left-how-scv-works.md
+
+## [2026-11-13 17:38] wookiya1364 — 복원 요약이 끝난 대화를 싣던 것 · PR 도구가 묶음 계획 가지를 늘 main 에서 만들던 것 archived
+
+- verdict: archived
+- why: 복원 요약은 구현 중인 계획에 이어진 대화를 먼저 싣고, 없으면 3일 안에 손댄 active 를 싣는다. 3일 넘은 active 는 경로만 알린다 — 표시 하나가 아니라 '지금 쓰이고 있다'는 근거로 고른다. PR 도구는 묶음 계획 가지의 출발점을 대상 가지와 같은 함수로 정하고, 가지와 출발점이 둘 다 없으면 커밋 앞에서 멈춘다.
+- path delta: 기존 시험 자료 다섯 곳의 2020 ~ 2022년 날짜를 지금 기준으로 바꿨다 — 새 규칙에서 '오래된 대화'가 되어 시험이 깨졌고, 검사하는 내용은 그대로 두었다. 재는 검사가 나머지 대화 고르기의 1.22배를 잡아 줄마다 하던 숫자 확인을 정규식에서 무늬로 바꿨다. 보관 전 전체 회귀는 전체 시험 한 번으로 갈음했다.
+- refs: scv/archive/20261113-wookiya1364-resume-pick-and-epic-base/PLAN.md
+- conversation: scv/conversations/20261113-154850-whats-left-how-scv-works.md
