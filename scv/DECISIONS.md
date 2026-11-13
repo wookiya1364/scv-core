@@ -2445,3 +2445,19 @@ merge_policy: preserve
 - path delta: 검색은 '걸린 줄에서 틀 줄 빼기' 대신 '값만 꺼내 훑기'로 갔다 — 안내 글의 이어지는 줄은 줄 하나만 보고는 값의 이어지는 줄과 가릴 수 없었다. 겹침 검사 시험의 예는 '환불 버튼'에서 '결제 버튼 ↔ 버튼을 고친다'로 바꿨다 — 앞의 예는 고치기 전에도 절반이 겹쳐 실패하지 않았다. 보관 전 전체 회귀는 돌리지 않고 전체 시험 한 번으로 갈음했다(사용자가 2026-11-12 에 정한 방식).
 - refs: scv/archive/20261113-wookiya1364-wrapup-followups-three/PLAN.md
 - conversation: scv/conversations/20261113-083227-remaining-work-list.md
+
+## [2026-11-13 11:26] wookiya1364 — 단계 보고가 턴 끝 검사에 안 잡히던 것 · 재는 검사가 옆 파일에 기대는 함수를 빼던 것
+
+- verdict: adopted
+- why: 단계 보고는 도구 앞 훅의 표시 대신 대화 기록에 적힌 이번 턴의 도구 호출로도 인정한다 — 대시보드의 도구에는 훅이 닿지 않는 것을 실제 세션에서 확인했다. 재는 검사는 앞 코드를 잴 파일이 있는 폴더째 꺼낸다. 0.93.2 로 릴리스한다.
+- discarded alternatives: 대시보드가 보고받을 때 표시를 남기기 — 다른 저장소도 릴리스해야 하고 대시보드가 코어의 파일 자리를 알아야 한다 / 막지 않고 안내만 — 지키게 하는 힘이 사라진다 / 코어 전체를 꺼내기 — 0.22초 · 12MB, 사용자 프로젝트에서는 저장소 전체가 될 수 있다(폴더째는 0.08초)
+- refs: scv/promote/20261113-wookiya1364-step-report-and-bench-before/PLAN.md
+- conversation: scv/conversations/20261113-112445-step-report-bench-before.md
+
+## [2026-11-13 12:15] wookiya1364 — 단계 보고가 턴 끝 검사에 안 잡히던 것 · 재는 검사가 옆 파일에 기대는 함수를 빼던 것 archived
+
+- verdict: archived
+- why: 단계 보고는 도구 앞 훅의 표시가 없어도 대화 기록에 적힌 이번 턴의 호출로 인정한다 — 호스트가 직접 처리하는 도구에는 훅이 닿지 않는다. 대화 기록은 막을 참일 때만, 끝 8 ~ 9MB 만 읽는다. 재는 검사는 고치기 전 코드를 잴 파일이 있는 폴더의 파일들과 함께 꺼낸다. 호스트가 해 주는 일에만 기대는 검사에는 호스트와 무관한 둘째 근거를 둔다.
+- path delta: 앞 코드를 꺼내는 두 곳 가운데 견주는 곳 하나만 고쳤다 — 달라진 함수를 고르는 곳은 본문 글만 견줘서 옆 파일이 필요 없었다. 대화 기록은 통째로가 아니라 끝만 읽는다 — 맥에서 30MB 를 통째로 훑으면 0.35초가 들었다. 폴더는 하위 폴더 없이 그 폴더의 파일만 꺼낸다. 보관 전 전체 회귀는 전체 시험 한 번으로 갈음했다.
+- refs: scv/archive/20261113-wookiya1364-step-report-and-bench-before/PLAN.md
+- conversation: scv/conversations/20261113-112445-step-report-bench-before.md
