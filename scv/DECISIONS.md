@@ -2429,3 +2429,19 @@ merge_policy: preserve
 - path delta: 함수 다섯 → 아홉: 가리킴 판정을 효과층에 두지 않으려고 하나, 틀을 문서 두 곳에 베끼지 않고 명령이 쓰게 하려고 셋을 더했다. 틀 버전 숫자는 추출 뒤로 올린 적이 없어 요약값만 갱신했고, 변경 기록은 지금까지처럼 릴리스 때 적는다. 선언 명령 이름은 틀 문서에서도 뺐다(시험 T14 그대로).
 - refs: scv/archive/20261113-wookiya1364-wrapup-report-plan-required/PLAN.md
 - conversation: scv/conversations/20261112-235826-plan-wrapup-report.md
+
+## [2026-11-13 08:41] wookiya1364 — 마무리 보고 뒷정리 셋 — 넘겨받은 계획 · 검색 · 조사 떼기 글자 깨짐
+
+- verdict: adopted
+- why: 0.93.0 뒤 남은 셋을 계획 하나로 묶어 0.93.1 로 릴리스한다. 조사 떼기는 다시 재 보니 셸이 아니라 언어 설정 문제였다(C 설정에서 bash 3.2 · 5.3 둘 다 깨짐).
+- discarded alternatives: 계획 셋으로 따로 — 마무리 보고 · 병합 · 시험 대기를 세 번 한다 / 덱에도 마무리 보고 붙이기 — 덱은 계획 세울 때 만드는 문서라 때가 다르고 일이 2배쯤 커진다 / 그림 문서 만들기 — 스크립트 한두 곳의 작은 고침이라 단계 표로 충분하다
+- refs: scv/promote/20261113-wookiya1364-wrapup-followups-three/PLAN.md
+- conversation: scv/conversations/20261113-083227-remaining-work-list.md
+
+## [2026-11-13 09:36] wookiya1364 — 마무리 보고 뒷정리 셋 — 넘겨받은 계획 · 검색 · 조사 떼기 글자 깨짐 archived
+
+- verdict: archived
+- why: 넘겨받은 계획도 마무리 보고를 채워야 보관된다. 검색은 마무리 보고의 값만 훑는다 — 틀을 아는 곳은 마무리 보고의 함수 하나로 둔다. 조사 떼기는 지역 설정을 타지 않는다: 함수 안에서만 UTF-8 설정을 고르고 조사 글자를 그대로 뗀다. 고장은 셸이 아니라 지역 설정이었고, 부르는 명령이 이미 설정을 고르고 있어 실제 영향은 처음 말한 것보다 작았다.
+- path delta: 검색은 '걸린 줄에서 틀 줄 빼기' 대신 '값만 꺼내 훑기'로 갔다 — 안내 글의 이어지는 줄은 줄 하나만 보고는 값의 이어지는 줄과 가릴 수 없었다. 겹침 검사 시험의 예는 '환불 버튼'에서 '결제 버튼 ↔ 버튼을 고친다'로 바꿨다 — 앞의 예는 고치기 전에도 절반이 겹쳐 실패하지 않았다. 보관 전 전체 회귀는 돌리지 않고 전체 시험 한 번으로 갈음했다(사용자가 2026-11-12 에 정한 방식).
+- refs: scv/archive/20261113-wookiya1364-wrapup-followups-three/PLAN.md
+- conversation: scv/conversations/20261113-083227-remaining-work-list.md
