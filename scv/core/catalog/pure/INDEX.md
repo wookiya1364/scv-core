@@ -12,7 +12,7 @@
 | 꺼내기/wrapup | 글 · JSON · 표에서 값이나 필드를 뽑는다 | 1 | [extract-wrapup.md](extract-wrapup.md) |
 | 꺼내기 | 글 · JSON · 표에서 값이나 필드를 뽑는다 | 61 | [extract.md](extract.md) |
 | 세기/arrange | 개수 · 길이 · 합계를 센다 | 3 | [count-arrange.md](count-arrange.md) |
-| 세기 | 개수 · 길이 · 합계를 센다 | 24 | [count.md](count.md) |
+| 세기 | 개수 · 길이 · 합계를 센다 | 25 | [count.md](count.md) |
 | 비교 | 둘을 비교해 순서나 같음을 낸다 — 버전 · 숫자 · 집합 | 4 | [compare.md](compare.md) |
 | 판정/answer | 답 · 메시지 글을 보고 판정한다 — 표가 있나, 묻는 글인가, 확인인가 | 27 | [judge-answer.md](judge-answer.md) |
 | 판정/gate | 훅이 막을지 · 넘길지 · 다시 물을지를 정한다 | 26 | [judge-gate.md](judge-gate.md) |
@@ -20,7 +20,7 @@
 | 판정 | 입력을 보고 예/아니오나 판정 이름 하나를 낸다 | 46 | [judge.md](judge.md) |
 | 고르기/arrange | 여럿 중 일부를 골라내거나 순서를 매긴다 | 2 | [select-arrange.md](select-arrange.md) |
 | 고르기/wrapup | 여럿 중 일부를 골라내거나 순서를 매긴다 | 3 | [select-wrapup.md](select-wrapup.md) |
-| 고르기 | 여럿 중 일부를 골라내거나 순서를 매긴다 | 42 | [select.md](select.md) |
+| 고르기 | 여럿 중 일부를 골라내거나 순서를 매긴다 | 43 | [select.md](select.md) |
 | 조립/arrange | 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지 | 4 | [build-arrange.md](build-arrange.md) |
 | 조립/measure | 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지 | 7 | [build-measure.md](build-measure.md) |
 | 조립/wrapup | 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지 | 3 | [build-wrapup.md](build-wrapup.md) |
@@ -28,4 +28,4 @@
 | 변환 | 한 표기를 다른 표기로 바꾼다 — 경로 · 날짜 · 단위 · 인코딩 | 43 | [convert.md](convert.md) |
 | 지문 | 내용에서 짧은 식별값을 만든다 — 해시 · 키 · 이름 | 6 | [fingerprint.md](fingerprint.md) |
 
-전체 394개
+전체 396개
