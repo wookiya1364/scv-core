@@ -1,6 +1,6 @@
 # 고르기 — 여럿 중 일부를 골라내거나 순서를 매긴다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 42개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 43개.
 
 ### attachment_scope_filter
 - 역할: 표준입력 줄들에서 슬러그가 든 줄만 남긴다 — 슬러그가 비면 전부 통과
@@ -33,6 +33,13 @@
 - 위치: scripts/lib/pure-bench.sh · @pure · sh
 - 예: `$'f\tg h\nk\tg' → $'f\tg h'`
 - 예: `$'f\tg h\nk\tg' 1 → $'f\tg h\nk\tg'`
+
+### pb_rel_dirs
+- 역할: 파일 경로 줄들에서 그 파일들이 있는 폴더를 겹치지 않게 낸다(처음 나온 순서) — 폴더 없이 이름만 있는 경로의 폴더는 "."
+- 위치: scripts/lib/pure-bench.sh · @pure · sh
+- 예: `$'lib/a.sh\nlib/b.sh\nhooks/x.sh\ny.sh' → $'lib\nhooks\n.'`
+- 예: `$'a/b/c.sh\na/b/d.sh' → "a/b"`
+- 예: `"" → ""`
 
 ### pc_allowed_filter
 - 역할: 짝 목록에서 예외 목록에 이유와 함께 적힌 짝을 빼고, 이유 없는 예외는 따로 표시한다
