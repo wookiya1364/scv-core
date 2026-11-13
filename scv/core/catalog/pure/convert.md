@@ -1,6 +1,6 @@
 # 변환 — 한 표기를 다른 표기로 바꾼다 — 경로 · 날짜 · 단위 · 인코딩
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 42개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 43개.
 
 ### below_raw_root
 - 역할: 경로에서 원자료 폴더 뿌리까지를 떼어 낸다 — 뿌리 아래 마디만 연결 검사를 하려고
@@ -41,6 +41,14 @@
 - 예: `scv/archive/20260101-a-x/PLAN.md → "20260101-a-x"`
 - 예: `scv/archive/20260101-a-x/TESTS.md → "20260101-a-x"`
 - 예: `scv/DECISIONS.md → "DECISIONS"`
+
+### scv_as_wrapup_lines
+- 역할: 마무리 보고의 칸 줄들을 훑은 줄 모양("파일:묶음 번호:값")으로 바꾼다 — 묶음 제목 · 빈 값 · 채울 자리 표시(TODO)는 버리고 값만 남긴다
+- 위치: scripts/lib/archive-search.sh · @deterministic · sh
+- 예: `$'\x1fa/WRAPUP.md\n1\t#\t문제\n1\t상황\t수달이 느리다\n7\t배운 것\t' → "a/WRAPUP.md:1:수달이 느리다"`
+- 예: `$'\x1fa/WRAPUP.md\n2\t-\t해당 없음 — 새 기능' → "a/WRAPUP.md:2:해당 없음 — 새 기능"`
+- 예: `$'1\t상황\t파일 이름 줄이 없다' → ""`
+- 예: `"" → ""`
 
 ### scv_dreams_day
 - 역할: YYYYMMDD 를 YYYY-MM-DD 로 바꾼다(모양이 다르면 그대로)
