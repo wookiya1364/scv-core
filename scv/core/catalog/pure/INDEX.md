@@ -25,7 +25,7 @@
 | 조립/measure | 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지 | 7 | [build-measure.md](build-measure.md) |
 | 조립/wrapup | 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지 | 3 | [build-wrapup.md](build-wrapup.md) |
 | 조립 | 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지 | 65 | [build.md](build.md) |
-| 변환 | 한 표기를 다른 표기로 바꾼다 — 경로 · 날짜 · 단위 · 인코딩 | 42 | [convert.md](convert.md) |
+| 변환 | 한 표기를 다른 표기로 바꾼다 — 경로 · 날짜 · 단위 · 인코딩 | 43 | [convert.md](convert.md) |
 | 지문 | 내용에서 짧은 식별값을 만든다 — 해시 · 키 · 이름 | 6 | [fingerprint.md](fingerprint.md) |
 
-전체 393개
+전체 394개
