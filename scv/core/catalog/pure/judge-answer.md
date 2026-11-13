@@ -31,6 +31,7 @@
 - 역할: 파일 경로 모양만 보고 기록의 종류(계획 · 검사 · 대화 · 결정 · 기타 …)를 정한다
 - 위치: scripts/lib/archive-search.sh · @pure · sh
 - 예: `scv/archive/x/PLAN.md → "계획"`
+- 예: `scv/archive/x/WRAPUP.md → "마무리 보고"`
 - 예: `scv/conversations/a.md → "대화"`
 - 예: `scv/DECISIONS.md → "결정"`
 - 예: `README.md → "기타"`
