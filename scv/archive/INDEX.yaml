@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-13T03:15:54Z
+generated_at: 2026-11-13T07:47:29Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -551,6 +551,10 @@ archives:
     status: testing
   - slug: 20261112-wookiya1364-turn-continues-mid-message
     title: "턴 도중에 온 말은 같은 턴으로 이어 가기"
+    kind: feature
+    status: testing
+  - slug: 20261113-wookiya1364-codex-ci-parallel
+    title: "코덱스 래퍼의 CI 시간 줄이기 — 시험을 여러 러너에 나눠 함께 돌린다"
     kind: feature
     status: testing
   - slug: 20261113-wookiya1364-step-report-and-bench-before

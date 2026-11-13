@@ -2461,3 +2461,19 @@ merge_policy: preserve
 - path delta: 앞 코드를 꺼내는 두 곳 가운데 견주는 곳 하나만 고쳤다 — 달라진 함수를 고르는 곳은 본문 글만 견줘서 옆 파일이 필요 없었다. 대화 기록은 통째로가 아니라 끝만 읽는다 — 맥에서 30MB 를 통째로 훑으면 0.35초가 들었다. 폴더는 하위 폴더 없이 그 폴더의 파일만 꺼낸다. 보관 전 전체 회귀는 전체 시험 한 번으로 갈음했다.
 - refs: scv/archive/20261113-wookiya1364-step-report-and-bench-before/PLAN.md
 - conversation: scv/conversations/20261113-112445-step-report-bench-before.md
+
+## [2026-11-13 16:03] wookiya1364 — 코덱스 래퍼의 CI 시간 줄이기 — 시험을 여러 러너에 나눠 함께 돌린다
+
+- verdict: adopted
+- why: 코덱스 PR 검사의 코어 시험 전부를 여덟 조각으로, 원자성 시험을 세 부분으로 나눠 함께 돌리고, 동기화 봇은 가벼운 검증만 한다. 목표: PR 검사 5분 안 · 릴리스 흐름 12분 안 · 코어 → 코덱스 30분 안(사용자 승인).
+- discarded alternatives: 봇의 시험 전부를 조각으로 남기기 — 같은 시험을 두 번 돌고 봇 설정이 복잡해진다(사용자 선택: 가벼운 검증만) / 원자성 시험을 맥에서 빼기 — 맥에서만 나는 고장을 놓친다 / 작은 고침 둘을 먼저 하기 — 그 릴리스가 긴 CI 를 한 번 더 거친다(사용자 선택: CI 먼저)
+- refs: scv/promote/20261113-wookiya1364-codex-ci-parallel/PLAN.md
+- conversation: scv/conversations/20261113-154850-whats-left-how-scv-works.md
+
+## [2026-11-13 16:47] wookiya1364 — 코덱스 래퍼의 CI 시간 줄이기 — 시험을 여러 러너에 나눠 함께 돌린다 archived
+
+- verdict: archived
+- why: 코덱스 PR 검사는 코어 시험 여덟 조각 · 원자성 시험 세 부분(운영체제마다)으로 함께 돈다 — 741 ~ 923초 → 227초, 릴리스 흐름 1,541 ~ 1,593초 → 673초. 동기화 봇은 파일 검증만 한다. 조각 수와 부분 구성은 코덱스의 test-ci-shards.sh 가 지킨다 — 한 곳만 바꾸면 실패한다.
+- path delta: as planned — 조각 수는 처음 잡은 여덟 그대로였고(가장 긴 조각 205초), 원자성 시험은 다섯 묶음을 76 · 119 · 104초의 세 부분으로 묶었다. 코어 → 코덱스 전체 시간(목표 30분)은 이번에 잴 수 없어 다음 코어 릴리스로 넘겼다.
+- refs: scv/archive/20261113-wookiya1364-codex-ci-parallel/PLAN.md
+- conversation: scv/conversations/20261113-154850-whats-left-how-scv-works.md

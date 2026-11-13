@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated_at": "2026-11-13T02:26:48Z",
+  "updated_at": "2026-11-13T07:03:40Z",
   "files": {
     "scv/raw/20261001-hook-path-bash32-audit.md": { "size": 3354, "mtime": "2026-10-01T02:15:20Z" },
     "scv/raw/20261001-resume-recap-stale-conversation.md": { "size": 1918, "mtime": "2026-10-01T13:52:26Z" },
@@ -60,7 +60,8 @@
     "scv/raw/stale/20261112-dashboard-waiting-for-go-ahead.md": { "size": 3106, "mtime": "2026-11-12T04:46:20Z" },
     "scv/raw/stale/20261112-next-fixes-after-0922.md": { "size": 2729, "mtime": "2026-11-12T07:41:56Z" },
     "scv/raw/stale/20261112-release-verify-parallel.md": { "size": 4534, "mtime": "2026-11-12T01:34:54Z" },
-    "scv/raw/stale/20261112-small-fixes-bundle.md": { "size": 2856, "mtime": "2026-11-12T04:41:04Z" }
+    "scv/raw/stale/20261112-small-fixes-bundle.md": { "size": 2856, "mtime": "2026-11-12T04:41:04Z" },
+    "scv/raw/stale/20261113-codex-ci-parallel.md": { "size": 3882, "mtime": "2026-11-13T05:47:55Z" }
   },
   "ref_docs": {
     "scv/raw/stale/20260812-wookiya1364-ci-provenance-gate.md": { "slugs": ["20260812-wookiya1364-ci-provenance-gate", "20260930-wookiya1364-readme-refresh-core-wrappers"], "ref_commit": "e64e0ae", "consumed_at": "2026-09-30T01:42:19Z", "origin": "scv/raw/20260812-wookiya1364-ci-provenance-gate.md" },
@@ -109,6 +110,7 @@
     "scv/raw/stale/20261112-dashboard-waiting-for-go-ahead.md": { "slugs": ["20261112-wookiya1364-dashboard-your-turn"], "ref_commit": "49965e8", "consumed_at": "2026-11-12T09:13:39Z", "origin": "scv/raw/20261112-dashboard-waiting-for-go-ahead.md" },
     "scv/raw/stale/20261112-next-fixes-after-0922.md": { "slugs": ["20261112-wookiya1364-codex-choice-speed-limit", "20261112-wookiya1364-turn-continues-mid-message", "20261112-wookiya1364-mac-ci-time-limits"], "ref_commit": "f80ca6e", "consumed_at": "2026-11-12T09:56:36Z", "origin": "scv/raw/20261112-next-fixes-after-0922.md" },
     "scv/raw/stale/20261112-release-verify-parallel.md": { "slugs": ["20261112-wookiya1364-release-verify-shards"], "ref_commit": "a082caa", "consumed_at": "2026-11-12T01:47:04Z", "origin": "scv/raw/20261112-release-verify-parallel.md" },
-    "scv/raw/stale/20261112-small-fixes-bundle.md": { "slugs": ["20261112-wookiya1364-small-fixes-bundle"], "ref_commit": "42e1a8f", "consumed_at": "2026-11-12T04:43:57Z", "origin": "scv/raw/20261112-small-fixes-bundle.md" }
+    "scv/raw/stale/20261112-small-fixes-bundle.md": { "slugs": ["20261112-wookiya1364-small-fixes-bundle"], "ref_commit": "42e1a8f", "consumed_at": "2026-11-12T04:43:57Z", "origin": "scv/raw/20261112-small-fixes-bundle.md" },
+    "scv/raw/stale/20261113-codex-ci-parallel.md": { "slugs": ["20261113-wookiya1364-codex-ci-parallel"], "ref_commit": "fd28a10", "consumed_at": "2026-11-13T07:03:40Z", "origin": "scv/raw/20261113-codex-ci-parallel.md" }
   }
 }
