@@ -196,9 +196,10 @@ turn_ready; tline call "$EARLIER" > "$TR"; v="$(verdict_t "$TR")"
 turn_ready; { tline user "$LATER"; tline list "$LATER"; tline text "$LATER"; tline junk "$LATER"; } > "$TR"; v="$(verdict_t "$TR")"
 [[ "$v" == block ]] && ok "T46 이름이 글에 나온 것만으로는 세지 않음 → block" || bad "T46 $v"
 
-turn_ready; s0="$(cat scv/journal/.turn-plan/started 2>/dev/null)"; tline call "$LATER" > "$TR"
-sleep 1; start "도중에 온 말"; s1="$(cat scv/journal/.turn-plan/started 2>/dev/null)"; v="$(verdict_t "$TR")"
-[[ -n "$s0" && "$s0" == "$s1" && "$v" == pass ]] && ok "T47 도중에 온 말로 이어진 턴: 시작 시각 그대로 · pass" || bad "T47 [$s0] [$s1] $v"
+# 호출 줄의 시각은 "턴 시작 1초 뒤, 도중에 온 말보다 앞"이다 — 시작 시각이 도중에 온 말로 밀리면 세지 못해 막힌다
+turn_ready; i0="$(cat scv/journal/.turn-plan/id)"; sleep 2; tline call "$(date -u +%Y-%m-%dT%H:%M:%S).000Z" > "$TR"
+sleep 2; start "도중에 온 말"; i1="$(cat scv/journal/.turn-plan/id)"; v="$(verdict_t "$TR")"
+[[ -n "$i0" && "$i0" == "$i1" && "$v" == pass ]] && ok "T47 도중에 온 말로 이어진 턴: 처음 시작 시각부터 셈 · pass" || bad "T47 [$i0] [$i1] $v"
 
 turn_ready; bash "$TC" step --session s1 --tool tool_step
 e="$(bash "$TC" end --session s1 --transcript "$WORK/no-such-transcript.jsonl" 2>&1 >/dev/null)"; reset

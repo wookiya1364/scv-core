@@ -168,6 +168,15 @@ step_call_lines() {
   dd if="$f" bs=1048576 skip="$skip" 2>/dev/null | LC_ALL=C grep -F -- "$2" | LC_ALL=C grep -F -- 'tool_use' | tail -n 200
 }
 
+# @effect turn_started_at
+# 이유: 턴 번호 파일의 고친 시각을 읽어 UTC 글(2026-01-01T00:00:00 꼴)로 낸다(맥 BSD · 리눅스 GNU 둘 다) — 읽지 못하면 빈 글
+turn_started_at() {
+  local m
+  if m="$(stat -f '%m' "$S/id" 2>/dev/null)" && [[ "$m" =~ ^[0-9]+$ ]]; then date -u -r "$m" +%Y-%m-%dT%H:%M:%S 2>/dev/null
+  elif m="$(stat -c '%Y' "$S/id" 2>/dev/null)" && [[ "$m" =~ ^[0-9]+$ ]]; then date -u -d "@$m" +%Y-%m-%dT%H:%M:%S 2>/dev/null
+  fi
+}
+
 # @effect step_needed
 # 이유: 호스트 설정 파일을 읽어 대시보드(단계 보고 도구)가 켜졌는지 본다 — 래퍼가 준 파일 · 표시가 없으면 "no"
 step_needed() {
@@ -296,8 +305,6 @@ case "$CMD" in
     printf '%s' "$REQ" > "$S/req"
     od -An -N4 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n' > "$S/id"
     [[ -s "$S/id" ]] || printf '%08x' "$$" > "$S/id"
-    # 이 턴이 시작된 시각(UTC) — 턴 끝에 대화 기록에서 '이번 턴의' 단계 보고 호출만 세려고. 이어지는 턴에서는 건드리지 않는다.
-    date -u +%Y-%m-%dT%H:%M:%S > "$S/started" 2>/dev/null || true
     : > "$S/receipts"; printf '0' > "$S/blocks"
     take_snap "$PROJECT"
     IFS=':' read -r -a WS <<< "$(setting SCV_WORKSPACE_REPOS "")"
@@ -416,8 +423,10 @@ case "$CMD" in
     NSTEP="$(grep -c . "$S/steps" 2>/dev/null || true)"; NSTEP="${NSTEP:-0}"
     # 단계 보고 도구를 앱이 직접 처리하는 호스트에서는 도구 앞 훅이 돌지 않아 표시가 0 이다(0.93.2). 막을 참일 때만
     # 대화 기록에서 이번 턴의 그 도구 호출을 센다 — 표시가 있거나 보고가 필요 없는 턴은 대화 기록을 열지 않는다.
-    if [[ "$NEED" == yes && "$NSTEP" == 0 && -n "$TRANSCRIPT" && -f "$TRANSCRIPT" && -s "$S/started" ]]; then
-      NSTEP="$(scv_tc_step_calls "$(step_call_lines "$TRANSCRIPT" "$SCV_STEP_TOOL")" "$SCV_STEP_TOOL" "$(head -n 1 "$S/started")")"
+    # 이번 턴이 시작된 시각은 턴 번호 파일이 만들어진 시각이다 — 턴을 시작할 때 따로 적지 않는다(시작 길에 프로그램 호출을
+    # 하나 더하면 사진 0.3초 한도에 닿았다). 도중에 온 말로 이어지는 턴은 그 파일을 건드리지 않으므로 처음 시각이 남는다.
+    if [[ "$NEED" == yes && "$NSTEP" == 0 && -n "$TRANSCRIPT" && -f "$TRANSCRIPT" ]]; then
+      NSTEP="$(scv_tc_step_calls "$(step_call_lines "$TRANSCRIPT" "$SCV_STEP_TOOL")" "$SCV_STEP_TOOL" "$(turn_started_at)")"
     fi
     ORPH="$(orphan_return)"
     V="$(scv_tc_judge "$NCH" "$NRC" "$NST" "$NRQ" "$EX" "$NPL" "$BL" "$NEED" "$NSTEP" "$ORPH")"
