@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-13T08:38:08Z
+generated_at: 2026-11-15T12:17:55Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -571,5 +571,9 @@ archives:
     status: testing
   - slug: 20261113-wookiya1364-wrapup-report-plan-required
     title: "마무리 보고 — 계획마다 문제에서 배운 것까지 남기고, 계획 없는 변경은 없앤다"
+    kind: feature
+    status: testing
+  - slug: 20261115-wookiya1364-answer-lead-paragraph-bullets
+    title: "답 모양 바꾸기 — 결론은 불릿 없는 한두 문장, 이어지는 생각은 문단 불릿"
     kind: feature
     status: testing
