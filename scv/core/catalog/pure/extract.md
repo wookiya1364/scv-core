@@ -1,6 +1,6 @@
 # 꺼내기 — 글 · JSON · 표에서 값이나 필드를 뽑는다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 61개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 62개.
 
 ### pc_extract_entries
 - 역할: 소스 글에서 표식(어떤 주석 모양이든 '@pure 이름', 셸은 이름 없이도) 달린 함수마다 역할 · 종류 · 예시를 뽑아 항목 줄로 낸다
@@ -39,6 +39,13 @@
 - 역할: 색인 레코드 한 줄을 표시 · 키 · 파일 · 오프셋 · 길이 · 시각 · 요약 일곱 줄로 푼다
 - 위치: scripts/lib/record-index.sh · @pure · sh
 - 예: `$'decision\tk1\tf.md\t0\t5\tt\ts' → $'decision\nk1\nf.md\n0\n5\nt\ns'`
+
+### scv_added_comment_lines
+- 역할: 통합 diff 글에서 새로 들어간 주석 줄만 "파일<탭>줄 번호<탭>주석 글"로 뽑는다 — 표식 주석 덩어리는 뺀다
+- 위치: scripts/lib/comment-flag.sh · @deterministic · sh
+- 예: `$'+++ b/a.sh\n@@ -1,0 +2,2 @@\n+# TODO: 나중에 제거\n+echo hi' → $'a.sh\t2\t# TODO: 나중에 제거'`
+- 예: `$'+++ b/a.sh\n@@ -0,0 +1,3 @@\n+# \x40pure foo\n+# 역할: 나중에 쓸 값\n+foo() { :; }' → ""`
+- 예: `$'+++ b/x.ts\n@@ -3,1 +3,1 @@\n-// old\n+// 일반 설명' → $'x.ts\t3\t// 일반 설명'`
 
 ### scv_as_parse_terms
 - 역할: 물음 한 줄을 낱말 목록(줄바꿈 구분)으로 쪼갠다 — 따옴표로 묶은 덩어리는 하나로 남긴다
