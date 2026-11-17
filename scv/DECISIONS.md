@@ -2509,3 +2509,99 @@ merge_policy: preserve
 - path delta: 이어 쓴 줄을 붙이는 함수를 따로 두지 않고 검사 함수의 한 번짜리 고리 안에 넣었다(따로 훑으면 줄마다 두 번 읽는다). 안내 문구는 처음 쓴 것(1,050바이트)이 코덱스 사본의 매 턴 한도를 넘어 뜻을 두고 981바이트로 줄였다. 14개 규약의 문구는 '1–2 lines'로 썼다가 기존 문구 검사에 맞춰 '1–2 sentences'로 고쳤다.
 - refs: scv/archive/20261115-wookiya1364-answer-lead-paragraph-bullets/PLAN.md
 - conversation: scv/conversations/20261114-232014-output-rules-limit-check.md
+
+## [2026-11-16 10:11] wookiya1364 — /scv:update — gh 없이 최신 버전 확인, 앱 · 터미널 어디서든 직접 올리기
+
+- verdict: adopted
+- why: 최신 버전은 git 으로 읽고(필수 도구라 새로 깔 것이 없고 gh 와 같은 값을 1초에 읽음), 올리기는 claude plugin 명령줄로 직접 한다 — 슬래시 명령 안내는 클로드 앱에서 듣지 않고, /scv:mods 가 이미 같은 방식이라 틀과 시험을 그대로 쓴다. 새 버전이 있으면 묻지 않고 올린다(사용자 선택).
+- discarded alternatives: gh 가 없을 때만 git 으로 읽기(길이 둘이라 컴퓨터마다 결과가 갈릴 수 있음) · 올리기 전에 한 번 묻기(사용자가 '바로 올림'을 고름) · 설정 폴더를 옮긴 뒤의 마켓 경로 문제를 찾아 알리기(사용자가 고르지 않음, 사례 한 건) · 그림 문서 만들기(작은 변경이라 사용자가 고르지 않음)
+- refs: scv/promote/20261116-wookiya1364-update-without-gh-and-in-app/PLAN.md
+- conversation: scv/conversations/20261116-100157-update-without-gh-and-in-app.md
+
+## [2026-11-16 10:20] wookiya1364 — /scv:update 가 모드까지 함께 올림 · 모드도 깔린 범위마다
+
+- verdict: adopted
+- why: 업데이트를 두 번 하는 번거로움을 없앤다(사용자 요청). 모드 엔진이 이미 명령줄 방식이라 본체 뒤에 이어 부르기만 하면 앱 · 터미널 둘 다에서 된다. 같은 모드가 두 범위에 깔리면 한쪽만 오르는 틈(엔진이 범위를 넘기지 않음)도 같이 고쳐야 '한 번에 다 올라간다'가 참이 된다.
+- discarded alternatives: 모드 엔진은 그대로 두고 이어 부르기만 하기(두 범위에 깐 사람은 한쪽이 옛 버전으로 남음 — 사용자가 고르지 않음) · 모드 올리기를 범위 밖으로 두기(같은 날 처음 세운 안 — 사용자 요청으로 뒤집음)
+- refs: scv/promote/20261116-wookiya1364-update-without-gh-and-in-app/PLAN.md
+- conversation: scv/conversations/20261116-100157-update-without-gh-and-in-app.md
+
+## [2026-11-16 11:05] wookiya1364 — /scv:update — gh 없이 최신 버전 확인, 앱 · 터미널 어디서든 직접 올리기 archived
+
+- verdict: archived
+- why: /scv:update 가 최신 버전을 git 태그로 읽고(gh 불필요), claude plugin 명령줄로 본체를 범위마다 직접 올린 뒤 모드까지 이어서 올린다. 모드 엔진은 두 범위 이상에 깔린 모드를 범위마다 올린다. 설치 목록 읽기(plugin_lines)는 두 엔진이 함께 쓰고, 다른 프로젝트의 project 범위 설치본은 뺀다 — 실제 목록에 남의 프로젝트 것도 나오는 것을 확인했기 때문에 이 거르기를 지우면 안 된다. 진단 다섯 줄의 이름과 순서는 그대로다. 릴리스 · 커밋 · PR 은 하지 않았다(사용자 선택: 보관만).
+- path delta: README 에서 슬래시 명령 두 줄을 완전히 지우지 못하고 터미널용 참고 한 줄로 남겼다 — 코어의 README 검사가 그 두 문구를 요구해서(사용자 결정). 버전 고르기는 awk 의 숫자 견주기 대신 sed · sort · tail 로 했다 — 순수성 검사가 꺾쇠 글자를 막고, 더 단순하다. 기존 검사 두 줄(모드 시험 · 코어 계약 시험)을 새 동작에 맞게 바꿨고, 새 시험 파일을 등록하는 목록 두 곳(project-core.sh · CI 설정)이 범위 밖에서 함께 바뀌었다. 전체 시험은 래퍼 CI 가 돌리는 검사 묶음으로 대신했다 — tests 폴더 전체를 그 자리에서 돌리는 것은 맞지 않는 방법이었다. 독립 검토는 사용자의 중단으로 취소되어 받지 못했다.
+- refs: scv/archive/20261116-wookiya1364-update-without-gh-and-in-app/PLAN.md
+- conversation: scv/conversations/20261116-100157-update-without-gh-and-in-app.md
+
+## [2026-11-16 11:13] wookiya1364 — 대시보드 — 지금 하는 일이 늘 보이게 (지금 하는 일 · 뒤에서 도는 일 · 최근 끝난 일)
+
+- verdict: adopted
+- why: 뒤의 일이 도는 중에 대시보드가 '사용자 차례'라고 표시해 사용자가 거듭 물어야 했다(두 세션, 2026-11-16). 원인은 턴 시작이 '뒤의 일 있음' 표시를 지우는 것. 뒤의 일을 일마다 목록으로 기억하고 출력의 마지막 줄을 읽어, 대시보드에 지금 하는 일 · 뒤에서 도는 일 · 최근 끝난 일이 늘 보이게 한다. 앱의 할 일 목록 도구도 읽는다.
+- discarded alternatives: 오래 걸리는 일을 터미널 탭에 띄우는 규칙만 두기(휴대폰에서는 안 보이고 규칙을 잊으면 다시 안 보임 — 사용자가 바란 것은 대시보드) · '사용자 차례' 오류만 먼저 고치기(무엇이 얼마나 됐는지는 여전히 안 보임) · 터미널 탭을 자동으로 띄우기(사용자가 그 뜻이 아니라고 함) · 명령 출력 전체 보이기(마지막 진행 줄 하나로 충분하고 비밀 값이 섞일 위험이 큼)
+- refs: scv/promote/20261116-wookiya1364-dashboard-now-view/PLAN.md
+- conversation: scv/conversations/20261116-110951-dashboard-now-view.md
+
+## [2026-11-16 12:37] wookiya1364 — 대시보드 거울 — 보는 쪽이 스스로 다시 묻지 않게
+
+- verdict: adopted
+- why: 작업 세션의 대화에 쌓이는 '메시지 받음' 줄은 앱이 그려서 숨길 수 없고, 보는 세션이 10분마다 다시 묻는 글이 그 줄을 만든다. 스스로 다시 묻기를 없애고 사람이 누르는 '다시 요청' 버튼으로 바꾸면 줄은 거울을 켤 때의 한 번으로 준다.
+- discarded alternatives: 거울 끄기(줄은 0 이지만 다른 기기에서 칸을 못 봄) · 간격만 1시간으로 늘리기(줄이 계속 남음) · 앱의 줄 숨기기(대시보드가 할 수 없음)
+- refs: scv/promote/20261116-wookiya1364-mirror-no-reask/PLAN.md
+- conversation: scv/conversations/20261116-123500-mirror-no-reask.md
+
+## [2026-11-16 13:03] wookiya1364 — 대시보드 거울 — 보는 쪽이 스스로 다시 묻지 않게 archived
+
+- verdict: archived
+- why: 보는 세션은 이제 스스로 다시 묻지 않는다 — 남은 자동 묻기는 상태를 못 받은 동안 주소가 달라졌을 때의 한 번뿐이고, 그 밖에는 사람이 거울 줄의 '다시 요청' 버튼을 누른다. 다른 세션으로 가는 글은 가로채도 받는 쪽 대화에 줄이 생기므로, 앞으로도 세션 사이 글은 '보낸 횟수 = 사용자가 보는 줄 수'로 세어야 한다. scv-dashboard 0.2.27 로 릴리스.
+- path delta: as planned — 계획에 없던 것은 릴리스까지 한 것(사용자가 고른 보기에 들어 있었음)
+- refs: scv/archive/20261116-wookiya1364-mirror-no-reask/PLAN.md
+- conversation: scv/conversations/20261116-123500-mirror-no-reask.md
+
+## [2026-11-16 15:23] wookiya1364 — 대시보드 — 지금 하는 일이 늘 보이게 archived
+
+- verdict: archived
+- why: 뒤의 일을 일의 목록으로 기억해, 뒤의 일이 도는 중에 사용자가 말을 걸어도 '사용자 차례'로 바뀌지 않고, 지금 하는 일 · 뒤에서 도는 일 · 최근 끝난 일이 계획이 있든 없든 보인다. 실제 화면은 사용자가 직접 보고 '보이긴 해 — 이대로 가 보자'고 답해 보관했다.
+- path delta: 계획과 다른 점 — 실제 화면 확인을 정해 둔 순서(30초 세기 명령 · 화면 두 장)로 하지 못했다(구현한 세션이 옛 대시보드로 돌아서). 프로젝트 밖 파일 읽기 · 끝 알림이 닿는 길은 실제 앱이 아니라 설명서로만 확인했다. 계획에 없던 것은 배포까지 한 것(사용자가 고름).
+- refs: scv/archive/20261116-wookiya1364-dashboard-now-view/PLAN.md
+- conversation: scv/conversations/20261116-110951-dashboard-now-view.md
+
+## [2026-11-16 19:22] wookiya1364 — 대시보드 — 함께 하는 단계는 모두 진행 중으로 (여러 단계 동시 진행 표시)
+
+- verdict: adopted
+- why: 한 세션이 여러 단계를 동시에 하며 둘째 단계의 시작을 알리자 대시보드가 '지금 단계에만'이라며 거절했다. 알린 단계는 어느 자리든, 몇 개든 진행 중으로 받고 그린다. 알린 진행이 있는 동안에는 '끝나지 않은 첫 단계는 진행 중'이라는 짐작을 하지 않는다.
+- discarded alternatives: 계획 문서의 parallel_groups 에 적힌 단계만 함께 받기 — 계획에 미리 적지 않은 병렬(일하다 나눈 것)을 또 막게 됨. 자리 검사를 없애고 손으로 남은 표시까지 모두 열기 — 뒤 단계에 남은 옛 표시가 진행 중으로 보이게 됨. SCV 코어 규약 글 고치기 — 세션은 스스로 여러 단계를 알리려 했고 막은 것은 대시보드였음.
+- refs: scv/promote/20261116-wookiya1364-dashboard-parallel-steps/PLAN.md
+- conversation: scv/conversations/20261116-185311-dashboard-parallel-steps.md
+
+## [2026-11-16 19:37] wookiya1364 — 대시보드 — 함께 하는 단계는 모두 진행 중으로 archived
+
+- verdict: archived
+- why: 단계 알림의 시작 · 막힘을 끝나지 않은 단계면 어디든 받고, 알린 단계를 모두 진행 중으로 그린다(scv-dashboard 0.2.28). 알린 진행이 있는 동안에는 표시 없는 첫 단계를 진행 중으로 짐작하지 않는다. 지킬 것: 차례로 하는 계획의 화면은 그대로, 손으로 남은 표시는 뒤 단계를 열지 않는다, 이미 끝난 단계에는 시작 · 막힘을 받지 않는다. 실제 앱 화면은 보지 못했다 — 보인 것은 시험 도구가 그린 화면 글.
+- path delta: 계획에 없던 규칙 하나를 더함 — 알린 진행이 있으면 첫 단계 짐작을 끔(한 단계가 끝난 뒤 아무도 시작하지 않은 단계가 진행 중으로 보이는 것을 막으려고, 시험을 쓰다 정함). 릴리스는 계획 밖이었고 사용자가 화면 결과를 본 뒤 선택 창에서 고름.
+- refs: scv/archive/20261116-wookiya1364-dashboard-parallel-steps/PLAN.md
+- conversation: scv/conversations/archive/20261116-185311-dashboard-parallel-steps.md
+
+## [2026-11-17 19:08] wookiya1364 — 글 대신 검사 — 매 턴 글 덜기 · 정정을 검사로 제안 · 임시방편 주석 알림 · 대시보드 검증 결과물
+
+- verdict: adopted
+- why: Lauren Tan 발표의 요지(고칠 일은 글 대신 검사로, 주석 약속은 강제력 없음, 사람은 검증 결과물을 봄)를 SCV 의 빈 곳 네 군데에 넣음. 사용자가 네 가지 전부를 큰 계획 하나로 고름.
+- discarded alternatives: 묶음(epic) 안 계획 4개 — 추천했으나 사용자가 큰 계획 하나를 고름 / 주석 전면 금지 — 순수 함수 사전이 표식 주석을 원본으로 읽어 맞지 않음 / 형식 검증 · 출시 자동 퍼즈 — 발표자도 실험 중이라 범위 밖
+- refs: scv/promote/20261117-wookiya1364-checks-not-comments/PLAN.md
+- conversation: scv/conversations/20261117-185753-checks-not-comments-from-talk.md
+
+## [2026-11-17 19:25] wookiya1364 — 글 대신 검사 — 계획 고침: 대시보드 단계 증거 · 순수 함수 재사용 검사
+
+- verdict: adopted
+- why: 사용자 지적: 대시보드 '지금 하는 일'은 쓸모없고 '끝'에 증거가 안 남아 사람이 대충 넘어감, 순수 함수 사전 재사용은 희망 사항일 뿐. 증거 없는 끝은 도구가 거절, 진행 중은 로그 끝 줄 · 주소 버튼, 표식 없는 새 함수와 사전과 같은 일을 하는 새 함수는 계획 끝 검사가 막음.
+- discarded alternatives: 증거 없어도 받고 빨갛게 표시 — 사람이 또 놓침 / 로그 끝 줄만 — 웹 화면으로만 진행을 내는 작업을 못 봄 / 새 함수 목록 경고만 — 지금과 같은 희망 사항
+- refs: scv/promote/20261117-wookiya1364-checks-not-comments/PLAN.md
+- conversation: scv/conversations/20261117-185753-checks-not-comments-from-talk.md
+
+## [2026-11-17 20:46] wookiya1364 — 글 대신 검사 — 매 턴 글 덜기 · 정정을 검사로 제안 · 임시방편 주석 알림 · 대시보드 단계 증거 · 순수 함수 중복 검사 자동화 archived
+
+- verdict: archived
+- why: 에이전트를 고칠 일은 글이 아니라 검사로 남긴다(Lauren Tan 발표). 매 턴 글의 설명은 거절 문구로 옮겨 472 B 를 비움, 정정 턴 뒤 검사 제안, 새 임시방편 주석 알림, 대시보드는 증거 없는 끝을 거절하고 노드 상세에 증거 · 실제 진행을 보임, 계획 끝 검사가 사전 중복 검사를 자동으로 돌리고 TS/JS · 파이썬 · 러스트를 실제로 돌려 비교. 앞으로 깨면 안 되는 것: 예시 글 안의 표식은 \x40 으로, 중복 검사는 문서가 아니라 계획 끝 검사가 부른다.
+- path delta: 1단계는 대조 표 함수 3개 대신 '뺀 줄마다 검사가 여전히 막는가' 시험으로 대조 — 표를 코드로 두면 지킬 것이 하나 더 늘어서. 5단계는 표식 강제를 뺐음(가드 규칙 D 가 이미 함 — 앞 턴 판단 정정)하고 러스트를 더함(사용자 요청). 대시보드는 '지금 하는 일' 줄만 빼고 '뒤에서 도는 일'은 남김 — 진행률을 보이는 쓸모 있는 부분이라.
+- refs: scv/archive/20261117-wookiya1364-checks-not-comments/PLAN.md
+- conversation: scv/conversations/20261117-185753-checks-not-comments-from-talk.md
