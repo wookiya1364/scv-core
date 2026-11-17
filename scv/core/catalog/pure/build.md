@@ -100,9 +100,9 @@
 ### scv_finish_rule_line
 - 역할: 매 턴 맨 앞에 실을 확인 범위 안내 한 줄을 설정 언어로 만든다
 - 위치: scripts/lib/finish-report.sh · @pure · sh
-- 예: `korean → "[SCV 확인 범위] 도구를 쓴 턴은 끝 보고 끝에 '확인한 것 · 확인 못 한 것 · 제가 대신 정한 것'(기록 · 질문만 쓴 턴은 '확인 범위:' 한 줄). '없음'엔 이유, 실패를 못 본 시험은 '확인 못 한 것'에. 본문: contracts/finish-report.md"`
-- 예: `english → "[SCV verification scope] A turn that used tools ends its final report with Verified · Not verified · Decided for you (only SCV records or questions: one 'Verification scope:' line). 'none' needs a reason; a test never seen failing goes under Not verified. Body: contracts/finish-report.md"`
-- 예: `"" → "[SCV verification scope] A turn that used tools ends its final report with Verified · Not verified · Decided for you (only SCV records or questions: one 'Verification scope:' line). 'none' needs a reason; a test never seen failing goes under Not verified. Body: contracts/finish-report.md"`
+- 예: `korean → "[SCV 확인 범위] 도구를 쓴 턴은 끝 보고 끝에 '확인한 것 · 확인 못 한 것 · 제가 대신 정한 것'(기록 · 질문만 쓴 턴은 '확인 범위:' 한 줄). 본문: contracts/finish-report.md"`
+- 예: `english → "[SCV verification scope] A turn that used tools ends its final report with Verified · Not verified · Decided for you (only SCV records or questions: one 'Verification scope:' line). Body: contracts/finish-report.md"`
+- 예: `"" → "[SCV verification scope] A turn that used tools ends its final report with Verified · Not verified · Decided for you (only SCV records or questions: one 'Verification scope:' line). Body: contracts/finish-report.md"`
 
 ### scv_force_banner
 - 역할: 준비가 켜져 있으면(on) 화면 표시줄 한 줄을 내고, 아니면 빈 값
@@ -113,7 +113,7 @@
 ### scv_force_routing
 - 역할: 매 턴 맨 앞에 싣는 고정 지시 블록(SCV help 를 먼저 부르라)을 낸다 — 인자 없음
 - 위치: scripts/lib/force-help.sh · @pure · sh
-- 예: `→ $'════ SCV: 이 턴의 첫 행동 ════\n답을 쓰기 전에, 이 메시지 전문을 인자로 SCV help 액션을 지금 호출하라 — 다른 도구 · 조사 · 수정보다 먼저(부르기 전 다른 도구는 거절된다 — 호스트가 허용한 진행 표시 도구만 함께 보낼 수 있다).\n**판단하지 말고 부르라** — 부를 필요는 help 가 판단한다. 부르지 않는 경우는 둘뿐: 이 턴에 **이미 SCV 액션이 실려 있거나**,\n**사람이 쓰지 않은 자동 알림**이거나. 그 외에는 예외가 없다. 부르지 않으면 **이 논의는 어디에도 남지 않는다** — help 가 파일로 남긴다.\n아래 진단은 **상태를 다시 조회하지 않는 데에만** 쓰라 — 호출을 건너뛸 이유가 되지 않는다. 끄기: scv/scv_settings.json SCV_ALWAYS_ON=off.'`
+- 예: `→ $'════ SCV: 이 턴의 첫 행동 ════\n답을 쓰기 전에, 이 메시지 전문을 인자로 SCV help 액션을 지금 호출하라 — 다른 도구 · 조사 · 수정보다 먼저(부르기 전 다른 도구는 거절된다 — 호스트가 허용한 진행 표시 도구만 함께 보낼 수 있다).\n아래 진단은 **상태를 다시 조회하지 않는 데에만** 쓰라 — 호출을 건너뛸 이유가 되지 않는다. 끄기: scv/scv_settings.json SCV_ALWAYS_ON=off.'`
 
 ### scv_gates_reason
 - 역할: 받은 막는 이유들(최대 5개) 중 빈 것을 빼고 한 줄씩 이어 막는 이유를 만든다
@@ -184,7 +184,7 @@
 ### scv_lang_rule_line
 - 역할: 설정 언어로 쓴 언어 규칙 한 줄을 만든다 — 중간 보고까지 그 언어로 쓰라는 줄
 - 위치: scripts/lib/lang-enforce.sh · @pure · sh
-- 예: `korean → "[SCV 언어] 사용자에게 보이는 글은 모두 한국어로 — 도구 사이 중간 보고 · 요약 포함(파일 · 코드 · 이름은 제 규칙대로). 다른 언어로 쓴 최종 답은 막힌다. 사용자가 이 턴에 다른 언어를 요청하면 그 언어."`
+- 예: `korean → "[SCV 언어] 사용자에게 보이는 글은 모두 한국어로 — 도구 사이 중간 보고 · 요약 포함(파일 · 코드 · 이름은 제 규칙대로). 사용자가 이 턴에 다른 언어를 요청하면 그 언어."`
 - 예: `english → ""`
 - 예: `"" → ""`
 
@@ -228,8 +228,8 @@
 ### scv_mp_help_reason
 - 역할: help 를 부르기 전 도구를 거절할 때 쓸 이유 한 줄을 만든다(부를 액션 이름 포함)
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
-- 예: `action:help → "[SCV help 먼저] 이 턴은 아직 help 를 부르지 않았다 — 지금 action:help 를 이 턴 메시지 전문을 인자로 불러라. 그 전에는 다른 도구(등록 포함)가 거절된다."`
-- 예: `"" → "[SCV help 먼저] 이 턴은 아직 help 를 부르지 않았다 — 지금 SCV 의 help 를 이 턴 메시지 전문을 인자로 불러라. 그 전에는 다른 도구(등록 포함)가 거절된다."`
+- 예: `action:help → "[SCV help 먼저] 이 턴은 아직 help 를 부르지 않았다 — 지금 action:help 를 이 턴 메시지 전문을 인자로 불러라. 그 전에는 다른 도구(등록 포함)가 거절된다. 판단하지 말고 부르라 — 부를 필요는 help 가 판단한다. 부르지 않는 경우는 둘뿐: 이 턴에 이미 SCV 액션이 실려 있거나, 사람이 쓰지 않은 자동 알림이거나. 그 외에는 예외가 없다. 부르지 않으면 이 논의는 어디에도 남지 않는다 — help 가 파일로 남긴다."`
+- 예: `"" → "[SCV help 먼저] 이 턴은 아직 help 를 부르지 않았다 — 지금 SCV 의 help 를 이 턴 메시지 전문을 인자로 불러라. 그 전에는 다른 도구(등록 포함)가 거절된다. 판단하지 말고 부르라 — 부를 필요는 help 가 판단한다. 부르지 않는 경우는 둘뿐: 이 턴에 이미 SCV 액션이 실려 있거나, 사람이 쓰지 않은 자동 알림이거나. 그 외에는 예외가 없다. 부르지 않으면 이 논의는 어디에도 남지 않는다 — help 가 파일로 남긴다."`
 
 ### scv_mp_principle_candidates
 - 역할: 코어 루트로 원칙 파일 후보 경로 두 개를 한 줄씩 낸다
@@ -352,7 +352,7 @@
 ### scv_step_line
 - 역할: 단계 보고 도구 이름과 구현 중인 계획 이름으로 매 턴 안내 한 줄을 만든다 — 둘 중 하나라도 비면 아무것도 내지 않는다
 - 위치: scripts/lib/step-report.sh · @pure · sh
-- 예: `"demo_step" "20260102-a-y" → "[SCV 단계] 구현 중: 20260102-a-y — 이 세션에 demo_step 도구가 있으면, 단계를 시작할 때 · 끝낼 때 · 막혔을 때(이유 한 줄) 바로 알려라(plan=20260102-a-y, step=번호, state=doing|done|blocked). 본문: protocols/work.md 'Step progress'"`
+- 예: `"demo_step" "20260102-a-y" → "[SCV 단계] 구현 중: 20260102-a-y — 이 세션에 demo_step 도구가 있으면, 단계를 시작할 때 · 끝낼 때(증거: 만든 파일 · 명령 출력) · 막혔을 때(이유 한 줄) 바로 알려라(plan=20260102-a-y, step=번호, state=doing|done|blocked). 본문: protocols/work.md 'Step progress'"`
 - 예: `"" "20260102-a-y" → ""`
 - 예: `"demo_step" "" → ""`
 

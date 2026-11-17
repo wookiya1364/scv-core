@@ -1,6 +1,6 @@
 # 고르기 — 여럿 중 일부를 골라내거나 순서를 매긴다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 44개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 45개.
 
 ### attachment_scope_filter
 - 역할: 표준입력 줄들에서 슬러그가 든 줄만 남긴다 — 슬러그가 비면 전부 통과
@@ -167,6 +167,13 @@
 - 역할: git 상태 기록에서 허용 경로 밖의 변경 경로만 줄마다 하나 낸다(끝이 / 인 허용 경로는 폴더)
 - 위치: scripts/lib/pr-flow.sh · @pure · sh
 - 예: `$' M scv/a.md\n M src/x.sh' $'scv/' → "src/x.sh"`
+
+### scv_prun_pairs
+- 역할: 사전 항목들에서, 같은 언어로 돌릴 수 있고 첫 예시의 입력 낱말 수가 같은 함수 짝을 고른다
+- 위치: scripts/lib/pure-run.sh · @deterministic · sh
+- 예: `$'a.ts\tpure\tf\tr\t다듬기\t" a " → "a"\nb.ts\tpure\tg\tr\t다듬기\t"x " → "x"' → $'f\tg'`
+- 예: `$'a.ts\tpure\tf\tr\t다듬기\t" a " → "a"\nb.py\tpure\tg\tr\t다듬기\t"x " → "x"' → ""`
+- 예: `$'a.py\tpure\tf\tr\t세기\t1 2 → 3\nb.py\tpure\tg\tr\t세기\t"x" → 1' → ""`
 
 ### scv_rc_allowed_out
 - 역할: 후보 키에서 허용목록에 있는 키를 뺀 나머지를 낸다

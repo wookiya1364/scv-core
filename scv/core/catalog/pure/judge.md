@@ -1,6 +1,6 @@
 # 판정 — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 47개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 50개.
 
 ### pb_accept_covers
 - 역할: 사용자가 받아들인 이유들과 지금의 이유들을 견줘, 지금 것이 모두 받아들인 범위 안이면 참 — 시간 · 배수는 받아들인 값의 2배까지, 메모리는 1.2배까지, 부른 횟수는 받아들인 수까지
@@ -90,6 +90,15 @@
 - 위치: scripts/lib/dreams.sh · @pure · sh
 - 예: `100 → 'dekad'`
 - 예: `5 → 'month'`
+
+### scv_flag_workaround
+- 역할: 새 주석 줄들 가운데 임시방편을 뜻하는 낱말 · 구절(한 · 영 · 일)이 든 줄만 고른다 — 개념을 설명하는 낱말(임시 저장소)은 빼려고 구절로 본다
+- 위치: scripts/lib/comment-flag.sh · @pure · sh
+- 예: `$'a.sh\t2\t# TODO: 나중에 제거\nx.ts\t3\t// 일반 설명' → $'a.sh\t2\t# TODO: 나중에 제거'`
+- 예: `$'b.py\t9\t# workaround — 큰 변경이라 미룸' → $'b.py\t9\t# workaround — 큰 변경이라 미룸'`
+- 예: `$'c.go\t1\t// 一時的な回避' → $'c.go\t1\t// 一時的な回避'`
+- 예: `$'e.sh\t5\t# 임시 저장소를 만든다' → ""`
+- 예: `$'d.sh\t4\t# 입력을 정리한다' → ""`
 
 ### scv_graft_status
 - 역할: graft 실행 파일 · 그래프 유무와 스위치로 absent · no-graph · ready · off 중 하나를 낸다
@@ -230,6 +239,22 @@
 - 예: `1+a@users.noreply.github.com → ""`
 - 예: `noreply@anthropic.com → ""`
 - 예: `me@gmail.com → "" [1]`
+
+### scv_prun_lang
+- 역할: 사전 파일 경로의 확장자로, 실제로 돌릴 수 있는 언어 이름(js · py · rs)을 낸다 — 못 돌리는 언어는 빈 값
+- 위치: scripts/lib/pure-run.sh · @pure · sh
+- 예: `"src/a.ts" → "js"`
+- 예: `"lib/b.mjs" → "js"`
+- 예: `"app/c.py" → "py"`
+- 예: `"src/d.rs" → "rs"`
+- 예: `"x/e.go" → ""`
+
+### scv_prun_verdict
+- 역할: 실행 결과 줄들(부른 함수 · 예시 주인 · ok|diff|err)로, 두 방향 모두 상대 예시의 출력을 낸 짝과 돌리지 못한 함수를 가린다
+- 위치: scripts/lib/pure-run.sh · @deterministic · sh
+- 예: `$'f\tg\tok\ng\tf\tok' → $'dup\tf\tg'`
+- 예: `$'f\tg\tok\ng\tf\tdiff' → ""`
+- 예: `$'f\tg\terr\ng\tf\tok' → $'unrun\tf'`
 
 ### scv_reg_is_core_loop
 - 역할: '코어 시험 전부' 반복 줄(for t in core/tests/test-*.sh …)이면 1 을 낸다 — 시험 파일 하나하나로 나눠 공유할 수 있다
