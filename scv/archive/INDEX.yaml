@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-15T12:17:55Z
+generated_at: 2026-11-17T11:45:54Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -575,5 +575,25 @@ archives:
     status: testing
   - slug: 20261115-wookiya1364-answer-lead-paragraph-bullets
     title: "답 모양 바꾸기 — 결론은 불릿 없는 한두 문장, 이어지는 생각은 문단 불릿"
+    kind: feature
+    status: testing
+  - slug: 20261116-wookiya1364-dashboard-now-view
+    title: "대시보드 — 지금 하는 일이 늘 보이게 (지금 하는 일 · 뒤에서 도는 일 · 최근 끝난 일)"
+    kind: feature
+    status: in_progress
+  - slug: 20261116-wookiya1364-dashboard-parallel-steps
+    title: "대시보드 — 함께 하는 단계는 모두 진행 중으로 (여러 단계 동시 진행 표시)"
+    kind: feature
+    status: testing
+  - slug: 20261116-wookiya1364-mirror-no-reask
+    title: "대시보드 거울 — 보는 쪽이 스스로 다시 묻지 않게 (작업 세션에 쌓이는 "메시지 받음" 줄 없애기)"
+    kind: feature
+    status: testing
+  - slug: 20261116-wookiya1364-update-without-gh-and-in-app
+    title: "/scv:update — gh 없이 최신 버전 확인, 앱 · 터미널 어디서든 직접 올리기"
+    kind: feature
+    status: testing
+  - slug: 20261117-wookiya1364-checks-not-comments
+    title: "글 대신 검사 — 매 턴 글 덜기 · 정정을 검사로 제안 · 임시방편 주석 알림 · 대시보드 단계 증거 · 순수 함수 중복 검사 자동화"
     kind: feature
     status: testing

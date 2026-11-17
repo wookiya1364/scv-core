@@ -235,3 +235,15 @@ decision	복원-요약이-끝난-대화를-싣던-것-pr-도구가-묶음-계획
 decision	복원-요약이-끝난-대화를-싣던-것-pr-도구가-묶음-계획-가지를-늘-main-에서-만들	scv/DECISIONS.md	301658	1184	2026-11-13 17:38	[archived] 복원 요약이 끝난 대화를 싣던 것 · PR 도구가 묶음 계획 가지를 늘 main 에서 만들던 것 archived
 decision	답-모양-바꾸기-결론은-불릿-없는-한두-문장-이어지는-생각은-문단-불릿	scv/DECISIONS.md	302842	1234	2026-11-15 20:36	[adopted] 답 모양 바꾸기 — 결론은 불릿 없는 한두 문장, 이어지는 생각은 문단 불릿
 decision	답-모양-바꾸기-결론은-불릿-없는-한두-문장-이어지는-생각은-문단-불릿-archived	scv/DECISIONS.md	304076	1312	2026-11-15 21:17	[archived] 답 모양 바꾸기 — 결론은 불릿 없는 한두 문장, 이어지는 생각은 문단 불릿 archived
+decision	scv-update-gh-없이-최신-버전-확인-앱-터미널-어디서든-직접-올리기	scv/DECISIONS.md	305388	1101	2026-11-16 10:11	[adopted] /scv:update — gh 없이 최신 버전 확인, 앱 · 터미널 어디서든 직접 올리기
+decision	scv-update-가-모드까지-함께-올림-모드도-깔린-범위마다	scv/DECISIONS.md	306489	974	2026-11-16 10:20	[adopted] /scv:update 가 모드까지 함께 올림 · 모드도 깔린 범위마다
+decision	scv-update-gh-없이-최신-버전-확인-앱-터미널-어디서든-직접-올리기-arch	scv/DECISIONS.md	307463	1779	2026-11-16 11:05	[archived] /scv:update — gh 없이 최신 버전 확인, 앱 · 터미널 어디서든 직접 올리기 archived
+decision	대시보드-지금-하는-일이-늘-보이게-지금-하는-일-뒤에서-도는-일-최근-끝난-일	scv/DECISIONS.md	309242	1278	2026-11-16 11:13	[adopted] 대시보드 — 지금 하는 일이 늘 보이게 (지금 하는 일 · 뒤에서 도는 일 · 최근 끝난 일)
+decision	대시보드-거울-보는-쪽이-스스로-다시-묻지-않게	scv/DECISIONS.md	310520	796	2026-11-16 12:37	[adopted] 대시보드 거울 — 보는 쪽이 스스로 다시 묻지 않게
+decision	대시보드-거울-보는-쪽이-스스로-다시-묻지-않게-archived	scv/DECISIONS.md	311316	867	2026-11-16 13:03	[archived] 대시보드 거울 — 보는 쪽이 스스로 다시 묻지 않게 archived
+decision	대시보드-지금-하는-일이-늘-보이게-archived	scv/DECISIONS.md	312183	996	2026-11-16 15:23	[archived] 대시보드 — 지금 하는 일이 늘 보이게 archived
+decision	대시보드-함께-하는-단계는-모두-진행-중으로-여러-단계-동시-진행-표시	scv/DECISIONS.md	313179	1108	2026-11-16 19:22	[adopted] 대시보드 — 함께 하는 단계는 모두 진행 중으로 (여러 단계 동시 진행 표시)
+decision	대시보드-함께-하는-단계는-모두-진행-중으로-archived	scv/DECISIONS.md	314287	1185	2026-11-16 19:37	[archived] 대시보드 — 함께 하는 단계는 모두 진행 중으로 archived
+decision	글-대신-검사-매-턴-글-덜기-정정을-검사로-제안-임시방편-주석-알림-대시보드-검증-결	scv/DECISIONS.md	315472	893	2026-11-17 19:08	[adopted] 글 대신 검사 — 매 턴 글 덜기 · 정정을 검사로 제안 · 임시방편 주석 알림 · 대시보드 검증 결과물
+decision	글-대신-검사-계획-고침-대시보드-단계-증거-순수-함수-재사용-검사	scv/DECISIONS.md	316365	921	2026-11-17 19:25	[adopted] 글 대신 검사 — 계획 고침: 대시보드 단계 증거 · 순수 함수 재사용 검사
+decision	글-대신-검사-매-턴-글-덜기-정정을-검사로-제안-임시방편-주석-알림-대시보드-단계-증	scv/DECISIONS.md	317286	1450	2026-11-17 20:46	[archived] 글 대신 검사 — 매 턴 글 덜기 · 정정을 검사로 제안 · 임시방편 주석 알림 · 대시보드 단계 증거 · 순수 함수 중복 검사 자동화 archived
