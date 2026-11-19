@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-17T11:45:54Z
+generated_at: 2026-11-19T06:27:55Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -595,5 +595,9 @@ archives:
     status: testing
   - slug: 20261117-wookiya1364-checks-not-comments
     title: "글 대신 검사 — 매 턴 글 덜기 · 정정을 검사로 제안 · 임시방편 주석 알림 · 대시보드 단계 증거 · 순수 함수 중복 검사 자동화"
+    kind: feature
+    status: testing
+  - slug: 20261119-wookiya1364-turn-check-fast-end
+    title: "턴 끝 확인이 멈추지 않게 — 쓴 파일 목록 중복 · 느린 비교 · 끝나지 않는 턴"
     kind: feature
     status: testing
