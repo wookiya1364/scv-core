@@ -248,13 +248,13 @@
 
 ### scv_tc_abs_paths
 - 역할: 저장소 맨 위 경로와 그 안의 상대 경로 줄들을 이어 절대 경로 줄들로 바꾼다
-- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 위치: scripts/lib/turn-check.sh · @deterministic · sh
 - 예: `"/r" $'a.ts\nsrc/b.ts' → $'/r/a.ts\n/r/src/b.ts'`
 - 예: `"/r" "" → ""`
 
 ### scv_tc_plan_lines
 - 역할: 계획 글 여러 개의 이력 · 단계 줄을 모아 정렬한 묶음으로 만든다 — 시작 · 끝 묶음의 차이가 '새로 생긴 줄'
-- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 위치: scripts/lib/turn-check.sh · @deterministic · sh
 - 예: `$'# a\n- **2026-11-09 진행** — 1단계: x\n본문\n  - 요청: y (요청 ab)' → $'  - 요청: y (요청 ab)\n- **2026-11-09 진행** — 1단계: x'`
 - 예: `"본문만" → ""`
 
