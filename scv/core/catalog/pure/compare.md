@@ -10,14 +10,14 @@
 
 ### scv_tc_diff
 - 역할: 시작 사진과 끝 사진("경로<TAB>지문" 줄들)을 견줘 이번 턴에 바뀐 경로만 낸다 — 새로 생김 · 지문이 바뀜 · 사라짐
-- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 위치: scripts/lib/turn-check.sh · @deterministic · sh
 - 예: `$'a\t1\nb\t2' $'a\t1\nb\t3\nc\t9' → $'b\nc'`
 - 예: `$'a\t1\nb\t2' $'a\t1' → "b"`
 - 예: `$'a\t1' $'a\t1' → ""`
 
 ### scv_tc_new_lines
 - 역할: 정렬된 두 묶음에서 뒤 묶음에만 있는 줄을 낸다 — 같은 줄이 늘어난 것도 센다
-- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 위치: scripts/lib/turn-check.sh · @deterministic · sh
 - 예: `$'a\nb' $'a\nb\nc' → "c"`
 - 예: `$'a' $'a\na' → "a"`
 - 예: `$'a\nb' $'a' → ""`

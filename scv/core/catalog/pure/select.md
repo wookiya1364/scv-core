@@ -258,7 +258,7 @@
 
 ### scv_tc_mine_only
 - 역할: 경로 줄들 중 '이 세션이 쓴 파일' 목록에 있는 것만 남긴다 — 다른 세션이 같은 폴더에서 고친 파일을 뺀다
-- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 위치: scripts/lib/turn-check.sh · @deterministic · sh
 - 예: `$'/r/a\n/r/b' $'/r/b\n/x/c' → "/r/b"`
 - 예: `"/r/a" "" → ""`
 
