@@ -2605,3 +2605,11 @@ merge_policy: preserve
 - path delta: 1단계는 대조 표 함수 3개 대신 '뺀 줄마다 검사가 여전히 막는가' 시험으로 대조 — 표를 코드로 두면 지킬 것이 하나 더 늘어서. 5단계는 표식 강제를 뺐음(가드 규칙 D 가 이미 함 — 앞 턴 판단 정정)하고 러스트를 더함(사용자 요청). 대시보드는 '지금 하는 일' 줄만 빼고 '뒤에서 도는 일'은 남김 — 진행률을 보이는 쓸모 있는 부분이라.
 - refs: scv/archive/20261117-wookiya1364-checks-not-comments/PLAN.md
 - conversation: scv/conversations/20261117-185753-checks-not-comments-from-talk.md
+
+## [2026-11-19 13:28] wookiya1364 — 턴 끝 확인이 멈추지 않게 — 쓴 파일 목록 중복 · 느린 비교 · 끝나지 않는 턴
+
+- verdict: adopted
+- why: 긴 세션에서 턴 끝 확인이 수 분 걸려 종료 훅이 매번 취소되고 인용 검사가 돌지 않았다(복사본 측정). 비교를 한 번 훑기로, 목록 중복 막기, 시간 예산 + 끝 표시로 악순환을 끊는다.
+- discarded alternatives: 훅 제한 시간 늘리기 — 근본 원인(목록 누적)을 그대로 두고 매 턴 기다림만 늘어 버림; 그 프로젝트 상태만 지우기 — 다시 쌓이므로 버림
+- refs: scv/promote/20261119-wookiya1364-turn-check-fast-end/PLAN.md
+- conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
