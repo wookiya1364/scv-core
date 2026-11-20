@@ -285,9 +285,9 @@ Wrapper requirements:
    blocks ship today, switched from `scv/scv_settings.json`
    (the project `.env` is not read, 0.32.0+):
    - the five-line plain-language *answer shape* reminder, unless
-     `SCV_PLAIN_LANGUAGE=off` (absent / `on` / any other value = on);
-     `SCV_PLAIN_MAX_SENTENCES=<n>` (positive integer) raises the first-answer
-     sentence cap from 2 to n, anything else means 2;
+     `SCV_PLAIN_LANGUAGE=off` (absent / `on` / any other value = on); since
+     0.96.0 it sets no sentence or length count (`SCV_PLAIN_MAX_SENTENCES` is
+     no longer read);
    - the always-on routing block (0.35.0+), unless `SCV_ALWAYS_ON=off`: it
      instructs the model to route a free-conversation turn through the help
      action's Mode decision, and never to hijack a turn already running an

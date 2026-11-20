@@ -1,6 +1,6 @@
 # 판정 — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 50개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 51개.
 
 ### pb_accept_covers
 - 역할: 사용자가 받아들인 이유들과 지금의 이유들을 견줘, 지금 것이 모두 받아들인 범위 안이면 참 — 시간 · 배수는 받아들인 값의 2배까지, 메모리는 1.2배까지, 부른 횟수는 받아들인 수까지
@@ -172,6 +172,14 @@
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
 - 예: `best-practices.md 1 → "excerpt-best-practices.md"`
 - 예: `best-practices.md 0 → "best-practices.md"`
+
+### scv_mp_rules_show
+- 역할: 매 턴 규칙 글(언어 · 확인 범위 · 답 모양 · 선택 · 실물 보여 주기)을 이번 턴에 전문으로 실을지(full) 한 줄로 줄일지(short) 정한다
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `"n1" "n1" 0 → "short"`
+- 예: `"n1" "n2" 0 → "full"`
+- 예: `"n1" "n1" 1 → "full"`
+- 예: `"" "" 0 → "full"`
 
 ### scv_mp_safe_name
 - 역할: 색인 폴더 안의 평범한 파일 이름이면 그대로, 경로 · 점 시작 · ".." 이면 빈 값을 낸다
