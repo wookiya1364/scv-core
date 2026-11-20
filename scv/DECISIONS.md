@@ -2621,3 +2621,27 @@ merge_policy: preserve
 - path delta: 1단계 측정에서 쓰기 전 확인의 느린 곳도 같은 원인(사진 비교 제곱)임을 찾아 6단계를 2–3단계에 합침. 복사본 재측정에서 계획 줄 두 함수(38초)가 새로 드러나 대상에 더함. 재는 검사 대응으로 작은 입력 갈래 추가. 시간 · 크기 상한은 사용자 결정으로 넣지 않음. 보관은 사용자 지시대로 세 릴리스 성공 뒤
 - refs: scv/archive/20261119-wookiya1364-turn-check-fast-end/PLAN.md
 - conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
+
+## [2026-11-20 14:14] wookiya1364 — 질의에 맞는 effort 추천 · 캐시 미스를 피하는 새 세션 제안
+
+- verdict: adopted
+- why: 공식 effort 문서가 질의 난이도에 맞춘 effort 를 권하면서 대화 중 요청 전체 값 변경은 캐시를 깬다고 함. 종류가 바뀔 때만 추천하고 큰 일은 새 세션으로 나눠 캐시를 지킴. 먼저 effort 변경이 캐시를 깨는지 잼.
+- discarded alternatives: 매 질의마다 추천 — 묻는 횟수와 캐시 미스가 늘어 버림; SCV 가 effort 를 직접 바꾸기 — 세션 설정은 사용자 것
+- refs: scv/promote/20261120-wookiya1364-effort-by-task/PLAN.md
+- conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
+
+## [2026-11-20 14:24] wookiya1364 — 가벼운 에이전트 루프 — 장부 호출을 훅으로 · 처음과 끝만 묻기 모드
+
+- verdict: adopted
+- why: SCV 의 두 가치(같은 결과에 토큰 아끼기 · 사람은 처음 요구와 마지막 검증만)를 기록으로 재니 장부 호출 턴당 4.5–7.8, 중간 질문 턴당 약 1. 장부를 훅으로, 막힘은 바로 고칠 것만, 처음과 끝만 묻는 모드를 설정으로.
+- discarded alternatives: 기본값을 바로 ends 로 — 기존 사용자 규칙과 부딪혀 모드로만; 중간 질문만 먼저 — 사용자가 한 계획을 고름
+- refs: scv/promote/20261120-wookiya1364-lean-loop/PLAN.md
+- conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
+
+## [2026-11-20 16:22] wookiya1364 — 가벼운 에이전트 루프 보관 (0.97.0)
+
+- verdict: archived
+- why: 가벼운 루프 · 처음과 끝만 묻기 · action:ask-mode 구현, 헤드리스 비교에서 장부 호출 10–12 → 0 · 읽은 입력 약 1/7 · 시험 결과 같음. 맥 · 리눅스 · 코덱스 사본 시험 통과.
+- path delta: 계획 6단계에 사용자 요청으로 ask-mode 명령 단계를 더해 7단계. 비교 중 안전장치 표시(help 가 남기던 영수증) 누락을 찾아 훅이 남기게 고침. effort band standard → standard, 승격 없음.
+- refs: scv/archive/20261120-wookiya1364-lean-loop/PLAN.md
+- conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
