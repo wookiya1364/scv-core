@@ -2613,3 +2613,11 @@ merge_policy: preserve
 - discarded alternatives: 훅 제한 시간 늘리기 — 근본 원인(목록 누적)을 그대로 두고 매 턴 기다림만 늘어 버림; 그 프로젝트 상태만 지우기 — 다시 쌓이므로 버림
 - refs: scv/promote/20261119-wookiya1364-turn-check-fast-end/PLAN.md
 - conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
+
+## [2026-11-19 15:28] wookiya1364 — 턴 끝 확인이 멈추지 않게 — 쓴 파일 목록 중복 · 느린 비교 · 끝나지 않는 턴 archived
+
+- verdict: archived
+- why: 비교 함수 여섯 개를 큰 입력에서 awk 한 번 훑기로(작은 입력은 옛 셸 방식 — 재는 검사가 작은 입력 6–9배 느려짐을 잡아 나눔), 쓴 파일 목록 중복 막기, 종료 훅 맨 처음 멈춤 시작 표시, 30초 시간 예산. 긴 세션 복사본 180초+ → 2.4–4.5초. 앞으로 지킬 것: 줄 수가 커질 수 있는 목록 비교는 줄마다 전체 훑기 금지, 끝 판정이 죽어도 다음 시작이 알아보는 표시.
+- path delta: 1단계 측정에서 쓰기 전 확인의 느린 곳도 같은 원인(사진 비교 제곱)임을 찾아 6단계를 2–3단계에 합침. 복사본 재측정에서 계획 줄 두 함수(38초)가 새로 드러나 대상에 더함. 재는 검사 대응으로 작은 입력 갈래 추가. 시간 · 크기 상한은 사용자 결정으로 넣지 않음. 보관은 사용자 지시대로 세 릴리스 성공 뒤
+- refs: scv/archive/20261119-wookiya1364-turn-check-fast-end/PLAN.md
+- conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
