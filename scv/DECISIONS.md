@@ -2621,3 +2621,11 @@ merge_policy: preserve
 - path delta: 1단계 측정에서 쓰기 전 확인의 느린 곳도 같은 원인(사진 비교 제곱)임을 찾아 6단계를 2–3단계에 합침. 복사본 재측정에서 계획 줄 두 함수(38초)가 새로 드러나 대상에 더함. 재는 검사 대응으로 작은 입력 갈래 추가. 시간 · 크기 상한은 사용자 결정으로 넣지 않음. 보관은 사용자 지시대로 세 릴리스 성공 뒤
 - refs: scv/archive/20261119-wookiya1364-turn-check-fast-end/PLAN.md
 - conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
+
+## [2026-11-20 14:14] wookiya1364 — 질의에 맞는 effort 추천 · 캐시 미스를 피하는 새 세션 제안
+
+- verdict: adopted
+- why: 공식 effort 문서가 질의 난이도에 맞춘 effort 를 권하면서 대화 중 요청 전체 값 변경은 캐시를 깬다고 함. 종류가 바뀔 때만 추천하고 큰 일은 새 세션으로 나눠 캐시를 지킴. 먼저 effort 변경이 캐시를 깨는지 잼.
+- discarded alternatives: 매 질의마다 추천 — 묻는 횟수와 캐시 미스가 늘어 버림; SCV 가 effort 를 직접 바꾸기 — 세션 설정은 사용자 것
+- refs: scv/promote/20261120-wookiya1364-effort-by-task/PLAN.md
+- conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
