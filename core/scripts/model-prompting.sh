@@ -475,12 +475,17 @@ case "$cmd" in
     # 0.96.0+ — 매 턴 규칙 글을 이 지문에 한 번만(계획 rules-once-no-caps). 매 턴 훅이 부른다 — full | short 한 단어.
     # 끄면(SCV_RULES_ONCE=off) 늘 full — 이 기능 전과 같다. 판단할 수 없으면(턴 폴더 · 지문 없음) full 이고 표시를 쓰지 않는다.
     if [[ "$(scv_mp_switch "$(_setting SCV_RULES_ONCE)")" != "on" ]]; then echo full; exit 0; fi
+    # 세션의 첫 턴에는 턴 폴더가 아직 없다(이 훅 뒤에 prompt 가 만든다) — 먼저 만들어 둬야 첫 턴의 표시가 남는다.
+    [[ -n "$TDIR" && ! -e "$TDIR" && ! -L "$(dirname "$TDIR")" ]] && mkdir -p "$TDIR" 2>/dev/null
     _rf=""; [[ -n "$TDIR" && -d "$TDIR" && ! -L "$TDIR" ]] && _rf="$TDIR/.rules-seen"
     _rseen=""; [[ -n "$_rf" && -f "$_rf" && ! -L "$_rf" ]] && _rseen="$(_first_line "$_rf")"
     _rwarn=0
     for _rw in "$WARN_FILE" "$JOURNAL_DIR/.help-warn"; do [[ -s "$_rw" && ! -L "$_rw" ]] && _rwarn=1; done
     _rm="$(scv_mp_rules_show "$_rseen" "$NONCE" "$_rwarn")"
     [[ "$_rm" == "full" && -n "$_rf" && -n "$NONCE" && ! -L "$_rf" ]] && printf '%s\n' "$NONCE" > "$_rf" 2>/dev/null
+    # 전문을 실은 턴은 표시를 남긴다 — 이 턴에 규약을 다시 읽으면(help mark) 지문이 새로 생기므로, 턴 끝(stop)이 그 새 지문을
+    # '본 것'으로 다시 적는다. 그러지 않으면 다음 턴이 옛 지문을 보고 전문을 한 번 더 싣는다(0.96.0 실제 세션에서 발견).
+    [[ "$_rm" == "full" && -n "$_rf" && ! -L "$TDIR/.rules-full" ]] && : > "$TDIR/.rules-full" 2>/dev/null
     echo "$_rm"; exit 0 ;;
   human)
     # v0.65.0+ — 사람 입력(매 턴 훅이 자동 입력 밖의 모든 입력에 부른다): 자동 턴 표시를 지우고(이 기능 전에는 훅이 직접 지웠다),
@@ -638,6 +643,12 @@ case "$cmd" in
     ;;
   stop)
     ANSWER="$(head -c 65536 2>/dev/null || true)"
+    # 이번 턴에 규칙 글을 전문으로 실었으면, 지금(턴 끝)의 지문을 본 것으로 적는다 — 이 턴 도중 규약을 다시 읽어 지문이 바뀌었어도
+    # 다음 턴은 한 줄이다(계획 rules-once-no-caps 7단계). 표시는 한 번 쓰고 지운다.
+    if [[ -n "$TDIR" && -f "$TDIR/.rules-full" && ! -L "$TDIR/.rules-full" ]]; then
+      [[ -n "$NONCE" && ! -L "$TDIR/.rules-seen" ]] && printf '%s\n' "$NONCE" > "$TDIR/.rules-seen" 2>/dev/null
+      rm -f "$TDIR/.rules-full" 2>/dev/null
+    fi
     _effort_settle "$ANSWER" ""   # 0.89.2+ — 이번 턴에 effort 줄을 실었으면, 답에 그 질문이 있었는지 본다
     # v0.62.0+ — 매 턴 등록 판정: 이번 턴 표가 있고(매 턴 훅이 씀) 가이드 색인이 있을 때만. ok | block | warn.
     if _on; then
