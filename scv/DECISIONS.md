@@ -2629,3 +2629,11 @@ merge_policy: preserve
 - discarded alternatives: 매 질의마다 추천 — 묻는 횟수와 캐시 미스가 늘어 버림; SCV 가 effort 를 직접 바꾸기 — 세션 설정은 사용자 것
 - refs: scv/promote/20261120-wookiya1364-effort-by-task/PLAN.md
 - conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
+
+## [2026-11-20 14:24] wookiya1364 — 가벼운 에이전트 루프 — 장부 호출을 훅으로 · 처음과 끝만 묻기 모드
+
+- verdict: adopted
+- why: SCV 의 두 가치(같은 결과에 토큰 아끼기 · 사람은 처음 요구와 마지막 검증만)를 기록으로 재니 장부 호출 턴당 4.5–7.8, 중간 질문 턴당 약 1. 장부를 훅으로, 막힘은 바로 고칠 것만, 처음과 끝만 묻는 모드를 설정으로.
+- discarded alternatives: 기본값을 바로 ends 로 — 기존 사용자 규칙과 부딪혀 모드로만; 중간 질문만 먼저 — 사용자가 한 계획을 고름
+- refs: scv/promote/20261120-wookiya1364-lean-loop/PLAN.md
+- conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
