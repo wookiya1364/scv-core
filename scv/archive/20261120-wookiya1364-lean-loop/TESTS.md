@@ -29,6 +29,10 @@
 - **Run**: 설정 없음 · all.
 - **Pass criterion**: 지금과 같은 출력(바이트 비교).
 
+### T7. /scv:ask-mode 토글
+- **Run**: 인자 없이 두 번 · `ends` · 환경 변수 SCV_ASK_MODE 가 있는 채로 · 잘못된 인자.
+- **Pass criterion**: all → ends → all 로 뒤집힘, 지정한 값으로 정해짐, 환경 변수가 이긴다고 알림, 잘못된 인자는 쓰지 않고 exit 2, 다른 설정은 그대로.
+
 ## How to run
 
 ```bash
@@ -37,4 +41,4 @@ bash core/tests/test-lean-loop.sh
 
 ## Pass criteria
 
-- T1–T6 통과(맥 · 리눅스 · 코덱스 사본), 전체 실행 통과, 기존 기록 재계산 · 헤드리스 비교 수치가 마무리 보고에.
+- T1–T7 통과(맥 · 리눅스 · 코덱스 사본), 전체 실행 통과, 기존 기록 재계산 · 헤드리스 비교 수치가 마무리 보고에.

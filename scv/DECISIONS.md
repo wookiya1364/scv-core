@@ -2637,3 +2637,11 @@ merge_policy: preserve
 - discarded alternatives: 기본값을 바로 ends 로 — 기존 사용자 규칙과 부딪혀 모드로만; 중간 질문만 먼저 — 사용자가 한 계획을 고름
 - refs: scv/promote/20261120-wookiya1364-lean-loop/PLAN.md
 - conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
+
+## [2026-11-20 16:22] wookiya1364 — 가벼운 에이전트 루프 보관 (0.97.0)
+
+- verdict: archived
+- why: 가벼운 루프 · 처음과 끝만 묻기 · action:ask-mode 구현, 헤드리스 비교에서 장부 호출 10–12 → 0 · 읽은 입력 약 1/7 · 시험 결과 같음. 맥 · 리눅스 · 코덱스 사본 시험 통과.
+- path delta: 계획 6단계에 사용자 요청으로 ask-mode 명령 단계를 더해 7단계. 비교 중 안전장치 표시(help 가 남기던 영수증) 누락을 찾아 훅이 남기게 고침. effort band standard → standard, 승격 없음.
+- refs: scv/archive/20261120-wookiya1364-lean-loop/PLAN.md
+- conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
