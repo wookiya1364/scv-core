@@ -2669,3 +2669,11 @@ merge_policy: preserve
 - path delta: 5단계(표식 읽기 · 항목 단위 손실 검사)를 덧붙임 — 사본 검증에서 개수 비교가 4개 손실을 숨긴 것을 발견
 - refs: scv/archive/20261122-wookiya1364-comments-strip-safety/PLAN.md
 - conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
+
+## [2026-11-22 20:29] wookiya1364 — 답 · 중간 보고를 설정 언어로 archived
+
+- verdict: archived
+- why: 다른 프로젝트 긴 세션에서 중간 보고 약 37%가 영어였고 쓴 뒤 교정 경고 99번도 막지 못했다. 한 줄 규칙 턴에도 설정 언어(SCV_LANG) 줄, 도구 결과 뒤 짧은 알림(마지막 글이 설정 언어면 생략), 판정을 ko · ja · zh 글자로 넓혔다. english 설정은 그대로. 판정 함수는 줄마다 불리므로 하위 셸을 넣지 않는다.
+- path delta: as planned (english 판정은 계획 중 빼기로 정함 — 기존 약속 유지)
+- refs: scv/archive/20261122-wookiya1364-lang-follow-setting/PLAN.md
+- conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
