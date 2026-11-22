@@ -288,6 +288,7 @@
 - 예: `js "const pick = (a, b) => a" → "pick"`
 - 예: `py "    def _helper(self, x):" → "_helper"`
 - 예: `go "func (s *S) Run() error {" → "Run"`
+- 예: `rs "    pub fn grade_affixes(g: u8) -> u8 {" → "grade_affixes"`
 - 예: `js "return fn(x)" → ""`
 
 ### scv_plan_fm_get
