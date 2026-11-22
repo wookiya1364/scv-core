@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-22T11:29:07Z
+generated_at: 2026-11-22T12:46:58Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -615,5 +615,9 @@ archives:
     status: testing
   - slug: 20261122-wookiya1364-lang-follow-setting
     title: "답 · 중간 보고를 설정 언어로 — 한 줄 규칙 턴에도 언어 줄 · 쓰기 전 알림 · 여러 언어 검사"
+    kind: feature
+    status: testing
+  - slug: 20261122-wookiya1364-lang-remind-progress-notes
+    title: "도구 뒤 언어 알림 중복 — 생각 항목에 남은 중간 보고도 보기"
     kind: feature
     status: testing
