@@ -1,6 +1,6 @@
 # 판정 — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 52개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 53개.
 
 ### cs_next
 - 역할: 지금 값과 명령 인자로 바꿀 값을 고른다 — 인자가 on · off 면 그 값, 비었으면 뒤집기, 그 밖은 빈 값(잘못된 인자)
@@ -141,6 +141,14 @@
 - 위치: scripts/lib/help-state.sh · @pure · sh
 - 예: `$'s1\x1f1\x1f3' on → "PROTOCOL: loaded"`
 - 예: `$'s1\x1f1\x1f3' off → "PROTOCOL: load"`
+
+### scv_lang_text_ok
+- 역할: 글이 설정 언어로 쓰였다고 판정되면 1 을 낸다 — 설정 언어 글자가 다섯 개 이상이고 다른 언어 줄이 없을 때
+- 위치: scripts/lib/lang-enforce.sh · @pure · sh
+- 예: `"결과를 보고 다음 시험을 돌리는 중임" korean → "1"`
+- 예: `"Now running the next test suite." korean → "0"`
+- 예: `"확인" korean → "0"`
+- 예: `"" korean → "0"`
 
 ### scv_mp_effort_asked_in
 - 역할: 그 턴에 effort 를 실제로 물었는지 가린다 — 선택 창 질문 글에 effort 가 있거나, 답 글에 effort · 지금 값 · 권장 값 · 물음표가 함께 있으면 1
