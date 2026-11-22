@@ -1,6 +1,6 @@
 # 꺼내기 — 글 · JSON · 표에서 값이나 필드를 뽑는다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 63개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 64개.
 
 ### pc_extract_entries
 - 역할: 소스 글에서 표식(어떤 주석 모양이든 '@pure 이름', 셸은 이름 없이도) 달린 함수마다 역할 · 종류 · 예시를 뽑아 항목 줄로 낸다
@@ -156,6 +156,13 @@
 - 예: `$'결과를 봄\nNext I will run the tests now.' korean → "Next I will run the tests now."`
 - 예: `$'```\nconst value = computeSomething();\n```\n모두 통과함' korean → ""`
 - 예: `"모두 한국어로 씀" korean → ""`
+
+### scv_lang_last_notes
+- 역할: 이번 턴 차례 목록(도구 호출 T · 글 N)에서 마지막으로 쓴 글 묶음(이어진 N)을 항목마다 한 줄로 낸다(항목 안 줄바꿈은 \x1e 그대로)
+- 위치: scripts/lib/lang-enforce.sh · @pure · sh
+- 예: `$'N\x1f가\nT\nN\x1f나\nN\x1f다\nT\nT' → $'나\n다'`
+- 예: `$'T\nT' → ""`
+- 예: `"" → ""`
 
 ### scv_lang_new_text
 - 역할: 이번 턴 어시스턴트 글 목록에서 지난 검사 id 뒤에 쓴 글만 잇고, 마지막 id 와 함께 낸다

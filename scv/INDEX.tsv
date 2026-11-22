@@ -256,3 +256,4 @@ decision	코드-주석을-없애고-순수-함수-사전에만	scv/DECISIONS.md	
 decision	코드-주석을-없애고-순수-함수-사전에만-보관-0-98-0	scv/DECISIONS.md	323876	878	2026-11-22 15:26	[archived] 코드 주석을 없애고 순수 함수 사전에만 보관 (0.98.0)
 decision	주석-옮기기-안전-셸-따옴표-바로-읽기-깨지는-파일-제외-실패하면-원래대로-archiv	scv/DECISIONS.md	324754	937	2026-11-22 17:59	[archived] 주석 옮기기 안전 — 셸 따옴표 바로 읽기 · 깨지는 파일 제외 · 실패하면 원래대로 archived
 decision	답-중간-보고를-설정-언어로-archived	scv/DECISIONS.md	325691	763	2026-11-22 20:29	[archived] 답 · 중간 보고를 설정 언어로 archived
+decision	도구-뒤-언어-알림-중복-고침-archived	scv/DECISIONS.md	326454	819	2026-11-22 21:47	[archived] 도구 뒤 언어 알림 중복 고침 archived
