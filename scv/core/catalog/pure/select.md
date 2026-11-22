@@ -1,6 +1,6 @@
 # 고르기 — 여럿 중 일부를 골라내거나 순서를 매긴다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 45개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 46개.
 
 ### attachment_scope_filter
 - 역할: 표준입력 줄들에서 슬러그가 든 줄만 남긴다 — 슬러그가 비면 전부 통과
@@ -119,6 +119,15 @@
 - 역할: 그래프 JSON 에서 연결(차수)이 많은 노드 id 를 상위 n 개(기본 10) 한 줄씩 낸다 (동률은 id 순, jq 필요)
 - 위치: scripts/lib/graph.sh · @deterministic · sh
 - 예: `'{"nodes":[{"id":"a"},{"id":"b"},{"id":"c"}],"links":[{"source":"a","target":"b"},{"source":"a","target":"c"}]}' 2 → $'a\nb'`
+
+### scv_lang_script
+- 역할: 설정 언어 이름을 그 언어 글자의 UTF-8 첫 바이트 범위(16진 '시작-끝')로 바꾼다 — 글자로 가를 수 없는 언어는 빈 값
+- 위치: scripts/lib/help-state.sh · @pure · sh
+- 예: `korean → "ea-ed"`
+- 예: `japanese → "e3-e9"`
+- 예: `zh → "e4-e9"`
+- 예: `english → ""`
+- 예: `spanish → ""`
 
 ### scv_mp_effort_from_log
 - 역할: 세션 기록에서 뽑은 줄들("키":"값" 꼴)에서 마지막 값을 꺼내 effort 낱말이면 낸다(없으면 빈 값)

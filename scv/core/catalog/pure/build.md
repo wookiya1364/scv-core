@@ -180,6 +180,7 @@
 - 예: `korean 2 final → "[SCV 언어] 최종 답 중 2줄이 한국어가 아니다 — 그 줄만 한국어로 고쳐 다시 써라."`
 - 예: `korean 1 mid "Next I'll run the tests." → "[SCV 언어] 방금 쓴 글 중 1줄이 한국어가 아니다(예: “Next I'll run the tests.”) — 다음 글부터 한국어로 써라(중간 보고 포함)."`
 - 예: `korean 0 mid → ""`
+- 예: `japanese 2 mid → "[SCV language] 2 line(s) you just wrote are not in japanese — write the next message in japanese, progress notes included."`
 
 ### scv_lang_rule_line
 - 역할: 설정 언어로 쓴 언어 규칙 한 줄을 만든다 — 중간 보고까지 그 언어로 쓰라는 줄
