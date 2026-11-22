@@ -2677,3 +2677,11 @@ merge_policy: preserve
 - path delta: as planned (english 판정은 계획 중 빼기로 정함 — 기존 약속 유지)
 - refs: scv/archive/20261122-wookiya1364-lang-follow-setting/PLAN.md
 - conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
+
+## [2026-11-22 21:47] wookiya1364 — 도구 뒤 언어 알림 중복 고침 archived
+
+- verdict: archived
+- why: 일부 모델 · 호스트는 도구 사이 중간 보고를 기록에 생각(thinking) 항목으로 남기는데 도구 뒤 훅은 글 항목만 읽어, 한국어 중간 보고 뒤에도 알림이 붙었다. 마지막 글 또는 마지막 묶음(글 · 생각) 중 하나라도 설정 언어면 싣지 않는다. 묶음만으로 판정하면 안 보이는 영어 생각 때문에 알림이 늘었다. 교정은 글 항목만.
+- path delta: 묶음만 보는 판정을 버리고 옛 판정과 합침 — 재생에서 알림이 19%→38%로 늘어서
+- refs: scv/archive/20261122-wookiya1364-lang-remind-progress-notes/PLAN.md
+- conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
