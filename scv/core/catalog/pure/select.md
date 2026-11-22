@@ -155,6 +155,8 @@
 - 예: `lib/x.sh → "sh"`
 - 예: `app/m.py → "py"`
 - 예: `README.md → ""`
+- 예: `src/a.rs on → "rs"`
+- 예: `src/a.rs → ""`
 
 ### scv_pr_base_branch
 - 역할: PR 대상 브랜치를 정한다 — 에픽 > 설정 값 > origin 기본 브랜치 > main 순

@@ -371,6 +371,12 @@ except Exception:
           [[ "$_scv_dm" == brief* ]] && _scv_diag_mode="brief" && _scv_diag_at="${_scv_dm#brief }"
         fi
       fi
+      # 0.98.0+ — 코드 주석 없이 사전이 원본(SCV_CATALOG_SOURCE, 기본 on — 키가 없으면 on, 적힌 off 는 그대로)인데 아직 옮기지
+      # 않았으면, 코드 주석을 사전으로 옮기고 지운 뒤 보고 한 줄을 싣는다(한 번만 — 사전 폴더의 SOURCE 표시). off 이거나 이미
+      # 옮긴 프로젝트는 도구를 띄우지 않는다.
+      if [[ ! -f scv/core/catalog/pure/SOURCE && "$(_scv_read SCV_CATALOG_SOURCE | tr -d '"[:space:]' | tr -d "'" | tr '[:upper:]' '[:lower:]')" != off && -f "$CORE_HOME/scripts/comments-migrate.sh" ]]; then
+        bash "$CORE_HOME/scripts/comments-migrate.sh" auto --root "$PWD" 2>/dev/null | head -c 1024 || true
+      fi
       if [[ "$_scv_diag_mode" == "brief" ]]; then
         printf '%s\n' "$(scv_hstate_brief_line "$_scv_diag_at")"
       else
