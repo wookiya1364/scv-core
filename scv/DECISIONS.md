@@ -2645,3 +2645,19 @@ merge_policy: preserve
 - path delta: 계획 6단계에 사용자 요청으로 ask-mode 명령 단계를 더해 7단계. 비교 중 안전장치 표시(help 가 남기던 영수증) 누락을 찾아 훅이 남기게 고침. effort band standard → standard, 승격 없음.
 - refs: scv/archive/20261120-wookiya1364-lean-loop/PLAN.md
 - conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
+
+## [2026-11-22 12:44] wookiya1364 — 코드 주석을 없애고 순수 함수 사전에만
+
+- verdict: adopted
+- why: 코드 안 주석이 오해를 부름(사용자, 2026-11-22). 사전을 원본으로 뒤집고 코드 주석은 모두 사전으로 옮겨 지우며 새 주석을 막음. 이미 있는 프로젝트도 자동으로 옮김. SCV 를 쓰는 프로젝트 코드에만, 설정으로 켬.
+- discarded alternatives: 지난 계획(checks-not-comments)의 '주석 전면 금지 · 일괄 삭제는 범위 밖' — 사용자가 이번에 바꿈; 도구 표시 줄만 허용 목록으로 남기기 — 사용자가 지우고 사전에 적기를 고름; 순수 함수 아닌 설명 주석은 그냥 삭제 — 사전에 최신으로 옮기기를 고름
+- refs: scv/promote/20261122-wookiya1364-comments-to-catalog/PLAN.md
+- conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
+
+## [2026-11-22 15:26] wookiya1364 — 코드 주석을 없애고 순수 함수 사전에만 보관 (0.98.0)
+
+- verdict: archived
+- why: 사전이 원본 모드(기본 on — 키가 없으면 켬, 적힌 off 그대로) · 주석 읽기 도구 · 옮기기 · 주석 거절 · /scv:catalog-source. 실사용 사본 주석 13,780 → 0, 빌드 · cargo 그대로. 스크립트 첫 줄 #! 는 지우면 직접 실행이 깨져 남김. SCV 자기 저장소는 off.
+- path delta: 계획 8단계에 사용자 요청으로 9단계(명령) · 10단계(기본 on)를 더함. #! 는 실측(ENOEXEC · 리눅스 sh 오류)으로 사용자 결정에 따라 남김. 주석 읽기는 셸 대신 파이썬(문자열 · 정규식 구분 때문).
+- refs: scv/archive/20261122-wookiya1364-comments-to-catalog/PLAN.md
+- conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
