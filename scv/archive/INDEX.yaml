@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-22T08:59:25Z
+generated_at: 2026-11-22T11:29:07Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -611,5 +611,9 @@ archives:
     status: testing
   - slug: 20261122-wookiya1364-comments-to-catalog
     title: "코드 주석을 없애고 순수 함수 사전에만 — 사전이 원본 · 주석 막기 · 자동 옮기기"
+    kind: feature
+    status: testing
+  - slug: 20261122-wookiya1364-lang-follow-setting
+    title: "답 · 중간 보고를 설정 언어로 — 한 줄 규칙 턴에도 언어 줄 · 쓰기 전 알림 · 여러 언어 검사"
     kind: feature
     status: testing
