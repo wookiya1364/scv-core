@@ -2661,3 +2661,11 @@ merge_policy: preserve
 - path delta: 계획 8단계에 사용자 요청으로 9단계(명령) · 10단계(기본 on)를 더함. #! 는 실측(ENOEXEC · 리눅스 sh 오류)으로 사용자 결정에 따라 남김. 주석 읽기는 셸 대신 파이썬(문자열 · 정규식 구분 때문).
 - refs: scv/archive/20261122-wookiya1364-comments-to-catalog/PLAN.md
 - conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
+
+## [2026-11-22 17:59] wookiya1364 — 주석 옮기기 안전 — 셸 따옴표 바로 읽기 · 깨지는 파일 제외 · 실패하면 원래대로 archived
+
+- verdict: archived
+- why: 0.98.0 옮기기가 셸 파일 문법을 깨뜨리고(겹친 따옴표), 예시 글 속 표식으로 사전 항목 4개를 잃고, 사전 쓰기 실패 때 지운 코드를 남겼다. 셸 읽기를 재귀로, 지운 뒤 문법 검사로 깨지는 파일 제외, 쓰기 전 복사본과 실패 시 복원, 손실 검사를 항목 단위로 바꿨다. 앞으로 옮기기 전 항목이 하나라도 빠지면 코드를 건드리지 않는다.
+- path delta: 5단계(표식 읽기 · 항목 단위 손실 검사)를 덧붙임 — 사본 검증에서 개수 비교가 4개 손실을 숨긴 것을 발견
+- refs: scv/archive/20261122-wookiya1364-comments-strip-safety/PLAN.md
+- conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
