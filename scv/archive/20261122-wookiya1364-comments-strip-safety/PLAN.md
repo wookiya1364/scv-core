@@ -4,7 +4,7 @@ slug: 20261122-wookiya1364-comments-strip-safety
 author: wookiya1364
 created_at: 2026-11-22
 status: testing
-kind: bugfix
+kind: feature
 lang: korean
 tags: [catalog, comments, migration, safety]
 raw_sources:
