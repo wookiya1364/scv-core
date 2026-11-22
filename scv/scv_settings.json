@@ -1,5 +1,6 @@
 {
   "SCV_LANG": "korean",
   "SCV_ATTACHMENTS_RETENTION_DAYS": "3",
-  "SCV_PR_BASE": "develop"
+  "SCV_PR_BASE": "develop",
+  "SCV_CATALOG_SOURCE": "off"
 }

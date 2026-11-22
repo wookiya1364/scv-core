@@ -14,12 +14,12 @@ expected = {
     "help", "status", "promote", "work", "codegen", "deck", "update",
     "regression", "report", "sync", "install-deps", "workspace", "handoff",
     "set-models", "routine", "dreams", "mods", "mods-install", "mods-remove",
-    "channel", "ask-mode",
+    "channel", "ask-mode", "catalog-source",
 }
 assert catalog["core_api"] == 1
-assert len(actions) == 21
+assert len(actions) == 22
 assert {a["id"] for a in actions} == expected
-assert len({a["id"] for a in actions}) == 21
+assert len({a["id"] for a in actions}) == 22
 
 for action in actions:
     protocol = root / "core" / action["protocol"]
