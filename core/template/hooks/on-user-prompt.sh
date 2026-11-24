@@ -360,6 +360,14 @@ elif [[ "${_scv_always:-on}" != "off" ]] && declare -F scv_force_routing >/dev/n
       rm -f "$_scv_wf" 2>/dev/null || true
     fi
   done
+  # 0.104.0+ — 반복 알아채기(계획 gears-detect): 요청을 기록 폴더에 한 줄씩 쌓고, 지난 요청 · 기어 사전과 맞춰 본다. 겹칠 때만 알림
+  # 한 줄이 실린다 — 맞는 기어가 있으면 그 기어를, 없고 비슷한 요청이 전에도 있었으면 기어로 만들지 묻게 한다. 겹치지 않는 턴에는 한 글자도
+  # 더 싣지 않는다. 판정은 순수 함수(lib/gear.sh), 읽기 · 쓰기는 gear.sh detect. 끄기: 설정 SCV_GEAR_DETECT=off — 이 구간을 지운 훅과 출력이 같다.
+  if [[ -f "$_scv_core0/scripts/gear.sh" && -n "$INPUT" ]] && command -v jq >/dev/null 2>&1 \
+     && [[ "$(_scv_read SCV_GEAR_DETECT | tr -d '"[:space:]' | tr -d "'" | tr '[:upper:]' '[:lower:]')" != off ]]; then
+    printf '%s' "$INPUT" | jq -r 'try (if (.prompt | type) == "string" then .prompt else "" end) catch ""' 2>/dev/null \
+      | bash "$_scv_core0/scripts/gear.sh" detect --kind human 2>/dev/null || true
+  fi
   [[ -n "${_scv_guide_first//[[:space:]]/}" ]] && printf '%s\n\n' "$_scv_guide_first"
   _scv_emit_delegate
   if [[ "$_scv_pre" == "on" ]]; then
