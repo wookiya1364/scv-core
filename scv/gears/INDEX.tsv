@@ -1,0 +1,3 @@
+ci-gate	tooth	pure	results	verdict	결과 줄에 실패가 하나도 없고 결과가 있으면 RELEASE_OK, 아니면 실패한 명령을 알리고 끝낸다(종료 1)	
+ci-run	tooth	effect	none	results	한 저장소의 CI 명령 목록을 맥(os=mac)이나 리눅스 컨테이너(os=linux)에서 하나씩 돌려 결과 줄을 낸다		repo=core; os=mac; jobs=4
+release-ci	gear	effect	none	verdict	릴리스 전에 한 저장소의 CI 명령을 맥이나 리눅스에서 다 돌리고, 실패가 없을 때만 RELEASE_OK 를 낸다 — os=mac 과 os=linux 로 두 번 돌린다	릴리스 래퍼 릴리스 CI 시험 맥 리눅스 로컬 검사	repo=core; os=mac; jobs=4
