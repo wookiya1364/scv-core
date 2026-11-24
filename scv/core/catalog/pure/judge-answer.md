@@ -1,6 +1,6 @@
 # 판정/answer — 답 · 메시지 글을 보고 판정한다 — 표가 있나, 묻는 글인가, 확인인가
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 27개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 30개.
 
 ### _scv_choice_blank
 - 역할: 줄이 빈 줄(ASCII 공백 · NBSP · 전각 공백뿐)이면 성공(0), 아니면 실패(1)로 알린다
@@ -70,6 +70,32 @@
 - 예: `"" $'read\x1fa.sh\x1fok\x1fa.sh' "" full → $'missing\x1fverified\nmissing\x1funverified\nmissing\x1fdecided'`
 - 예: `$'scope\x1f기록만 함' $'scv\x1fhelp\x1fok\x1fhelp' "" short → ""`
 - 예: `$'verified\x1f언어 시험 실행 → 14개 통과\nunverified\x1f없음\ndecided\x1f이름' $'read\x1fa.sh\x1fok\x1fa.sh' "" full → $'noreason\x1funverified\nunbacked\x1fpass'`
+
+### scv_hs_picture_due
+- 역할: 그림이 있어야 했는데 없었는지 정한다 — 긴 순서 글이고, 그 턴에 그림 도구를 0번 불렀고, 그림을 대신하는 것도 없을 때만 picture=1. 도구 호출 수를 모르면(빈 값) 잡지 않는다
+- 위치: scripts/lib/help-state.sh · @pure · sh
+- 예: `yes 0 no → "picture=1"`
+- 예: `yes 1 no → ""`
+- 예: `yes 0 yes → ""`
+- 예: `no 0 no → ""`
+- 예: `yes "" no → ""`
+
+### scv_hs_picture_shown
+- 역할: 답 글에 그림을 대신하는 것이 있는지 가린다 — 화살표가 둘 이상인 한 줄(A → B → C), 또는 표(| 줄 아래 |--- 줄)
+- 위치: scripts/lib/help-state.sh · @pure · sh
+- 예: `$'흐름: 읽기 → 나누기 → 쓰기' → "yes"`
+- 예: `$'| 항목 | 값 |\n|---|---|\n| a | 1 |' → "yes"`
+- 예: `$'읽기 → 나누기\n그다음 쓰기' → "no"`
+- 예: `"" → "no"`
+
+### scv_hs_seq_prose
+- 역할: 답 글이 "긴 순서 글"인지 가린다 — 번호 순서가 4줄 이상 이어지거나, 화살표(→ · ->)가 하나만 든 줄이 3줄 이상. 코드 블록 · 표 · 인용 줄은 보지 않는다
+- 위치: scripts/lib/help-state.sh · @pure · sh
+- 예: `$'1. 가\n2. 나\n3. 다\n4. 라' → "yes"`
+- 예: `$'1. 가\n2. 나\n3. 다' → "no"`
+- 예: `$'- 읽기 → 나누기\n- 나누기 → 묶기\n- 묶기 → 쓰기' → "yes"`
+- 예: `$'```\n1. a\n2. b\n3. c\n4. d\n```' → "no"`
+- 예: `"통과함." → "no"`
 
 ### scv_is_rewrite_quote
 - 역할: 한 줄이 다시 쓴 요청 인용 줄(> **다시 쓴 요청**: · > **Rewritten request**: · > **書き直した依頼**:)인지 1|0 으로 정한다

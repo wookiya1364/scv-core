@@ -1,6 +1,20 @@
 # 조립/gear — 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 4개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 7개.
+
+### scv_gear_args_apply
+- 역할: 톱니가 선언한 인자 줄들에 덮는 값을 얹는다 — 선언한 이름만 남고, 덮는 묶음에 있으면 그 값, 없으면 기본값
+- 위치: scripts/lib/gear.sh · @deterministic · sh
+- 예: `$'count=3\nsince=' $'count=5\nother=1' → $'count=5\nsince='`
+- 예: `"count=3" "" → "count=3"`
+- 예: `"" "count=5" → ""`
+
+### scv_gear_args_merge
+- 역할: 인자 줄 두 묶음을 합친다 — 같은 이름은 뒤 묶음의 값이 이기고, 순서는 처음 나온 차례
+- 위치: scripts/lib/gear.sh · @deterministic · sh
+- 예: `$'count=3\nsince=' "count=5" → $'count=5\nsince='`
+- 예: `"count=3" "sep=," → $'count=3\nsep=,'`
+- 예: `"" "" → ""`
 
 ### scv_gear_confirm_text
 - 역할: 밖으로 나가는 톱니 앞에서 낼 글을 만든다 — 확인 표(표:단계) · 단계 · 묻는 방법(질문 끝의 표와 두 보기) · 이어가는 명령 · 그 톱니가 돌릴 글
@@ -17,6 +31,13 @@
 - 위치: scripts/lib/gear.sh · @deterministic · sh
 - 예: `$'b\ttooth\tpure\t*\t*\t둘\t\na\ttooth\tpure\t*\t*\t하나\t' → $'a\ttooth\tpure\t*\t*\t하나\t\nb\ttooth\tpure\t*\t*\t둘\t'`
 - 예: `"" → ""`
+
+### scv_gear_list_rows
+- 역할: 사전 글에서 목록에 낼 줄들을 만든다 — 톱니는 이름 · 표시 · 값 · 인자 · 하는 일, 기어는 이름 · 값 · 인자 · 하는 일(인자가 없으면 -)
+- 위치: scripts/lib/gear.sh · @deterministic · sh
+- 예: `$'g\tgear\t-\tlines\tlines\t앞 줄\t\tcount=3\nup\ttooth\tpure\ttext\ttext\t대문자\t' "gear" → $'g\tlines → lines\tcount=3\t앞 줄'`
+- 예: `$'g\tgear\t-\tlines\tlines\t앞 줄\t\tcount=3\nup\ttooth\tpure\ttext\ttext\t대문자\t' "tooth" → $'up\tpure\ttext → text\t-\t대문자'`
+- 예: `"" "gear" → ""`
 
 ### scv_gear_tooth_entry
 - 역할: 톱니 사전에 덧붙일 항목 글을 만든다 — 이름 · 역할 · 표시 · 값 · 예시(있으면)
