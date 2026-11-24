@@ -1,6 +1,6 @@
 # 판정/gear — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 12개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 13개.
 
 ### scv_gear_arg_name_ok
 - 역할: 인자 이름이 쓸 수 있는 모양인지 가린다 — 영문 소문자로 시작, 영문 소문자 · 숫자 · 밑줄, 32자까지. _proxy 로 끝나는 이름은 이미 뜻이 있는 환경 변수라 못 쓴다
@@ -52,6 +52,16 @@
 - 예: `$'tooth\tup\nunknown\tnope' $'up\ttooth\tpure\ttext\ttext\t대문자\t' → "2단계 nope — 사전에 없는 톱니 · 기어"`
 - 예: `$'tooth\tcount\ntooth\tup' $'count\ttooth\tpure\ttext\tnumber\t센다\t\nup\ttooth\tpure\ttext\ttext\t대문자\t' → "2단계 up — 받는 값 text 가 앞 톱니가 돌려주는 값 number 와 다르다"`
 - 예: `"" "" → "흐름이 비었다"`
+
+### scv_gear_flow_mark
+- 역할: 펼친 흐름에서 가장 센 표시 하나를 고른다 — 밖으로 나가는 톱니가 있으면 outward, 판단 단계가 있으면 judge, 부작용 톱니가 있으면 effect, 순수 톱니뿐이면 pure, 흐름이 비었거나 모르는 이름이 있으면 -
+- 위치: scripts/lib/gear.sh · @pure · sh
+- 예: `$'tooth\tup\ntooth\tcount' $'count\ttooth\tpure\ttext\tnumber\t센다\t\nup\ttooth\tpure\ttext\ttext\t대문자\t' → "pure"`
+- 예: `$'tooth\tup\ntooth\twrite' $'up\ttooth\tpure\t*\t*\t대문자\t\nwrite\ttooth\teffect\t*\t*\t쓴다\t' → "effect"`
+- 예: `$'tooth\tup\ntext\tg' $'up\ttooth\tpure\ttext\ttext\t대문자\t' → "judge"`
+- 예: `$'tooth\tsend\ntext\tg' $'send\ttooth\toutward\t*\t*\t보낸다\t' → "outward"`
+- 예: `$'tooth\tup\nunknown\tnope' $'up\ttooth\tpure\ttext\ttext\t대문자\t' → "-"`
+- 예: `"" "" → "-"`
 
 ### scv_gear_flow_warn
 - 역할: 펼친 흐름에서 가운데에 놓인 순수하지 않은 톱니를 찾는다 — 표시가 effect · outward 인데 맨 앞도 맨 끝도 아니면 알림 줄

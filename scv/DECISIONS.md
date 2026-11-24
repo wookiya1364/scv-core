@@ -2749,3 +2749,35 @@ merge_policy: preserve
 - path delta: 글쓰기 규칙은 5번이 아니라 10조로 넣음(1–9조가 이미 있었다). 그림 판정은 답 모양 검사에 한 종류로 더하지 않고 따로 뒀다 — 그 검사는 어긋나면 규약을 다시 싣는데 알림은 한 줄이면 된다. 계획에 없던 것: 기어 시험이 29초 → 101초로 늘어 인자가 없으면 인자 계산을 건너뛰게 함(73초), 그림 알림이 답 모양 검사 스위치를 따르게 함(기존 시험이 잡음). 순수 톱니의 실행 환경은 바꾸지 않기로 정함.
 - refs: scv/archive/20261124-wookiya1364-gears-io-args/PLAN.md
 - conversation: scv/conversations/20261124-010812-gears-reusable-units.md
+
+## [2026-11-24 20:22] wookiya1364 — 대시보드에 기어 · 묻기 방식, 글로 묻기는 선택 창으로
+
+- verdict: adopted
+- why: 창 위쪽에 컨텍스트 · 사용량 · 묻기 방식 · 기어 · 단계를 항상 보이고 나머지는 접는다. 글로 묻기 검사만 알림 방식에서도 턴을 막는다 — 실제 세션 137턴 중 9턴이 글로 물으며 끝났고, 검사는 9턴 모두 알아봤지만 0.83.0 부터 알림만 남겼다. 값이 필요한 기어는 선택 창으로 값을 안내한다.
+- discarded alternatives: 나머지 칸 지우기 — 시험 결과 · 막힌 작업 표시까지 사라져서 접기로 함 / 지금 칸 그대로 두고 더하기만 — 창이 길어짐 / 기어를 창에서만 바로 실행 — 오래 도는 기어와 확인 절차를 창에 새로 만들어야 함 / 글로 묻기를 알림만으로 두고 안내 글만 고치기 — 9턴이 안내가 있는 상태에서 나옴 / 처음 · 끝에만 묻기 프로젝트에서는 추천대로 넘기기 — 중간 결정인지 모델이 갈라야 함
+- refs: scv/promote/20261124-wookiya1364-dashboard-gears-ask-block/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-24 21:28] wookiya1364 — 대시보드에 기어 · 묻기 방식, 글로 묻기는 선택 창으로 archived
+
+- verdict: archived
+- why: 결정을 선택 창이 아니라 앱의 요약 상자에 넣는 호출을 가드가 거절한다(규칙 S) — 실제 세션의 요약 도구 호출 121번 중 질문이 실린 34번. 기어 사전의 기어 줄 셋째 칸은 흐름의 가장 센 표시이고, 창은 그 값이 pure 일 때만 바로 돌린다. 값이 빠진 기어는 gear.sh ask 를 읽고 선택 도구로 안내한다. 턴 끝 검사는 0.101.0 그대로 두어야 한다 — 거기서 잡으면 선택 창이 10~40초 늦게 뜬다.
+- path delta: 계획은 턴 끝 검사를 다시 막게 하는 길이었으나, 선택 창이 늦게 뜬다는 사용자 확인으로 걷어 내고 요약 도구 호출 앞(가드)에서 잡는 길로 바꿈. 묻기 방식은 고르기 요소 대신 버튼 하나(휴대폰 화면에는 고르기 · 글 입력 요소가 없음), 창의 바로 실행은 기본 인자만 씀.
+- refs: scv/archive/20261124-wookiya1364-dashboard-gears-ask-block/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-24 21:55] wookiya1364 — 대시보드 — 치면 맞는 기어가 뜨고, 기어 칸은 역할 먼저 한 줄씩
+
+- verdict: adopted
+- why: 기어를 목록에서 고르게 하면 이름을 아는 사람만 쓴다. 하려는 말을 입력창에 치는 동안 낱말이 둘 이상 겹치는 기어를 입력창 위에 쉬운 말로 띄우고, 그대로 보내면 그 기어로 한다. 미리 알고 바로 부르는 길도 남긴다 — 역할 문장 먼저의 한 줄씩 목록.
+- discarded alternatives: 기어마다 여섯 줄 펼쳐 놓기(0.3.0) — 여러 개면 창이 지나치게 길다 / 한 줄씩이지만 이름 · 값 이름 먼저 — 무엇인지 모른다 / 창에 찾기 칸 두기 — 따로 찾으러 가야 한다 / 창에는 한 줄 요약만 두고 대화에서만 맞추기 — 미리 알고 부를 길이 없다
+- refs: scv/promote/20261124-wookiya1364-dashboard-gear-match/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-24 22:23] wookiya1364 — 대시보드 — 치면 맞는 기어가 뜨고, 기어 칸은 역할 먼저 한 줄씩 archived
+
+- verdict: archived
+- why: 기어는 목록에서 고르게 하지 않는다: 입력창에 치는 글과 기어의 낱말이 둘 이상 겹치면 입력창 위에 그 기어가 하는 일을 전부 보이고, [사용함]은 바로 보내고, 그대로 보내도 한 줄이 붙고, [사용안함]은 붙이지 않는다. 기어 칸은 역할 문장 먼저의 한 줄씩. 항목이 여러 개일 때의 화면을 먼저 그려 봐야 한다는 것을 배웠다.
+- path delta: 계획에 없던 5단계가 붙음 — 실제 앱 화면을 본 사용자 지적으로 버튼을 둘로 나누고 설명 자르기를 없앰. 타자 알림은 prompt.change 가 아니라 prompt.edit 로 온다는 것을 구현 중에 알아 둘 다 들음.
+- refs: scv/archive/20261124-wookiya1364-dashboard-gear-match/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
