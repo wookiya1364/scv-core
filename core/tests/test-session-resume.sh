@@ -58,8 +58,9 @@ ago() {  # <일> [<시간>] → touch -t 에 줄 시각 — 맥 BSD date · 리�
   local s=$(( $(date +%s) - $1 * 86400 - ${2:-0} * 3600 ))
   date -r "$s" +%Y%m%d%H%M 2>/dev/null || date -d "@$s" +%Y%m%d%H%M
 }
+DEFAULT_INPUT='{"source":"compact"}'   # 기본값을 변수로 둔다 — 옛 셸(3.2)은 ${2:-{…\}} 안의 닫는 괄호 앞 역슬래시를 글자로 남긴다
 run_hook() {  # <프로젝트> [<stdin>] — stdout 은 OUT 에, 종료 코드는 RC 에 (서브셸이 아니라 전역)
-  local p="$1" in="${2:-{\"source\":\"compact\"\}}"
+  local p="$1" in="${2:-$DEFAULT_INPUT}"
   # 0.81.0+ — 파이프 대신 직접 입력: 훅이 입력을 읽기 전에 끝나면(scv/ 없음) printf 가 파이프 끊김으로 실패해
   # 결과가 흔들렸다(코어 0.80.0 릴리스 검증에서 T2 실패).
   OUT="$( cd "$p" && SCV_CORE_ROOT="$CORE" bash "$HOOK" 2>"$WORK/err" <<<"$in" )"; RC=$?

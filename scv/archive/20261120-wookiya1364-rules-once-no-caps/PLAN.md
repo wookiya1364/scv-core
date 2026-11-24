@@ -65,8 +65,8 @@ flow(
 
 | # | 물음 | 답 | 근거 |
 |---|---|---|---|
-| 1 | 각 단계가 요소 단위 단항 순수 함수인가 | `rulesMode` 는 값 넷 → 모드, 순수 | core/scripts/lib/model-prompting.sh scv_mp_principle_show 옆 |
-| 7 | 부수효과가 파이프라인 양 끝에만 있는가 | 예 — 읽기(1) · 출력과 표시 쓰기(3) | 계획 단계 |
+| 1 | 각 단계가 요소 단위 단항 순수 함수인가 | 예 — `scv_mp_rules_show` 는 값 셋(실었다는 표시 · 비교할 값 · 남은 경고) → full · short, 파일을 읽지 않는다. 계획의 '값 넷'에서 설정 값은 부르는 쪽이 먼저 걸러 셋이 됨 | core/scripts/lib/model-prompting.sh:781 |
+| 7 | 부수효과가 파이프라인 양 끝에만 있는가 | 예 — 표시 읽기 · 쓰기는 `rules` 명령 한 곳, 출력은 매 턴 훅. 8단계에서 판정 근거가 지문에서 맥락 표시(.rules-seen)로 바뀜 | core/scripts/model-prompting.sh:487–496, core/template/hooks/on-user-prompt.sh:71–77 |
 | 그 밖 | 3 · 2 · 4 · 5 · 6 · 8 · 9 · 10 | 해당 없음 | 순회 · 캐시 · 비동기 없음 |
 
 ## Guardrails
