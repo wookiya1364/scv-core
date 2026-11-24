@@ -2685,3 +2685,43 @@ merge_policy: preserve
 - path delta: 묶음만 보는 판정을 버리고 옛 판정과 합침 — 재생에서 알림이 19%→38%로 늘어서
 - refs: scv/archive/20261122-wookiya1364-lang-remind-progress-notes/PLAN.md
 - conversation: scv/conversations/20261119-125432-rewrite-gap-other-session.md
+
+## [2026-11-24 01:20] wookiya1364 — 기어 돌리기 — 프로젝트 scv 안의 작은 단위(sh · 스킬 글)와 합성기어 실행기
+
+- verdict: adopted
+- why: 반복 작업의 토큰은 스킬 글을 옮긴다고 줄지 않는다 — 정해진 흐름을 sh 로 내리고 판단 단계의 글만 모델이 읽게 한다. 기어는 프로젝트 scv 안에만 두고, 순서 파일을 실행기가 읽어 흐름을 보장한다.
+- discarded alternatives: 호스트 스킬 폴더(.claude)에 스킬로 두기 — 매 세션 목록에 실리고 흐름이 보장되지 않는다 / sh 끼리만 잇고 순서는 스킬 글이 정하기 — 모델이 순서를 바꿀 수 있다 / 프로젝트 것 + 내 컴퓨터 공용 폴더 — 처음 범위가 커진다 / 기어는 계산과 프로젝트 파일 쓰기만 — 사용자가 '무엇이든 허용, 위험한 것은 실행 전 확인'을 골랐다 / 새 명령 없이 스크립트만 — 사용자가 /scv:gear 명령도 같이 만들기로 골랐다
+- refs: scv/promote/20261124-wookiya1364-gears-run/PLAN.md
+- conversation: scv/conversations/20261124-010812-gears-reusable-units.md
+
+## [2026-11-24 01:20] wookiya1364 — 반복 알아채기 — 비슷한 요청 2번째에 기어로 만들까요, 맞는 기어가 있으면 한 줄 알림
+
+- verdict: adopted
+- why: 기어가 있어도 모델이 모르면 안 쓰인다. 요청을 한 줄씩 쌓고 매 턴 스크립트가 낱말 겹침으로 거른 뒤 겹칠 때만 모델에게 보여 준다 — 평소 토큰 0, 같은 일인지는 모델이 판단한다.
+- discarded alternatives: 모델이 매 턴 사전과 지난 요청을 읽고 판단 — 토큰 절약과 거꾸로 간다 / 한 세션 안에서만 모델이 눈치껏 — 세션이 바뀌면 못 잡는다 / 세션 시작 때 기어 목록 전체를 싣기 — 기어가 늘수록 글이 는다 / 이름으로 부를 때만 — 있는 줄 잊으면 안 쓰인다 / 한 계획으로 묶기 — 측정이 필요한 이 부분이 실행기까지 붙잡는다
+- refs: scv/promote/20261124-wookiya1364-gears-detect/PLAN.md
+- conversation: scv/conversations/20261124-010812-gears-reusable-units.md
+
+## [2026-11-24 01:33] wookiya1364 — 선택 기록 — 그 턴이 다룬 계획에만 적고, 글은 글자 경계에서 자르기
+
+- verdict: adopted
+- why: 선택 답이 관계없는 진행 중 계획에 적히고 글자가 깨졌다(2026-11-24, 12건). 턴이 실제로 고친 계획에만 적고, 없으면 들고 있다가 턴 끝에 턴 기록으로 내려놓는다. 글자 수는 언어 설정에 기대지 않고 바이트를 보고 센다.
+- discarded alternatives: 질문 글이나 등록한 범위에 계획 이름이 있을 때만 적기 — 이름을 안 쓴 질문이 빠진다 / 계획에는 적지 않고 일지에만 — 계획 문서와 대시보드에서 결정 이력이 사라진다 / 셸의 언어 설정을 UTF-8 로 바꿔 세기 — 쓸 수 있는 설정이 환경마다 다르고 다른 코드의 속도 · 동작에 번진다
+- refs: scv/promote/20261124-wookiya1364-choice-record-right-plan/PLAN.md
+- conversation: scv/conversations/20261124-010812-gears-reusable-units.md
+
+## [2026-11-24 06:46] wookiya1364 — 선택 기록 — 그 턴이 다룬 계획에만 적고, 글은 글자 경계에서 자르기 archived
+
+- verdict: archived
+- why: 선택 답은 이제 이번 턴이 다룬 계획(시작 때 없었거나 · 글 길이가 달라졌거나 · 더 새것)에만 적힌다. 다룬 계획이 없으면 들고 있다가 턴 끝에 적거나 턴 기록에 남긴다. 글은 바이트를 보고 글자 경계에서 자른다 — 언어 설정이 없어도 같은 글. 깨지면 안 되는 것: 다루지 않은 계획의 문서는 선택 답으로 바뀌지 않는다(T53), 답은 사라지지 않는다(T56 · T57). 배운 것: 이 맥의 iconv 는 멀쩡한 파일에도 실패를 낸다 — UTF-8 검사는 엄격한 읽기로.
+- path delta: 다룬 계획을 파일 시각만으로 가리려던 길을, 턴 시작 때 적어 둔 글 길이와 함께 보는 길로 바꿈 — 옛 셸(bash 3.2)이 시각을 초 단위로만 견준다. 보관된 계획 문서에는 적지 않게 좁힘. 훅이 세션을 넘기지 않아 세션별 턴 상태를 못 찾는 것을 구현 중에 발견해 함께 고침.
+- refs: scv/archive/20261124-wookiya1364-choice-record-right-plan/PLAN.md
+- conversation: scv/conversations/20261124-010812-gears-reusable-units.md
+
+## [2026-11-24 08:26] wookiya1364 — 기어 돌리기 — 프로젝트 scv 안의 기어(스킬)와 톱니(아주 작은 sh), 그리고 실행기 archived
+
+- verdict: archived
+- why: 되풀이되는 작업의 정해진 흐름을 톱니(scv/gears/teeth 의 작은 sh — 순수 톱니는 예시로 검사)가 돌고, 기어(GEAR.md 맨 위 flow 줄로 톱니를 잇는 스킬)는 판단 단계 @ 의 글만 맡는다. 실행기는 @ 에서만 그 글과 앞 결과를 넘긴다. 깨지면 안 되는 것: 밖으로 나가는 톱니는 선택 창의 정확한 '실행' 답이 그 단계에 적힌 뒤에만 돈다, 아는 표시가 아니면 돌리지 않는다, 호스트 스킬 폴더와 매 턴 훅을 건드리지 않는다. 배운 것: '아니면 그냥 돌린다'로 짠 판정은 잘못 적힌 값에서 열린다 — 내 시험이 다 통과한 뒤에도 따로 한 검토가 확인 없이 도는 길 넷을 찾았다.
+- path delta: 합성을 따로 둔 순서 파일(chain.tsv)과 기어별 머리말로 짰다가, 실제로 돌린 것을 본 사용자의 요구로 기어 = 스킬(flow 줄) · 톱니 = teeth 폴더의 작은 sh 로 다시 짰다. 톱니의 설명은 sh 주석이 아니라 톱니 사전에 둔다 — 코드 주석 금지 규칙이 scv 안의 sh 에도 걸린다. 실행 상태는 임시 폴더가 아니라 기록 폴더의 숨김 자리 — 훅과 같은 자리를 봐야 확인 답이 닿는다. 검토 뒤 확인 표에 단계 번호, 실행 전 검사 통합, 순수 톱니 검사를 더했다.
+- refs: scv/archive/20261124-wookiya1364-gears-run/PLAN.md
+- conversation: scv/conversations/20261124-010812-gears-reusable-units.md

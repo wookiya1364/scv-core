@@ -1,6 +1,6 @@
 # 다듬기 — 글자를 정리한다 — 공백 · 대소문자 · 이스케이프 · 자르기
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 18개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 20개.
 
 ### record_kind_normalize
 - 역할: 기록 종류 이름의 앞뒤 공백을 떼고 소문자로 맞춘다 — 모르는 종류는 빈 값
@@ -37,6 +37,12 @@
 - 위치: scripts/lib/force-help.sh · @pure · sh
 - 예: `<<< $'no marker here' → "no marker here"`
 - 예: `<<< $'intro\nCurrent project diagnosis\nstate ok\nLearn more\nlong text' → $'Current project diagnosis\nstate ok'`
+
+### scv_gear_one_line
+- 역할: 사전 한 칸에 넣을 글을 한 줄로 만든다 — 탭과 줄바꿈을 빈칸으로 바꾼다
+- 위치: scripts/lib/gear.sh · @pure · sh
+- 예: `$'a\tb\nc' → "a b c"`
+- 예: `"" → ""`
 
 ### scv_lang_drop_machine
 - 역할: 사람이 쓰지 않은 기계 글 블록(작업 완료 알림 · 시스템 안내 · 명령 기록 · 이벤트)을 지운다 — 언어 판정이 사람 글만 보게
@@ -96,6 +102,14 @@
 - 예: `"결제 한도 변경 안 함" → "결제 한도 변경"`
 - 예: `"끝난 단계를 다시 쓰거나 지우는 일 — 아무거나" → "끝난 단계를 다시 쓰거나 지우는 일"`
 - 예: `"  화면 만들기.  " → "화면 만들기"`
+
+### scv_tc_cut_chars
+- 역할: 글을 글자 수로 자른다 — 언어 설정과 상관없이 글자 경계에서 자르고, 잘렸으면 끝에 … 를 붙인다
+- 위치: scripts/lib/turn-check.sh · @pure · sh
+- 예: `"가나다라" 2 → "가나…"`
+- 예: `"abc" 3 → "abc"`
+- 예: `"a가b" 2 → "a가…"`
+- 예: `"" 5 → ""`
 
 ### scv_tc_strip_attach
 - 역할: 요청 원문에서 첨부 파일의 경로를 지우고 그 자리에 "[첨부]"를 둔다 — 원문은 계획 기록(공개될 수 있는 글)에 붙으므로 내 컴퓨터의 경로가 남지 않게

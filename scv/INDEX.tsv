@@ -257,3 +257,8 @@ decision	코드-주석을-없애고-순수-함수-사전에만-보관-0-98-0	scv
 decision	주석-옮기기-안전-셸-따옴표-바로-읽기-깨지는-파일-제외-실패하면-원래대로-archiv	scv/DECISIONS.md	324754	937	2026-11-22 17:59	[archived] 주석 옮기기 안전 — 셸 따옴표 바로 읽기 · 깨지는 파일 제외 · 실패하면 원래대로 archived
 decision	답-중간-보고를-설정-언어로-archived	scv/DECISIONS.md	325691	763	2026-11-22 20:29	[archived] 답 · 중간 보고를 설정 언어로 archived
 decision	도구-뒤-언어-알림-중복-고침-archived	scv/DECISIONS.md	326454	819	2026-11-22 21:47	[archived] 도구 뒤 언어 알림 중복 고침 archived
+decision	기어-돌리기-—-프로젝트-scv-안의-작	scv/DECISIONS.md	327273	1137	2026-11-24 01:20	[adopted] 기어 돌리기 — 프로젝트 scv 안의 작은 단위(sh · 스킬 글)와 합성기어 실행기
+decision	반복-알아채기-—-비슷한-요청-2번째	scv/DECISIONS.md	328410	1021	2026-11-24 01:20	[adopted] 반복 알아채기 — 비슷한 요청 2번째에 기어로 만들까요, 맞는 기어가 있으면 한 줄 알림
+decision	선택-기록-—-그-턴이-다룬-계획에만	scv/DECISIONS.md	329431	1003	2026-11-24 01:33	[adopted] 선택 기록 — 그 턴이 다룬 계획에만 적고, 글은 글자 경계에서 자르기
+decision	선택-기록-—-그-턴이-다룬-계획에만	scv/DECISIONS.md	330434	1282	2026-11-24 06:46	[archived] 선택 기록 — 그 턴이 다룬 계획에만 적고, 글은 글자 경계에서 자르기 archived
+decision	기어-돌리기-—-프로젝트-scv-안의-기	scv/DECISIONS.md	331716	1661	2026-11-24 08:26	[archived] 기어 돌리기 — 프로젝트 scv 안의 기어(스킬)와 톱니(아주 작은 sh), 그리고 실행기 archived
