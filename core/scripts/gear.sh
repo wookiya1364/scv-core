@@ -204,14 +204,27 @@ tooth_run() {
   env ${e[@]+"${e[@]}"} bash "$f" < "$infile" > "$outfile" 2> "$errfile"
 }
 
+# @effect kill_tree
+# 이유: 프로세스와 그 자식들을 죽인다(자식부터) — 끊긴 톱니가 띄운 명령이 남아 계속 돌지 않게. 자식을 찾는 도구(pgrep)가 없으면 자신만 죽인다
+kill_tree() {
+  local p="$1" c
+  if command -v pgrep >/dev/null 2>&1; then
+    for c in $(pgrep -P "$p" 2>/dev/null); do kill_tree "$c"; done
+  fi
+  kill -9 "$p" 2>/dev/null
+  return 0
+}
+
 # @effect run_example
-# 이유: 톱니를 예시 입력으로 실제로 돌려 출력 파일에 받는다(인자 줄 파일이 있으면 그 값으로) — 정한 시간(초)을 넘기면 죽이고 124 를 낸다
+# 이유: 톱니를 예시 입력으로 실제로 돌려 출력 파일에 받는다(인자 줄 파일이 있으면 그 값으로) — 정한 시간(초)을 넘기면 죽이고 124 를 낸다. 시간을 넘겼는지는 지킴이가 죽이기 전에 남긴 표시 파일로 안다(지킴이가 아직 살아 있는지로 가리면 죽인 직후에 틀린다)
 run_example() {
-  local f="$1" infile="$2" outfile="$3" argsfile="${4:-}" pid w rc
+  local f="$1" infile="$2" outfile="$3" argsfile="${4:-}" pid w rc mark="$3.timeout"
+  rm -f "$mark"
   tooth_run "$f" "$infile" "$outfile" /dev/null "$argsfile" "" & pid=$!
-  ( sleep "$EXSECS"; kill -9 "$pid" 2>/dev/null ) >/dev/null 2>&1 & w=$!
+  ( sleep "$EXSECS"; : > "$mark"; kill_tree "$pid" ) >/dev/null 2>&1 & w=$!
   wait "$pid" 2>/dev/null; rc=$?
-  if kill "$w" 2>/dev/null; then wait "$w" 2>/dev/null; else rc=124; fi
+  kill "$w" 2>/dev/null; wait "$w" 2>/dev/null
+  if [[ -e "$mark" ]]; then rc=124; rm -f "$mark"; fi
   return "$rc"
 }
 

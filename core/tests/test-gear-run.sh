@@ -275,7 +275,7 @@ printf 'keep\n' > victim.txt; printf 'keep\n' > victim2.txt
 tooth eraser pure text text 'rm victim.txt; cat' '"a" → "a"'
 tooth mover pure text text 'mv victim2.txt gone.txt; cat' '"a" → "a"'
 tooth writer pure text text 'cat > written.txt' '"a" → ""'
-tooth hang pure text text 'sleep 30; cat' '"a" → "a"'
+tooth hang pure text text "sleep 297.$$; cat" '"a" → "a"'
 t0=$SECONDS
 out="$(SCV_GEAR_EXAMPLE_SECONDS=1 bash "$G" check 2>&1)"; rc=$?
 dt=$((SECONDS - t0))
@@ -283,6 +283,11 @@ if [[ $rc != 0 && -f victim.txt && -f victim2.txt && ! -e gone.txt && ! -e writt
    && grep -q '^GEAR_BAD: mover — 순수 톱니에 둘 수 없는 명령(2번째 줄 mv)' <<< "$out" && grep -q '^GEAR_BAD: writer — 순수 톱니에 둘 수 없는 명령(2번째 줄 >)' <<< "$out" \
    && grep -q '^GEAR_EXAMPLE: hang — 예시 1: 1초 안에 끝나지 않았다' <<< "$out"; then ok "T22 지우기 · 옮기기 · 파일로 쓰기는 돌리지 않고 지목, 끝나지 않는 예시는 1초에서 끊음(${dt}초)"
 else bad "T22 rc=$rc dt=$dt"; printf '%s\n' "$out" | head -6 >&2; fi
+# 끊긴 톱니가 띄운 명령이 남아 돌지 않는다(자식을 찾는 도구가 있을 때)
+if command -v pgrep >/dev/null 2>&1; then
+  sleep 1
+  if pgrep -f "sleep 297.$$" >/dev/null 2>&1; then bad "T22b 끊긴 톱니의 명령이 남아 있다"; pkill -9 -f "sleep 297.$$" 2>/dev/null; else ok "T22b 끊긴 톱니가 띄운 명령도 함께 끝남"; fi
+fi
 
 # T23 — 값이 빠진 인자는 끝없이 돌지 않고 쓰는 법(2)으로 끝난다
 lim 10 bash "$G" new zz --kind >/dev/null 2>&1; r1=$?
