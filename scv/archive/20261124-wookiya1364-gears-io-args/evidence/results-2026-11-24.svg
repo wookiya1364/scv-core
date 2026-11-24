@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="470" viewBox="0 0 720 470" font-family="-apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif">
+  <rect width="720" height="470" fill="#ffffff"/>
+  <text x="40" y="44" font-size="18" font-weight="600" fill="#2c2c2a">관련 시험 결과 (2026-11-24)</text>
+  <text x="40" y="84" font-size="14" fill="#444441">맥 (새 셸)</text>
+  <rect x="170" y="68" width="360" height="24" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+  <rect x="170" y="68" width="341" height="24" rx="4" fill="#5DCAA5"/>
+  <text x="545" y="85" font-size="13" fill="#444441">18 / 19 통과</text>
+  <text x="170" y="108" font-size="12" fill="#854F0B">남은 1개는 커밋 전이라 걸림 (리눅스에서는 통과)</text>
+  <text x="40" y="144" font-size="14" fill="#444441">맥 (옛 셸 3.2)</text>
+  <rect x="170" y="128" width="360" height="24" rx="4" fill="#5DCAA5" stroke="#0F6E56" stroke-width="0.8"/>
+  <text x="545" y="145" font-size="13" fill="#444441">52 / 52 줄 통과</text>
+  <text x="40" y="188" font-size="14" fill="#444441">리눅스</text>
+  <rect x="170" y="172" width="360" height="24" rx="4" fill="#5DCAA5" stroke="#0F6E56" stroke-width="0.8"/>
+  <text x="545" y="189" font-size="13" fill="#444441">19 / 19 통과</text>
+  <line x1="40" y1="222" x2="680" y2="222" stroke="#D3D1C7" stroke-width="1"/>
+  <text x="40" y="258" font-size="18" font-weight="600" fill="#2c2c2a">그림 알림 재기 — 실제 세션 기록 14개</text>
+  <rect x="40" y="282" width="150" height="64" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.8"/>
+  <text x="115" y="308" font-size="20" font-weight="600" text-anchor="middle" fill="#2c2c2a">808</text>
+  <text x="115" y="330" font-size="12" text-anchor="middle" fill="#5F5E5A">사람 턴</text>
+  <text x="208" y="320" font-size="18" fill="#888780">→</text>
+  <rect x="236" y="282" width="150" height="64" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.8"/>
+  <text x="311" y="308" font-size="20" font-weight="600" text-anchor="middle" fill="#2c2c2a">40</text>
+  <text x="311" y="330" font-size="12" text-anchor="middle" fill="#5F5E5A">긴 순서 글</text>
+  <text x="404" y="320" font-size="18" fill="#888780">→</text>
+  <rect x="432" y="282" width="150" height="64" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.8"/>
+  <text x="507" y="308" font-size="20" font-weight="600" text-anchor="middle" fill="#412402">11</text>
+  <text x="507" y="330" font-size="12" text-anchor="middle" fill="#854F0B">알림이 뜰 답 (1.4%)</text>
+  <text x="40" y="386" font-size="14" fill="#444441">알림 11개</text>
+  <rect x="170" y="370" width="262" height="24" fill="#5DCAA5"/>
+  <rect x="432" y="370" width="98" height="24" fill="#F0997B"/>
+  <text x="301" y="387" font-size="13" text-anchor="middle" fill="#04342C">맞는 알림 8</text>
+  <text x="481" y="387" font-size="13" text-anchor="middle" fill="#4A1B0C">틀린 알림 3</text>
+  <text x="40" y="424" font-size="12" fill="#5F5E5A">맞는 알림: 릴리스 순서 · 처리 단계처럼 흐름을 번호로만 적은 답 · 전후 숫자를 글로 적은 답</text>
+  <text x="40" y="444" font-size="12" fill="#5F5E5A">틀린 알림: 한 일 목록 · 바꾼 것 목록 · 남은 일 목록 (순서가 아닌 번호 목록) — 맞고 틀림은 Claude 의 판정</text>
+</svg>
