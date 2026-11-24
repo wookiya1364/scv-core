@@ -2789,3 +2789,11 @@ merge_policy: preserve
 - discarded alternatives: 창 직접 실행만 넓히기 — 창이 못 돌리는 기어와 휴대폰 화면은 여전히 무거운 턴을 씀 / 지금은 그대로 두기 — 기어를 써도 토큰이 줄지 않음 / 이 세션에서 바로 구현 — 호출마다 83만 토큰을 다시 읽어 새 세션에서 하기로 함
 - refs: scv/promote/20261124-wookiya1364-gear-direct-light-turn/PLAN.md
 - conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-25 00:41] wookiya1364 — 기어는 모델 없이 바로 돌고, 대화 턴은 가볍게 — 어긋나는 지시 정리 (보관)
+
+- verdict: archived
+- why: 기어 요청 한 턴이 모델 호출 8 → 2번, 쓴 토큰 2,814 → 379, 72초 → 20초(작은 새 프로젝트, 새 세션 한 번씩). 창은 기어를 모델 없이 직접 돌림(대시보드 0.4.0). 어긋나는 지시 열 곳을 표로 뽑아 고침. 대화가 길어지면 기록으로 바꿔 끼움(대시보드 0.3.3)
+- path delta: 계획은 값 안내를 모델이 읽게 했으나, 재 보니 그 읽기가 호출 한 번이라 훅이 미리 읽어 싣게 바꿈. 오래 도는 실행은 뒤 실행 대신 흘려 읽는 실행으로. 자동 가볍게는 모드가 정리를 직접 부르면 자기 처리기를 건너뛰어, 정리 명령을 돌리는 길로 바꿈. 그림 규칙 다듬기를 11단계로 더함. 어긋나는 지시 표의 사용자 확인은 자는 동안이라 추천대로 정하고 표에 적음. 릴리스는 사용자가 밤에 시킴
+- refs: scv/archive/20261124-wookiya1364-gear-direct-light-turn/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
