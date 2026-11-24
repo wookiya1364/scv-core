@@ -271,3 +271,5 @@ decision	대시보드-—-치면-맞는-기어가-뜨고-	scv/DECISIONS.md	33993
 decision	대시보드-—-치면-맞는-기어가-뜨고-	scv/DECISIONS.md	340929	1016	2026-11-24 22:23	[archived] 대시보드 — 치면 맞는 기어가 뜨고, 기어 칸은 역할 먼저 한 줄씩 archived
 decision	기어는-모델-없이-바로-돌고-대화-턴	scv/DECISIONS.md	341945	1126	2026-11-24 22:39	[adopted] 기어는 모델 없이 바로 돌고, 대화 턴은 가볍게 — 어긋나는 지시 정리
 decision	기어는-모델-없이-바로-돌고-대화-턴	scv/DECISIONS.md	343071	1194	2026-11-25 00:41	[archived] 기어는 모델 없이 바로 돌고, 대화 턴은 가볍게 — 어긋나는 지시 정리 (보관)
+decision	매-턴-규칙-글은-한-번만-숫자-길이-상한-없애기-archived	scv/DECISIONS.md	344265	1139	2026-11-25 08:01	[archived] 매 턴 규칙 글은 한 번만 · 숫자 길이 상한 없애기 archived
+decision	질의에-맞는-effort-추천-새-세션-제안-계획-삭제	scv/DECISIONS.md	345404	350	2026-11-25 08:01	[not-needed] 질의에 맞는 effort 추천 · 새 세션 제안 계획 삭제

@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-24T15:40:56Z
+generated_at: 2026-11-24T23:01:05Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -603,6 +603,10 @@ archives:
     status: testing
   - slug: 20261120-wookiya1364-lean-loop
     title: "가벼운 에이전트 루프 — 장부 호출을 훅으로 · 처음과 끝만 묻기 모드"
+    kind: feature
+    status: in_progress
+  - slug: 20261120-wookiya1364-rules-once-no-caps
+    title: "매 턴 규칙 글은 한 번만 · 숫자 길이 상한 없애기"
     kind: feature
     status: in_progress
   - slug: 20261122-wookiya1364-comments-strip-safety
