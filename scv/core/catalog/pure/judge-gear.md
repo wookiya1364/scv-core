@@ -1,6 +1,30 @@
 # 판정/gear — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 7개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 12개.
+
+### scv_gear_arg_name_ok
+- 역할: 인자 이름이 쓸 수 있는 모양인지 가린다 — 영문 소문자로 시작, 영문 소문자 · 숫자 · 밑줄, 32자까지. _proxy 로 끝나는 이름은 이미 뜻이 있는 환경 변수라 못 쓴다
+- 위치: scripts/lib/gear.sh · @pure · sh
+- 예: `"count" → "yes"`
+- 예: `"since_tag2" → "yes"`
+- 예: `"Count" → "no"`
+- 예: `"1st" → "no"`
+- 예: `"http_proxy" → "no"`
+- 예: `"" → "no"`
+
+### scv_gear_args_split
+- 역할: 실행할 때 받은 낱말들(한 줄에 하나)을 인자 줄들로 가린다 — "이름=값" 모양이고 이름이 쓸 수 있으면 그대로, 아니면 앞에 ! 를 붙인다
+- 위치: scripts/lib/gear.sh · @pure · sh
+- 예: `$'count=2\nsince=v1 beta' → $'count=2\nsince=v1 beta'`
+- 예: `$'Count=1\n=1\ncount' → $'!Count=1\n!=1\n!count'`
+- 예: `"" → ""`
+
+### scv_gear_args_unknown
+- 역할: 준 인자 줄들 가운데 선언된 인자 줄들에 없는 이름을 찾는다 — 이름만, 한 줄에 하나
+- 위치: scripts/lib/gear.sh · @pure · sh
+- 예: `$'count=2\nnope=1' $'count=3\nsince=' → "nope"`
+- 예: `"count=2" $'count=3' → ""`
+- 예: `"x=1" "" → "x"`
 
 ### scv_gear_confirm_ok
 - 역할: 선택 답이 '실행'을 고른 것인지 가린다 — 답이 정확히 "실행" 이나 "Run" 이거나, 그 뒤에 괄호 표시(추천 등)만 붙었을 때만
@@ -12,6 +36,14 @@
 - 예: `"Run" → "yes"`
 - 예: `"Run later" → "no"`
 - 예: `"Do not run" → "no"`
+
+### scv_gear_example_mode
+- 역할: 기어의 예시를 실제로 돌려 맞출지(run) 보기용으로 둘지(show) 정한다 — 펼친 흐름이 순수 톱니로만 되어 있을 때만 돌린다
+- 위치: scripts/lib/gear.sh · @pure · sh
+- 예: `$'tooth\tup\ntooth\tcount' $'count\ttooth\tpure\ttext\tnumber\t센다\t\nup\ttooth\tpure\ttext\ttext\t대문자\t' → "run"`
+- 예: `$'tooth\tup\ntext\tg' $'up\ttooth\tpure\ttext\ttext\t대문자\t' → "show"`
+- 예: `$'tooth\tup\ntooth\twrite' $'up\ttooth\tpure\t*\t*\t대문자\t\nwrite\ttooth\teffect\t*\t*\t쓴다\t' → "show"`
+- 예: `"" "" → "show"`
 
 ### scv_gear_flow_check
 - 역할: 펼친 흐름(종류<TAB>이름 줄들 — tooth · text · unknown · error)을 사전과 맞춰 본다 — 없는 이름, 펼치다 생긴 오류, 앞 톱니가 돌려주는 값과 받는 값의 이름이 다른 것을 줄로 낸다(문제없으면 빈 값)
@@ -51,6 +83,14 @@
 - 예: `$'cat\n\nrm -rf build' → $'3\trm'`
 - 예: `$'git -C . push\n/usr/bin/curl -s x\nfind . -name x -delete' → $'1\tgit push\n2\tcurl\n3\tfind -delete'`
 - 예: `$'# curl 을 쓰지 않는다\ncat' → ""`
+
+### scv_gear_sig_check
+- 역할: 기어에 적은 받는 값 · 돌려주는 값의 이름을 첫 톱니 · 끝 톱니의 이름과 맞춰 본다 — 다르면 오류 줄(어느 쪽이든 비었거나 * 이면 보지 않는다)
+- 위치: scripts/lib/gear.sh · @pure · sh
+- 예: `"lines" "lines" "lines" "lines" → ""`
+- 예: `"number" "lines" "lines" "lines" → "in number — 첫 톱니가 받는 값 lines 와 다르다"`
+- 예: `"lines" "number" "lines" "lines" → "out number — 끝 톱니가 돌려주는 값 lines 와 다르다"`
+- 예: `"" "lines" "text" "*" → ""`
 
 ### scv_gear_step_mode
 - 역할: 단계 하나를 어떻게 다룰지 정한다 — 톱니는 직접(direct), 기어의 글은 모델에게 넘김(handoff), 밖으로 표시 톱니는 확인 전에는 멈춤(confirm)
