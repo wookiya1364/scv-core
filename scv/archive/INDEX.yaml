@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-24T04:10:39Z
+generated_at: 2026-11-24T13:23:27Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -623,6 +623,14 @@ archives:
     status: testing
   - slug: 20261124-wookiya1364-choice-record-right-plan
     title: "선택 기록 — 그 턴이 다룬 계획에만 적고, 글은 글자 경계에서 자르기"
+    kind: feature
+    status: testing
+  - slug: 20261124-wookiya1364-dashboard-gear-match
+    title: "대시보드 — 치면 맞는 기어가 뜨고, 기어 칸은 역할 먼저 한 줄씩"
+    kind: feature
+    status: testing
+  - slug: 20261124-wookiya1364-dashboard-gears-ask-block
+    title: "대시보드에 기어 · 묻기 방식, 글로 묻기는 선택 창으로"
     kind: feature
     status: testing
   - slug: 20261124-wookiya1364-gears-io-args

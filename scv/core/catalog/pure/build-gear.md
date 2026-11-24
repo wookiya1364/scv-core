@@ -1,6 +1,6 @@
 # 조립/gear — 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 7개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 8개.
 
 ### scv_gear_args_apply
 - 역할: 톱니가 선언한 인자 줄들에 덮는 값을 얹는다 — 선언한 이름만 남고, 덮는 묶음에 있으면 그 값, 없으면 기본값
@@ -15,6 +15,14 @@
 - 예: `$'count=3\nsince=' "count=5" → $'count=5\nsince='`
 - 예: `"count=3" "sep=," → $'count=3\nsep=,'`
 - 예: `"" "" → ""`
+
+### scv_gear_ask_rows
+- 역할: 기어나 톱니를 쓸 때 정해야 할 값을 줄로 만든다 — 인자마다 "arg<TAB>이름<TAB>지금 값<TAB>open|fixed<TAB>설명"(기어가 정해 둔 인자는 fixed), 받는 값이 있으면 끝에 "input<TAB>값 이름"
+- 위치: scripts/lib/gear.sh · @pure · sh
+- 예: `$'count=5\nsince=' "count=5" $'count\t낼 줄 수\nsince\t어디부터' "lines" → $'arg\tcount\t5\tfixed\t낼 줄 수\narg\tsince\t\topen\t어디부터\ninput\tlines'`
+- 예: `"os=mac" "" $'os\t돌릴 곳: mac · linux' "none" → $'arg\tos\tmac\topen\t돌릴 곳: mac · linux'`
+- 예: `"" "" "" "none" → ""`
+- 예: `"" "" "" "text" → $'input\ttext'`
 
 ### scv_gear_confirm_text
 - 역할: 밖으로 나가는 톱니 앞에서 낼 글을 만든다 — 확인 표(표:단계) · 단계 · 묻는 방법(질문 끝의 표와 두 보기) · 이어가는 명령 · 그 톱니가 돌릴 글
