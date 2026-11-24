@@ -2,5 +2,6 @@ dir .
 find core/scripts core/tests tests tools -type f -name '*.sh' -exec bash -n {} +
 bash core/scripts/check-frontmatter.sh --project-dir .
 bash tools/check-readme.sh --profile core .
+BASE_REF=develop bash core/scripts/check-privacy.sh
 bash core/tests/run-focused.sh --jobs "$JOBS" --dir tests --dir core/tests --also core/tests/run-dry.sh
 rm -rf "${TMPDIR:-/tmp}/release-ci-export" && bash tools/export-core.sh --output "${TMPDIR:-/tmp}/release-ci-export" && bash tools/verify-core.sh --root "${TMPDIR:-/tmp}/release-ci-export"

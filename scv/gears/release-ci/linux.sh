@@ -16,9 +16,9 @@ EOF
 cat > "$w/.run.sh" <<'EOF'
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq git jq perl gawk bsdextrautils locales python3 nodejs rustc curl ca-certificates >/dev/null 2>&1 || { printf 'linux\tfail\t패키지 설치\t-\n'; exit 0; }
-useradd -m ci && cp -R /w /home/ci/w && chown -R ci:ci /home/ci/w
-su ci -c "JOBS='$JOBS' LOGDIR='$LOGDIR' bash /home/ci/w/.inner.sh"
-cp /home/ci/w/.log-* /w/ 2>/dev/null
+useradd -m ci && cp -R /w ~ci/w && chown -R ci:ci ~ci/w
+su ci -c "JOBS='$JOBS' LOGDIR='$LOGDIR' bash ~/w/.inner.sh"
+cp ~ci/w/.log-* /w/ 2>/dev/null
 EOF
 podman run --rm -e JOBS="$jobs" -e LOGDIR="$L" -v "$w":/w docker.io/library/ubuntu:24.04 bash /w/.run.sh 2>/dev/null | grep '^linux'
 for l in "$w"/.log-*; do [ -f "$l" ] && cp "$l" "$L/${l##*/.log-}.log"; done
