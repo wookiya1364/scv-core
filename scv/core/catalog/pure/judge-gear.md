@@ -1,6 +1,6 @@
 # 판정/gear — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 13개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 14개.
 
 ### scv_gear_arg_name_ok
 - 역할: 인자 이름이 쓸 수 있는 모양인지 가린다 — 영문 소문자로 시작, 영문 소문자 · 숫자 · 밑줄, 32자까지. _proxy 로 끝나는 이름은 이미 뜻이 있는 환경 변수라 못 쓴다
@@ -111,3 +111,13 @@
 - 예: `tooth outward yes → "direct"`
 - 예: `tooth "outward (push)" "" → "error"`
 - 예: `tooth "?" "" → "error"`
+
+### scv_gear_turn
+- 역할: 요청 글이 기어를 돌리라는 것인지 가려 그 기어 이름을 낸다 — 글 첫 줄이 기어 액션 꼴(… gear run 이름)이거나, "[SCV 기어]" 로 시작하는 줄에 "gear run 이름" 이 있을 때. 이름은 주어진 기어 목록에 있어야 한다
+- 위치: scripts/lib/gear.sh · @pure · sh
+- 예: `"action:gear run release-ci os=mac" $'release-ci\nmake-list' → "release-ci"`
+- 예: `$'목록 만들어 줘\n\n[SCV 기어] 이 요청에 맞는 저장해 둔 방법이 있음: make-list — 이 기어로 해 주세요(action:gear run make-list). 값은 위 요청에서 읽고, 없는 값은 물어 주세요.' $'release-ci\nmake-list' → "make-list"`
+- 예: `"릴리스 검사 돌려 줘" $'release-ci\nmake-list' → ""`
+- 예: `"기어가 뭐야? gear run 은 어떻게 써?" $'release-ci\nmake-list' → ""`
+- 예: `"[SCV 기어] 이 요청에 맞는 저장해 둔 방법이 있음: nope — 이 기어로 해 주세요(action:gear run nope)." $'release-ci\nmake-list' → ""`
+- 예: `"action:gear run release-ci" "" → ""`

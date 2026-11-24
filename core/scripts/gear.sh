@@ -380,6 +380,16 @@ lint_gears() {
   printf '%s' "$out"
 }
 
+# @effect gear_log
+# 이유: 실행이 끝났을 때 저널에 한 줄을 남긴다 — 기어 이름 · 준 인자 · 종료 코드. 대화 없이 돌린 실행도 나중에 찾을 수 있게. 기록 실패는 실행을 막지 않는다
+gear_log() {
+  local run="$1" rc="$2" name args ja="$SCRIPT_DIR/journal-append.sh"
+  [[ -f "$ja" && -f "$run/name" && -d scv ]] || return 0
+  name="$(head -n 1 "$run/name" 2>/dev/null)"; args=""
+  [[ -f "$run/given" ]] && args="$(tr '\n' ' ' < "$run/given" 2>/dev/null)"
+  printf '기어 %s %s→ 종료 코드 %s\n' "$name" "$args" "$rc" | bash "$ja" --speaker gear >/dev/null 2>&1 || true
+}
+
 # @effect drive
 # 이유: 실행 폴더의 상태를 읽어 단계를 차례로 돌린다 — 톱니를 실행하고, 넘김 · 확인에서 상태를 쓰고 멈추고, 끝나면 결과를 내고 상태를 지운다
 drive() {
@@ -399,6 +409,7 @@ drive() {
         if (( rc != 0 )); then
           printf 'GEAR_ERROR: %s단계 %s — 종료 코드 %s\n' "$i" "$s" "$rc" >&2
           tail -n 5 "$run/err" >&2
+          gear_log "$run" 1
           rm -rf "$run"; exit 1
         fi
         mv "$run/next" "$run/data"; i=$((i + 1)) ;;
@@ -416,6 +427,7 @@ drive() {
     esac
   done
   cat "$run/data"
+  gear_log "$run" 0
   rm -rf "$run"
   exit 0
 }
@@ -635,6 +647,7 @@ case "$CMD" in
     tok="$(new_token)"; run="$STATE/$tok"
     mkdir -p "$run" || die 1 "실행 상태 폴더를 만들지 못함: $run"
     printf '%s\n' "$idx" > "$run/index"; printf '%s\n' "$tidx" > "$run/teeth"; printf '%s\n' "$steps" > "$run/steps"
+    printf '%s\n' "$NAME" > "$run/name"; [[ -z "$given" ]] || printf '%s\n' "$given" > "$run/given"
     # 단계마다 들어갈 인자를 적어 둔다 — 멈췄다 이어 가도 같은 값이 쓰인다
     [[ -z "$names" ]] || printf '%s\n' "$names" > "$run/argnames"
     i=0

@@ -72,6 +72,16 @@ earlier one only in such a value, pass the argument: do not write a new tooth fo
 bash "${SCV_CORE_ROOT}/scripts/gear.sh" run <name> [<argument>=<value> …]
 ```
 
+**The gear turn — a light path (0.103.0+).** When the user's message asks to run a saved gear — the gear action with
+`run <name>`, or a message that carries the pane's `[SCV 기어]` line naming a gear — the per-turn hook marks the turn
+and carries three lines in place of the usual rules, routing and diagnosis: read the values, run, answer in two or
+three lines. In such a turn there is no help call, no request registration, no rewritten-request quote and no
+three-line end report, and the turn-end checks do not ask for them; the runner leaves one journal line (gear, arguments,
+exit code) for every run. A write to a project file is still checked as in any other turn — a gear turn runs the gear
+and edits nothing by hand. A message that only mentions gears, or names a gear the project does not have, is an
+ordinary turn. Switch: the setting `SCV_GEAR_TURN=off`. (Measured on one large session before this path: one gear
+request took 10 model calls and 3.6 minutes; the per-turn text of a gear turn is now under a tenth of an ordinary one.)
+
 **Guide the values first (0.102.0+).** Before running a gear or a tooth, read what it needs:
 
 ```!

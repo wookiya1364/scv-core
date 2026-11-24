@@ -1,6 +1,6 @@
 # 세기 — 개수 · 길이 · 합계를 센다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 27개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 28개.
 
 ### pb_gpu_summary
 - 역할: GPU 표본 줄들("사용률<탭>메모리 MB")과 시작 전 메모리 · 시작 전 사용률에서 "평균 사용률 %<탭>늘어난 메모리 MB<탭>오른 사용률 %p"를 낸다(표본이 없으면 "-" 셋)
@@ -137,6 +137,13 @@
 - 역할: 판정자 답 줄들에서 기간마다 판정한 턴 · 그중 보여 줌 · 판정 못 한 턴을 센다
 - 위치: scripts/lib/show-real.sh · @pure · sh
 - 예: `$'A\tk\ts\tt\tb\tyes\nA\tk\ts\tt\tb\tno\nA\tk\ts\tt\ta\tunjudged' → $'before\t2\t1\t0\nafter\t0\t0\t1'`
+
+### scv_step_active_count
+- 역할: "계획<TAB>상태" 줄들 중 구현 중(in_progress · testing)인 계획이 몇 개인지 센다
+- 위치: scripts/lib/step-report.sh · @pure · sh
+- 예: `$'20260101-a-x\ttesting\n20260103-a-z\tin_progress\n20260104-a-w\tplanned' → "2"`
+- 예: `$'20260101-a-x\tplanned' → "0"`
+- 예: `"" → "0"`
 
 ### scv_tc_overlap_count
 - 역할: 항목 낱말들 중 메모 낱말에 있는 것의 수와 항목 낱말 수를 "겹친 수 전체 수"로 낸다 — 같은 낱말은 한 번만 센다
