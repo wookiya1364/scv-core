@@ -311,7 +311,7 @@ elif [[ -n "$_scv_gear" ]]; then
   fi
   # 값 안내는 훅이 미리 읽어 싣는다 — 모델이 값 안내 명령을 따로 부르는 한 번을 아낀다(재 본 값: 호출 4번 중 1번이 이 읽기였다).
   _scv_gask="$(bash "$_scv_core0/scripts/gear.sh" ask "$_scv_gear" 2>/dev/null | sed 1d | head -n 40 || true)"
-  ( source "$_scv_core0/scripts/lib/gear.sh" 2>/dev/null && scv_gear_turn_text "$_scv_gear" "$_scv_core0/scripts/gear.sh" "${_scv_cg_tool:-}" "$_scv_gask" ) 2>/dev/null || true
+  ( source "$_scv_core0/scripts/lib/gear.sh" 2>/dev/null && scv_gear_turn_text "$_scv_gear" "$_scv_core0/scripts/gear.sh" "${_scv_cg_tool:-}" "$_scv_gask" "${_scv_cg_un:-}" ) 2>/dev/null || true
   printf '\n'
 # 전체 스위치가 꺼져 있으면 여기서 끝난다 — 지시도 진단도 없다. 대체된 계획의
 # 검사에 있던 성질이고, 새 검사가 이어받는다. (위임 블록만은 자기 스위치로 따로 실린다.)
