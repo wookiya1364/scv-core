@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-24T13:23:27Z
+generated_at: 2026-11-24T15:40:56Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -633,6 +633,10 @@ archives:
     title: "대시보드에 기어 · 묻기 방식, 글로 묻기는 선택 창으로"
     kind: feature
     status: testing
+  - slug: 20261124-wookiya1364-gear-direct-light-turn
+    title: "기어는 모델 없이 바로 돌고, 대화 턴은 가볍게 — 어긋나는 지시 정리"
+    kind: feature
+    status: in_progress
   - slug: 20261124-wookiya1364-gears-io-args
     title: "기어의 입력 · 출력을 종류 이름 + 예시로 보이고, 이름 붙은 인자로 같은 기어를 다르게 쓰기 + 글 대신 그림으로 보여 주기"
     kind: feature
