@@ -71,7 +71,7 @@ scv_choice_line() {
     return 0
   fi
   # 매 턴 실리는 줄 — 래퍼(요구 항목 블록 약 1.5KB)와 함께 매 턴 스택 상한(test-help-budget T12, 12,000B) 안. 요지만, 전문은 규칙 문서.
-  printf '%s\n' "[SCV choices] Ask decisions with $tool, never in text: recommended option first; each option: how it avoids its own problems; over 4 questions, split; over 4 options, two steps; names, suggested values; cancelled, stop. Next step is no decision (bar first-run check): unblocked, go on; work done, state it unasked. Summary box: recap only. Box or text asks are refused (contracts/choices.md)."
+  printf '%s\n' "[SCV choices] Ask decisions with $tool, never in text: recommended option first; each option: how it avoids its own problems; over 4 questions, split; over 4 options, two steps; names, suggested values; cancelled, stop. Next step is no decision (bar first-run check): unblocked, go on; work done, state it unasked. Summary box: recap only. Box asks refused, text flagged (contracts/choices.md)."
 }
 
 # @pure

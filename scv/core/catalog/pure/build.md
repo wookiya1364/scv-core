@@ -113,7 +113,7 @@
 ### scv_force_routing
 - 역할: 매 턴 맨 앞에 싣는 고정 지시 블록(SCV help 를 먼저 부르라)을 낸다 — 인자 없음
 - 위치: scripts/lib/force-help.sh · @pure · sh
-- 예: `→ $'════ SCV: 이 턴의 첫 행동 ════\n답을 쓰기 전에, 이 메시지 전문을 인자로 SCV help 액션을 지금 호출하라 — 다른 도구 · 조사 · 수정보다 먼저(부르기 전 다른 도구는 거절된다 — 호스트가 허용한 진행 표시 도구만 함께 보낼 수 있다).\n아래 진단은 **상태를 다시 조회하지 않는 데에만** 쓰라 — 호출을 건너뛸 이유가 되지 않는다. 끄기: scv/scv_settings.json SCV_ALWAYS_ON=off.'`
+- 예: `→ $'════ SCV: 이 턴의 첫 행동 ════\n답을 쓰기 전에, 이 메시지 전문을 인자로 SCV help 액션을 지금 호출하라 — 다른 도구 · 조사 · 수정보다 먼저(부르기 전 다른 도구는 거절된다 — 호스트가 허용한 진행 표시 도구만 함께 보낼 수 있다). 사용자가 SCV 액션을 직접 친 턴은 그 액션이 이 호출을 대신한다.\n아래 진단은 **상태를 다시 조회하지 않는 데에만** 쓰라 — 호출을 건너뛸 이유가 되지 않는다. 끄기: scv/scv_settings.json SCV_ALWAYS_ON=off.'`
 
 ### scv_gates_reason
 - 역할: 받은 막는 이유들(최대 5개) 중 빈 것을 빼고 한 줄씩 이어 막는 이유를 만든다
@@ -351,9 +351,10 @@
 - 예: `$'Q\tk1\ts1\tt\tb\tx' '' → $'A\tk1\ts1\tt\tb\tunjudged'`
 
 ### scv_step_line
-- 역할: 단계 보고 도구 이름과 구현 중인 계획 이름으로 매 턴 안내 한 줄을 만든다 — 둘 중 하나라도 비면 아무것도 내지 않는다
+- 역할: 단계 보고 도구 이름 · 구현 중인 계획 이름 · 구현 중인 계획 수로 매 턴 안내 한 줄을 만든다 — 도구나 계획이 비면 아무것도 내지 않는다. 그 계획의 단계를 다루는 턴에만 알리게 한다
 - 위치: scripts/lib/step-report.sh · @pure · sh
-- 예: `"demo_step" "20260102-a-y" → "[SCV 단계] 구현 중: 20260102-a-y — 이 세션에 demo_step 도구가 있으면, 단계를 시작할 때 · 끝낼 때(증거: 만든 파일 · 명령 출력) · 막혔을 때(이유 한 줄) 바로 알려라(plan=20260102-a-y, step=번호, state=doing|done|blocked). 본문: protocols/work.md 'Step progress'"`
+- 예: `"demo_step" "20260102-a-y" → "[SCV 단계] 구현 중: 20260102-a-y — 이 턴이 그 계획의 단계를 다룰 때, 이 세션에 demo_step 도구가 있으면 단계를 시작할 때 · 끝낼 때(증거: 만든 파일 · 명령 출력) · 막혔을 때(이유 한 줄) 바로 알려라(plan=계획 이름, step=번호, state=doing|done|blocked). 본문: protocols/work.md 'Step progress'"`
+- 예: `"demo_step" "20260102-a-y" 3 → "[SCV 단계] 구현 중: 20260102-a-y 외 2개 — 이 턴이 그 계획의 단계를 다룰 때, 이 세션에 demo_step 도구가 있으면 단계를 시작할 때 · 끝낼 때(증거: 만든 파일 · 명령 출력) · 막혔을 때(이유 한 줄) 바로 알려라(plan=계획 이름, step=번호, state=doing|done|blocked). 본문: protocols/work.md 'Step progress'"`
 - 예: `"" "20260102-a-y" → ""`
 - 예: `"demo_step" "" → ""`
 
