@@ -1,6 +1,6 @@
 # 판정/answer — 답 · 메시지 글을 보고 판정한다 — 표가 있나, 묻는 글인가, 확인인가
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 30개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 32개.
 
 ### _scv_choice_blank
 - 역할: 줄이 빈 줄(ASCII 공백 · NBSP · 전각 공백뿐)이면 성공(0), 아니면 실패(1)로 알린다
@@ -70,6 +70,17 @@
 - 예: `"" $'read\x1fa.sh\x1fok\x1fa.sh' "" full → $'missing\x1fverified\nmissing\x1funverified\nmissing\x1fdecided'`
 - 예: `$'scope\x1f기록만 함' $'scv\x1fhelp\x1fok\x1fhelp' "" short → ""`
 - 예: `$'verified\x1f언어 시험 실행 → 14개 통과\nunverified\x1f없음\ndecided\x1f이름' $'read\x1fa.sh\x1fok\x1fa.sh' "" full → $'noreason\x1funverified\nunbacked\x1fpass'`
+- 예: `$'verified\x1f앞 턴에 돌린 검사의 기록을 읽음 → 5개 통과\nunverified\x1f맥 — 아직 도는 중\ndecided\x1f이름' $'read\x1frci.log\x1fok\x1frci.log' "" full → ""`
+
+### scv_hs_flow_line
+- 역할: 답 글이 흐름을 화살표 줄로 적었는지 가린다 — 화살표(→ · ->)가 둘 이상인 줄이 하나라도 있으면 yes. 코드 블록 · 표 · 인용 줄은 보지 않는다
+- 위치: scripts/lib/help-state.sh · @pure · sh
+- 예: `$'흐름: 읽기 → 나누기 → 쓰기' → "yes"`
+- 예: `$'읽기 → 나누기\n그다음 쓰기' → "no"`
+- 예: `$'\x3e 요청: a → b → c\n결과만 적음' → "no"`
+- 예: `$'```\na -\x3e b -\x3e c\n```' → "no"`
+- 예: `$'| a → b → c | 1 |' → "no"`
+- 예: `"" → "no"`
 
 ### scv_hs_picture_due
 - 역할: 그림이 있어야 했는데 없었는지 정한다 — 긴 순서 글이고, 그 턴에 그림 도구를 0번 불렀고, 그림을 대신하는 것도 없을 때만 picture=1. 도구 호출 수를 모르면(빈 값) 잡지 않는다
@@ -87,6 +98,16 @@
 - 예: `$'| 항목 | 값 |\n|---|---|\n| a | 1 |' → "yes"`
 - 예: `$'읽기 → 나누기\n그다음 쓰기' → "no"`
 - 예: `"" → "no"`
+
+### scv_hs_picture_tool_due
+- 역할: 그림 도구가 있는 세션에서 흐름을 글로만 보였는지 정한다 — 화살표 줄이 있고, 그 턴에 그림 도구를 0번 불렀고, 이 세션이 그 도구를 쓴 적이 있고(있다는 증거), 답이 600바이트 이상일 때만 picture=tool. 짧은 답은 글 그대로 둔다
+- 위치: scripts/lib/help-state.sh · @pure · sh
+- 예: `yes 0 yes 900 → "picture=tool"`
+- 예: `yes 1 yes 900 → ""`
+- 예: `yes 0 no 900 → ""`
+- 예: `yes 0 yes 200 → ""`
+- 예: `no 0 yes 900 → ""`
+- 예: `yes "" yes 900 → ""`
 
 ### scv_hs_seq_prose
 - 역할: 답 글이 "긴 순서 글"인지 가린다 — 번호 순서가 4줄 이상 이어지거나, 화살표(→ · ->)가 하나만 든 줄이 3줄 이상. 코드 블록 · 표 · 인용 줄은 보지 않는다
