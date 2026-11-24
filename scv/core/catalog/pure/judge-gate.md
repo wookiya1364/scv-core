@@ -1,6 +1,6 @@
 # 판정/gate — 훅이 막을지 · 넘길지 · 다시 물을지를 정한다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 26개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 27개.
 
 ### scv_choice_gate
 - 역할: 묻는지 · 도구 이름 · 이미 전달 여부로 ok | block | warn 중 하나를 정한다 (도구가 없으면 늘 ok)
@@ -147,6 +147,13 @@
 - 예: `load 0 0 "" → $'unread\n'`
 - 예: `loaded 1 1 0 → $'unshown\n'`
 - 예: `none 0 0 0 → ""`
+
+### scv_mp_warn_has_principle
+- 역할: 경고 글에 원칙 검사가 남긴 줄("[SCV 원칙]")이 있는지 가른다
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `$'[SCV 직전 답] [SCV 원칙] 문제 표 없이 다시 써라.\n' → "1"`
+- 예: `$'[SCV 확인 범위] 끝 보고에 고칠 것\n' → "0"`
+- 예: `"" → "0"`
 
 ### scv_mp_write_gate
 - 역할: 이번 턴 등록 상태로 파일 쓰기를 허용할지(ok · unregistered · answered · forbidden) 정한다

@@ -18,7 +18,7 @@
 | 비교 | 둘을 비교해 순서나 같음을 낸다 — 버전 · 숫자 · 집합 | 4 | [compare.md](compare.md) |
 | 판정/answer | 답 · 메시지 글을 보고 판정한다 — 표가 있나, 묻는 글인가, 확인인가 | 32 | [judge-answer.md](judge-answer.md) |
 | 판정/ask | 입력을 보고 예/아니오나 판정 이름 하나를 낸다 | 3 | [judge-ask.md](judge-ask.md) |
-| 판정/gate | 훅이 막을지 · 넘길지 · 다시 물을지를 정한다 | 26 | [judge-gate.md](judge-gate.md) |
+| 판정/gate | 훅이 막을지 · 넘길지 · 다시 물을지를 정한다 | 27 | [judge-gate.md](judge-gate.md) |
 | 판정/gear | 입력을 보고 예/아니오나 판정 이름 하나를 낸다 | 14 | [judge-gear.md](judge-gear.md) |
 | 판정/plan | 입력을 보고 예/아니오나 판정 이름 하나를 낸다 | 1 | [judge-plan.md](judge-plan.md) |
 | 판정/wrapup | 입력을 보고 예/아니오나 판정 이름 하나를 낸다 | 2 | [judge-wrapup.md](judge-wrapup.md) |
@@ -38,4 +38,4 @@
 | 변환 | 한 표기를 다른 표기로 바꾼다 — 경로 · 날짜 · 단위 · 인코딩 | 43 | [convert.md](convert.md) |
 | 지문 | 내용에서 짧은 식별값을 만든다 — 해시 · 키 · 이름 | 6 | [fingerprint.md](fingerprint.md) |
 
-전체 468개
+전체 469개

@@ -309,7 +309,7 @@ elif [[ "${_scv_always:-on}" != "off" ]] && declare -F scv_force_routing >/dev/n
   # 기어 턴 — 세 줄 안내만. 이번 턴 표는 그대로 쓴다(쓰기 전 등록 검사가 그 표를 본다 — 가벼운 길이 쓰기 검사를 풀지 않는다).
   # 도움말을 부른 것으로 표시해, 첫 도구가 무엇이든 도움말 먼저 규칙에 걸리지 않게 한다.
   if [[ -f "$_scv_mp_sh" ]]; then
-    bash "$_scv_mp_sh" prompt --session "$_scv_sid0" --transcript "$_scv_tr0" >/dev/null 2>&1 || true
+    bash "$_scv_mp_sh" prompt --session "$_scv_sid0" --transcript "$_scv_tr0" --no-principle >/dev/null 2>&1 || true
     if [[ -n "$_scv_sid0" ]]; then bash "$_scv_mp_sh" helped --agent "" --session "$_scv_sid0" >/dev/null 2>&1 || true
     else bash "$_scv_mp_sh" helped --agent "" >/dev/null 2>&1 || true; fi
   fi
