@@ -1,0 +1,3 @@
+dir .
+bash tests/test-actions.sh
+bash tests/test-host-neutral.sh
