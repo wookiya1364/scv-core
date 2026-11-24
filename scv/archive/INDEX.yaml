@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-23T23:26:09Z
+generated_at: 2026-11-24T04:10:39Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -625,6 +625,11 @@ archives:
     title: "선택 기록 — 그 턴이 다룬 계획에만 적고, 글은 글자 경계에서 자르기"
     kind: feature
     status: testing
+  - slug: 20261124-wookiya1364-gears-io-args
+    title: "기어의 입력 · 출력을 종류 이름 + 예시로 보이고, 이름 붙은 인자로 같은 기어를 다르게 쓰기 + 글 대신 그림으로 보여 주기"
+    kind: feature
+    status: testing
+    epic: 20261124-gears
   - slug: 20261124-wookiya1364-gears-run
     title: "기어 돌리기 — 프로젝트 scv 안의 기어(스킬)와 톱니(아주 작은 sh), 그리고 실행기"
     kind: feature
