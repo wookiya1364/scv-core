@@ -381,10 +381,10 @@ lint_gears() {
 }
 
 # @effect gear_log
-# 이유: 실행이 끝났을 때 저널에 한 줄을 남긴다 — 기어 이름 · 준 인자 · 종료 코드. 대화 없이 돌린 실행도 나중에 찾을 수 있게. 기록 실패는 실행을 막지 않는다
+# 이유: 실행이 끝났을 때 저널에 한 줄을 남긴다 — 기어 이름 · 준 인자 · 종료 코드. 대화 없이 돌린 실행도 나중에 찾을 수 있게. 저널 폴더가 이미 있는 프로젝트에서만 적는다(없는 폴더를 만들지 않는다). 기록 실패는 실행을 막지 않는다
 gear_log() {
   local run="$1" rc="$2" name args ja="$SCRIPT_DIR/journal-append.sh"
-  [[ -f "$ja" && -f "$run/name" && -d scv ]] || return 0
+  [[ -f "$ja" && -f "$run/name" && -d "$JDIR" ]] || return 0
   name="$(head -n 1 "$run/name" 2>/dev/null)"; args=""
   [[ -f "$run/given" ]] && args="$(tr '\n' ' ' < "$run/given" 2>/dev/null)"
   printf '기어 %s %s→ 종료 코드 %s\n' "$name" "$args" "$rc" | bash "$ja" --speaker gear >/dev/null 2>&1 || true

@@ -181,7 +181,7 @@ case "$cmd" in
             # 0.103.0+ — 그림 도구가 있는 세션(이 세션이 그 도구를 쓴 적이 있음)에서 흐름을 화살표 줄로만 보였으면 한 줄로 알린다.
             # 도구가 있는지 모르는 세션(쓴 적 없음 · 다른 호스트)은 잡지 않는다 — 화살표 한 줄이 맞는 모양인 세션에 틀린 알림을 내지 않게.
             if [[ -z "$_pic" ]] && declare -F scv_hs_picture_tool_due >/dev/null 2>&1; then
-              _pic="$(scv_hs_picture_tool_due "$(scv_hs_flow_line "$_text")" "$_dc" "${_dk:-}" "${#_text}")"
+              _pic="$(scv_hs_picture_tool_due "$(scv_hs_flow_line "$_text")" "$_dc" "${_dk:-}" "$(printf '%s' "$_text" | LC_ALL=C wc -c | tr -d '[:space:]')")"
               if [[ -n "$_pic" ]]; then
                 mkdir -p "${WARN_FILE%/*}" 2>/dev/null
                 [[ -L "$WARN_FILE" ]] || printf '%s\n' "[SCV 그림] 직전 답이 흐름을 화살표 줄로만 보였다 — 이 세션에는 그림 도구가 있다: 흐름 · 구조 · 수치 비교는 그 도구로 그려라(화살표 줄 · 표는 도구가 없는 세션에서만)." >> "$WARN_FILE" 2>/dev/null

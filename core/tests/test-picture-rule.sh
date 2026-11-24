@@ -130,8 +130,9 @@ fi
 FLOW=$'**흐름을 정리했음**\n\n받기 → 나누기 → 묶기 → 쓰기 차례로 돎.\n\n'"$(printf -- '- 항목 %s 은 앞 단계의 결과를 받아 다음 단계로 넘김\n' 1 2 3 4 5 6 7 8 9 10 11 12)"
 f1="$(scv_hs_flow_line "$FLOW")"; f2="$(scv_hs_flow_line $'\x3e 요청: a → b → c\n결과만 적음')"; f3="$(scv_hs_flow_line $'| a → b → c | 1 |')"
 f4="$(scv_hs_flow_line $'```\na -\x3e b -\x3e c\n```')"
-d1="$(scv_hs_picture_tool_due yes 0 yes "${#FLOW}")"; d2="$(scv_hs_picture_tool_due yes 0 "" "${#FLOW}")"
-d3="$(scv_hs_picture_tool_due yes 1 yes "${#FLOW}")"; d4="$(scv_hs_picture_tool_due yes 0 yes 120)"
+FB="$(printf '%s' "$FLOW" | LC_ALL=C wc -c | tr -d '[:space:]')"   # 바이트로 센다 — 글자 수는 지역 설정에 따라 다르다
+d1="$(scv_hs_picture_tool_due yes 0 yes "$FB")"; d2="$(scv_hs_picture_tool_due yes 0 "" "$FB")"
+d3="$(scv_hs_picture_tool_due yes 1 yes "$FB")"; d4="$(scv_hs_picture_tool_due yes 0 yes 120)"
 newproj t-known '{"SCV_LANG": "korean"}'; newproj t-unknown '{"SCV_LANG": "korean"}'
 o1="$(cd "$WORK/t-known" && printf '%s' "$FLOW" | bash "$HS" stop --echo off --lint off --picture on --draw-calls 0 --draw-known yes --now 2026-11-25T00:00:00 2>/dev/null)"
 o2="$(cd "$WORK/t-unknown" && printf '%s' "$FLOW" | bash "$HS" stop --echo off --lint off --picture on --draw-calls 0 --now 2026-11-25T00:00:00 2>/dev/null)"

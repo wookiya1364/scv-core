@@ -112,7 +112,7 @@ has "$CORE/scripts/lib/step-report.sh" '이 턴이 그 계획의 단계를 다�
 has "$CORE/scripts/lib/force-help.sh" '사용자가 SCV 액션을 직접 친 턴은 그 액션이 이 호출을 대신한다' || miss+=" [도움말 지시]"
 has "$C/finish-report.md" '읽었다고 밝히면 통과를 말해도 된다' || miss+=" [끝 보고 6]"
 has "$C/finish-report.md" '세 줄을 상자에 다시 풀어 쓰지' || miss+=" [마무리 상자]"
-has "$C/finish-report.md" '사용자의 지시가 이긴다' || miss+=" [전역 지시]"
+has "$C/finish-report.md" '사용자의 지시를 따른다' || miss+=" [전역 지시]"
 has "$C/writing.md" '기어 턴(매 턴 훅이' || miss+=" [인용 규칙]"
 has "$P/work.md" 'leaves the turn'"'"'s receipt itself' || miss+=" [계획 기록 명령]"
 has "$P/work.md" 'Report only in a turn that works on that plan' || miss+=" [단계 보고 규약]"

@@ -50,11 +50,12 @@ INPUT="$(cat 2>/dev/null || true)"
 # 0.103.0+ — 기어 턴(계획 gear-direct-light-turn): 요청이 저장해 둔 기어를 돌리라는 것이면(기어 액션 꼴 · 창이 붙인 "[SCV 기어]" 줄) 이 턴은
 # 가벼운 길로 간다 — 규칙 글 · 도움말 지시 · 진단 대신 세 줄 안내만 싣고, 턴 끝 검사는 인용 · 끝 보고를 요구하지 않는다. 판정은 순수 함수
 # (lib/gear.sh scv_gear_turn), 기어 이름은 이 프로젝트의 기어 사전에 있어야 한다. 기어 사전이 없거나 글에 gear 가 없으면 아무것도 읽지 않는다.
-# 자동 알림 턴은 기어 턴이 아니다. 끄기: 설정 SCV_GEAR_TURN=off — 이 구간을 지운 훅과 출력이 같다.
+# 자동 알림 턴 · 항상-켬을 끈 프로젝트(SCV_ALWAYS_ON=off)는 기어 턴이 아니다. 끄기: 설정 SCV_GEAR_TURN=off — 이 구간을 지운 훅과 출력이 같다.
 _scv_gear=""
 _scv_core0="${SCV_CORE_ROOT:-$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." 2>/dev/null && pwd )}"
 if [[ "$INPUT" == *gear* && -f scv/gears/INDEX.tsv && ! -L scv/gears/INDEX.tsv && -f "$_scv_core0/scripts/lib/gear.sh" ]] && command -v jq >/dev/null 2>&1 \
-   && [[ "$(_scv_read SCV_GEAR_TURN | tr -d '"[:space:]' | tr -d "'" | tr '[:upper:]' '[:lower:]')" != off ]]; then
+   && [[ "$(_scv_read SCV_GEAR_TURN | tr -d '"[:space:]' | tr -d "'" | tr '[:upper:]' '[:lower:]')" != off ]] \
+   && [[ "$(_scv_read SCV_ALWAYS_ON | tr -d '"[:space:]' | tr -d "'" | tr '[:upper:]' '[:lower:]')" != off ]]; then
   _scv_gp="$(printf '%s' "$INPUT" | jq -r 'try (if (.prompt | type) == "string" then .prompt else "" end) catch ""' 2>/dev/null | head -c 8192 || true)"
   if [[ "$_scv_gp" == *gear* ]]; then
     _scv_gear="$( source "$_scv_core0/scripts/lib/gear.sh" 2>/dev/null || exit 0
@@ -301,10 +302,13 @@ fi
 if [[ "$_scv_kind" == "auto" ]]; then
   if [[ "${_scv_always:-on}" != "off" ]]; then bash "$_scv_mp_sh" prompt --auto --session "$_scv_sid0" >/dev/null 2>&1 || true; fi
 # ---------- /auto turns ------------------------------------------------------
-elif [[ -n "$_scv_gear" ]]; then
+# 전체 스위치가 꺼져 있으면 여기서 끝난다 — 지시도 진단도 없다. 대체된 계획의
+# 검사에 있던 성질이고, 새 검사가 이어받는다. (위임 블록만은 자기 스위치로 따로 실린다.)
+elif [[ "${_scv_always:-on}" != "off" ]] && declare -F scv_force_routing >/dev/null 2>&1; then
+ if [[ -n "$_scv_gear" ]]; then
   # 기어 턴 — 세 줄 안내만. 이번 턴 표는 그대로 쓴다(쓰기 전 등록 검사가 그 표를 본다 — 가벼운 길이 쓰기 검사를 풀지 않는다).
   # 도움말을 부른 것으로 표시해, 첫 도구가 무엇이든 도움말 먼저 규칙에 걸리지 않게 한다.
-  if [[ "${_scv_always:-on}" != "off" && -f "$_scv_mp_sh" ]]; then
+  if [[ -f "$_scv_mp_sh" ]]; then
     bash "$_scv_mp_sh" prompt --session "$_scv_sid0" --transcript "$_scv_tr0" >/dev/null 2>&1 || true
     if [[ -n "$_scv_sid0" ]]; then bash "$_scv_mp_sh" helped --agent "" --session "$_scv_sid0" >/dev/null 2>&1 || true
     else bash "$_scv_mp_sh" helped --agent "" >/dev/null 2>&1 || true; fi
@@ -313,9 +317,7 @@ elif [[ -n "$_scv_gear" ]]; then
   _scv_gask="$(bash "$_scv_core0/scripts/gear.sh" ask "$_scv_gear" 2>/dev/null | sed 1d | head -n 40 || true)"
   ( source "$_scv_core0/scripts/lib/gear.sh" 2>/dev/null && scv_gear_turn_text "$_scv_gear" "$_scv_core0/scripts/gear.sh" "${_scv_cg_tool:-}" "$_scv_gask" "${_scv_cg_un:-}" ) 2>/dev/null || true
   printf '\n'
-# 전체 스위치가 꺼져 있으면 여기서 끝난다 — 지시도 진단도 없다. 대체된 계획의
-# 검사에 있던 성질이고, 새 검사가 이어받는다. (위임 블록만은 자기 스위치로 따로 실린다.)
-elif [[ "${_scv_always:-on}" != "off" ]] && declare -F scv_force_routing >/dev/null 2>&1; then
+ else   # 보통 턴 — 아래는 0.102.0 그대로(기어 턴 갈래를 이 가지 안에 둬, 가지의 if · elif 모양은 바뀌지 않는다)
   _scv_pre="$(scv_force_switch "$(_scv_read SCV_FORCE_HELP)")"
   # 지시가 먼저, 진단이 나중이다. 0.40.0 은 반대였고 명령이 40줄 뒤에 묻혀
   # 무시됐다. 읽는 쪽에서 명령은 맨 앞에 와야 한다.
@@ -430,6 +432,7 @@ except Exception:
     fi
     printf '\n'
   fi
+ fi   # /기어 턴이 아닌 보통 턴
 else
   # 항상-켬이 꺼진 프로젝트 — 지시도 진단도 없지만 위임 블록은 자기 스위치대로.
   _scv_emit_delegate

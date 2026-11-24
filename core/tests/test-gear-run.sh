@@ -127,10 +127,15 @@ after="$(find .host-skills -type f -exec cksum {} + | LC_ALL=C sort)"
 stray="$(find . -type f -newer "$WORK/stamp" ! -path './scv/gears/*' | head -3)"
 [[ "$before" == "$after" && -z "$stray" && -d "$WORK/state" ]] && ok "T8 .host-skills 그대로, 새 파일은 scv/gears 아래에만" || bad "T8 stray=$stray"
 
-# T9 — 기어 없는 프로젝트: 목록은 한 줄 · 종료 코드 0, 매 턴 훅은 기어를 부르지 않는다
+# T9 — 기어 없는 프로젝트: 목록은 한 줄 · 종료 코드 0, 매 턴 훅은 기어 쪽을 건드리지 않는다.
+#      0.103.0 부터 훅은 기어 턴에서만 값 안내를 읽는다(계획 gear-direct-light-turn) — 기어 사전이 없는 프로젝트에서는 기어를
+#      돌리라는 꼴의 글이 와도 기어 턴이 아니고, 기어 폴더도 표시도 생기지 않는다. 훅의 기어 구간은 기어 사전이 있을 때만 열린다
 mkproj empty
 out="$(bash "$G" list 2>&1)"; rc=$?
-[[ $rc == 0 && "$out" == "기어 없음" && ! -d scv/gears ]] && ! grep -rq 'gear\.sh' "$CORE/template/hooks/" && ok "T9 기어 없음 한 줄(0), 폴더를 만들지 않음, 훅은 그대로" || bad "T9 rc=$rc out=$out"
+hk="$(jq -cn '{prompt:"action:gear run nope",session_id:"s9"}' | SCV_CORE_ROOT="$CORE" bash "$CORE/template/hooks/on-user-prompt.sh" 2>/dev/null || true)"
+[[ $rc == 0 && "$out" == "기어 없음" && ! -d scv/gears && "$hk" != *"[SCV 기어 턴]"* ]] && [[ -z "$(find scv -name '.gear-turn' 2>/dev/null)" ]] \
+  && grep -q -- '-f scv/gears/INDEX.tsv' "$CORE/template/hooks/on-user-prompt.sh" && ! grep -q 'gear\.sh' "$CORE/template/hooks/on-stop.sh" "$CORE/template/hooks/guard.sh" \
+  && ok "T9 기어 없음 한 줄(0), 폴더를 만들지 않음, 훅은 기어 쪽을 건드리지 않음" || bad "T9 rc=$rc out=$out"
 
 # T10 — 명령 글이 있고 명령 개수가 23 이다
 n="$(jq '.actions | length' "$CORE/actions.json" 2>/dev/null)"
