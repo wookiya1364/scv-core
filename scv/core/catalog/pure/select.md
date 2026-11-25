@@ -1,6 +1,6 @@
 # 고르기 — 여럿 중 일부를 골라내거나 순서를 매긴다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 47개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 46개.
 
 ### attachment_scope_filter
 - 역할: 표준입력 줄들에서 슬러그가 든 줄만 남긴다 — 슬러그가 비면 전부 통과
@@ -103,11 +103,6 @@
 - 예: `/core '' yes → "/core/DeckUI"`
 - 예: `/core sub/dir no → "/core/sub/dir"`
 - 예: `/core ../x no → "" [2]`
-
-### scv_dreams_evidence
-- 역할: 개선점 줄들이 가리킨 턴 id 의 사람 메시지를 가려 근거 줄(개선점 번호, 발췌)로 고른다
-- 위치: scripts/lib/dreams.sh · @deterministic · sh
-- 예: `$'finish\t1\t3\t\ts1/1 s1/2' $'s1\t1\t2026-10-01T01:00:00Z\tfix it\ns1\t2\t2026-10-02T01:00:00Z\tdo more' → $'1\tfix it\n1\tdo more'`
 
 ### scv_force_refresh_note
 - 역할: 표준입력 점검 stderr 에서 템플릿 자동 갱신에 관한 줄(과 뒤따르는 DIRTY/WARN 줄)만 남긴다

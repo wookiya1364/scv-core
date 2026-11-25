@@ -81,7 +81,6 @@ workspace
 handoff
 set-models
 routine
-dreams
 mods
 mods-install
 mods-remove
@@ -135,7 +134,6 @@ write, or the guard blocks the action it exists to protect. Verified by hand on
 |---|---|---|
 | codegen | 47 | no |
 | deck | 75 | no |
-| dreams | 51 | no — its only writes (scv/dreams/) are made by the minting script itself |
 | handoff | 62 | no — its writes target a temp dir, outside the working tree |
 | help | 64 (`settings-set.sh`) | no — the settings write *is* the first script call |
 | catalog-source | 46 | no — its writes (settings, catalog, the moved code) are made by the minting script itself |

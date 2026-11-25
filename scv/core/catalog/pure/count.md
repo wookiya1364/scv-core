@@ -1,6 +1,6 @@
 # 세기 — 개수 · 길이 · 합계를 센다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 28개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 25개.
 
 ### pb_gpu_summary
 - 역할: GPU 표본 줄들("사용률<탭>메모리 MB")과 시작 전 메모리 · 시작 전 사용률에서 "평균 사용률 %<탭>늘어난 메모리 MB<탭>오른 사용률 %p"를 낸다(표본이 없으면 "-" 셋)
@@ -43,21 +43,6 @@
 - 위치: scripts/lib/archive-search.sh · @deterministic · sh
 - 예: `'Fix the Login bug' $'login\nbug\nlogout' → "2"`
 - 예: `'nothing' $'login' → "0"`
-
-### scv_dreams_distribution
-- 역할: 계획마다 보관까지의 사람 질의 수와 근거 턴 id 를 센다(마지막 줄 #open 은 보관 뒤 질의 수)
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `$'s1\t1\t2026-10-01T01:00:00Z\tfix it\ns1\t2\t2026-10-02T01:00:00Z\tdo more' $'20261002\tplan-a' 0 → $'plan-a\t20261002\t2\ts1/1\n#open\t0'`
-
-### scv_dreams_periods
-- 역할: 사람 턴 줄들과 보관 줄들을 기간별 질의 · 보관 수와 비율 줄로 센다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `$'s1\t1\t2026-10-01T01:00:00Z\tfix it\ns1\t2\t2026-10-02T01:00:00Z\tdo more' $'20261002\tplan-a' 0 month → $'20261001\t20261031\t2\t1\t2.0'`
-
-### scv_dreams_totals
-- 역할: 기간 줄들에서 마지막 보관이 있는 기간까지의 질의 합과 보관 합을 센다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `$'20261001\t20261010\t5\t0\t-\n20261011\t20261020\t3\t2\t1.5' → $'8\t2'`
 
 ### scv_gear_body_lines
 - 역할: 톱니 본문의 줄 수를 센다 — 빈 줄, 첫 줄의 #!, set 으로 시작하는 줄은 세지 않는다
