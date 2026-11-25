@@ -1,7 +1,0 @@
-dir ../scv-codex
-bash plugins/scv/tests/test-shared-core-adapter.sh
-bash plugins/scv/tests/test-apply-model-policy.sh
-COPYFILE_DISABLE=1 bash plugins/scv/tests/test-vendor-core.sh
-bash plugins/scv/prompting/check.sh
-bash plugins/scv/vendor/scv-core/tools/check-readme.sh --profile codex .
-COPYFILE_DISABLE=1 bash plugins/scv/tests/test-vendor-core-atomicity.sh
