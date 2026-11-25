@@ -2866,3 +2866,10 @@ merge_policy: preserve
 - path delta: 계획에 덧붙인 것: 증거 그림 크게 보기, 단계 흐름 줄을 문장만으로(함수 목록은 누른 단계의 상세로 옮김 — 처음에 자리를 잘못 읽었다), 컨텍스트 요약 기준 막대, 폴더 · 브랜치 줄과 브랜치 바꾸기. 가드 계약 글의 규칙 W 절은 합친 뒤에 채웠다. 7단계(실제 창의 세 장면 사진)는 하지 못했다 — 사용자가 실제 창을 본 뒤 병합을 지시했다.
 - refs: scv/archive/20261125-wookiya1364-visible-evidence-background/PLAN.md
 - conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-25 15:59] wookiya1364 — 비우기로 줄인다 — 대화가 길어지면 요약 대신 비우고 기록의 끝부분으로 새로 시작
+
+- verdict: adopted
+- why: 사용자가 정함(2026-11-25). 공식 문서가 여러 컨텍스트에 걸친 긴 일에 상태를 파일에 두고 새 컨텍스트로 시작하는 것을 권하고, 모델이 쓰는 요약은 이 세션에서 86~148초가 걸렸다. 화면 없는 실행 1회로 비운 뒤 훅의 글이 실리고 뒤에서 돌던 일의 알림이 오는 것을 확인했다.
+- discarded alternatives: 기록으로 바꿔 끼우기를 엔진 요약까지 넓히기 — 제가 추천했으나 사용자가 고르지 않음(가이드의 글자에는 비우기가 더 가까움). 지금 그대로 — 엔진이 쓴 요약이 가끔 남음.
+- refs: scv/promote/20261125-wookiya1364-clear-lighten/PLAN.md

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="174" viewBox="0 0 720 174" font-family="-apple-system, sans-serif">
+<rect width="720" height="174" fill="#fcfcfb"/>
+<text x="20" y="34" font-size="17" font-weight="500" fill="#0b0b0b">비운 뒤 훅이 싣는 글자 수 — 30,100자 기록 (두 셸 같은 값)</text>
+<text x="290" y="70" font-size="12" text-anchor="end" fill="#52514e">전: 훅 출력 전체</text>
+<rect x="300" y="56" width="300" height="16" rx="3" fill="#2a78d6"/>
+<text x="608" y="69" font-size="12" fill="#0b0b0b">30810</text>
+<text x="290" y="96" font-size="12" text-anchor="end" fill="#52514e">후: 훅 출력 전체</text>
+<rect x="300" y="82" width="120" height="16" rx="3" fill="#2a78d6"/>
+<text x="428" y="95" font-size="12" fill="#0b0b0b">12426</text>
+<text x="290" y="122" font-size="12" text-anchor="end" fill="#52514e">전: 그 가운데 기록</text>
+<rect x="300" y="108" width="293" height="16" rx="3" fill="#2a78d6"/>
+<text x="601" y="121" font-size="12" fill="#0b0b0b">30099</text>
+<text x="290" y="148" font-size="12" text-anchor="end" fill="#52514e">후: 그 가운데 기록</text>
+<rect x="300" y="134" width="112" height="16" rx="3" fill="#2a78d6"/>
+<text x="420" y="147" font-size="12" fill="#0b0b0b">11545</text>
+</svg>
