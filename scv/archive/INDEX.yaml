@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by action:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-25T06:00:13Z
+generated_at: 2026-11-25T13:49:27Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -656,6 +656,15 @@ archives:
     kind: feature
     status: testing
     epic: 20261124-gears
+  - slug: 20261125-wookiya1364-clear-lighten
+    title: "비우기로 줄인다 — 대화가 길어지면 요약 대신 비우고, 기록의 끝부분으로 새로 시작한다"
+    kind: feature
+    status: in_progress
+  - slug: 20261125-wookiya1364-mirror-controls
+    title: "거울 창에서도 누른다 — 묻기 모드 · 자동 요약 · 기어 실행 · 브랜치, 그리고 낱말 카드"
+    kind: feature
+    status: in_progress
+    epic: 20261125-words
   - slug: 20261125-wookiya1364-principle-once-context
     title: "원칙 글도 맥락에 한 번만 — 판정을 지문 비교에서 맥락 표시로"
     kind: feature
@@ -668,3 +677,8 @@ archives:
     title: "단계 증거를 눈에 보이게 · 뒤에서 도는 일은 뒤에서"
     kind: feature
     status: in_progress
+  - slug: 20261125-wookiya1364-words
+    title: "낱말 사전 — 피할 말을 정해 두면 같은 계열의 말까지 바꿔 말한다 (명령 words)"
+    kind: feature
+    status: in_progress
+    epic: 20261125-words
