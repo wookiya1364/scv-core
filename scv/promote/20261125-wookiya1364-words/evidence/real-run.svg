@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="380" height="689" viewBox="0 0 380 689" font-family="-apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif">
+<rect width="380" height="689" fill="#0f1117"/>
+<text x="14" y="24" font-size="14" font-weight="600" fill="#ffffff">낱말 사전 — 실제로 돌린 결과</text>
+<text x="14" y="46" font-size="12" font-weight="600" fill="#8ab4ff">1. 사전 — words.sh list 의 출력</text>
+<rect x="14" y="54" width="352" height="65" rx="6" fill="#171a23" stroke="#2a2f3d"/>
+<text x="22" y="73" font-size="11.5" fill="#e7e9f0" xml:space="preserve">재다  │  측정하다  │  잰, 재서, 재 본, 재 봤, 쟀다, 재는</text>
+<text x="22" y="90" font-size="11.5" fill="#e7e9f0" xml:space="preserve">유저  │  사용자  │  유저들</text>
+<text x="22" y="107" font-size="11.5" fill="#e7e9f0" xml:space="preserve">utilize  │  use  │  utilizes, utilized, utilizing</text>
+<text x="14" y="145" font-size="12" font-weight="600" fill="#8ab4ff">2. 대화 첫머리에 한 번 실린 묶음 — 매 턴 훅의 출력</text>
+<rect x="14" y="153" width="352" height="150" rx="6" fill="#171a23" stroke="#2a2f3d"/>
+<text x="22" y="172" font-size="11.5" fill="#e7e9f0" xml:space="preserve">[SCV 낱말] 아래 왼쪽 말은 쓰지 않는다 — 그 활용 · 같은 계열의 </text>
+<text x="22" y="189" font-size="11.5" fill="#e7e9f0" xml:space="preserve">말도 쓰지 않는다(괄호 안의 꼴은 예일 뿐 전부가 아니다). 오른쪽</text>
+<text x="22" y="206" font-size="11.5" fill="#e7e9f0" xml:space="preserve">말을 문장에 맞게 활용해 쓴다. 사용자가 읽는 모든 글(답 · 중간 </text>
+<text x="22" y="223" font-size="11.5" fill="#e7e9f0" xml:space="preserve">보고 · 요약)에 적용하고, 코드 · 파일 이름 · 인용한 사용자 글 ·</text>
+<text x="22" y="240" font-size="11.5" fill="#e7e9f0" xml:space="preserve">명령에는 적용하지 않는다.</text>
+<text x="22" y="257" font-size="11.5" fill="#e7e9f0" xml:space="preserve">- 재다(잰, 재서, 재 본, 재 봤, 쟀다, 재는) → 측정하다</text>
+<text x="22" y="274" font-size="11.5" fill="#e7e9f0" xml:space="preserve">- 유저(유저들) → 사용자</text>
+<text x="22" y="291" font-size="11.5" fill="#e7e9f0" xml:space="preserve">- utilize(utilizes, utilized, utilizing) → use</text>
+<text x="14" y="329" font-size="12" font-weight="600" fill="#8ab4ff">3. 답(예) — 피할 말이 든 채로 나감</text>
+<rect x="14" y="337" width="352" height="116" rx="6" fill="#171a23" stroke="#2a2f3d"/>
+<text x="22" y="356" font-size="11.5" fill="#e7e9f0" xml:space="preserve">**속도 비교**</text>
+<text x="22" y="373" font-size="11.5" fill="#e7e9f0" xml:space="preserve"></text>
+<text x="22" y="390" font-size="11.5" fill="#e7e9f0" xml:space="preserve">두 방식을 <tspan fill="#ff8a7a" font-weight="600">잰</tspan> 값은 3.1초와 2.4초임.</text>
+<text x="22" y="407" font-size="11.5" fill="#e7e9f0" xml:space="preserve"></text>
+<text x="22" y="424" font-size="11.5" fill="#e7e9f0" xml:space="preserve">- 캐시를 켜고 다시 <tspan fill="#ff8a7a" font-weight="600">재 봤</tspan>을 때 1.9초였음</text>
+<text x="22" y="441" font-size="11.5" fill="#e7e9f0" xml:space="preserve">- <tspan fill="#ff8a7a" font-weight="600">유저</tspan>가 느끼는 차이는 이 구간에서 가장 큼</text>
+<text x="14" y="479" font-size="12" font-weight="600" fill="#8ab4ff">4. 답 뒤 검사 — words.sh check 의 출력</text>
+<rect x="14" y="487" width="352" height="65" rx="6" fill="#171a23" stroke="#2a2f3d"/>
+<text x="22" y="506" font-size="11.5" fill="#ffd479" xml:space="preserve">WORDS_HIT: 잰 → 측정하다</text>
+<text x="22" y="523" font-size="11.5" fill="#ffd479" xml:space="preserve">WORDS_HIT: 유저 → 사용자</text>
+<text x="22" y="540" font-size="11.5" fill="#ffd479" xml:space="preserve">exit 1</text>
+<text x="14" y="578" font-size="12" font-weight="600" fill="#8ab4ff">5. 다음 턴에 실린 한 줄 — 답은 다시 쓰지 않음</text>
+<rect x="14" y="586" width="352" height="65" rx="6" fill="#171a23" stroke="#2a2f3d"/>
+<text x="22" y="605" font-size="11.5" fill="#7bd88f" xml:space="preserve">[SCV 낱말] 직전 답에 피할 말이 있었다: 잰 → 측정하다, 유저 → </text>
+<text x="22" y="622" font-size="11.5" fill="#7bd88f" xml:space="preserve">사용자 — 같은 뜻으로 쓴 것이면 이번 답부터 바꿔 말하라(직전 답</text>
+<text x="22" y="639" font-size="11.5" fill="#7bd88f" xml:space="preserve">은 다시 쓰지 않는다).</text>
+<text x="14" y="673" font-size="11" fill="#9096a8">같은 세션의 둘째 턴에 실린 묶음: 0번 · 턴 끝 훅이 막은 출력: 없음</text>
+</svg>
