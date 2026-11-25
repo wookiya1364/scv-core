@@ -2826,3 +2826,11 @@ merge_policy: preserve
 - path delta: 계획에 없던 것 하나: 기어 턴은 훅이 등록 안내의 출력을 버리는데 그때 원칙 표시가 남으면 그 맥락에서 전문이 끝내 실리지 않아, 건너뛰는 인자(--no-principle)와 시험(test-gear-turn T7)을 더함. 새 순수 함수의 종류는 사전 한도(400줄) 때문에 판정/gate 로 둠
 - refs: scv/archive/20261125-wookiya1364-principle-once-context/PLAN.md
 - conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-25 11:16] wookiya1364 — 단계 증거를 눈에 보이게 · 뒤에서 도는 일은 뒤에서
+
+- verdict: adopted
+- why: 사용자 지시(2026-11-25): 사람은 코드를 보지 않고 처음과 끝만 본다 — 단계 증거는 영상 · 이미지 · 차트만, 소스코드는 증거에서 없앤다. 화면이 없는 단계는 순수 함수 목록을 끝난 뒤에도 남긴다. 오래 도는 일은 뒤에서 돌리고 대시보드에 진행 중(백그라운드)로 구분한다. SCV 규칙에 넣어 꼭 지키게 한다.
+- discarded alternatives: 끝 단계에만 증거를 꼭 넣기 — 사용자가 단계마다를 고름. 뒤에서 일하기를 이 프로젝트의 메모로만 지키기 — 사용자가 SCV 규칙에 넣으라고 함.
+- refs: scv/promote/20261125-wookiya1364-visible-evidence-background/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
