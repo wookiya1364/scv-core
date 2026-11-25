@@ -144,7 +144,7 @@ sequenceDiagram
   participant M as Model
   Note over H: session start · after compaction or /clear<br>on-session-start.sh — resume recap (SCV_RESUME_RECAP)
   U->>H: message
-  H->>M: on-user-prompt.sh — route to help (SCV_ALWAYS_ON)<br>diagnosis · plain language · choices · show the real thing<br>model guide rewrite (SCV_MODEL_PROMPTING) · dreams line
+  H->>M: on-user-prompt.sh — route to help (SCV_ALWAYS_ON)<br>diagnosis · plain language · choices · show the real thing<br>model guide rewrite (SCV_MODEL_PROMPTING)
   M->>H: register the rewritten request and the turn's scope
   M->>H: tool call
   H-->>M: guard.sh — refuse writes before registration<br>or outside the workflow without an SCV action
@@ -167,12 +167,6 @@ sequenceDiagram
   report `core/scripts/show-real-report.sh` measures it over past sessions: its
   rules settle most turns, and the turns they cannot settle go to the host's
   judge command (`SCV_JUDGE_COMMAND`, host profile).
-- **Dreams** — after compaction or `/clear` and on the first human message of a
-  new day, a background run looks back over past session records and the
-  archive, and writes an HTML report under `scv/dreams/`: human queries per plan
-  and how to write better requests; the next turn carries one summary line
-  (`SCV_DREAMS`, `SCV_DREAMS_JUDGE`, `action:dreams`). It never changes its
-  inputs.
 - **Resume recap** — after compaction, `/clear`, or a resume, the session-start
   hook re-injects active plans, recent decisions, open items, and the active
   conversation (`SCV_RESUME_RECAP`).

@@ -16,19 +16,6 @@
 - 예: `HEADLESS=1 0 → "0"`
 - 예: `"" 1 → "0"`
 
-### scv_dreams_day_trigger
-- 역할: 지난 드림 날짜와 오늘 날짜가 달라 드림을 띄울 때인지 1 또는 0 으로 낸다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `"" 20261001 → '1'`
-- 예: `20261001 20261001 → '0'`
-- 예: `20260930 20261001 → '1'`
-
-### scv_dreams_start_trigger
-- 역할: 훅 입력의 source 값이 드림을 띄울 때(clear · compact)인지 1 또는 0 으로 낸다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `clear → '1'`
-- 예: `startup → '0'`
-
 ### scv_drift_decide
 - 역할: 메아리 판정 · 린트 위반 · 스위치로 규약을 다시 실을지(1|0)와 다음 턴 경고 줄을 정한다
 - 위치: scripts/lib/help-state.sh · @pure · sh
@@ -148,6 +135,13 @@
 - 예: `loaded 1 1 0 → $'unshown\n'`
 - 예: `none 0 0 0 → ""`
 
+### scv_mp_warn_has_principle
+- 역할: 경고 글에 원칙 검사가 남긴 줄("[SCV 원칙]")이 있는지 가른다
+- 위치: scripts/lib/model-prompting.sh · @pure · sh
+- 예: `$'[SCV 직전 답] [SCV 원칙] 문제 표 없이 다시 써라.\n' → "1"`
+- 예: `$'[SCV 확인 범위] 끝 보고에 고칠 것\n' → "0"`
+- 예: `"" → "0"`
+
 ### scv_mp_write_gate
 - 역할: 이번 턴 등록 상태로 파일 쓰기를 허용할지(ok · unregistered · answered · forbidden) 정한다
 - 위치: scripts/lib/model-prompting.sh · @pure · sh
@@ -189,3 +183,14 @@
 - 예: `abc abc 1.0.0 1.0.0 → "skip:same"`
 - 예: `abc def 1.1.0 1.0.0 → "skip:backward"`
 - 예: `abc def 1.1.0 1.2.0 → "refresh"`
+
+### scv_wait_kind
+- 역할: 도구 입력이 앞에서 오래 기다리는 호출인지 가른다 — 긴 대기 값이면 wait, 뒤로 보내지 않은 셸 명령이 잠자기로 기다리면 sleep, 아니면 none
+- 위치: scripts/lib/wait-gate.sh · @pure · sh
+- 예: `200000 "" "" → "wait"`
+- 예: `5000 "" "" → "none"`
+- 예: `"" "" "sleep 120 && tail log" → "sleep"`
+- 예: `"" true "sleep 120 && tail log" → "none"`
+- 예: `"" "" "until grep -q DONE log; do sleep 15; done" → "sleep"`
+- 예: `"" "" "sleep 2; echo ok" → "none"`
+- 예: `"" "" "echo 잠자기 sleepy" → "none"`

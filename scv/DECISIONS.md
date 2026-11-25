@@ -2797,3 +2797,72 @@ merge_policy: preserve
 - path delta: 계획은 값 안내를 모델이 읽게 했으나, 재 보니 그 읽기가 호출 한 번이라 훅이 미리 읽어 싣게 바꿈. 오래 도는 실행은 뒤 실행 대신 흘려 읽는 실행으로. 자동 가볍게는 모드가 정리를 직접 부르면 자기 처리기를 건너뛰어, 정리 명령을 돌리는 길로 바꿈. 그림 규칙 다듬기를 11단계로 더함. 어긋나는 지시 표의 사용자 확인은 자는 동안이라 추천대로 정하고 표에 적음. 릴리스는 사용자가 밤에 시킴
 - refs: scv/archive/20261124-wookiya1364-gear-direct-light-turn/PLAN.md
 - conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-25 08:01] wookiya1364 — 매 턴 규칙 글은 한 번만 · 숫자 길이 상한 없애기 archived
+
+- verdict: archived
+- why: 답 검사의 문장 수 · 불릿 길이 상한을 없애고, 매 턴 규칙 글 다섯 덩어리를 '이 맥락에 한 번 + 경고가 남은 턴에 다시'로 바꿈(0.96.0 · 0.97.1). 릴리스 뒤 실제 세션(다른 프로젝트 35개 · 사람 턴 1,530개)으로 재니 한 줄 턴은 0% → 40%, 규칙 글 덩어리는 2.5 → 1.9 KB 로 줄었지만 턴 전체 글은 줄지 않음(평균 6.3 → 6.1 KB) — 원칙 글이 한 줄 턴에도 거의 매번 전부 실리고, 경고 턴이 32% 라서임. 계획 때 어림한 54–63% 감소는 나오지 않았음. 끄는 설정 SCV_RULES_ONCE=off 는 이전 동작 그대로여야 함.
+- path delta: 계획 6단계에서 8단계로 늘어남: 0.96.0 실제 세션에서 전문 턴이 두 번 생기는 결함(7단계)과 지문이 비어 매 턴 전문이던 결함(8단계 — 판정 근거를 맥락 표시로)을 발견해 더함. 6단계 측정은 맨 끝에 함
+- refs: scv/archive/20261120-wookiya1364-rules-once-no-caps/PLAN.md
+
+## [2026-11-25 08:01] wookiya1364 — 질의에 맞는 effort 추천 · 새 세션 제안 계획 삭제
+
+- verdict: not-needed
+- why: 사용자 결정(2026-11-25): 시작하지 않은 계획을 지움. 6단계 모두 손대지 않았고 코드 변경은 없음. 계획 글은 git 이력(2026-11-20 커밋)에 남아 있음.
+- path delta: as planned
+
+## [2026-11-25 08:08] wookiya1364 — 원칙 글도 맥락에 한 번만 — 판정을 지문 비교에서 맥락 표시로
+
+- verdict: adopted
+- why: 실제 세션 측정에서 원칙 글 전문이 한 줄 턴 108개 중 105개에 실려 턴 전체 글이 줄지 않았다. 원칙 글의 판정을 규칙 글과 같은 맥락 표시로 옮기고, 원칙 경고가 남은 턴과 초기화 뒤 첫 턴에만 전문을 다시 싣는다. 사용자 결정 2026-11-25(선택 창: 고치기).
+- discarded alternatives: 그대로 두기 — 매 턴 글이 평균 6 KB 쯤으로 남음. 다른 경고가 남은 턴에도 원칙 전문 싣기 — 경고 턴이 32% 라 줄어드는 폭이 작아짐.
+- refs: scv/promote/20261125-wookiya1364-principle-once-context/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-25 09:10] wookiya1364 — 원칙 글도 맥락에 한 번만 — 판정을 지문 비교에서 맥락 표시로 archived
+
+- verdict: archived
+- why: 원칙 글 전문을 '이 맥락에 실었다는 표시'로 판정하게 바꿈 — 첫 턴, 대화 초기화 뒤 첫 턴, 원칙 경고가 남은 턴에만 전문. 실제 세션 기록 재계산(276턴)에서 원칙 전문이 실린 턴 259 → 19, 턴 글 평균 6.2 → 4.3 KB. 재계산 값이라 릴리스 뒤 실제 세션으로 다시 재야 함. SCV_RULES_ONCE=off 는 이전의 지문 비교 그대로여야 하고, 출력을 버리는 호출(기어 턴)은 표시를 쓰지 않아야 함.
+- path delta: 계획에 없던 것 하나: 기어 턴은 훅이 등록 안내의 출력을 버리는데 그때 원칙 표시가 남으면 그 맥락에서 전문이 끝내 실리지 않아, 건너뛰는 인자(--no-principle)와 시험(test-gear-turn T7)을 더함. 새 순수 함수의 종류는 사전 한도(400줄) 때문에 판정/gate 로 둠
+- refs: scv/archive/20261125-wookiya1364-principle-once-context/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-25 10:55] wookiya1364 — dreams 걷어내기 — 기능 · 안내 글 · 대시보드 칸 · 보고서 파일
+
+- verdict: adopted
+- why: 사용자 판단(2026-11-25): dreams 는 실익이 없다. 본체의 액션 · 훅 구간 · 규약 · 설정 · 시험과 대시보드의 드림 칸을 지우고, 이 프로젝트의 보고서 파일도 목록을 보인 뒤 지운다. 릴리스는 넣지 않는다.
+- discarded alternatives: 기능은 지우고 보고서 파일은 두기 — 사용자가 파일까지 삭제를 고름. 릴리스까지 하기 — 사용자가 릴리스는 빼기로 함. 래퍼에서 지금 지우기 — 래퍼는 릴리스된 본체를 싣기 때문에 본체 릴리스 때 함께.
+- refs: scv/promote/20261125-wookiya1364-remove-dreams/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-25 11:16] wookiya1364 — 단계 증거를 눈에 보이게 · 뒤에서 도는 일은 뒤에서
+
+- verdict: adopted
+- why: 사용자 지시(2026-11-25): 사람은 코드를 보지 않고 처음과 끝만 본다 — 단계 증거는 영상 · 이미지 · 차트만, 소스코드는 증거에서 없앤다. 화면이 없는 단계는 순수 함수 목록을 끝난 뒤에도 남긴다. 오래 도는 일은 뒤에서 돌리고 대시보드에 진행 중(백그라운드)로 구분한다. SCV 규칙에 넣어 꼭 지키게 한다.
+- discarded alternatives: 끝 단계에만 증거를 꼭 넣기 — 사용자가 단계마다를 고름. 뒤에서 일하기를 이 프로젝트의 메모로만 지키기 — 사용자가 SCV 규칙에 넣으라고 함.
+- refs: scv/promote/20261125-wookiya1364-visible-evidence-background/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-25 15:00] wookiya1364 — dreams 걷어내기 archived
+
+- verdict: archived
+- why: 본체에서 dreams 의 스크립트 · 규약 · 설정 · 훅 구간 · 시험을 지웠고 액션은 22개가 됐다. 대시보드의 드림 칸과 이 프로젝트의 보고서 파일도 지웠다. 관련 시험과 저장소 수준 시험 통과.
+- path delta: 계획에 없던 것: 다른 두 가지와 합친 뒤 빠른 검사에서 액션 수 23을 박아 둔 네 자리(저장소 수준 액션 시험 · 내보내기 검증 · README 표식 목록 · 규약 글 모양 절의 수)가 드러나 22로 고쳤다. 두 래퍼의 명령 · 스킬은 릴리스 맞춤에서 지운다.
+- refs: scv/archive/20261125-wookiya1364-remove-dreams/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-25 15:00] wookiya1364 — 반복 알아채기(기어 알림) archived
+
+- verdict: archived
+- why: 매 턴 훅이 사람 요청을 기록 폴더에 쌓고 지난 요청 · 기어 사전과 맞춰, 겹칠 때만 알림 한 줄을 싣는다. 새 시험 12개 통과. 실제 세션에서 이미 있는 기어와 겹치는 알림이 뜨는 것은 보았다.
+- path delta: 9단계(같은 요청을 두 번 해 선택 창이 뜨는 것을 사용자에게 보이기)는 하지 못했다 — 사용자가 병합 · 릴리스를 지시해(2026-11-25) 그 확인 없이 마감했다. 그 밖은 계획대로.
+- refs: scv/archive/20261124-wookiya1364-gears-detect/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-25 15:00] wookiya1364 — 단계 증거를 눈에 보이게 · 뒤에서 도는 일은 뒤에서 archived
+
+- verdict: archived
+- why: 대시보드가 그림 · 영상 · 페이지만 증거로 받고, 본체에 막대 그림 명령과 가드 규칙 W(앞에서 오래 기다리는 호출 거절)를 더했고, 일 규약의 단계 보고 절을 고쳤다. 모드 시험 209 · 본체 관련 시험 통과.
+- path delta: 계획에 덧붙인 것: 증거 그림 크게 보기, 단계 흐름 줄을 문장만으로(함수 목록은 누른 단계의 상세로 옮김 — 처음에 자리를 잘못 읽었다), 컨텍스트 요약 기준 막대, 폴더 · 브랜치 줄과 브랜치 바꾸기. 가드 계약 글의 규칙 W 절은 합친 뒤에 채웠다. 7단계(실제 창의 세 장면 사진)는 하지 못했다 — 사용자가 실제 창을 본 뒤 병합을 지시했다.
+- refs: scv/archive/20261125-wookiya1364-visible-evidence-background/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md

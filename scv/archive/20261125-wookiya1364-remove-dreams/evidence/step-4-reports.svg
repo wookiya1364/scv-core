@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="122" viewBox="0 0 720 122" font-family="-apple-system, sans-serif">
+<rect width="720" height="122" fill="#fcfcfb"/>
+<text x="20" y="34" font-size="17" font-weight="500" fill="#0b0b0b">이 프로젝트의 dreams 보고서 파일 — 지우기 전 → 뒤</text>
+<text x="290" y="70" font-size="12" text-anchor="end" fill="#52514e">보고서 파일 (전)</text>
+<rect x="300" y="56" width="330" height="16" rx="3" fill="#2a78d6"/>
+<text x="638" y="69" font-size="12" fill="#0b0b0b">57</text>
+<text x="290" y="96" font-size="12" text-anchor="end" fill="#52514e">보고서 파일 (뒤)</text>
+<rect x="300" y="82" width="1" height="16" rx="3" fill="#2a78d6"/>
+<text x="309" y="95" font-size="12" fill="#0b0b0b">0</text>
+</svg>

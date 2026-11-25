@@ -1,6 +1,6 @@
 # 조립/gear — 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 9개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 11개.
 
 ### scv_gear_args_apply
 - 역할: 톱니가 선언한 인자 줄들에 덮는 값을 얹는다 — 선언한 이름만 남고, 덮는 묶음에 있으면 그 값, 없으면 기본값
@@ -46,6 +46,20 @@
 - 예: `$'g\tgear\t-\tlines\tlines\t앞 줄\t\tcount=3\nup\ttooth\tpure\ttext\ttext\t대문자\t' "gear" → $'g\tlines → lines\tcount=3\t앞 줄'`
 - 예: `$'g\tgear\t-\tlines\tlines\t앞 줄\t\tcount=3\nup\ttooth\tpure\ttext\ttext\t대문자\t' "tooth" → $'up\tpure\ttext → text\t-\t대문자'`
 - 예: `"" "gear" → ""`
+
+### scv_gear_notice_line
+- 역할: 알림 한 줄을 만든다 — 맞는 기어가 있으면 그 기어를, 없고 비슷한 지난 요청이 있으면 기어로 만들지 묻게 하는 줄을. 둘 다 없으면 빈 값
+- 위치: scripts/lib/gear.sh · @pure · sh
+- 예: `$'release-ci\t릴리스 전 검사' "" "/c/gear.sh" → "[SCV 기어 알림] 이 요청과 낱말이 겹치는 기어가 있다: release-ci — 릴리스 전 검사. 같은 일이면 그 기어로 하라(bash /c/gear.sh run release-ci, 값은 bash /c/gear.sh ask release-ci). 다른 일이면 이 줄을 무시한다."`
+- 예: `"" $'2\t릴리스 노트 써줘' "/c/gear.sh" → "[SCV 기어 알림] 비슷한 요청이 전에도 있었다(2번): \"릴리스 노트 써줘\" — 같은 일의 반복이면 이번 일을 마친 뒤 선택 도구로 \"이것을 별도의 기어로 만들어 재사용할 수 있게 할까요?\"를 물어라(만들기: SCV gear 액션 · 만들지 않음: bash /c/gear.sh decline). 다른 일이면 묻지 말고 이 줄을 무시한다."`
+- 예: `"" "" "/c/gear.sh" → ""`
+
+### scv_gear_request_line
+- 역할: 요청 기록에 쌓을 한 줄을 만든다 — "날짜<탭>맞춰 보기용 글<탭>보이는 글(한 줄, 80바이트 안쪽에서 글자 경계로 자름)"
+- 위치: scripts/lib/gear.sh · @deterministic · sh
+- 예: `"릴리스 노트를 써 줘" "2026-11-25" → $'2026-11-25\t릴리스노트를써줘\t릴리스 노트를 써 줘'`
+- 예: `$'첫 줄\n둘째\t줄' "2026-11-25" → $'2026-11-25\t첫줄둘째줄\t첫 줄 둘째 줄'`
+- 예: `"" "2026-11-25" → ""`
 
 ### scv_gear_tooth_entry
 - 역할: 톱니 사전에 덧붙일 항목 글을 만든다 — 이름 · 역할 · 표시 · 값 · 예시(있으면)
