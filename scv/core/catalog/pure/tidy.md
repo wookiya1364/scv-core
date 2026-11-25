@@ -1,6 +1,6 @@
 # 다듬기 — 글자를 정리한다 — 공백 · 대소문자 · 이스케이프 · 자르기
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 20개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 18개.
 
 ### record_kind_normalize
 - 역할: 기록 종류 이름의 앞뒤 공백을 떼고 소문자로 맞춘다 — 모르는 종류는 빈 값
@@ -19,18 +19,6 @@
 - 위치: scripts/lib/archive-search.sh · @deterministic · sh
 - 예: `'short line' short 100 → "short line"`
 - 예: `'aaaaaaaaaaaaaaaaaaaaTARGETbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' TARGET 20 → "…aaaaaaTARGETbbbbbbbb…"`
-
-### scv_dreams_esc
-- 역할: 글의 & · 꺾쇠 · 따옴표 · « » 를 HTML 에 넣을 수 있게 이스케이프한다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `"a & b" → 'a &amp; b'`
-- 예: `"x«y»" → 'x&laquo;y&raquo;'`
-
-### scv_dreams_mask
-- 역할: 글을 한 줄로 줄이고 경로 · 메일 · id · 열쇠 값을 가려 정해진 글자 수까지 자른다
-- 위치: scripts/lib/dreams.sh · @deterministic · sh
-- 예: `"mail a@b.com token=abc123 /opt/x/y" → 'mail [메일] token=[REDACTED] [경로]'`
-- 예: `"abcdefghij" 5 → 'abcde…'`
 
 ### scv_force_trim_diagnosis
 - 역할: 표준입력 점검 출력에서 진단부터 끝까지만 남긴다(표지를 못 찾으면 전체 그대로)

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="226" viewBox="0 0 720 226" font-family="-apple-system, sans-serif">
+<rect width="720" height="226" fill="#fcfcfb"/>
+<text x="20" y="34" font-size="17" font-weight="500" fill="#0b0b0b">본체에서 dreams 걷어내기 — 지우기 전 → 뒤</text>
+<text x="290" y="70" font-size="12" text-anchor="end" fill="#52514e">dreams 가 든 줄 (전)</text>
+<rect x="300" y="56" width="185" height="16" rx="3" fill="#2a78d6"/>
+<text x="493" y="69" font-size="12" fill="#0b0b0b">264</text>
+<text x="290" y="96" font-size="12" text-anchor="end" fill="#52514e">dreams 가 든 줄 (뒤)</text>
+<rect x="300" y="82" width="1" height="16" rx="3" fill="#2a78d6"/>
+<text x="309" y="95" font-size="12" fill="#0b0b0b">0</text>
+<text x="290" y="122" font-size="12" text-anchor="end" fill="#52514e">액션 수 (전)</text>
+<rect x="300" y="108" width="16" height="16" rx="3" fill="#2a78d6"/>
+<text x="324" y="121" font-size="12" fill="#0b0b0b">23</text>
+<text x="290" y="148" font-size="12" text-anchor="end" fill="#52514e">액션 수 (뒤)</text>
+<rect x="300" y="134" width="15" height="16" rx="3" fill="#2a78d6"/>
+<text x="323" y="147" font-size="12" fill="#0b0b0b">22</text>
+<text x="290" y="174" font-size="12" text-anchor="end" fill="#52514e">사전의 순수 함수 (전)</text>
+<rect x="300" y="160" width="330" height="16" rx="3" fill="#2a78d6"/>
+<text x="638" y="173" font-size="12" fill="#0b0b0b">469</text>
+<text x="290" y="200" font-size="12" text-anchor="end" fill="#52514e">사전의 순수 함수 (뒤)</text>
+<rect x="300" y="186" width="311" height="16" rx="3" fill="#2a78d6"/>
+<text x="619" y="199" font-size="12" fill="#0b0b0b">442</text>
+</svg>

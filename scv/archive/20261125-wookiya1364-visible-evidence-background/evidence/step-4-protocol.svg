@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="148" viewBox="0 0 720 148" font-family="-apple-system, sans-serif">
+<rect width="720" height="148" fill="#fcfcfb"/>
+<text x="20" y="34" font-size="17" font-weight="500" fill="#0b0b0b">일 규약의 단계 보고 절 — 넣은 것</text>
+<text x="290" y="70" font-size="12" text-anchor="end" fill="#52514e">증거 규칙(눈에 보이는 것만)</text>
+<rect x="300" y="56" width="300" height="16" rx="3" fill="#2a78d6"/>
+<text x="608" y="69" font-size="12" fill="#0b0b0b">1</text>
+<text x="290" y="96" font-size="12" text-anchor="end" fill="#52514e">뒤에서 일하기 규칙</text>
+<rect x="300" y="82" width="300" height="16" rx="3" fill="#2a78d6"/>
+<text x="608" y="95" font-size="12" fill="#0b0b0b">1</text>
+<text x="290" y="122" font-size="12" text-anchor="end" fill="#52514e">새 설정 키</text>
+<rect x="300" y="108" width="300" height="16" rx="3" fill="#2a78d6"/>
+<text x="608" y="121" font-size="12" fill="#0b0b0b">1</text>
+</svg>

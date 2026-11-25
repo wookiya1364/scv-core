@@ -271,3 +271,12 @@ decision	대시보드-—-치면-맞는-기어가-뜨고-	scv/DECISIONS.md	33993
 decision	대시보드-—-치면-맞는-기어가-뜨고-	scv/DECISIONS.md	340929	1016	2026-11-24 22:23	[archived] 대시보드 — 치면 맞는 기어가 뜨고, 기어 칸은 역할 먼저 한 줄씩 archived
 decision	기어는-모델-없이-바로-돌고-대화-턴	scv/DECISIONS.md	341945	1126	2026-11-24 22:39	[adopted] 기어는 모델 없이 바로 돌고, 대화 턴은 가볍게 — 어긋나는 지시 정리
 decision	기어는-모델-없이-바로-돌고-대화-턴	scv/DECISIONS.md	343071	1194	2026-11-25 00:41	[archived] 기어는 모델 없이 바로 돌고, 대화 턴은 가볍게 — 어긋나는 지시 정리 (보관)
+decision	매-턴-규칙-글은-한-번만-숫자-길이-상한-없애기-archived	scv/DECISIONS.md	344265	1139	2026-11-25 08:01	[archived] 매 턴 규칙 글은 한 번만 · 숫자 길이 상한 없애기 archived
+decision	질의에-맞는-effort-추천-새-세션-제안-계획-삭제	scv/DECISIONS.md	345404	350	2026-11-25 08:01	[not-needed] 질의에 맞는 effort 추천 · 새 세션 제안 계획 삭제
+decision	원칙-글도-맥락에-한-번만-판정을-지문-비교에서-맥락-표시로	scv/DECISIONS.md	345754	842	2026-11-25 08:08	[adopted] 원칙 글도 맥락에 한 번만 — 판정을 지문 비교에서 맥락 표시로
+decision	원칙-글도-맥락에-한-번만-판정을-지문-비교에서-맥락-표시로-archived	scv/DECISIONS.md	346596	1160	2026-11-25 09:10	[archived] 원칙 글도 맥락에 한 번만 — 판정을 지문 비교에서 맥락 표시로 archived
+decision	dreams-걷어내기-기능-안내-글-대시보드-칸-보고서-파일	scv/DECISIONS.md	347756	861	2026-11-25 10:55	[adopted] dreams 걷어내기 — 기능 · 안내 글 · 대시보드 칸 · 보고서 파일
+decision	단계-증거를-눈에-보이게-뒤에서-도는-일은-뒤에서	scv/DECISIONS.md	348617	919	2026-11-25 11:16	[adopted] 단계 증거를 눈에 보이게 · 뒤에서 도는 일은 뒤에서
+decision	dreams-걷어내기-archived	scv/DECISIONS.md	349536	824	2026-11-25 15:00	[archived] dreams 걷어내기 archived
+decision	반복-알아채기-기어-알림-archived	scv/DECISIONS.md	350360	751	2026-11-25 15:00	[archived] 반복 알아채기(기어 알림) archived
+decision	단계-증거를-눈에-보이게-뒤에서-도는-일은-뒤에서-archived	scv/DECISIONS.md	351111	1042	2026-11-25 15:00	[archived] 단계 증거를 눈에 보이게 · 뒤에서 도는 일은 뒤에서 archived

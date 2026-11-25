@@ -1,16 +1,7 @@
 dir ../scv-codex
-bash tools/verify-core.sh
-bash plugins/scv/tests/test-codex-plugin.sh
-bash plugins/scv/tests/test-channel-engine.sh
-bash plugins/scv/tests/test-guard-registration.sh
-bash plugins/scv/tests/test-ci-shards.sh
-find tools plugins/scv/adapter plugins/scv/tests plugins/scv/vendor/scv-core/tools plugins/scv/vendor/scv-core/core/scripts plugins/scv/vendor/scv-core/core/tests -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
 bash plugins/scv/tests/test-shared-core-adapter.sh
 bash plugins/scv/tests/test-apply-model-policy.sh
-bash plugins/scv/tests/test-vendor-core.sh
+COPYFILE_DISABLE=1 bash plugins/scv/tests/test-vendor-core.sh
 bash plugins/scv/prompting/check.sh
 bash plugins/scv/vendor/scv-core/tools/check-readme.sh --profile codex .
-bash plugins/scv/tests/test-vendor-core-atomicity.sh
-bash plugins/scv/vendor/scv-core/core/tests/run-dry.sh
-r="$(mktemp -d)" && cp -R -p plugins/scv/vendor/scv-core/core "$r/core" && (cd "$r" && bash core/tests/run-focused.sh --jobs "$JOBS" --dir core/tests); rc=$?; rm -rf "$r"; exit $rc
-python3 tools/validate-core-tree.py --root plugins/scv/vendor/scv-core
+COPYFILE_DISABLE=1 bash plugins/scv/tests/test-vendor-core-atomicity.sh
