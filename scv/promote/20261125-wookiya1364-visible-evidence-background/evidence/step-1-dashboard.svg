@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="226" viewBox="0 0 720 226" font-family="-apple-system, sans-serif">
+<rect width="720" height="226" fill="#fcfcfb"/>
+<text x="20" y="34" font-size="17" font-weight="500" fill="#0b0b0b">대시보드 — 증거 · 함수 목록 · 백그라운드 표시 (모드 시험)</text>
+<text x="290" y="70" font-size="12" text-anchor="end" fill="#52514e">통과(고치기 전)</text>
+<rect x="300" y="56" width="300" height="16" rx="3" fill="#2a78d6"/>
+<text x="608" y="69" font-size="12" fill="#0b0b0b">202</text>
+<text x="290" y="96" font-size="12" text-anchor="end" fill="#52514e">통과(고친 뒤)</text>
+<rect x="300" y="82" width="300" height="16" rx="3" fill="#2a78d6"/>
+<text x="608" y="95" font-size="12" fill="#0b0b0b">202</text>
+<text x="290" y="122" font-size="12" text-anchor="end" fill="#52514e">실패</text>
+<rect x="300" y="108" width="0" height="16" rx="3" fill="#2a78d6"/>
+<text x="308" y="121" font-size="12" fill="#0b0b0b">0</text>
+<text x="290" y="148" font-size="12" text-anchor="end" fill="#52514e">새 동작을 보는 새 시험</text>
+<rect x="300" y="134" width="11" height="16" rx="3" fill="#2a78d6"/>
+<text x="319" y="147" font-size="12" fill="#0b0b0b">8</text>
+<text x="290" y="174" font-size="12" text-anchor="end" fill="#52514e">형 검사 오류(전)</text>
+<rect x="300" y="160" width="14" height="16" rx="3" fill="#2a78d6"/>
+<text x="322" y="173" font-size="12" fill="#0b0b0b">10</text>
+<text x="290" y="200" font-size="12" text-anchor="end" fill="#52514e">형 검사 오류(뒤)</text>
+<rect x="300" y="186" width="13" height="16" rx="3" fill="#2a78d6"/>
+<text x="321" y="199" font-size="12" fill="#0b0b0b">9</text>
+</svg>
