@@ -317,7 +317,11 @@ Wrapper requirements:
    (assembled by `scripts/recap.sh`), plus the most recent *active*
    conversation file in full (other active ones by path only) — so the model
    continues after a `/clear`, an auto-compaction, or a resume instead of
-   asking the user to repeat themselves. Register it for exactly those three
+   asking the user to repeat themselves. After a clear (`source` is `clear`)
+   that conversation is printed as its last part only — 12,000 characters,
+   starting at a turn heading — with one line naming the full record file;
+   a clear is meant to empty the context, and the whole record would fill it
+   again. Compaction, resume and an unknown `source` keep the whole text. Register it for exactly those three
    session starts (Claude Code: `SessionStart` with matcher
    `compact|clear|resume`) and **not** for a fresh session start: there the
    first prompt's preflight already carries the project state, and printing
