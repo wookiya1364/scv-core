@@ -144,6 +144,9 @@ flow(
 - **2026-11-25 진행** — 6단계 끝: 폴더 · 브랜치 줄 — HEAD 파일에서 브랜치를 읽고(branchOfHead · gitDirOf), 누르면 목록(parseBranches), 고르면 git switch(switchNote). 턴이 도는 중에는 바꾸지 않음
   - 요청: 1. 컨텍스트 50% 넘어가면 지금 초기화하잖아. clear야? compact야? 컨텍스트 50%가 아니고, 슬라이드바로 조절할 수 있게 하자.… (요청 cc5968bc)
 
+- **2026-11-25 진행** — 8단계 시작: develop 과 나머지 두 가지를 이 가지에 합침, 두 계획의 마무리 보고 채움. 관련 시험을 뒤에서 돌리는 중 — 끝나면 보관 · PR
+  - 요청: 1. 컨텍스트 50% 넘어가면 지금 초기화하잖아. clear야? compact야? 컨텍스트 50%가 아니고, 슬라이드바로 조절할 수 있게 하자.… (요청 cc5968bc)
+
 ## Links
 
 - Raw originals: (listed in frontmatter)
