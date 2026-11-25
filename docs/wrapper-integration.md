@@ -321,7 +321,9 @@ Wrapper requirements:
    that conversation is printed as its last part only — 12,000 characters,
    starting at a turn heading — with one line naming the full record file;
    a clear is meant to empty the context, and the whole record would fill it
-   again. Compaction, resume and an unknown `source` keep the whole text. Register it for exactly those three
+   again. After a clear the recap from `scripts/recap.sh` is left out as well:
+   one line names the command that prints it. Compaction, resume and an
+   unknown `source` keep the recap and the whole text. Register it for exactly those three
    session starts (Claude Code: `SessionStart` with matcher
    `compact|clear|resume`) and **not** for a fresh session start: there the
    first prompt's preflight already carries the project state, and printing
