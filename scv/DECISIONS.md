@@ -2826,3 +2826,11 @@ merge_policy: preserve
 - path delta: 계획에 없던 것 하나: 기어 턴은 훅이 등록 안내의 출력을 버리는데 그때 원칙 표시가 남으면 그 맥락에서 전문이 끝내 실리지 않아, 건너뛰는 인자(--no-principle)와 시험(test-gear-turn T7)을 더함. 새 순수 함수의 종류는 사전 한도(400줄) 때문에 판정/gate 로 둠
 - refs: scv/archive/20261125-wookiya1364-principle-once-context/PLAN.md
 - conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-25 10:55] wookiya1364 — dreams 걷어내기 — 기능 · 안내 글 · 대시보드 칸 · 보고서 파일
+
+- verdict: adopted
+- why: 사용자 판단(2026-11-25): dreams 는 실익이 없다. 본체의 액션 · 훅 구간 · 규약 · 설정 · 시험과 대시보드의 드림 칸을 지우고, 이 프로젝트의 보고서 파일도 목록을 보인 뒤 지운다. 릴리스는 넣지 않는다.
+- discarded alternatives: 기능은 지우고 보고서 파일은 두기 — 사용자가 파일까지 삭제를 고름. 릴리스까지 하기 — 사용자가 릴리스는 빼기로 함. 래퍼에서 지금 지우기 — 래퍼는 릴리스된 본체를 싣기 때문에 본체 릴리스 때 함께.
+- refs: scv/promote/20261125-wookiya1364-remove-dreams/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
