@@ -1,6 +1,6 @@
-# scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
+# scv/archive/INDEX.yaml — auto-managed by action:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-25T00:09:56Z
+generated_at: 2026-11-25T06:00:13Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -641,6 +641,11 @@ archives:
     title: "기어는 모델 없이 바로 돌고, 대화 턴은 가볍게 — 어긋나는 지시 정리"
     kind: feature
     status: in_progress
+  - slug: 20261124-wookiya1364-gears-detect
+    title: "반복 알아채기 — 비슷한 요청 2번째에 "기어로 만들까요?", 맞는 기어가 있으면 한 줄 알림"
+    kind: feature
+    status: in_progress
+    epic: 20261124-gears
   - slug: 20261124-wookiya1364-gears-io-args
     title: "기어의 입력 · 출력을 종류 이름 + 예시로 보이고, 이름 붙은 인자로 같은 기어를 다르게 쓰기 + 글 대신 그림으로 보여 주기"
     kind: feature
@@ -653,5 +658,13 @@ archives:
     epic: 20261124-gears
   - slug: 20261125-wookiya1364-principle-once-context
     title: "원칙 글도 맥락에 한 번만 — 판정을 지문 비교에서 맥락 표시로"
+    kind: feature
+    status: in_progress
+  - slug: 20261125-wookiya1364-remove-dreams
+    title: "dreams 걷어내기 — 기능 · 안내 글 · 대시보드 칸 · 보고서 파일"
+    kind: retirement
+    status: in_progress
+  - slug: 20261125-wookiya1364-visible-evidence-background
+    title: "단계 증거를 눈에 보이게 · 뒤에서 도는 일은 뒤에서"
     kind: feature
     status: in_progress

@@ -2842,3 +2842,27 @@ merge_policy: preserve
 - discarded alternatives: 끝 단계에만 증거를 꼭 넣기 — 사용자가 단계마다를 고름. 뒤에서 일하기를 이 프로젝트의 메모로만 지키기 — 사용자가 SCV 규칙에 넣으라고 함.
 - refs: scv/promote/20261125-wookiya1364-visible-evidence-background/PLAN.md
 - conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-25 15:00] wookiya1364 — dreams 걷어내기 archived
+
+- verdict: archived
+- why: 본체에서 dreams 의 스크립트 · 규약 · 설정 · 훅 구간 · 시험을 지웠고 액션은 22개가 됐다. 대시보드의 드림 칸과 이 프로젝트의 보고서 파일도 지웠다. 관련 시험과 저장소 수준 시험 통과.
+- path delta: 계획에 없던 것: 다른 두 가지와 합친 뒤 빠른 검사에서 액션 수 23을 박아 둔 네 자리(저장소 수준 액션 시험 · 내보내기 검증 · README 표식 목록 · 규약 글 모양 절의 수)가 드러나 22로 고쳤다. 두 래퍼의 명령 · 스킬은 릴리스 맞춤에서 지운다.
+- refs: scv/archive/20261125-wookiya1364-remove-dreams/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-25 15:00] wookiya1364 — 반복 알아채기(기어 알림) archived
+
+- verdict: archived
+- why: 매 턴 훅이 사람 요청을 기록 폴더에 쌓고 지난 요청 · 기어 사전과 맞춰, 겹칠 때만 알림 한 줄을 싣는다. 새 시험 12개 통과. 실제 세션에서 이미 있는 기어와 겹치는 알림이 뜨는 것은 보았다.
+- path delta: 9단계(같은 요청을 두 번 해 선택 창이 뜨는 것을 사용자에게 보이기)는 하지 못했다 — 사용자가 병합 · 릴리스를 지시해(2026-11-25) 그 확인 없이 마감했다. 그 밖은 계획대로.
+- refs: scv/archive/20261124-wookiya1364-gears-detect/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-25 15:00] wookiya1364 — 단계 증거를 눈에 보이게 · 뒤에서 도는 일은 뒤에서 archived
+
+- verdict: archived
+- why: 대시보드가 그림 · 영상 · 페이지만 증거로 받고, 본체에 막대 그림 명령과 가드 규칙 W(앞에서 오래 기다리는 호출 거절)를 더했고, 일 규약의 단계 보고 절을 고쳤다. 모드 시험 209 · 본체 관련 시험 통과.
+- path delta: 계획에 덧붙인 것: 증거 그림 크게 보기, 단계 흐름 줄을 문장만으로(함수 목록은 누른 단계의 상세로 옮김 — 처음에 자리를 잘못 읽었다), 컨텍스트 요약 기준 막대, 폴더 · 브랜치 줄과 브랜치 바꾸기. 가드 계약 글의 규칙 W 절은 합친 뒤에 채웠다. 7단계(실제 창의 세 장면 사진)는 하지 못했다 — 사용자가 실제 창을 본 뒤 병합을 지시했다.
+- refs: scv/archive/20261125-wookiya1364-visible-evidence-background/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md

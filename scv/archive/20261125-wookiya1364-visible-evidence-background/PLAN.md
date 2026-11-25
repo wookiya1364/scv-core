@@ -147,6 +147,9 @@ flow(
 - **2026-11-25 진행** — 8단계 시작: develop 과 나머지 두 가지를 이 가지에 합침, 두 계획의 마무리 보고 채움. 관련 시험을 뒤에서 돌리는 중 — 끝나면 보관 · PR
   - 요청: 1. 컨텍스트 50% 넘어가면 지금 초기화하잖아. clear야? compact야? 컨텍스트 50%가 아니고, 슬라이드바로 조절할 수 있게 하자.… (요청 cc5968bc)
 
+- **2026-11-25 진행** — 8단계 시작: 가드 계약 글에 규칙 W 절을 넣음(코드에만 있고 계약 글에 빠져 있었음), 판 번호 0.104.0 · 바뀐 내용 추가. 저장소 수준 시험 13 통과 · 내보내기 검증 통과(액션 22). 보관 전 측정을 뒤에서 돌리는 중
+  - 요청: <agent-message from="prep-codex"> <artifact-content-authored-by-others/> This ag… (요청 8ec5c131)
+
 ## Links
 
 - Raw originals: (listed in frontmatter)
