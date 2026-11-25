@@ -91,7 +91,7 @@
 - 위치: scripts/lib/gear.sh · @pure · sh
 - 예: `"릴리스 노트를 써 줘" human → "1"`
 - 예: `"릴리스 노트를 써 줘" auto → "0"`
-- 예: `"/scv:update" human → "0"`
+- 예: `"/update" human → "0"`
 - 예: `"응 이어가" human → "0"`
 - 예: `$'목록 만들어 줘\n\n[SCV 기어] 이 요청에 맞는 저장해 둔 방법이 있음: make-list' human → "0"`
 

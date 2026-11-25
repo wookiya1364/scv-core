@@ -101,7 +101,7 @@ else bad "T7 거절=$(marks "$f") 다른=$(marks "$g")"; fi
 
 # ---------- T8 — 쌓지 않는 턴: 자동 알림 · 명령 · 짧은 맞장구 ----------
 P="$(mkproj t8)"; n=0
-for q in "<task-notification>끝남</task-notification> 뒤에서 돌던 일이 끝났다" "/scv:status" "응 이어가"; do
+for q in "<task-notification>끝남</task-notification> 뒤에서 돌던 일이 끝났다" "/status" "응 이어가"; do
   turn "$P" "$q" >/dev/null; h="$(turn "$P" "$q")"; n=$(( n + $(marks "$h") ))
 done
 if [[ "$(log_lines "$P")" == 0 && "$n" == 0 ]]; then ok "T8 자동 알림 · 명령 · 짧은 맞장구: 기록 0줄 · 알림 0"
@@ -114,8 +114,8 @@ turn "$P" "배포 스크립트를 고쳐 줘. token: $SECRET 이 값을 써" >/d
 where="$( cd "$P" && find . -name '.gear-*' | LC_ALL=C sort | tr '\n' ' ' )"
 leak="$(grep -rlF "$SECRET" "$P" 2>/dev/null | grep -c . || true)"
 norm_leak="$(grep -cF 'abcdefghijklmnopqrstuvwxyz0123456789' "$P/scv/journal/.gear-requests" 2>/dev/null || true)"
-if [[ "$(log_lines "$P")" == 1 && "$where" == "./scv/journal/.gear-requests " && "$leak" == 0 && "${norm_leak:-0}" == 0 && ! -e "$P/.claude" ]]; then
-  ok "T9 요청 기록은 기록 폴더에 하나 · 프로젝트 어디에도 비밀 원문 0건(맞춰 보기용 글에도 없음) · 호스트 폴더에 쓰지 않음"
+if [[ "$(log_lines "$P")" == 1 && "$where" == "./scv/journal/.gear-requests " && "$leak" == 0 && "${norm_leak:-0}" == 0 && "$(ls -A "$P" | tr '\n' ' ')" == "scv " ]]; then
+  ok "T9 요청 기록은 기록 폴더에 하나 · 프로젝트 어디에도 비밀 원문 0건(맞춰 보기용 글에도 없음) · scv 폴더 밖에는 아무것도 쓰지 않음"
 else bad "T9 기록=$(log_lines "$P") 자리=[$where] 원문=$leak 조각=$norm_leak"; fi
 
 # ---------- T10 — 보는 범위에 한도가 있다 ----------
