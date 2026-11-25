@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# test-no-dreams.sh — 걷어낸 기능이 본체에 남지 않았는지 본다(계획 20261125-wookiya1364-remove-dreams · TESTS.md T1 ~ T4).
+# test-retired-coach.sh — 걷어낸 기능이 본체에 남지 않았는지 본다(2026-11-25 의 걷어내기 계획 · TESTS.md T1 ~ T4).
 #
 # 지난 세션을 돌아보는 코칭 보고서 기능을 걷어냈다(사용자 판단 2026-11-25: 실익 없음). 그 이름이 스크립트 · 규약 · 훅 · 설정 · 문서에
 # 남지 않았는지, 액션 목록이 22개인지, 매 턴 훅과 세션 시작 훅이 그 폴더를 만들거나 안내하지 않는지 본다.
 # 이름은 조각으로 이어 붙여 적는다 — 이 파일 자신이 검색에 걸리지 않게.
 #
-# Run: bash core/tests/test-no-dreams.sh
+# Run: bash core/tests/test-retired-coach.sh
 set -uo pipefail
 
 CORE="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"; ROOT="$( cd "$CORE/.." && pwd )"

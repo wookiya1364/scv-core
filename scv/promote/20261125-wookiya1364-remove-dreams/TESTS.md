@@ -51,7 +51,7 @@ dreams 가 본체와 대시보드에서 빠졌는지, 그러면서 다른 액션
 ## How to run
 
 ```bash
-bash core/tests/test-no-dreams.sh
+bash core/tests/test-retired-coach.sh
 ```
 
 ## Pass criteria
