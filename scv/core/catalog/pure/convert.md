@@ -1,6 +1,6 @@
 # 변환 — 한 표기를 다른 표기로 바꾼다 — 경로 · 날짜 · 단위 · 인코딩
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 44개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 40개.
 
 ### below_raw_root
 - 역할: 경로에서 원자료 폴더 뿌리까지를 떼어 낸다 — 뿌리 아래 마디만 연결 검사를 하려고
@@ -57,29 +57,6 @@
 - 예: `$'전=6.2\n뒤=4.3' 200 → $'전\t6.2\t200\n뒤\t4.3\t138'`
 - 예: `$'메모=없음' 300 → ""`
 - 예: `"" 300 → ""`
-
-### scv_dreams_day
-- 역할: YYYYMMDD 를 YYYY-MM-DD 로 바꾼다(모양이 다르면 그대로)
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `20261001 → '2026-10-01'`
-- 예: `abc → 'abc'`
-
-### scv_dreams_period_ord
-- 역할: 날짜 YYYYMMDD 를 기간 단위(dekad · month)의 순번 정수로 바꾼다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `20261015 dekad → '72964'`
-- 예: `20261015 month → '24321'`
-
-### scv_dreams_period_range
-- 역할: 기간 순번과 단위로 "시작 끝" YYYYMMDD 를 낸다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `72964 dekad → '20261011 20261020'`
-- 예: `72963 dekad → '20261001 20261010'`
-
-### scv_dreams_tag
-- 역할: «  » 로 적은 짧은 HTML 조각을 꺾쇠 태그로 바꾼다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `"«b»hi«/b»" → '<b>hi</b>'`
 
 ### scv_evidence_build
 - 역할: 사건 줄들을 근거 목록으로 바꾼다 — 실행을 시험 · SCV 기록 · 실행으로 가르고, 실패는 끝 코드 · 출력 표시 · 뒤 실행 알림으로 정한다

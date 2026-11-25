@@ -139,7 +139,7 @@ hk="$(jq -cn '{prompt:"action:gear run nope",session_id:"s9"}' | SCV_CORE_ROOT="
 
 # T10 — 명령 글이 있고 명령 개수가 23 이다
 n="$(jq '.actions | length' "$CORE/actions.json" 2>/dev/null)"
-if [[ "$n" == 23 ]] && jq -e '.actions[] | select(.id == "gear" and .protocol == "protocols/gear.md" and .entrypoint == "scripts/gear.sh")' "$CORE/actions.json" >/dev/null 2>&1 \
+if [[ "$n" == 22 ]] && jq -e '.actions[] | select(.id == "gear" and .protocol == "protocols/gear.md" and .entrypoint == "scripts/gear.sh")' "$CORE/actions.json" >/dev/null 2>&1 \
    && grep -q 'gear.sh" list' "$CORE/protocols/gear.md" && grep -q ' new ' "$CORE/protocols/gear.md" && grep -q ' check' "$CORE/protocols/gear.md" && grep -q ' run ' "$CORE/protocols/gear.md"; then ok "T10 명령 23개, gear 명령 글이 목록 · 만들기 · 검사 · 실행을 안내"
 else bad "T10 actions=$n"; fi
 

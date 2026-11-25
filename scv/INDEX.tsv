@@ -275,4 +275,5 @@ decision	매-턴-규칙-글은-한-번만-숫자-길이-상한-없애기-archive
 decision	질의에-맞는-effort-추천-새-세션-제안-계획-삭제	scv/DECISIONS.md	345404	350	2026-11-25 08:01	[not-needed] 질의에 맞는 effort 추천 · 새 세션 제안 계획 삭제
 decision	원칙-글도-맥락에-한-번만-판정을-지문-비교에서-맥락-표시로	scv/DECISIONS.md	345754	842	2026-11-25 08:08	[adopted] 원칙 글도 맥락에 한 번만 — 판정을 지문 비교에서 맥락 표시로
 decision	원칙-글도-맥락에-한-번만-판정을-지문-비교에서-맥락-표시로-archived	scv/DECISIONS.md	346596	1160	2026-11-25 09:10	[archived] 원칙 글도 맥락에 한 번만 — 판정을 지문 비교에서 맥락 표시로 archived
-decision	단계-증거를-눈에-보이게-뒤에서-도는-일은-뒤에서	scv/DECISIONS.md	347756	919	2026-11-25 11:16	[adopted] 단계 증거를 눈에 보이게 · 뒤에서 도는 일은 뒤에서
+decision	dreams-걷어내기-기능-안내-글-대시보드-칸-보고서-파일	scv/DECISIONS.md	347756	861	2026-11-25 10:55	[adopted] dreams 걷어내기 — 기능 · 안내 글 · 대시보드 칸 · 보고서 파일
+decision	단계-증거를-눈에-보이게-뒤에서-도는-일은-뒤에서	scv/DECISIONS.md	348617	919	2026-11-25 11:16	[adopted] 단계 증거를 눈에 보이게 · 뒤에서 도는 일은 뒤에서

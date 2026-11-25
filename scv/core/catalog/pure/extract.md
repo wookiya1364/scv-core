@@ -1,6 +1,6 @@
 # 꺼내기 — 글 · JSON · 표에서 값이나 필드를 뽑는다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 64개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 59개.
 
 ### pc_extract_entries
 - 역할: 소스 글에서 표식(어떤 주석 모양이든 '@pure 이름', 셸은 이름 없이도) 달린 함수마다 역할 · 종류 · 예시를 뽑아 항목 줄로 낸다
@@ -59,32 +59,6 @@
 - 위치: scripts/lib/choices.sh · @pure · sh
 - 예: `"할까요? 추천은 예." → " 추천은 예."`
 - 예: `"끝났다." → [1]`
-
-### scv_dreams_archive_dates
-- 역할: "계획 이름 탭 archived_at" 줄들에서 보관 날짜 줄 "YYYYMMDD 탭 이름"을 날짜 · 이름 순으로 뽑는다(없는 날은 뺀다)
-- 위치: scripts/lib/dreams.sh · @deterministic · sh
-- 예: `$'b\t"2026-10-05T10:00:00Z"\na\t2026-10-05\nc\t2026-02-30' → $'20261005\ta\n20261005\tb'`
-
-### scv_dreams_entries
-- 역할: 세션 기록 JSONL(표준입력)에서 사람 메시지(U) · 모델 활동(A) · 등록 명령(G)을 기록 항목 줄로 뽑는다
-- 위치: scripts/lib/dreams.sh · @deterministic · sh
-- 예: `<<< $'{"type":"user","timestamp":"2026-10-01T01:00:00Z","message":{"role":"user","content":"hi there"}}\n{"type":"assistant","message":{"content":[{"type":"text","text":"ok"}]}}\n' → $'U\t2026-10-01T01:00:00Z\thi there\thi there\nA'`
-
-### scv_dreams_human_turns
-- 역할: 기록 항목 줄들에서 모델이 일한 사람 턴만 "세션 번호 시각 메시지" 줄로 뽑는다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `s1 $'U\t2026-10-01T01:00:00Z\thi\thi\nA\nU\t2026-10-01T02:00:00Z\tyo\tyo\nA'    → $'s1\t1\t2026-10-01T01:00:00Z\thi\ns1\t2\t2026-10-01T02:00:00Z\tyo'`
-
-### scv_dreams_judge_parse
-- 역할: 판정자 답 글에서 rule · advice 가 있는 첫 JSON 객체를 "규칙 탭 조언 탭 예시" 한 줄로 뽑는다(깨진 답은 빈 값)
-- 위치: scripts/lib/dreams.sh · @deterministic · sh
-- 예: `"{\"rule\":\"goal\",\"advice\":\"say the goal\",\"example\":\"do X\"}" → $'goal\tsay the goal\tdo X'`
-- 예: `"no json" → ""`
-
-### scv_dreams_register_features
-- 역할: 기록 항목 줄들에서 사람 턴마다 마지막 등록 하나(goal · depth · finish)를 뽑는다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `s1 $'U\t2026-10-01T01:00:00Z\thi\thi\nG\t2026-10-01T01:01:00Z\tmsg\tctx\tasked'    → $'s1\t1\t2026-10-01T01:01:00Z\tmsg\tctx\tasked'`
 
 ### scv_evidence_test_first
 - 역할: 근거 목록에서 시험 파일을 바꾼 뒤 실패하는 시험 실행을 한 번도 보지 못한 시험 파일 이름을 꺼낸다
