@@ -128,3 +128,4 @@ core/tests/test-principle-once.sh	10
 core/tests/test-evidence-card.sh	3
 core/tests/test-guard-wait.sh	8
 core/tests/test-retired-coach.sh	5
+core/tests/test-gear-detect.sh	60
