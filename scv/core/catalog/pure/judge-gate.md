@@ -1,6 +1,6 @@
 # 판정/gate — 훅이 막을지 · 넘길지 · 다시 물을지를 정한다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 27개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 26개.
 
 ### scv_choice_gate
 - 역할: 묻는지 · 도구 이름 · 이미 전달 여부로 ok | block | warn 중 하나를 정한다 (도구가 없으면 늘 ok)
@@ -15,19 +15,6 @@
 - 예: `HEADLESS=1 1 → "1"`
 - 예: `HEADLESS=1 0 → "0"`
 - 예: `"" 1 → "0"`
-
-### scv_dreams_day_trigger
-- 역할: 지난 드림 날짜와 오늘 날짜가 달라 드림을 띄울 때인지 1 또는 0 으로 낸다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `"" 20261001 → '1'`
-- 예: `20261001 20261001 → '0'`
-- 예: `20260930 20261001 → '1'`
-
-### scv_dreams_start_trigger
-- 역할: 훅 입력의 source 값이 드림을 띄울 때(clear · compact)인지 1 또는 0 으로 낸다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `clear → '1'`
-- 예: `startup → '0'`
 
 ### scv_drift_decide
 - 역할: 메아리 판정 · 린트 위반 · 스위치로 규약을 다시 실을지(1|0)와 다음 턴 경고 줄을 정한다
@@ -196,3 +183,14 @@
 - 예: `abc abc 1.0.0 1.0.0 → "skip:same"`
 - 예: `abc def 1.1.0 1.0.0 → "skip:backward"`
 - 예: `abc def 1.1.0 1.2.0 → "refresh"`
+
+### scv_wait_kind
+- 역할: 도구 입력이 앞에서 오래 기다리는 호출인지 가른다 — 긴 대기 값이면 wait, 뒤로 보내지 않은 셸 명령이 잠자기로 기다리면 sleep, 아니면 none
+- 위치: scripts/lib/wait-gate.sh · @pure · sh
+- 예: `200000 "" "" → "wait"`
+- 예: `5000 "" "" → "none"`
+- 예: `"" "" "sleep 120 && tail log" → "sleep"`
+- 예: `"" true "sleep 120 && tail log" → "none"`
+- 예: `"" "" "until grep -q DONE log; do sleep 15; done" → "sleep"`
+- 예: `"" "" "sleep 2; echo ok" → "none"`
+- 예: `"" "" "echo 잠자기 sleepy" → "none"`

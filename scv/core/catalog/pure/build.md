@@ -1,6 +1,6 @@
 # 조립 — 조각을 받아 정해진 모양의 글을 만든다 — 줄 · 표 · 메시지
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 66개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 60개.
 
 ### env_settings_unset_args
 - 역할: SCV_ENV_LOADED_KEYS 의 키마다 "-u 키" 두 줄을 내 env 명령에 넘길 인자를 만든다(환경변수 필요)
@@ -43,39 +43,6 @@
 - 역할: 위임 스위치가 켜진 프로젝트에 싣는 고정 지시 블록(깊은 질문은 배경 조사로)을 낸다 — 인자 없음
 - 위치: scripts/lib/force-help.sh · @pure · sh
 - 예: `→ $'[SCV delegate] 깊은 질문은 배경 조사로 (SCV_DELEGATE_EFFORT=on).\n- 답은 지금, 세션 그대로 한다. 세션의 노력 단계는 SCV 가 건드리지 않는다.\n- 질문이 깊으면 — 여러 파일을 읽거나 검증이 필요하면 — 호스트에 배경 조사\n  에이전트 scv-investigator 가 있을 때 그것에 넘기고, 답에 "깊은 결과가\n  뒤따른다" 고 한 줄 적는다. 에이전트가 없으면 그냥 답한다.\n- 조사 결과의 전문은 scv/raw/YYYYMMDD-research-주제.md 로 남기게 하고,\n  알림에는 요약만 받는다 — 알림 본문은 잘린다.\n- 위임 도구가 호출별 노력 단계를 지원하면 깊이에 맞춰 고른다. 지원하지\n  않으면 세션 그대로 배경 실행한다.\n- 결과가 도착하면 raw 파일 경로와 요약 한 줄을 세션의 대화 파일에 이어 붙인다.\n- 얕은 질문은 위임하지 않는다. 끄는 법: scv/scv_settings.json SCV_DELEGATE_EFFORT=off.'`
-
-### scv_dreams_judge_prompt
-- 역할: 개선점 줄 하나와 가린 발췌들로 판정자에게 보낼 질문 글을 만든다(개선점이 없으면 빈 값)
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `$'finish\t1\t3\t\ts1/1' $'fix it' → $'You coach a person on writing better prompts for an AI coding assistant. Answer with one JSON object only.\n\nFinding from their recent sessions: 요청에 완료 기준(무엇이 되면 끝인지)을 직접 말한 비율 1/3(33%).\n\nSuggested prompting-guide rule: finish (name the rule from the model\'s official prompting guide that fits best).\n\nExcerpts of the person\'s own requests (redacted):\n1. fix it\n\nReply with exactly one JSON object: {"rule": "GUIDE RULE NAME", "advice": "ONE OR TWO SENTENCES: WHAT TO ADD NEXT TIME", "example": "ONE REWRITTEN REQUEST"}. Write advice and example in the same language as the excerpts. Do not include paths, emails, names, or ids.'`
-- 예: `"" "" → ""`
-
-### scv_dreams_ratio
-- 역할: 두 수로 비율 "n.n"(소수 한 자리 반올림)을 만든다(나누는 수가 0 이면 "-")
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `7 2 → '3.5'`
-- 예: `1 0 → '-'`
-
-### scv_dreams_render_html
-- 역할: 기간 · 분포 · 개선점 · 근거 · 조언 줄들로 한 파일짜리 드림 보고서 HTML 을 만든다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `"" "" "" "" "" stamp month 0 0 0 → $'<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">\n<title>SCV 드림</title><style>:root{--bg:#171922;--panel:#1e1e1e;--line:#3a3d4a;--text:#e7e9f0;--muted:#9096a8;--accent:#7aa2f7;--warn:#e0af68}\nbody{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 -apple-system,"Segoe UI",sans-serif}\nmain{max-width:880px;margin:0 auto;padding:24px 16px}h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px}\n.muted{color:var(--muted)}.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 16px;margin:10px 0}\ntable{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}td.n{text-align:right}\nsvg{width:100%;height:auto;margin:8px 0}svg .v{fill:var(--text);font-size:11px}svg .l{fill:var(--muted);font-size:10px}svg .axis{stroke:var(--line)}\n.ex{border-left:3px solid var(--line);padding-left:10px;margin:6px 0;color:var(--muted)}.adv{border-left:3px solid var(--accent);padding-left:10px;margin:8px 0}\n.none{color:var(--warn)}\n</style></head><body><main>\n<h1>SCV 드림 — 프롬프트 코치</h1><p class="muted">stamp · 세션 0개 · 사람 질의 0번 · 등록 0건 · 기간 단위: 달</p>\n<div class="card">아직 셀 것이 없음 — 기록이 있는 동안 보관된 계획이 0개다. 지금까지 사람 질의 0번.</div>\n<h2>기간별 질의 ÷ 보관</h2>\n<p class="muted">아직 셀 것이 없음 — 세션 기록에서 사람 질의를 찾지 못했다.</p>\n<h2>계획마다 보관까지 걸린 질의</h2>\n<p class="muted">아직 셀 것이 없음 — 기록이 있는 동안 보관된 계획이 없다.</p>\n<h2>개선점</h2>\n<p class="muted">규칙에 걸린 개선점이 없다.</p>\n<p class="muted">드림은 입력(세션 기록 · 보관 기록)을 바꾸지 않는다. 발췌는 경로 · 메일 · 비밀값 · id 를 가린 짧은 글이다. 규칙: protocols/dreams.md</p></main></body></html>'`
-
-### scv_dreams_render_summary
-- 역할: 기간 · 개선점 줄들로 다음 턴에 싣는 [SCV 드림] 한 줄 요약을 만든다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `"" "" report.html 0 → '[SCV 드림] 아직 셀 것이 없음(보관된 계획 0개 · 사람 질의 0번) · 보고서 report.html'`
-
-### scv_dreams_svg_bars
-- 역할: 제목과 "라벨 탭 값" 줄들로 막대 차트 SVG 한 덩이를 만든다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `t $'a\t2\nb\t4' '#fff' → '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" role="img" aria-label="t"><rect x="30" y="105" width="76" height="75" rx="3" fill="#fff"><title>a: 2</title></rect><text x="68" y="101" text-anchor="middle" class="v">2</text><text x="68" y="198" text-anchor="middle" class="l">a</text><rect x="110" y="30" width="76" height="150" rx="3" fill="#fff"><title>b: 4</title></rect><text x="148" y="26" text-anchor="middle" class="v">4</text><text x="148" y="198" text-anchor="middle" class="l">b</text><line x1="26" y1="180" x2="630" y2="180" class="axis"/></svg>'`
-
-### scv_dreams_tip_text
-- 역할: 개선점 줄 하나를 사람이 읽는 한 문장으로 만든다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `$'finish\t1\t3\t\ts1/1' → '요청에 완료 기준(무엇이 되면 끝인지)을 직접 말한 비율 1/3(33%)'`
-- 예: `$'plan\t12\t4\tplan-a\t' → '보관까지 질의가 많았던 계획 plan-a — 12번(중앙값 4번)'`
 
 ### scv_drift_line
 - 역할: 시각 · 턴 · 메아리 판정 · 위반 수 · reload 를 드리프트 로그 한 줄로 만든다

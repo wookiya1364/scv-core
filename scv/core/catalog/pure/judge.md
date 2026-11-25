@@ -1,6 +1,6 @@
 # 판정 — 입력을 보고 예/아니오나 판정 이름 하나를 낸다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 53개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 50개.
 
 ### cs_next
 - 역할: 지금 값과 명령 인자로 바꿀 값을 고른다 — 인자가 on · off 면 그 값, 비었으면 뒤집기, 그 밖은 빈 값(잘못된 인자)
@@ -81,23 +81,6 @@
 - 예: `'' → "off"`
 - 예: `maybe → "off"`
 - 예: `' "ON" ' → "on"`
-
-### scv_dreams_tip_rule
-- 역할: 개선점 줄의 종류로 판정자에게 권할 가이드 규칙 이름(finish · depth · goal)을 낸다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `$'finish\t1\t3\t\t' → 'finish'`
-- 예: `$'correction\t2\t5\t\t' → 'goal'`
-
-### scv_dreams_tips
-- 역할: 등록 · 사람 턴 · 분포 줄들에서 개선점 줄(finish · depth · correction · plan)이 필요한지 가려 낸다
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `$'s1\t1\tt\t-\t-\tasked\ns1\t2\tt\t-\t-\tasked\ns1\t3\tt\t-\t-\tasked'   → $'finish\t0\t3\t\ts1/1 s1/2 s1/3\ndepth\t0\t3\t\ts1/1 s1/2 s1/3'`
-
-### scv_dreams_unit
-- 역할: 사람 턴 수로 기간 단위를 정한다(100턴 이상이면 dekad, 아니면 month)
-- 위치: scripts/lib/dreams.sh · @pure · sh
-- 예: `100 → 'dekad'`
-- 예: `5 → 'month'`
 
 ### scv_flag_workaround
 - 역할: 새 주석 줄들 가운데 임시방편을 뜻하는 낱말 · 구절(한 · 영 · 일)이 든 줄만 고른다 — 개념을 설명하는 낱말(임시 저장소)은 빼려고 구절로 본다
