@@ -88,7 +88,7 @@
 
 ### scv_gear_request_keep
 - 역할: 쌓을 요청인지 가른다 — 자동 턴 · 명령으로 시작하는 글 · 기어를 돌리라는 줄이 붙은 글 · 짧은 글은 뺀다
-- 위치: scripts/lib/gear.sh · @pure · sh
+- 위치: scripts/lib/gear.sh · @deterministic · sh
 - 예: `"릴리스 노트를 써 줘" human → "1"`
 - 예: `"릴리스 노트를 써 줘" auto → "0"`
 - 예: `"/update" human → "0"`

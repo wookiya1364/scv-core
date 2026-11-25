@@ -4,14 +4,14 @@
 
 ### scv_gear_overlap_score
 - 역할: 두 맞춰 보기용 글의 겹침 점수(0–100)를 낸다
-- 위치: scripts/lib/gear.sh · @pure · sh
+- 위치: scripts/lib/gear.sh · @deterministic · sh
 - 예: `"릴리스노트써줘" "릴리스노트를써줘" → "78"`
 - 예: `"릴리스노트써줘" "대시보드고쳐줘" → "8"`
 - 예: `"abc" "" → "0"`
 
 ### scv_gear_scores
 - 역할: 맞춰 보기용 글 하나와 여러 줄의 겹침 점수를 한 번에 낸다 — 줄마다 "점수<탭>원래 줄". 점수는 이어진 두 바이트 조각의 집합이 겹치는 비율(0–100)
-- 위치: scripts/lib/gear.sh · @pure · sh
+- 위치: scripts/lib/gear.sh · @deterministic · sh
 - 예: `"릴리스노트써줘" "릴리스노트써줘" → $'100\t릴리스노트써줘'`
 - 예: `"릴리스노트써줘" "릴리스노트를써줘" → $'78\t릴리스노트를써줘'`
 - 예: `"릴리스노트써줘" $'a\t대시보드고쳐줘\tx' 2 → $'8\ta\t대시보드고쳐줘\tx'`

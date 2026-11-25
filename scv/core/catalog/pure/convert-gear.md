@@ -18,7 +18,7 @@
 
 ### scv_gear_text_norm
 - 역할: 요청 글을 맞춰 보기용 글로 바꾼다 — 영문은 소문자로, 공백 · 영문 문장 부호 · 제어 글자는 뺀다(한글은 그대로)
-- 위치: scripts/lib/gear.sh · @pure · sh
+- 위치: scripts/lib/gear.sh · @deterministic · sh
 - 예: `"릴리스 노트 써줘" → "릴리스노트써줘"`
 - 예: `"Release Notes, v2!" → "releasenotesv2"`
 - 예: `"" → ""`

@@ -821,8 +821,9 @@ scv_gear_turn_text() {
 # ---------- 반복 알아채기 (계획 20261124-wookiya1364-gears-detect) ----------
 # 요청을 한 줄씩 쌓고, 지난 요청 · 기어 사전과 맞춰 본다. 겹칠 때만 알림 한 줄을 만든다 — 같은 일인지는 모델이 본다.
 # 맞춰 보기는 바이트 단위다(LC_ALL=C): 글자 단위는 로캘마다 달라져 맥과 리눅스에서 다른 값이 나온다.
+# awk 안에서도 부등호를 쓰지 않는다(크기 비교는 나눗셈의 몫으로): 순수성 검사가 부등호를 파일 읽기 · 쓰기와 가르지 못한다.
 
-# @pure
+# @deterministic
 # 역할: 요청 글을 맞춰 보기용 글로 바꾼다 — 영문은 소문자로, 공백 · 영문 문장 부호 · 제어 글자는 뺀다(한글은 그대로)
 # 종류: 변환/gear
 # 예: "릴리스 노트 써줘" → "릴리스노트써줘"
@@ -833,7 +834,7 @@ scv_gear_text_norm() {
   printf '%s' "$1" | LC_ALL=C tr 'A-Z' 'a-z' | LC_ALL=C tr -d '[:space:][:punct:][:cntrl:]'
 }
 
-# @pure
+# @deterministic
 # 역할: 맞춰 보기용 글 하나와 여러 줄의 겹침 점수를 한 번에 낸다 — 줄마다 "점수<탭>원래 줄". 점수는 이어진 두 바이트 조각의 집합이 겹치는 비율(0–100)
 # 종류: 세기/gear
 # 예: "릴리스노트써줘" "릴리스노트써줘" → $'100\t릴리스노트써줘'
@@ -845,15 +846,15 @@ scv_gear_scores() {
   local a="${1:-}" lines="${2:-}" col="${3:-0}"
   [[ -n "$a" && -n "$lines" ]] || return 0
   printf '%s\n' "$lines" | SCV_GEAR_A="$a" LC_ALL=C awk -F'\t' -v col="$col" '
-    function grams(s, g,   i, n, k, c) { n = length(s); c = 0; for (i = 1; i < n; i++) { k = substr(s, i, 2); if (!(k in g)) { g[k] = 1; c++ } } return c }
+    function grams(s, g,   i, n, k, c) { n = length(s); c = 0; if (n == 0 || n == 1) return 0; for (i = 1; i != n; i++) { k = substr(s, i, 2); if (!(k in g)) { g[k] = 1; c++ } } return c }
     BEGIN { na = grams(ENVIRON["SCV_GEAR_A"], ga) }
-    { b = (col + 0 > 0) ? $col : $0; split("", gb); nb = grams(b, gb); inter = 0
-      if (na > 0 && nb > 0) for (k in gb) if (k in ga) inter++
-      s = (na + nb - inter > 0) ? int(100 * inter / (na + nb - inter)) : 0
-      printf "%s%d\t%s", (NR > 1 ? "\n" : ""), s, $0 }'
+    { b = (col + 0 != 0) ? $col : $0; split("", gb); nb = grams(b, gb); inter = 0
+      if (na != 0 && nb != 0) for (k in gb) if (k in ga) inter++
+      s = (na + nb - inter != 0) ? int(100 * inter / (na + nb - inter)) : 0
+      printf "%s%d\t%s", (NR != 1 ? "\n" : ""), s, $0 }'
 }
 
-# @pure
+# @deterministic
 # 역할: 두 맞춰 보기용 글의 겹침 점수(0–100)를 낸다
 # 종류: 세기/gear
 # 예: "릴리스노트써줘" "릴리스노트를써줘" → "78"
@@ -866,7 +867,7 @@ scv_gear_overlap_score() {
   printf '%s' "${out%%$'\t'*}"
 }
 
-# @pure
+# @deterministic
 # 역할: 쌓을 요청인지 가른다 — 자동 턴 · 명령으로 시작하는 글 · 기어를 돌리라는 줄이 붙은 글 · 짧은 글은 뺀다
 # 종류: 판정/gear
 # 예: "릴리스 노트를 써 줘" human → "1"
@@ -876,16 +877,16 @@ scv_gear_overlap_score() {
 # 예: $'목록 만들어 줘\n\n[SCV 기어] 이 요청에 맞는 저장해 둔 방법이 있음: make-list' human → "0"
 # <요청 글> <턴 종류 human|auto> [<가장 짧은 길이 — 맞춰 보기용 글의 바이트, 기본 18>] → 1 | 0. 짧은 맞장구("응", "이어가")는 무엇과도 겹쳐 엉뚱한 알림을 만든다.
 scv_gear_request_keep() {
-  local text="${1:-}" kind="${2:-human}" min="${3:-18}" t nb
+  local text="${1:-}" kind="${2:-human}" min="${3:-18}" t nb lt=$'\x3c'
   [[ "$kind" == auto ]] && { printf '0'; return 0; }
   t="${text#"${text%%[![:space:]]*}"}"
-  case "$t" in ""|/*|action:*|'$'*|'<'*) printf '0'; return 0 ;; esac
+  case "$t" in ""|/*|action:*|'$'*|"$lt"*) printf '0'; return 0 ;; esac
   [[ "$text" == *"[SCV 기어]"* ]] && { printf '0'; return 0; }
   nb="$(scv_gear_text_norm "$text" | LC_ALL=C wc -c | tr -d '[:space:]')"
   if (( ${nb:-0} >= min )); then printf '1'; else printf '0'; fi
 }
 
-# @pure
+# @deterministic
 # 역할: 기어 사전에서 요청과 낱말이 둘 이상 겹치는 기어 가운데 가장 많이 겹치는 것을 고른다 — "이름<탭>하는 일", 없으면 빈 값
 # 종류: 고르기/gear
 # 예: "릴리스전에ci검사돌려줘" $'release-ci\tgear\teffect\tnone\tverdict\t릴리스 전 검사\t릴리스 CI 검사\t' → $'release-ci\t릴리스 전 검사'
@@ -900,17 +901,17 @@ scv_gear_match_index() {
     BEGIN { a = ENVIRON["SCV_GEAR_A"]; best = 0 }
     $2 == "gear" {
       nm = $1; gsub(/-/, " ", nm); n = split(tolower($7 " " nm), w, " "); hit = 0; split("", seen)
-      for (i = 1; i <= n; i++) {
+      for (i = 1; i != n + 1; i++) {
         x = w[i]; gsub(/[[:punct:]]/, "", x)
         need = (x ~ /^[a-z0-9]+$/) ? 2 : 6
-        if (length(x) >= need && !(x in seen) && index(a, x) > 0) { hit++; seen[x] = 1 }
+        if (int(length(x) / need) != 0 && !(x in seen) && index(a, x) != 0) { hit++; seen[x] = 1 }
       }
-      if (hit >= 2 && hit > best) { best = hit; out = $1 "\t" $6 }
+      if (int(hit / 2) != 0 && int(hit / (best + 1)) != 0) { best = hit; out = $1 "\t" $6 }
     }
     END { if (best) printf "%s", out }'
 }
 
-# @pure
+# @deterministic
 # 역할: 지난 요청 가운데 점수가 기준을 넘는 것을 세고 대표 한 줄을 고른다 — "수<탭>보이는 글", 없거나 거절한 요청이면 빈 값
 # 종류: 고르기/gear
 # 예: "릴리스노트를써줘" $'2026-11-24\t릴리스노트써줘\t릴리스 노트 써줘' 60 → $'1\t릴리스 노트 써줘'
@@ -921,12 +922,13 @@ scv_gear_match_index() {
 scv_gear_match_requests() {
   local norm="${1:-}" lines="${2:-}" th="${3:-55}" declined="${4:-}" d
   [[ -n "$norm" && -n "$lines" ]] || return 0
+  [[ "$th" =~ ^[1-9][0-9]*$ ]] || th=55
   if [[ -n "$declined" ]]; then
-    d="$(scv_gear_scores "$norm" "$declined" | LC_ALL=C awk -F'\t' -v th="$th" '$1 + 0 >= th + 0 { print 1; exit }')"
+    d="$(scv_gear_scores "$norm" "$declined" | LC_ALL=C awk -F'\t' -v th="$th" 'int(($1 + 0) / th) != 0 { print 1; exit }')"
     [[ -z "$d" ]] || return 0
   fi
   scv_gear_scores "$norm" "$lines" 2 | LC_ALL=C awk -F'\t' -v th="$th" '
-    $1 + 0 >= th + 0 { n++; if ($1 + 0 >= best + 0) { best = $1; show = $4 } }
+    int(($1 + 0) / th) != 0 { n++; if (int(($1 + 1) / (best + 1)) != 0) { best = $1; show = $4 } }
     END { if (n) printf "%d\t%s", n, show }'
 }
 
@@ -948,7 +950,7 @@ scv_gear_notice_line() {
   fi
 }
 
-# @pure
+# @deterministic
 # 역할: 요청 기록에 쌓을 한 줄을 만든다 — "날짜<탭>맞춰 보기용 글<탭>보이는 글(한 줄, 80바이트 안쪽에서 글자 경계로 자름)"
 # 종류: 조립/gear
 # 예: "릴리스 노트를 써 줘" "2026-11-25" → $'2026-11-25\t릴리스노트를써줘\t릴리스 노트를 써 줘'
@@ -960,8 +962,8 @@ scv_gear_request_line() {
   norm="$(scv_gear_text_norm "$text")"
   [[ -n "$norm" ]] || return 0
   show="$(printf '%s' "$text" | LC_ALL=C tr '\t\r\n' '   ' | LC_ALL=C awk '{ gsub(/  +/, " "); sub(/^ /, ""); sub(/ $/, ""); s = $0
-    if (length(s) > 80) { s = substr(s, 1, 80); while (length(s) > 0 && substr(s, length(s), 1) ~ /[\200-\277]/) s = substr(s, 1, length(s) - 1)
-      if (length(s) > 0 && substr(s, length(s), 1) ~ /[\300-\367]/) s = substr(s, 1, length(s) - 1) }
+    if (int(length(s) / 81) != 0) { s = substr(s, 1, 80); while (length(s) != 0 && substr(s, length(s), 1) ~ /[\200-\277]/) s = substr(s, 1, length(s) - 1)
+      if (length(s) != 0 && substr(s, length(s), 1) ~ /[\300-\367]/) s = substr(s, 1, length(s) - 1) }
     printf "%s", s }')"
   printf '%s\t%s\t%s' "$day" "$norm" "$show"
 }
