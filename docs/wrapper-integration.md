@@ -190,7 +190,7 @@ At minimum, wrapper CI should:
 
 1. verify the pinned Core hashes and profile;
 2. regenerate the projection and fail on a diff;
-3. assert all 20 actions exist exactly once;
+3. assert all 23 actions exist exactly once;
 4. run Core's shared regression suite through the wrapper layout;
 5. test adapter-owned update and model-policy behavior;
 6. ensure installed runtime execution performs no Core network fetch;
@@ -317,7 +317,13 @@ Wrapper requirements:
    (assembled by `scripts/recap.sh`), plus the most recent *active*
    conversation file in full (other active ones by path only) — so the model
    continues after a `/clear`, an auto-compaction, or a resume instead of
-   asking the user to repeat themselves. Register it for exactly those three
+   asking the user to repeat themselves. After a clear (`source` is `clear`)
+   that conversation is printed as its last part only — 12,000 characters,
+   starting at a turn heading — with one line naming the full record file;
+   a clear is meant to empty the context, and the whole record would fill it
+   again. After a clear the recap from `scripts/recap.sh` is left out as well:
+   one line names the command that prints it. Compaction, resume and an
+   unknown `source` keep the recap and the whole text. Register it for exactly those three
    session starts (Claude Code: `SessionStart` with matcher
    `compact|clear|resume`) and **not** for a fresh session start: there the
    first prompt's preflight already carries the project state, and printing

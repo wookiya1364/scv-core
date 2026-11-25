@@ -1,6 +1,6 @@
 # 고르기 — 여럿 중 일부를 골라내거나 순서를 매긴다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 46개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 47개.
 
 ### attachment_scope_filter
 - 역할: 표준입력 줄들에서 슬러그가 든 줄만 남긴다 — 슬러그가 비면 전부 통과
@@ -223,6 +223,13 @@
 - 예: `$'a.md\tactive\t100\nb.md\tpromoted\t50' "" 200 300 → "a.md"`
 - 예: `$'a.md\tactive\t100' "" 1000 300 → ""`
 - 예: `$'a.md\tactive\t5\nb.md\tactive\t9\nc.md\tdone\t99' "" 0 0 → "b.md"`
+
+### scv_resume_pick_recent
+- 역할: 비운 뒤에 실을 대화 하나를 표시와 상관없이 고른다 — 기준 초 안에 손댄 것 가운데 가장 최근 것(동률이면 뒤 줄), 손댄 시각을 모르는 것은 고르지 않는다
+- 위치: scripts/lib/resume-recap.sh · @pure · sh
+- 예: `$'a.md\tactive\t100\nb.md\tpromoted\t150' 200 300 → "b.md"`
+- 예: `$'a.md\tpromoted\t100' 1000 300 → ""`
+- 예: `$'a.md\tpromoted\t0' 1000 300 → ""`
 
 ### scv_resume_stale
 - 역할: 표시가 active 인데 기준 초보다 오래 손대지 않은 대화의 경로들을 한 줄씩 낸다(고른 경로는 빼고) — 끝났을 가능성이 큰 대화

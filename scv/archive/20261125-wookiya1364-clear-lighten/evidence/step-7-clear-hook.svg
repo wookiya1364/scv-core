@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="200" viewBox="0 0 720 200" font-family="-apple-system, sans-serif">
+<rect width="720" height="200" fill="#fcfcfb"/>
+<text x="20" y="34" font-size="17" font-weight="500" fill="#0b0b0b">7단계 비운 뒤 훅 — 이 프로젝트에서 0.4초 만에 실은 글자 수</text>
+<text x="290" y="70" font-size="12" text-anchor="end" fill="#52514e">기록 끝부분 (22~29턴)</text>
+<rect x="300" y="56" width="265" height="16" rx="3" fill="#2a78d6"/>
+<text x="573" y="69" font-size="12" fill="#0b0b0b">11441</text>
+<text x="290" y="96" font-size="12" text-anchor="end" fill="#52514e">끝부분 한도</text>
+<rect x="300" y="82" width="278" height="16" rx="3" fill="#2a78d6"/>
+<text x="586" y="95" font-size="12" fill="#0b0b0b">12000</text>
+<text x="290" y="122" font-size="12" text-anchor="end" fill="#52514e">출력 전체</text>
+<rect x="300" y="108" width="300" height="16" rx="3" fill="#2a78d6"/>
+<text x="608" y="121" font-size="12" fill="#0b0b0b">12940</text>
+<text x="290" y="148" font-size="12" text-anchor="end" fill="#52514e">요약 묶음</text>
+<rect x="300" y="134" width="0" height="16" rx="3" fill="#2a78d6"/>
+<text x="308" y="147" font-size="12" fill="#0b0b0b">0</text>
+<text x="290" y="174" font-size="12" text-anchor="end" fill="#52514e">고치기 전 실린 글자</text>
+<rect x="300" y="160" width="0" height="16" rx="3" fill="#2a78d6"/>
+<text x="308" y="173" font-size="12" fill="#0b0b0b">0</text>
+</svg>
