@@ -2810,3 +2810,19 @@ merge_policy: preserve
 - verdict: not-needed
 - why: 사용자 결정(2026-11-25): 시작하지 않은 계획을 지움. 6단계 모두 손대지 않았고 코드 변경은 없음. 계획 글은 git 이력(2026-11-20 커밋)에 남아 있음.
 - path delta: as planned
+
+## [2026-11-25 08:08] wookiya1364 — 원칙 글도 맥락에 한 번만 — 판정을 지문 비교에서 맥락 표시로
+
+- verdict: adopted
+- why: 실제 세션 측정에서 원칙 글 전문이 한 줄 턴 108개 중 105개에 실려 턴 전체 글이 줄지 않았다. 원칙 글의 판정을 규칙 글과 같은 맥락 표시로 옮기고, 원칙 경고가 남은 턴과 초기화 뒤 첫 턴에만 전문을 다시 싣는다. 사용자 결정 2026-11-25(선택 창: 고치기).
+- discarded alternatives: 그대로 두기 — 매 턴 글이 평균 6 KB 쯤으로 남음. 다른 경고가 남은 턴에도 원칙 전문 싣기 — 경고 턴이 32% 라 줄어드는 폭이 작아짐.
+- refs: scv/promote/20261125-wookiya1364-principle-once-context/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
+
+## [2026-11-25 09:10] wookiya1364 — 원칙 글도 맥락에 한 번만 — 판정을 지문 비교에서 맥락 표시로 archived
+
+- verdict: archived
+- why: 원칙 글 전문을 '이 맥락에 실었다는 표시'로 판정하게 바꿈 — 첫 턴, 대화 초기화 뒤 첫 턴, 원칙 경고가 남은 턴에만 전문. 실제 세션 기록 재계산(276턴)에서 원칙 전문이 실린 턴 259 → 19, 턴 글 평균 6.2 → 4.3 KB. 재계산 값이라 릴리스 뒤 실제 세션으로 다시 재야 함. SCV_RULES_ONCE=off 는 이전의 지문 비교 그대로여야 하고, 출력을 버리는 호출(기어 턴)은 표시를 쓰지 않아야 함.
+- path delta: 계획에 없던 것 하나: 기어 턴은 훅이 등록 안내의 출력을 버리는데 그때 원칙 표시가 남으면 그 맥락에서 전문이 끝내 실리지 않아, 건너뛰는 인자(--no-principle)와 시험(test-gear-turn T7)을 더함. 새 순수 함수의 종류는 사전 한도(400줄) 때문에 판정/gate 로 둠
+- refs: scv/archive/20261125-wookiya1364-principle-once-context/PLAN.md
+- conversation: scv/conversations/20261124-200447-dashboard-gears-ask-mode.md
