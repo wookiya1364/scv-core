@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-24T23:01:05Z
+generated_at: 2026-11-25T00:09:56Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -651,3 +651,7 @@ archives:
     kind: feature
     status: testing
     epic: 20261124-gears
+  - slug: 20261125-wookiya1364-principle-once-context
+    title: "원칙 글도 맥락에 한 번만 — 판정을 지문 비교에서 맥락 표시로"
+    kind: feature
+    status: in_progress
