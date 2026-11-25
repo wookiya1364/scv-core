@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="148" viewBox="0 0 720 148" font-family="-apple-system, sans-serif">
+<rect width="720" height="148" fill="#fcfcfb"/>
+<text x="20" y="34" font-size="17" font-weight="500" fill="#0b0b0b">6단계 색인 거르기 — 실제 색인 282줄에서 걸린 초 (훅 제한 30초)</text>
+<text x="290" y="70" font-size="12" text-anchor="end" fill="#52514e">고치기 전 (274초에 멈춤 · 끝나지 않음)</text>
+<rect x="300" y="56" width="300" height="16" rx="3" fill="#2a78d6"/>
+<text x="608" y="69" font-size="12" fill="#0b0b0b">274</text>
+<text x="290" y="96" font-size="12" text-anchor="end" fill="#52514e">훅 제한</text>
+<rect x="300" y="82" width="32" height="16" rx="3" fill="#2a78d6"/>
+<text x="340" y="95" font-size="12" fill="#0b0b0b">30</text>
+<text x="290" y="122" font-size="12" text-anchor="end" fill="#52514e">고친 뒤 (두 셸 모두)</text>
+<rect x="300" y="108" width="1" height="16" rx="3" fill="#2a78d6"/>
+<text x="309" y="121" font-size="12" fill="#0b0b0b">0.04</text>
+</svg>

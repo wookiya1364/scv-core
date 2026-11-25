@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" width="640" height="300" role="img" font-family="-apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif">
+  <title>꼴 목록 다듬기 함수 — 입력 4배에 걸리는 시간의 배수, 고치기 전과 후</title>
+  <rect width="640" height="300" fill="#ffffff"/>
+  <text x="32" y="36" font-size="16" fill="#1f2328">꼴 목록 다듬기(scv_words_forms) — 입력이 4배가 될 때 시간은 몇 배가 되나</text>
+  <text x="32" y="58" font-size="12" fill="#57606a">계획 끝 측정 검사, 같은 명령 · bash 5.3 · 2026-11-25. 한도를 넘으면 검사가 실패한다.</text>
+  <line x1="170" y1="80" x2="170" y2="230" stroke="#d0d7de" stroke-width="1"/>
+  <line x1="170" y1="230" x2="600" y2="230" stroke="#d0d7de" stroke-width="1"/>
+  <text x="158" y="124" font-size="13" fill="#1f2328" text-anchor="end">고치기 전</text>
+  <rect x="170" y="100" width="387" height="36" rx="3" fill="#cf222e"/>
+  <text x="565" y="124" font-size="14" fill="#1f2328">9.0배</text>
+  <text x="182" y="124" font-size="12" fill="#ffffff">한도 넘음 — 조각마다 남은 글을 다시 복사</text>
+  <text x="158" y="184" font-size="13" fill="#1f2328" text-anchor="end">고친 뒤</text>
+  <rect x="170" y="160" width="155" height="36" rx="3" fill="#1a7f37"/>
+  <text x="333" y="184" font-size="14" fill="#1f2328">3.6배</text>
+  <text x="182" y="184" font-size="12" fill="#ffffff">쉼표에서 한 번만 나눔</text>
+  <line x1="342" y1="80" x2="342" y2="230" stroke="#57606a" stroke-width="1" stroke-dasharray="4 4"/>
+  <text x="346" y="92" font-size="11" fill="#57606a">입력과 같은 4배</text>
+  <text x="170" y="248" font-size="11" fill="#57606a">0</text>
+  <text x="342" y="248" font-size="11" fill="#57606a" text-anchor="middle">4</text>
+  <text x="514" y="248" font-size="11" fill="#57606a" text-anchor="middle">8</text>
+  <text x="32" y="280" font-size="12" fill="#57606a">결과는 그대로: 옛 함수와 6,536 가지 입력을 견줘 다른 것 0 (bash 3.2 · 5.3). 낱말 사전 시험은 두 셸에서 통과.</text>
+</svg>
