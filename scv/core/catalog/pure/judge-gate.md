@@ -1,6 +1,6 @@
 # 판정/gate — 훅이 막을지 · 넘길지 · 다시 물을지를 정한다
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 27개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 28개.
 
 ### scv_choice_gate
 - 역할: 묻는지 · 도구 이름 · 이미 전달 여부로 ok | block | warn 중 하나를 정한다 (도구가 없으면 늘 ok)
@@ -196,3 +196,14 @@
 - 예: `abc abc 1.0.0 1.0.0 → "skip:same"`
 - 예: `abc def 1.1.0 1.0.0 → "skip:backward"`
 - 예: `abc def 1.1.0 1.2.0 → "refresh"`
+
+### scv_wait_kind
+- 역할: 도구 입력이 앞에서 오래 기다리는 호출인지 가른다 — 긴 대기 값이면 wait, 뒤로 보내지 않은 셸 명령이 잠자기로 기다리면 sleep, 아니면 none
+- 위치: scripts/lib/wait-gate.sh · @pure · sh
+- 예: `200000 "" "" → "wait"`
+- 예: `5000 "" "" → "none"`
+- 예: `"" "" "sleep 120 && tail log" → "sleep"`
+- 예: `"" true "sleep 120 && tail log" → "none"`
+- 예: `"" "" "until grep -q DONE log; do sleep 15; done" → "sleep"`
+- 예: `"" "" "sleep 2; echo ok" → "none"`
+- 예: `"" "" "echo 잠자기 sleepy" → "none"`

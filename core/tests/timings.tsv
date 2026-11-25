@@ -126,3 +126,5 @@ core/tests/test-picture-rule.sh	20
 core/tests/test-choice-block.sh	12
 core/tests/test-gear-turn.sh	20
 core/tests/test-principle-once.sh	10
+core/tests/test-evidence-card.sh	3
+core/tests/test-guard-wait.sh	8
