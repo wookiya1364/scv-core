@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="174" viewBox="0 0 720 174" font-family="-apple-system, sans-serif">
+<rect width="720" height="174" fill="#fcfcfb"/>
+<text x="20" y="34" font-size="17" font-weight="500" fill="#0b0b0b">화면 없는 실행 한 번 — 진행을 묻는 같은 글의 두 번째(52초)</text>
+<text x="290" y="70" font-size="12" text-anchor="end" fill="#52514e">기어 질문(선택 창)</text>
+<rect x="300" y="56" width="0" height="16" rx="3" fill="#2a78d6"/>
+<text x="308" y="69" font-size="12" fill="#0b0b0b">0</text>
+<text x="290" y="96" font-size="12" text-anchor="end" fill="#52514e">적어 두기 실행</text>
+<rect x="300" y="82" width="300" height="16" rx="3" fill="#2a78d6"/>
+<text x="608" y="95" font-size="12" fill="#0b0b0b">1</text>
+<text x="290" y="122" font-size="12" text-anchor="end" fill="#52514e">답 끝의 이유 줄</text>
+<rect x="300" y="108" width="300" height="16" rx="3" fill="#2a78d6"/>
+<text x="608" y="121" font-size="12" fill="#0b0b0b">1</text>
+<text x="290" y="148" font-size="12" text-anchor="end" fill="#52514e">적힌 요청 수</text>
+<rect x="300" y="134" width="300" height="16" rx="3" fill="#2a78d6"/>
+<text x="608" y="147" font-size="12" fill="#0b0b0b">1</text>
+</svg>
