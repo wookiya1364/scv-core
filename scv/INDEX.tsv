@@ -286,3 +286,9 @@ decision	비우기로-줄인다-—-대화가-길어지�	scv/DECISIONS.md	35369
 decision	낱말-사전-피할-말과-그-계열의-말을-바꿔-말하기-명령-words-archived	scv/DECISIONS.md	354560	986	2026-11-25 22:50	[archived] 낱말 사전 — 피할 말과 그 계열의 말을 바꿔 말하기 (명령 words) archived
 decision	거울-창에서도-누른다-낱말-카드-archived	scv/DECISIONS.md	355546	801	2026-11-25 22:50	[archived] 거울 창에서도 누른다 · 낱말 카드 archived
 decision	비우기로-줄인다-요약-대신-비우고-기록의-끝부분으로-새로-시작-archived	scv/DECISIONS.md	356347	1220	2026-11-25 22:50	[archived] 비우기로 줄인다 — 요약 대신 비우고 기록의 끝부분으로 새로 시작 archived
+decision	원격-화면에도-비우기-전-직전-대화가-보인다	scv/DECISIONS.md	357567	798	2026-11-26 13:11	[adopted] 원격 화면에도 비우기 전 직전 대화가 보인다
+decision	원격-화면에도-비우기-전-직전-대화가-보인다-archived	scv/DECISIONS.md	358365	799	2026-11-26 13:18	[archived] 원격 화면에도 비우기 전 직전 대화가 보인다 archived
+decision	자동-비우기-기준을-프로젝트-설정에-저장하고-칸의-글을-세-줄로-줄인다	scv/DECISIONS.md	359164	1083	2026-11-26 13:43	[adopted] 자동 비우기 기준을 프로젝트 설정에 저장하고 칸의 글을 세 줄로 줄인다
+decision	자동-비우기-기준을-프로젝트-설정에-저장하고-칸의-글을-세-줄로-줄인다-archived	scv/DECISIONS.md	360247	1236	2026-11-26 13:55	[archived] 자동 비우기 기준을 프로젝트 설정에 저장하고 칸의 글을 세 줄로 줄인다 archived
+decision	맞는-기어가-있어도-반복을-알린다	scv/DECISIONS.md	361483	1179	2026-11-26 14:43	[adopted] 맞는 기어가 있어도 반복을 알린다
+decision	맞는-기어가-있어도-반복을-알린다-archived	scv/DECISIONS.md	362662	851	2026-11-26 14:53	[archived] 맞는 기어가 있어도 반복을 알린다 archived
