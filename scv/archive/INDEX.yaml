@@ -1,6 +1,6 @@
-# scv/archive/INDEX.yaml — auto-managed by action:work --archive and scripts/archive-index.sh (v0.11.0+).
+# scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-25T13:49:27Z
+generated_at: 2026-11-26T05:53:01Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -682,3 +682,15 @@ archives:
     kind: feature
     status: in_progress
     epic: 20261125-words
+  - slug: 20261126-wookiya1364-clear-mark-saved
+    title: "자동 비우기 기준을 프로젝트 설정에 저장하고 칸의 글을 세 줄로 줄인다"
+    kind: feature
+    status: testing
+  - slug: 20261126-wookiya1364-gear-notice-unmask
+    title: "맞는 기어가 있어도 반복을 알린다 — 새 기어 질문이 가려지지 않고, 일이 아닌 반복은 한 번만 알린다"
+    kind: feature
+    status: testing
+  - slug: 20261126-wookiya1364-remote-last-talk
+    title: "원격 화면에도 비우기 전 직전 대화가 보인다 — 저장되는 글에 줄인 직전 대화를 넣는다"
+    kind: feature
+    status: testing

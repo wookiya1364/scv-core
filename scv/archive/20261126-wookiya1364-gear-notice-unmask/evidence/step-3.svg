@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="122" viewBox="0 0 720 122" font-family="-apple-system, sans-serif">
+<rect width="720" height="122" fill="#fcfcfb"/>
+<text x="20" y="34" font-size="17" font-weight="500" fill="#0b0b0b">기어 설명 문서 — 반복 알림 대목이 가르는 경우 수</text>
+<text x="290" y="70" font-size="12" text-anchor="end" fill="#52514e">전(같은 일 · 다른 일)</text>
+<rect x="300" y="56" width="150" height="16" rx="3" fill="#2a78d6"/>
+<text x="458" y="69" font-size="12" fill="#0b0b0b">2</text>
+<text x="290" y="96" font-size="12" text-anchor="end" fill="#52514e">뒤(같은 일 · 일이 아님 · 다른 일 · 기어와 함께)</text>
+<rect x="300" y="82" width="300" height="16" rx="3" fill="#2a78d6"/>
+<text x="608" y="95" font-size="12" fill="#0b0b0b">4</text>
+</svg>

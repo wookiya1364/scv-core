@@ -2911,3 +2911,51 @@ merge_policy: preserve
 - path delta: 계획에 덧붙인 것: 6 · 7단계(비운 뒤 훅이 제한 시간을 넘기던 것 — 색인 거르기를 한 번 훑기로, 요약 묶음 생략, 최근 기록 싣기), 8단계(목록에 하위 작업을 싣고 끝난 일은 뺌), 9단계(비운 직후 마지막 대화를 대화창에 보임). 9단계는 알림 글로 넣었다가 데스크톱 앱이 그리지 않아 대시보드가 자기 명령의 출력 줄에 그리는 것으로 바꿨다. 하지 못한 것: 9단계를 대시보드 자체의 자동 비우기에서 보는 것, 턴 끝 탭 목록 읽기가 화면에 보이는지 — 사용자가 확인 없이 릴리스하기로 골랐다.
 - refs: scv/archive/20261125-wookiya1364-clear-lighten/PLAN.md
 - conversation: scv/conversations/20261125-214000-clear-real-app-fixes.md
+
+## [2026-11-26 13:11] wookiya1364 — 원격 화면에도 비우기 전 직전 대화가 보인다
+
+- verdict: adopted
+- why: 자동으로 비운 뒤 직전 대화가 호스트에만 보이고 원격에는 한 줄 안내만 보였다. 저장되는 글에 직전 대화마다 앞 150자 + 끝 150자를 넣는다 — 사용자가 선택 창에서 고름(2026-11-26).
+- discarded alternatives: 전부 저장 — Claude 가 긴 답 3개를 다시 읽어 비운 효과가 깎임 / 앞 300자만 — 끝의 다음 할 일과 확인 범위가 잘림 / 끝 300자만 — 맨 앞의 결론 줄이 잘림 / 그대로 두기 — 원격에서 직전 대화를 못 봄
+- refs: scv/promote/20261126-wookiya1364-remote-last-talk/PLAN.md
+- conversation: scv/conversations/20261125-214000-clear-real-app-fixes.md
+
+## [2026-11-26 13:18] wookiya1364 — 원격 화면에도 비우기 전 직전 대화가 보인다 archived
+
+- verdict: archived
+- why: 자동으로 비운 뒤 대화에 저장되는 출력 줄이 한 줄 안내 대신 줄인 직전 대화(대화마다 앞 150자 + 끝 150자)를 담는다. 모드가 화면에만 그리는 글은 호스트 앱 밖에서는 보이지 않으므로, 다른 화면에도 보여야 하는 것은 저장 글에 넣는다. 호스트 화면의 전체 글과 다른 명령의 출력 줄은 바뀌지 않아야 한다.
+- path delta: as planned — 다만 새 기억 자리 이름을 타입 목록에 넣는 한 줄이 더 들었다
+- refs: scv/archive/20261126-wookiya1364-remote-last-talk/PLAN.md
+- conversation: scv/conversations/20261125-214000-clear-real-app-fixes.md
+
+## [2026-11-26 13:43] wookiya1364 — 자동 비우기 기준을 프로젝트 설정에 저장하고 칸의 글을 세 줄로 줄인다
+
+- verdict: adopted
+- why: 기준(%)과 끄기/켜기를 프로젝트의 scv_settings.json 에 저장하고 화면을 새로 읽을 때마다 거기서 읽는다(값 없으면 켜짐 · 50%). 지금은 컴퓨터 전체에 한 칸뿐이라 비운 뒤 50% 로 돌아온다고 사용자가 알림. 저장 자리와 글 모양은 사용자가 선택 창에서 고름.
+- discarded alternatives: 기준(%)만 저장 — 끄기/켜기가 컴퓨터 한 칸에 남아 다른 세션이 바꾸면 같이 바뀜(사용자가 '둘 다 저장'을 고름) / 설명 한 줄 남기기 — 한 줄 더 길어짐(사용자가 '짧게 세 줄'을 고름) / 컴퓨터 보관 칸을 프로젝트별 칸으로 나누기 — 사용자가 설정 파일을 제안했고, 파일은 매번 다시 읽혀 원인과 무관하게 남음
+- refs: scv/promote/20261126-wookiya1364-clear-mark-saved/PLAN.md
+- conversation: scv/conversations/20261125-214000-clear-real-app-fixes.md
+
+## [2026-11-26 13:55] wookiya1364 — 자동 비우기 기준을 프로젝트 설정에 저장하고 칸의 글을 세 줄로 줄인다 archived
+
+- verdict: archived
+- why: 대시보드의 자동 비우기 기준(%)과 끄기/켜기는 이제 프로젝트의 scv_settings.json 두 키(SCV_CLEAR_PERCENT · SCV_CLEAR_AUTO)가 기준이다 — 화면을 새로 읽을 때마다 거기서 읽고, 누르면 SCV 의 설정 쓰기 명령으로 차례로 쓴다. 설정 파일이 있는 프로젝트는 컴퓨터 보관 칸의 값을 더는 읽지 않는다(값 없으면 켜짐 · 50%). 50% 로 돌아오던 직접 원인은 확인하지 못했다 — 파일은 매번 다시 읽히므로 원인과 무관하게 남는다.
+- path delta: 쓰기가 실패했을 때 컴퓨터 보관 칸에 쓰기로 계획했으나, 파일이 있는 프로젝트는 파일이 기준이라 그 값은 읽히지 않는다 — 알리기만 하고 다시 읽으면 파일의 값으로 돌아가게 바꿈. 시험은 scv-mods 저장소에서 직접 돌림(묶음 실행 도구는 이 저장소 기준이라 쓰지 않음).
+- refs: scv/archive/20261126-wookiya1364-clear-mark-saved/PLAN.md
+- conversation: scv/conversations/20261125-214000-clear-real-app-fixes.md
+
+## [2026-11-26 14:43] wookiya1364 — 맞는 기어가 있어도 반복을 알린다
+
+- verdict: adopted
+- why: 실제 프로젝트에서 되풀이한 일(서버 배포 4번)은 낱말이 겹치는 기어 알림에 가려 새 기어 질문이 한 번도 나오지 않았고, 반복 알림 5번은 모두 진행을 묻는 말에 나가 모델이 말없이 넘어갔다(세션 기록과 요청 54개로 확인). 기어가 맞아도 지난 요청을 함께 보고 한 줄에 알리며, 일이 아닌 반복은 만들지 않음으로 적고, 묻지 않았으면 이유를 한 줄로 알리게 한다.
+- discarded alternatives: 최소 길이를 18 → 24바이트로 올리기 — 진행 묻는 짧은 글은 빠지지만 짧은 일 요청(배포해 · 릴리스해 줘)의 반복도 같이 놓친다 / 진행을 묻는 낱말 목록으로 거르기 — 언어마다 목록이 필요하고 깨지기 쉽다 / 기어가 맞으면 지금처럼 반복을 보지 않기 — 비슷하지만 다른 기어가 새 기어 질문을 영영 가린다
+- refs: scv/promote/20261126-wookiya1364-gear-notice-unmask/PLAN.md
+- conversation: scv/conversations/20261125-214000-clear-real-app-fixes.md
+
+## [2026-11-26 14:53] wookiya1364 — 맞는 기어가 있어도 반복을 알린다 archived
+
+- verdict: archived
+- why: 기어 알림은 이제 기어와 지난 요청을 늘 함께 보고, 둘 다 있으면 한 줄에 잇는다(기어 먼저). 반복 꼬리는 세 갈래다 — 같은 일이면 묻고, 일을 시키는 글이 아니면 묻지 않고 적어 두고, 묻지 않았으면 이유를 답 끝에 한 줄로 알린다. 기어만 맞는 턴의 글과 겹치지 않는 턴의 출력은 전과 같아야 한다. 앞 계획의 측정에는 기어 사전이 있는 프로젝트가 없어 '낱말이 겹치는 다른 기어가 반복을 가린다'가 드러나지 않았다.
+- path delta: as planned
+- refs: scv/archive/20261126-wookiya1364-gear-notice-unmask/PLAN.md
+- conversation: scv/conversations/20261125-214000-clear-real-app-fixes.md
