@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>움직이는 SCV 창 — 견본</title>
+<style>
+:root{--surface-2:#ffffff;--surface-1:#faf9f5;--bg-neutral:#f0eee6;--border:rgba(0,0,0,.12);--border-strong:rgba(0,0,0,.22);--text-primary:#141413;--text-secondary:#5e5d59;--text-success:#2f7d32;--text-warning:#c98a12;--bg-success:#e3f1df;--bg-accent:#e6f1fb;--text-accent:#185fa5;--bg-pro:#eeedfe;--text-pro:#534ab7;--radius:8px}
+html,body{margin:0;padding:0;background:#faf9f5}
+body{font-family:-apple-system,"Apple SD Gothic Neo",sans-serif;font-size:16px;line-height:1.7;color:var(--text-primary);padding:12px;width:496px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+button{font:inherit;font-size:13px;background:transparent;border:0.5px solid var(--border-strong);border-radius:8px;padding:4px 12px;color:var(--text-primary)}
+</style>
+</head>
+<body>
+<style>
+.pn{position:relative;background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.me{border:1.5px solid #8b5cf6}
+.tg{font-size:11px;padding:1px 8px;border-radius:var(--radius);background:var(--bg-pro,var(--bg-accent));color:var(--text-pro,var(--text-accent));margin-right:6px}
+.tg.ok{background:var(--bg-success);color:var(--text-success)}
+.ttl{font-size:13px;font-weight:500;color:var(--text-primary)}
+.ln{margin-top:6px;font-size:13px;color:var(--text-primary)}
+.ky{display:inline-block;width:74px;font-size:12px;color:var(--text-secondary)}
+.bt{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+.nt{margin-top:8px;font-size:12px;color:var(--text-secondary)}
+.fl{margin:10px 0 0 7px;border-left:2px solid var(--border-strong);padding-left:18px;border-radius:0}
+.st{position:relative;height:50px;font-size:13px;line-height:1.4;color:var(--text-primary)}
+.st:last-child{height:36px}
+.dt{position:absolute;left:-26px;top:2px;width:14px;height:14px;border-radius:50%;box-sizing:border-box;border:2px solid var(--border-strong);background:var(--surface-2)}
+.rg{position:absolute;left:-26px;top:2px;width:14px;height:14px;border-radius:50%;background:var(--text-warning);opacity:0}
+.lt{position:absolute;left:-22px;top:6px;width:6px;height:6px;border-radius:50%;background:var(--text-success);opacity:0}
+.sm{display:block;font-size:12px;color:var(--text-secondary)}
+.st.s-done .dt{background:var(--text-success);border-color:var(--text-success)}
+.st.s-doing .dt{background:var(--text-warning);border-color:var(--text-warning)}
+.st.s-me .dt{background:#8b5cf6;border-color:#8b5cf6}
+.lv{margin-top:10px;font-size:12px;color:var(--text-secondary)}
+.pr{outline:2px solid #8b5cf6;outline-offset:1px}
+@keyframes pl{0%{transform:scale(1);opacity:.55}100%{transform:scale(2.6);opacity:0}}
+@keyframes tv{0%{transform:translateY(0);opacity:1}100%{transform:translateY(50px);opacity:0}}
+@keyframes si{0%{transform:translateY(-6px);opacity:0}100%{transform:translateY(0);opacity:1}}
+@keyframes pop{0%{transform:scale(.5)}100%{transform:scale(1)}}
+.mv .st.s-doing .rg{animation:pl 1.6s ease-out infinite}
+.mv .st.go .lt{animation:tv .7s ease-in 1}
+.mv .in{animation:si .35s ease-out 1}
+.mv .st.s-done .dt{animation:pop .3s ease-out 1}
+</style>
+<h2 class="sr-only">스스로 재생되는 SCV 창 견본. 맨 위 카드에서 요구를 확인하면 단계 흐름의 노드가 차례로 빛나며 넘어가고, 일이 끝나면 맨 위에 확인할 결과와 단추가 나타난다. 사람 차례일 때는 아무것도 움직이지 않는다.</h2>
+<div id="rt" style="background:var(--bg-neutral);border-radius:12px;padding:16px">
+<div style="max-width:440px;margin:0 auto">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+<span id="am" style="flex:1;font-size:12px;color:var(--text-secondary)">자동 재생 중</span>
+<button id="ab" style="font-size:12px">멈추고 직접 누르기</button>
+</div>
+<div id="rm" style="display:none;align-items:center;gap:8px;margin-bottom:10px">
+<span style="flex:1;font-size:12px;color:var(--text-secondary)">이 기기는 움직임 줄이기가 켜져 있어 움직임을 껐음</span>
+<button id="rb" style="font-size:12px">움직임 켜기</button>
+</div>
+<div id="top" class="pn me in">
+<div><span id="tag" class="tg">내 차례</span><span id="ttl" class="ttl">이렇게 이해했음 — 맞나요?</span></div>
+<div id="l1" class="ln"><span id="k1" class="ky">목표</span><span id="v1">보스가 10대에 죽게 체력을 맞춤</span></div>
+<div id="l2" class="ln"><span id="k2" class="ky">안 하는 것</span><span id="v2">카드 피해는 건드리지 않음</span></div>
+<div id="l3" class="ln"><span id="k3" class="ky">확인 방법</span><span id="v3">측정표에서 보스가 10대 안팎</span></div>
+<div class="bt"><button id="b1">맞음 — 시작</button><button id="b2">고칠 것 있음</button></div>
+<div id="hint" class="nt"></div>
+</div>
+<div class="pn">
+<div class="ttl">단계 흐름</div>
+<div class="fl">
+<div id="s1" class="st s-wait"><span class="dt"></span><span class="rg"></span><span class="lt"></span>1. 측정 도구 만들기<span id="m1" class="sm">대기</span></div>
+<div id="s2" class="st s-wait"><span class="dt"></span><span class="rg"></span><span class="lt"></span>2. 보스 체력 맞추기<span id="m2" class="sm">대기</span></div>
+<div id="s3" class="st s-wait"><span class="dt"></span><span class="rg"></span><span class="lt"></span>3. 결과 확인 받기<span id="m3" class="sm">대기</span></div>
+</div>
+<div id="live" class="lv">지금: 요구 확인을 기다리는 중 — 아무것도 움직이지 않음</div>
+</div>
+</div>
+</div>
+<script>
+(function(){
+var g=function(i){return document.getElementById(i)};
+var rt=g('rt'),rm=g('rm'),rb=g('rb'),am=g('am'),ab=g('ab');
+var top=g('top'),tag=g('tag'),ttl=g('ttl'),b1=g('b1'),b2=g('b2'),hint=g('hint'),live=g('live');
+var L=[g('l1'),g('l2'),g('l3')],K=[g('k1'),g('k2'),g('k3')],V=[g('v1'),g('v2'),g('v3')];
+var S=[g('s1'),g('s2'),g('s3')],M=[g('m1'),g('m2'),g('m3')];
+var mode='ask',auto=true,tm=[],iv=null;
+var COL={'s-done':'var(--text-success)','s-doing':'var(--text-warning)','s-me':'var(--text-pro,var(--text-accent))','s-wait':'var(--text-secondary)'};
+function later(f,ms){tm.push(setTimeout(f,ms))}
+function stopAll(){tm.forEach(clearTimeout);tm=[];if(iv){clearInterval(iv);iv=null}b1.classList.remove('pr')}
+function step(i,c,t,go){S[i].className='st '+c+(go?' go':'');M[i].textContent=t;M[i].style.color=COL[c]}
+function lines(rows){for(var i=0;i<3;i++){if(rows){L[i].style.display='';K[i].textContent=rows[i][0];V[i].textContent=rows[i][1]}else{L[i].style.display='none'}}}
+function card(m,me,tagText,ok,title,rows,l1,l2){mode=m;top.className='pn'+(me?' me':'');void top.offsetWidth;top.classList.add('in');tag.textContent=tagText;tag.className='tg'+(ok?' ok':'');ttl.textContent=title;lines(rows);hint.textContent='';b1.style.display=l1?'':'none';b2.style.display=l2?'':'none';if(l1)b1.textContent=l1;if(l2)b2.textContent=l2}
+function sched(){if(!auto)return;var m=mode,ms=m==='ask'?2600:m==='verify'?3200:m==='done'?2800:0;if(!ms)return;later(function(){if(!auto||mode!==m)return;if(m==='done'){reset();return}b1.classList.add('pr');later(function(){b1.classList.remove('pr');if(!auto||mode!==m)return;if(m==='ask')run();else approve()},450)},ms)}
+function setAuto(v){auto=v;am.textContent=v?'자동 재생 중':'직접 누르는 중';ab.textContent=v?'멈추고 직접 누르기':'자동 재생';if(v)sched();else b1.classList.remove('pr')}
+function reset(){stopAll();card('ask',true,'내 차례',false,'이렇게 이해했음 — 맞나요?',[['목표','보스가 10대에 죽게 체력을 맞춤'],['안 하는 것','카드 피해는 건드리지 않음'],['확인 방법','측정표에서 보스가 10대 안팎']],'맞음 — 시작','고칠 것 있음');step(0,'s-wait','대기');step(1,'s-wait','대기');step(2,'s-wait','대기');live.textContent='지금: 요구 확인을 기다리는 중 — 아무것도 움직이지 않음';sched()}
+function measure(label){var n=0;iv=setInterval(function(){n+=6;if(n>=100){n=100}live.textContent='지금: '+label+' · '+Math.round(n)+'/100판';if(n>=100){clearInterval(iv);iv=null;later(verify,350)}},170)}
+function run(){stopAll();card('work',false,'확인됨',true,'요구 확인됨 — 일하는 중',null,null,null);step(0,'s-doing','진행 중');live.textContent='지금: 측정 도구 만드는 중';later(function(){step(0,'s-done','완료',true);step(1,'s-doing','진행 중');measure('보스 측정 중')},2300)}
+function verify(){step(1,'s-done','완료',true);step(2,'s-me','내 차례 — 확인 대기');card('verify',true,'내 차례',false,'확인할 것 — 결과가 맞나요?',[['1번 보스','10대에 죽음'],['2번 보스','10대에 죽음'],['3번 보스','11대에 죽음']],'맞음','아님 — 다시');live.textContent='지금: 확인을 기다리는 중 — 아무것도 움직이지 않음';sched()}
+function approve(){stopAll();step(2,'s-done','확인됨');card('done',false,'끝',true,'확인됨 — 계획 종결',null,'처음부터 다시 보기',null);live.textContent='지금: 끝남';sched()}
+function reject(){stopAll();card('work',false,'받음',true,'고칠 것을 받음 — 그 단계만 다시 함',null,null,null);step(1,'s-doing','다시 하는 중');step(2,'s-wait','대기');measure('보스 다시 측정 중')}
+b1.addEventListener('click',function(){setAuto(false);if(mode==='ask')run();else if(mode==='verify')approve();else if(mode==='done')reset()});
+b2.addEventListener('click',function(){setAuto(false);if(mode==='ask'){hint.textContent='고칠 줄만 눌러서 그 줄만 다시 정하게 됨. 견본에서는 [맞음 — 시작]을 눌러 보세요.'}else if(mode==='verify'){reject()}});
+ab.addEventListener('click',function(){setAuto(!auto)});
+rb.addEventListener('click',function(){rt.classList.add('mv');rm.style.display='none'});
+if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches){rm.style.display='flex'}else{rt.classList.add('mv')}
+sched();
+})();
+</script>
+</body>
+</html>

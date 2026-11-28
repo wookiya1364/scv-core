@@ -2959,3 +2959,35 @@ merge_policy: preserve
 - path delta: as planned
 - refs: scv/archive/20261126-wookiya1364-gear-notice-unmask/PLAN.md
 - conversation: scv/conversations/20261125-214000-clear-real-app-fixes.md
+
+## [2026-11-27 10:44] wookiya1364 — SCV 창의 언어 설정 — 고른 언어로 창의 글 전부가 바뀐다
+
+- verdict: adopted
+- why: 창의 언어 칸이 프로젝트의 SCV 언어(SCV_LANG) 하나를 바꾼다 — 설정이 하나라 창의 글과 Claude 의 답이 함께 바뀐다. 지금 있는 한국어 글은 고치지 않고, 그린 글을 번역표로 바꾸는 단계 하나를 끝에 붙인다(지난 시험 265개를 고치지 않음).
+- discarded alternatives: 창 전용 언어 설정을 따로 둠 — 설정이 둘이 되어 헷갈림(사용자 선택) / 브랜치 바로 아래 자리 — 매번 보는 컨텍스트 · 사용 한도 줄이 밀림(사용자 선택) / 기타 언어는 영어로만 보임 · 번역 파일을 직접 넣음 — '전부 그 언어로'를 못 채움(사용자 선택) / 글이 있는 자리마다 번역 함수를 부름 — 390줄과 시험 1,462줄을 고쳐야 하고 계산 함수가 숨은 언어 값을 읽게 됨
+- refs: scv/promote/20261127-wookiya1364-dashboard-language-setting/PLAN.md
+- conversation: scv/conversations/20261127-103800-dashboard-language-setting.md
+
+## [2026-11-27 13:52] wookiya1364 — 비운 직후 할 일 목록이 다시 뜬다 — 대시보드가 짧은 글을 보내 Claude 가 목록 도구를 다시 부른다
+
+- verdict: adopted
+- why: 앱은 Claude 가 턴 안에서 목록 도구를 부를 때만 목록을 그린다(실험: 턴 밖 호출 2번은 성공했지만 화면에 안 그려짐, 턴 안 호출은 그려짐). 그래서 비운 직후 대시보드가 짧은 글로 턴을 시작해 Claude 가 목록을 다시 띄운다. 글은 SCV 의 자동 글 길로 보내 약 5초를 목표로 한다(포장의 태그 한 줄).
+- discarded alternatives: 직전 대화 줄 안에 글로 된 목록 묶음 — 사용자가 버림(실시간으로 바뀌는 것이 안 보임). 턴 밖에서 대시보드가 목록 도구를 직접 부르기 — 화면에 그려지지 않음. SCV 본체에 이 글만의 지름길 — 1초쯤 더 줄지만 본체 릴리스 순서를 다 거쳐야 해서, 실제 시간을 측정한 뒤로 미룸.
+- refs: scv/promote/20261127-wookiya1364-clear-repin-task-list/PLAN.md
+- conversation: scv/conversations/20261127-111317-last-talk-now-doing.md
+
+## [2026-11-27 20:54] wookiya1364 — SCV 창이 움직이고, 내 차례를 카드로 알리고, 두 일을 동시에 보인다 — 한 계획 17단계
+
+- verdict: adopted
+- why: 사용자가 움직임 · 내 차례 카드 · 두 일을 동시에(SCV 본체의 가르기와 합치기 + 창의 나란한 모습)를 한 계획으로 정함. 화면에 그릴 값을 내는 기능이 먼저 있어야 해서 본체 기능을 같은 계획에 넣음. 실제 앱에서 확인되지 않은 것 셋을 맨 앞 시험으로 두고, 안 되는 것이 나오면 그 묶음 앞에서 멈춤
+- discarded alternatives: 작은 계획 둘로 나누기(움직임 → 내 차례 카드) — 권했으나 사용자가 한 계획을 고름 / 두 일을 동시에 를 따로 계획하기 — 권했으나 사용자가 이 계획에 넣기로 함 / 두 일을 동시에 의 화면만 먼저 만들기 — 진짜 값이 없어 견본 값으로 채우게 됨 / 에이전트의 대화 내용을 창에 흘려 보여 주기 — 지금 하는 일 한 줄로 대신함
+- refs: scv/promote/20261127-wookiya1364-dashboard-motion-cards-two-jobs/PLAN.md
+- conversation: scv/conversations/20261127-203122-animated-dashboard.md
+
+## [2026-11-28 10:10] wookiya1364 — SCV 창이 움직이고, 내 차례를 카드로 알리고, 두 일을 동시에 보인다 archived
+
+- verdict: archived
+- why: SCV 창(대시보드 0.8.0)이 움직임으로 상태를 알리고(번지는 점 = 일하는 중, 내려가는 빛 = 단계 끝, 멈춤 = 내 차례), 열린 질문을 맨 위의 카드로 띄워 단추로 답하게 하고, 본체(0.106.0)가 목표가 다르고 고칠 파일이 겹치지 않는 두 일을 갈라 동시에 하게 한다(plan-link.sh split · join — 가를 때 적어 둔 확인 결과와 합친 뒤의 결과를 비교). 배운 것: 승낙받은 견본이 명세다(글만 보는 시험은 모습이 달라도 통과한다), 고치기 전에 계획의 지킬 것을 다시 읽는다, 셸에서 글을 줄마다 다시 지을 때는 덧붙이기로 붙인다. 깨지면 안 되는 것: 움직임을 끈 그림은 예전과 글자까지 같다, 멈추고 돌아오기(pause · resume · check-before · check-after)의 출력과 종료 코드, 같은 파일을 고치는 두 일은 가르지 않는다
+- path delta: 17단계로 세웠으나 25단계로 끝남: 실제 창을 본 사용자가 두 일 화면이 승낙한 견본과 다르다고 해 18 ~ 21단계(견본대로 다시 그림 · 카드 정리 · 실제 창 확인)를, 선과 꼭짓점 · 이름표 · 두 칸의 단계 누르기를 알려 22 ~ 24단계를 더했고, 계획 끝의 속도 검사에 걸린 합침 기록 함수를 25단계에서 고쳤다. 움직임은 SMIL 이 아니라 CSS 로 그렸다(1단계의 실제 창 시험에서 SMIL 의 빛이 그려지지 않음)
+- refs: scv/archive/20261127-wookiya1364-dashboard-motion-cards-two-jobs/PLAN.md
+- conversation: scv/conversations/20261127-203122-animated-dashboard.md

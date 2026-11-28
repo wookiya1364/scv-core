@@ -1,6 +1,6 @@
 # scv/archive/INDEX.yaml — auto-managed by /scv:work --archive and scripts/archive-index.sh (v0.11.0+).
 # Do not edit manually. Regenerated on every archive and on every obsolete marking.
-generated_at: 2026-11-26T05:53:01Z
+generated_at: 2026-11-28T01:09:28Z
 archives:
   - slug: 20260804-wookiya1364-team-journal
     title: "전면 기록화 — 작성자 귀속 journal + DECISIONS + TODO + 호스트 훅"
@@ -694,3 +694,7 @@ archives:
     title: "원격 화면에도 비우기 전 직전 대화가 보인다 — 저장되는 글에 줄인 직전 대화를 넣는다"
     kind: feature
     status: testing
+  - slug: 20261127-wookiya1364-dashboard-motion-cards-two-jobs
+    title: "SCV 창이 움직이고, 내 차례를 카드로 알리고, 두 일을 동시에 보인다"
+    kind: feature
+    status: in_progress

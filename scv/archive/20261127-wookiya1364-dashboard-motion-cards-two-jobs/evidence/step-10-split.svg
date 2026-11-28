@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="174" viewBox="0 0 720 174" font-family="-apple-system, sans-serif">
+<rect width="720" height="174" fill="#fcfcfb"/>
+<text x="20" y="34" font-size="17" font-weight="500" fill="#0b0b0b">두 일을 가른다 — 본체의 계획 시험</text>
+<text x="290" y="70" font-size="12" text-anchor="end" fill="#52514e">가르기 시험 통과(T20 · T21)</text>
+<rect x="300" y="56" width="300" height="16" rx="3" fill="#2a78d6"/>
+<text x="608" y="69" font-size="12" fill="#0b0b0b">2</text>
+<text x="290" y="96" font-size="12" text-anchor="end" fill="#52514e">실패</text>
+<rect x="300" y="82" width="0" height="16" rx="3" fill="#2a78d6"/>
+<text x="308" y="95" font-size="12" fill="#0b0b0b">0</text>
+<text x="290" y="122" font-size="12" text-anchor="end" fill="#52514e">따로 만든 폴더</text>
+<rect x="300" y="108" width="150" height="16" rx="3" fill="#2a78d6"/>
+<text x="458" y="121" font-size="12" fill="#0b0b0b">1</text>
+<text x="290" y="148" font-size="12" text-anchor="end" fill="#52514e">원래 폴더에서 바뀐 파일</text>
+<rect x="300" y="134" width="0" height="16" rx="3" fill="#2a78d6"/>
+<text x="308" y="147" font-size="12" fill="#0b0b0b">0</text>
+</svg>
