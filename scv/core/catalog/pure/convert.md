@@ -1,6 +1,6 @@
 # 변환 — 한 표기를 다른 표기로 바꾼다 — 경로 · 날짜 · 단위 · 인코딩
 
-> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 40개.
+> 생성물 — 원본은 각 함수 위 주석(역할 · 종류 · 예). 42개.
 
 ### below_raw_root
 - 역할: 경로에서 원자료 폴더 뿌리까지를 떼어 낸다 — 뿌리 아래 마디만 연결 검사를 하려고
@@ -168,6 +168,12 @@
 - 예: `$'---\nstatus: planned\n---\n# b' "a" "결제 화면" "2026-11-09" "다른 목표" → $'---\nstatus: planned\nreturn_to: a\n---\n# b\n\n## 변경 이력\n\n- **2026-11-09 연결** — 끝나면 돌아갈 계획: 결제 화면\n  - 이유: 다른 목표'`
 - 예: `"# b" "a" "a" "2026-11-09" "x" → $'# b\n\n## 변경 이력\n\n- **2026-11-09 연결** — 끝나면 돌아갈 계획: a\n  - 이유: x'`
 
+### scv_plan_mark_join
+- 역할: 계획 글에 합침을 적는다 — split_* 칸을 지우고 joined_with · joined_on 칸(달라진 결과가 있으면 joined_changed, 가른 단계가 있던 계획에는 joined_at 칸도)과 변경 이력 "합침" 사건 하나(함께 한 일 제목 · 같은 줄 충돌 없음 · 달라진 결과)를 둔다
+- 위치: scripts/lib/plan-link.sh · @pure · sh
+- 예: `$'---\nstatus: in_progress\nsplit_with: b\nsplit_on: 2026-11-09 10:30\nsplit_at: 2\nsplit_dir: /w\nsplit_branch: s\nsplit_base: abc\n---\n# a' "b" "피해" "2026-11-09 11:00" "보스 10 → 5" → $'---\nstatus: in_progress\njoined_with: b\njoined_on: 2026-11-09 11:00\njoined_changed: 보스 10 → 5\njoined_at: 2\n---\n# a\n\n## 변경 이력\n\n- **2026-11-09 합침** — 함께 한 일: 피해\n  - 합친 때: 11:00\n  - 같은 줄 충돌 없음\n  - 달라진 결과 1개: 보스 10 → 5'`
+- 예: `$'---\nstatus: planned\nsplit_with: a\nsplit_on: 2026-11-09 10:30\n---\n# b' "a" "체력" "2026-11-09 11:00" "" → $'---\nstatus: planned\njoined_with: a\njoined_on: 2026-11-09 11:00\n---\n# b\n\n## 변경 이력\n\n- **2026-11-09 합침** — 함께 한 일: 체력\n  - 합친 때: 11:00\n  - 같은 줄 충돌 없음\n  - 달라진 결과 없음'`
+
 ### scv_plan_mark_pause
 - 역할: 계획 A 를 보류로 바꾼다 — status: paused · paused_by · resume_at 칸과 변경 이력 "보류" 사건 하나(먼저 할 계획 제목 · 다시 시작 단계 · 이유)
 - 위치: scripts/lib/plan-link.sh · @pure · sh
@@ -179,6 +185,12 @@
 - 위치: scripts/lib/plan-link.sh · @pure · sh
 - 예: `$'---\nstatus: paused\npaused_by: b\nresume_at: 2\n---\n# a' "로그 정리" "2026-11-10" → $'---\nstatus: in_progress\n---\n# a\n\n## 변경 이력\n\n- **2026-11-10 재개** — 끝난 계획: 로그 정리\n  - 다시 시작: 2단계부터'`
 - 예: `$'---\nstatus: paused\n---\n# a' "b" "2026-11-10" → $'---\nstatus: in_progress\n---\n# a\n\n## 변경 이력\n\n- **2026-11-10 재개** — 끝난 계획: b\n  - 다시 시작: 1단계부터'`
+
+### scv_plan_mark_split
+- 역할: 계획 글에 가름을 적는다 — split_with · split_on 칸과 변경 이력 "가름" 사건 하나. 따로 만든 폴더로 가는 계획(자리를 넘겨받음)에는 split_at · split_dir · split_branch · split_base 칸도 적는다
+- 위치: scripts/lib/plan-link.sh · @pure · sh
+- 예: `$'---\nstatus: in_progress\n---\n# a' "b" "피해" 2 "2026-11-09 10:30" "다른 목표" "/w/r.split-a" "scv-split/a" "abc" → $'---\nstatus: in_progress\nsplit_with: b\nsplit_on: 2026-11-09 10:30\nsplit_at: 2\nsplit_dir: /w/r.split-a\nsplit_branch: scv-split/a\nsplit_base: abc\n---\n# a\n\n## 변경 이력\n\n- **2026-11-09 가름** — 함께 하는 일: 피해\n  - 가른 단계: 2단계\n  - 갈라진 때: 10:30\n  - 이 일의 자리: 따로 만든 폴더 /w/r.split-a\n  - 이유: 다른 목표'`
+- 예: `$'---\nstatus: planned\n---\n# b' "a" "체력" 2 "2026-11-09 10:30" "다른 목표" → $'---\nstatus: planned\nsplit_with: a\nsplit_on: 2026-11-09 10:30\n---\n# b\n\n## 변경 이력\n\n- **2026-11-09 가름** — 함께 하는 일: 체력\n  - 갈라진 때: 10:30\n  - 이 일의 자리: 원래 폴더\n  - 이유: 다른 목표'`
 
 ### scv_plan_shift_progress
 - 역할: 단계를 after 번 뒤에 끼운 뒤, 변경 이력의 진행 줄("- **날짜 진행** — M단계 …")에서 M 이 after 보다 크면 M+1 로 민다 — 옛 진행 기록이 새 단계에 붙지 않게(0.87.4). 진행 줄이 아닌 줄은 그대로
