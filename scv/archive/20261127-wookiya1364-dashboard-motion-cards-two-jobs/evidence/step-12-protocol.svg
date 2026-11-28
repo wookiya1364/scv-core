@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="174" viewBox="0 0 720 174" font-family="-apple-system, sans-serif">
+<rect width="720" height="174" fill="#fcfcfb"/>
+<text x="20" y="34" font-size="17" font-weight="500" fill="#0b0b0b">일하는 절차에 가르기 · 합치기를 적은 뒤 — 본체 전체 시험</text>
+<text x="290" y="70" font-size="12" text-anchor="end" fill="#52514e">통과</text>
+<rect x="300" y="56" width="81" height="16" rx="3" fill="#2a78d6"/>
+<text x="389" y="69" font-size="12" fill="#0b0b0b">129</text>
+<text x="290" y="96" font-size="12" text-anchor="end" fill="#52514e">부하로 시간 한도를 넘긴 시험(혼자 돌려 통과)</text>
+<rect x="300" y="82" width="1" height="16" rx="3" fill="#2a78d6"/>
+<text x="309" y="95" font-size="12" fill="#0b0b0b">1</text>
+<text x="290" y="122" font-size="12" text-anchor="end" fill="#52514e">함수 사전의 함수</text>
+<rect x="300" y="108" width="300" height="16" rx="3" fill="#2a78d6"/>
+<text x="608" y="121" font-size="12" fill="#0b0b0b">473</text>
+<text x="290" y="148" font-size="12" text-anchor="end" fill="#52514e">예시가 틀린 함수</text>
+<rect x="300" y="134" width="0" height="16" rx="3" fill="#2a78d6"/>
+<text x="308" y="147" font-size="12" fill="#0b0b0b">0</text>
+</svg>

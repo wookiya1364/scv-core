@@ -292,3 +292,7 @@ decision	자동-비우기-기준을-프로젝트-설정에-저장하고-칸의-�
 decision	자동-비우기-기준을-프로젝트-설정에-저장하고-칸의-글을-세-줄로-줄인다-archived	scv/DECISIONS.md	360247	1236	2026-11-26 13:55	[archived] 자동 비우기 기준을 프로젝트 설정에 저장하고 칸의 글을 세 줄로 줄인다 archived
 decision	맞는-기어가-있어도-반복을-알린다	scv/DECISIONS.md	361483	1179	2026-11-26 14:43	[adopted] 맞는 기어가 있어도 반복을 알린다
 decision	맞는-기어가-있어도-반복을-알린다-archived	scv/DECISIONS.md	362662	851	2026-11-26 14:53	[archived] 맞는 기어가 있어도 반복을 알린다 archived
+decision	scv-창의-언어-설정-고른-언어로-창의-글-전부가-바뀐다	scv/DECISIONS.md	363513	1132	2026-11-27 10:44	[adopted] SCV 창의 언어 설정 — 고른 언어로 창의 글 전부가 바뀐다
+decision	비운-직후-할-일-목록이-다시-뜬다-대시보드가-짧은-글을-보내-claude-가-목록-도	scv/DECISIONS.md	364645	1133	2026-11-27 13:52	[adopted] 비운 직후 할 일 목록이 다시 뜬다 — 대시보드가 짧은 글을 보내 Claude 가 목록 도구를 다시 부른다
+decision	scv-창이-움직이고-내-차례를-카드로-알리고-두-일을-동시에-보인다-—-한-계획-17	scv/DECISIONS.md	365778	1196	2026-11-27 20:54	[adopted] SCV 창이 움직이고, 내 차례를 카드로 알리고, 두 일을 동시에 보인다 — 한 계획 17단계
+decision	scv-창이-움직이고-내-차례를-카드로-알리고-두-일을-동시에-보인다-archived	scv/DECISIONS.md	366974	1779	2026-11-28 10:10	[archived] SCV 창이 움직이고, 내 차례를 카드로 알리고, 두 일을 동시에 보인다 archived
